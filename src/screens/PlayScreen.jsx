@@ -222,7 +222,7 @@ export default function PlayScreen({
         inset-y-0 left-0 z-35 w-76 border-r border-slate-900 p-4 flex flex-col justify-between transition-transform duration-300
         ${isDesktopLayout 
           ? 'relative w-68 lg:w-76 bg-slate-900/40 translate-x-0' 
-          : `fixed bg-slate-900/95 ${isStatsOpen ? 'translate-x-0' : '-translate-x-full'}`
+          : `absolute bg-slate-900/95 ${isStatsOpen ? 'translate-x-0' : '-translate-x-full'}`
         }
       `}>
         <div className="space-y-6 flex-1 overflow-y-auto custom-scrollbar pr-1 pb-4">
@@ -859,7 +859,7 @@ export default function PlayScreen({
       {isStatsOpen && (
         <div
           onClick={() => setIsStatsOpen(false)}
-          className={`fixed inset-0 z-20 bg-black/60 ${isDesktopLayout ? 'hidden' : ''}`}
+          className={`absolute inset-0 z-20 bg-black/60 ${isDesktopLayout ? 'hidden' : ''}`}
         />
       )}
 
@@ -1273,7 +1273,7 @@ export default function PlayScreen({
 
       {/* ----------------- MILESTONE LEVEL UP SCREEN OVERLAY ----------------- */}
       {isUpgradeScreenVisible && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md p-4 overflow-y-auto">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md p-4 overflow-y-auto">
           <div className="w-full max-w-lg rounded-lg border-2 border-emerald-500 bg-slate-900 p-6 shadow-2xl shadow-emerald-500/20 text-left relative animate-scaleUp">
             
             <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500" />
@@ -1402,7 +1402,7 @@ export default function PlayScreen({
         });
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md p-4 overflow-y-auto">
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md p-4 overflow-y-auto">
             <div className="w-full max-w-4xl rounded-lg border-2 border-amber-500 bg-slate-900 p-6 shadow-2xl shadow-amber-500/20 text-left relative flex flex-col h-[85vh] max-h-[750px] animate-scaleUp">
               
               {/* Header border */}

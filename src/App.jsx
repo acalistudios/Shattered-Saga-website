@@ -439,7 +439,7 @@ function App() {
       </div>
 
       {/* Main App Content Viewport */}
-      <div className="flex-1 flex flex-col overflow-hidden w-full h-full">
+      <div className="flex-1 flex flex-col overflow-hidden w-full h-full relative">
         {showMobileFrame ? (
           <div className="w-full h-full flex items-center justify-center bg-slate-900/40 p-4">
             <div className="w-[375px] h-[780px] rounded-[36px] border-[8px] border-slate-800 bg-slate-950 shadow-2xl relative overflow-hidden flex flex-col">

@@ -87,7 +87,7 @@ export default function GMSelection({
       </div>
 
       {/* Main Selection Body */}
-      <div className="flex-1 flex flex-col justify-center items-center py-4">
+      <div className="flex-1 flex flex-col justify-start items-center py-4 my-auto">
         <h2 className="text-2xl font-bold text-center text-amber-100 mb-2">
           Choose Your Game Master
         </h2>

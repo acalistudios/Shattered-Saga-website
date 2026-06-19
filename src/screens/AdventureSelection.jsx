@@ -63,7 +63,7 @@ export default function AdventureSelection({
       </div>
 
       {/* Main Container */}
-      <div className="flex-1 flex flex-col justify-center items-center py-4">
+      <div className="flex-1 flex flex-col justify-start items-center py-4 my-auto">
         <h2 className="text-2xl font-bold text-center text-amber-100 mb-2">
           Where shall your saga lead?
         </h2>

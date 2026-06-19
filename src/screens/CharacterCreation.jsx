@@ -944,7 +944,7 @@ export default function CharacterCreation({ onCreateCharacter, onBack, layoutMod
 
       {/* Interactive Help Modal Dialog */}
       {activeInfo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs transition-opacity duration-300">
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs transition-opacity duration-300">
           <div className="fantasy-panel-gold rounded-xl p-6 max-w-sm w-full relative space-y-4 shadow-2xl border border-amber-500/30">
             <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-amber-500/30"></div>
             <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-amber-500/30"></div>
@@ -981,7 +981,7 @@ export default function CharacterCreation({ onCreateCharacter, onBack, layoutMod
         });
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md p-4 overflow-y-auto">
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md p-4 overflow-y-auto">
             <div className="w-full max-w-4xl rounded-lg border-2 border-amber-500 bg-slate-900 p-6 shadow-2xl shadow-amber-500/20 text-left relative flex flex-col h-[85vh] max-h-[750px] animate-scaleUp">
               
               {/* Header border */}

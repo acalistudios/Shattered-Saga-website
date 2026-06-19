@@ -181,7 +181,7 @@ export default function SettingsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto">
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto">
       <div className="w-full max-w-lg rounded-lg border border-amber-500/30 bg-slate-900 p-6 shadow-2xl shadow-amber-500/10 relative text-left">
         
         <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-violet-500 via-amber-500 to-emerald-500 rounded-t-lg" />
