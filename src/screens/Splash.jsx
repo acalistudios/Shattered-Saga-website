@@ -540,8 +540,8 @@ export default function Splash({
       layoutMode === 'desktop' ? 'max-w-4xl' : 'max-w-lg'
     }`}>
       
-      {/* Inner centering block with my-auto prevents centering scroll clip bug */}
-      <div className="w-full my-auto flex flex-col items-center justify-center py-4">
+      {/* Inner centering block with min-h-full prevents centering scroll clip bug */}
+      <div className="w-full min-h-full flex flex-col items-center justify-center py-4">
         
         {/* Branding Header Banner */}
         <div className={`w-full mb-6 ${layoutMode === 'desktop' ? 'max-w-2xl' : 'max-w-lg'}`}>
