@@ -102,16 +102,123 @@ function App() {
     }
   }, [username]);
 
-  const handleSocialLogin = (profileName) => {
-    storage.set('shattered_username', profileName);
-    setUsername(profileName);
-    setIsLoggedIn(true);
+  // Parse Supabase OAuth redirect URL hash on boot
+  useEffect(() => {
+    const parseOAuthHash = async () => {
+      const hash = window.location.hash;
+      if (hash) {
+        const params = new URLSearchParams(hash.replace('#', '?'));
+        const accessToken = params.get('access_token');
+        const errorDescription = params.get('error_description');
+        
+        if (accessToken) {
+          storage.set('supabase_session_token', accessToken);
+          // Clear hash from address bar immediately
+          window.history.replaceState(null, null, window.location.pathname + window.location.search);
+          
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+          const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+          
+          if (supabaseUrl && supabaseAnonKey) {
+            try {
+              const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+                headers: {
+                  'apikey': supabaseAnonKey,
+                  'Authorization': `Bearer ${accessToken}`
+                }
+              });
+              if (res.ok) {
+                const userData = await res.json();
+                if (userData && userData.email) {
+                  storage.set('shattered_email', userData.email);
+                  const newUsername = userData.email.split('@')[0];
+                  storage.set('shattered_username', newUsername);
+                  
+                  // Update local state
+                  setUsername(newUsername);
+                  setIsLoggedIn(true);
+                  
+                  // Notify useGameState to fetch user profile
+                  window.dispatchEvent(new Event('shattered_auth_update'));
+                }
+              }
+            } catch (err) {
+              console.error("Error retrieving user details from Supabase OAuth:", err);
+            }
+          }
+        } else if (errorDescription) {
+          console.error("OAuth error:", errorDescription);
+          alert(`Authentication failed: ${errorDescription}`);
+        }
+      }
+    };
+    
+    parseOAuthHash();
+  }, []);
+
+  const handleSocialLogin = (provider) => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+    
+    const isOAuthProvider = ['google', 'facebook', 'apple'].includes(provider);
+    if (!isOAuthProvider) {
+      // Guest / Sandbox Login
+      const email = 'guest-adventurer@shatteredsaga.com';
+      const displayName = provider; // e.g., 'Guest_Adventurer'
+      
+      storage.set('shattered_email', email);
+      storage.set('shattered_username', displayName);
+      
+      const mockProfile = storage.get(`mock_supabase_profile_${email}`, {
+        email: email,
+        energy_balance: 100,
+        subscription_tier: 'free',
+        subscription_status: 'none'
+      });
+      storage.set(`mock_supabase_profile_${email}`, mockProfile);
+      storage.set('supabase_session_token', `mock-session-token-for-${email}`);
+      
+      setUsername(displayName);
+      setIsLoggedIn(true);
+      window.dispatchEvent(new Event('shattered_auth_update'));
+      return;
+    }
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      // Simulation/Sandbox Mode: Mock login based on provider
+      const email = `${provider}-hero@shatteredsaga.com`;
+      const displayName = `${provider.charAt(0).toUpperCase() + provider.slice(1)}_Saga_Hero`;
+      
+      storage.set('shattered_email', email);
+      storage.set('shattered_username', displayName);
+      
+      const mockProfile = storage.get(`mock_supabase_profile_${email}`, {
+        email: email,
+        energy_balance: 100,
+        subscription_tier: 'free',
+        subscription_status: 'none'
+      });
+      storage.set(`mock_supabase_profile_${email}`, mockProfile);
+      storage.set('supabase_session_token', `mock-oauth-token-for-${email}`);
+      
+      setUsername(displayName);
+      setIsLoggedIn(true);
+      window.dispatchEvent(new Event('shattered_auth_update'));
+    } else {
+      // Real Supabase OAuth Redirect
+      const redirectTo = window.location.origin;
+      const authorizeUrl = `${supabaseUrl}/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(redirectTo)}`;
+      window.location.href = authorizeUrl;
+    }
   };
 
   const handleLogout = () => {
     storage.remove('shattered_username');
+    storage.remove('shattered_email');
+    storage.remove('supabase_session_token');
     setIsLoggedIn(false);
     setUsername('');
+    window.dispatchEvent(new Event('shattered_auth_update'));
   };
 
   const handleSpendGem = () => {
