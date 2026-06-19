@@ -160,7 +160,7 @@ function App() {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
     
-    const isOAuthProvider = ['google', 'facebook', 'apple'].includes(provider);
+    const isOAuthProvider = ['google', 'facebook'].includes(provider);
     if (!isOAuthProvider) {
       // Guest / Sandbox Login
       const email = 'guest-adventurer@shatteredsaga.com';
