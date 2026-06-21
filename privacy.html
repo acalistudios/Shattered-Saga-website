@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — Shattered Saga</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  
+  <!-- Google Fonts: Cinzel for headers, Outfit for body text -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;800&family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --color-bg: #020617; /* slate-950 */
+      --color-panel: #0b1329; /* slate-900/60 */
+      --color-gold: #f59e0b; /* amber-500 */
+      --color-gold-glow: rgba(245, 158, 11, 0.15);
+      --color-text-primary: #e2e8f0; /* slate-200 */
+      --color-text-secondary: #94a3b8; /* slate-400 */
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--color-bg);
+      color: var(--color-text-primary);
+      font-family: 'Outfit', sans-serif;
+      line-height: 1.6;
+      padding: 2rem 1rem;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 800px;
+      background: var(--color-panel);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      border-radius: 12px;
+      padding: 2.5rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px var(--color-gold-glow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Decorative Gold Corners */
+    .container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 12px;
+      height: 12px;
+      border-top: 2px solid var(--color-gold);
+      border-l: 2px solid var(--color-gold);
+      opacity: 0.5;
+    }
+    .container::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 12px;
+      height: 12px;
+      border-top: 2px solid var(--color-gold);
+      border-right: 2px solid var(--color-gold);
+      opacity: 0.5;
+    }
+    .corner-bottom-left {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 12px;
+      height: 12px;
+      border-bottom: 2px solid var(--color-gold);
+      border-l: 2px solid var(--color-gold);
+      opacity: 0.5;
+    }
+    .corner-bottom-right {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 12px;
+      height: 12px;
+      border-bottom: 2px solid var(--color-gold);
+      border-right: 2px solid var(--color-gold);
+      opacity: 0.5;
+    }
+
+    h1 {
+      font-family: 'Cinzel', serif;
+      color: var(--color-gold);
+      font-size: 2.2rem;
+      text-align: center;
+      margin-bottom: 0.5rem;
+      letter-spacing: 1px;
+      text-shadow: 0 2px 10px rgba(245, 158, 11, 0.2);
+    }
+
+    .last-updated {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--color-text-secondary);
+      margin-bottom: 2rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      border-bottom: 1px solid rgba(245, 158, 11, 0.15);
+      padding-bottom: 1rem;
+    }
+
+    h2 {
+      font-family: 'Cinzel', serif;
+      color: #fcd34d; /* amber-300 */
+      font-size: 1.3rem;
+      margin-top: 2rem;
+      margin-bottom: 0.75rem;
+      border-bottom: 1px solid rgba(245, 158, 11, 0.1);
+      padding-bottom: 0.25rem;
+    }
+
+    p {
+      color: var(--color-text-primary);
+      margin-bottom: 1.25rem;
+      font-size: 0.95rem;
+      font-weight: 300;
+    }
+
+    ul {
+      margin-left: 1.5rem;
+      margin-bottom: 1.25rem;
+      list-style-type: square;
+    }
+
+    li {
+      color: var(--color-text-primary);
+      margin-bottom: 0.5rem;
+      font-size: 0.95rem;
+      font-weight: 300;
+    }
+
+    strong {
+      color: #fff;
+      font-weight: 600;
+    }
+
+    a {
+      color: var(--color-gold);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    a:hover {
+      color: #fcd34d;
+      text-decoration: underline;
+    }
+
+    .footer {
+      margin-top: 2.5rem;
+      padding-top: 1.5rem;
+      border-t: 1px solid rgba(245, 158, 11, 0.15);
+      text-align: center;
+    }
+
+    .back-btn {
+      display: inline-block;
+      padding: 0.6rem 1.5rem;
+      background: var(--color-bg);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 4px;
+      color: var(--color-gold);
+      font-family: 'Cinzel', serif;
+      font-weight: 600;
+      font-size: 0.85rem;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .back-btn:hover {
+      background: var(--color-gold);
+      color: var(--color-bg);
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+      text-decoration: none;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 1.5rem;
+      }
+      h1 {
+        font-size: 1.8rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="corner-bottom-left"></div>
+    <div class="corner-bottom-right"></div>
+
+    <h1>PRIVACY POLICY</h1>
+    <div class="last-updated">Last Updated: June 20, 2026</div>
+
+    <p>Welcome to Shattered Saga (the "Game", "we", "us", or "our"), an AI-powered role-playing game website hosted at <strong>shatteredsaga.com</strong>. Your privacy is important to us, and we are committed to being transparent about how we collect, use, and protect your data.</p>
+
+    <h2>1. What Data We Collect & How We Use It</h2>
+    
+    <h3>A. Local Gameplay Data (Browser Storage)</h3>
+    <p>By default, Shattered Saga values client-side sovereignty and runs locally.</p>
+    <ul>
+      <li><strong>Data Stored</strong>: Your character sheets, inventory items, levels, gold, quest logs, roll modifiers, and your adventure campaign history are stored locally in your browser's local storage (<code>localStorage</code>).</li>
+      <li><strong>Storage Location</strong>: This data remains on your physical device. We do not copy this client-side gameplay data to our servers unless you explicitly sync or back it up using an account.</li>
+    </ul>
+
+    <h3>B. Account Authentication (Supabase)</h3>
+    <p>If you sign in using <strong>Google</strong>, <strong>Facebook</strong>, or an email/password account:</p>
+    <ul>
+      <li><strong>Authentication Provider</strong>: We use <strong>Supabase</strong> to securely manage user accounts.</li>
+      <li><strong>Information Collected</strong>: We retrieve and store your email address, profile username, and a unique user ID.</li>
+      <li><strong>Purpose</strong>: This information is used solely to authenticate your identity, synchronize your game profile status, track your virtual currency (Gems) balance, and allow cross-device play.</li>
+    </ul>
+
+    <h3>C. Game Master AI Processing (Text Inputs)</h3>
+    <p>Shattered Saga relies on Artificial Intelligence to narrate your adventures.</p>
+    <ul>
+      <li><strong>Inputs</strong>: When you submit player choices, actions, or custom inputs, these text snippets are sent securely to our AI model pipelines (such as Google Gemini APIs) to generate responses. We do not save your narrative choices on our servers; they are processed ephemerally.</li>
+    </ul>
+
+    <h3>D. Billing and Transaction Logs</h3>
+    <p>If you purchase virtual items (like Gems) or unlock premium features:</p>
+    <ul>
+      <li><strong>Payment Processing</strong>: All transactions are processed securely through our payment processors (Stripe, Apple App Store, or Google Play).</li>
+      <li><strong>Information Stored</strong>: We do not store credit card numbers on our servers. We only store transaction confirmations (order ID, amount, and gem balance adjustments) to credit your account correctly.</li>
+    </ul>
+
+    <h2>2. Cookies and Tracking</h2>
+    <p>We do not use tracking cookies, pixel tags, or third-party advertising trackers. We use local browser storage strictly for session state (keeping you logged in) and functional game preferences.</p>
+
+    <h2>3. Data Sharing and Third Parties</h2>
+    <p>We do not sell, rent, or trade your personal data. We only share information with third parties in the following limited circumstances:</p>
+    <ul>
+      <li><strong>Service Providers</strong>: With cloud services like Supabase to host database profiles, and AI models (like Google Gemini) to generate game narration.</li>
+      <li><strong>Legal Requirements</strong>: If required by law, regulation, or legal process to protect the safety and integrity of our players and platform.</li>
+    </ul>
+
+    <h2>4. Your Rights and Data Control</h2>
+    <ul>
+      <li><strong>Deleting Local Data</strong>: To delete all local character and campaign data from your browser, click the trash bin icon (🗑️) next to each character slot on the home screen, or clear your browser's site data/cookies.</li>
+      <li><strong>Account Deletion (Self-Service)</strong>: You can permanently delete your cloud account and all synchronized database logs at any time. Simply open the <strong>Settings</strong> menu and click the <strong>Delete Account</strong> button. This action is instantaneous and cannot be undone.</li>
+    </ul>
+
+    <h2>5. Changes to This Policy</h2>
+    <p>We may update this Privacy Policy from time to time to reflect changes in our gameplay features or service integrations. Any updates will be posted directly to this page with an updated revision date.</p>
+
+    <h2>6. Contact Us</h2>
+    <p>If you have any questions or feedback regarding this Privacy Policy or your data, please contact us at <a href="mailto:support@shatteredsaga.com">support@shatteredsaga.com</a>.</p>
+
+    <div class="footer">
+      <a href="/" class="back-btn">Back to Game</a>
+    </div>
+  </div>
+
+</body>
+</html>
