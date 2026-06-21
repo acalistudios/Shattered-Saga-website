@@ -85,3 +85,13 @@ $$ language plpgsql security definer;
 create or replace trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- 6. Secure Account Deletion Function
+-- Allows logged-in users to securely delete their own account from auth.users.
+-- Runs as security definer to bypass client auth write constraints.
+create or replace function public.delete_user_account()
+returns void as $$
+begin
+  delete from auth.users where id = auth.uid();
+end;
+$$ language plpgsql security definer;

@@ -10,10 +10,7 @@ export default function SettingsModal({
   userProfile,
   fetchUserProfile
 }) {
-  const [localKeys, setLocalKeys] = useState({ ...settings.keys });
   const [localSandbox, setLocalSandbox] = useState(settings.sandboxMode);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
 
   // Auth States
   const [authTab, setAuthTab] = useState('login');
@@ -29,19 +26,80 @@ export default function SettingsModal({
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
   const isSimulationMode = !supabaseUrl || !supabaseAnonKey;
 
-  const handleKeyChange = (provider, value) => {
-    setLocalKeys(prev => ({ ...prev, [provider]: value }));
-  };
-
-  const handleSaveKeys = () => {
-    updateApiKey('oracle', localKeys.oracle);
-    updateApiKey('titan', localKeys.titan);
-    updateApiKey('ancient', localKeys.ancient);
-    setSandboxMode(localSandbox);
-    setIsSaved(true);
-    setTimeout(() => {
-      setIsSaved(false);
-    }, 1200);
+  const handleDeleteAccount = async () => {
+    if (!window.confirm("WARNING: This will permanently delete your account, your gem balance, slot progress, and adventure logs. This action CANNOT be undone. Are you absolutely sure?")) {
+      return;
+    }
+    
+    setAuthLoading(true);
+    setAuthError(null);
+    
+    if (isSimulationMode) {
+      setTimeout(() => {
+        const activeEmail = storage.get('shattered_email') || '';
+        if (activeEmail) {
+          storage.remove(`mock_supabase_profile_${activeEmail}`);
+        }
+        
+        // Log out locally
+        storage.remove('supabase_session_token');
+        storage.remove('shattered_email');
+        storage.remove('shattered_username');
+        
+        setAuthLoading(false);
+        setAuthSuccess("Account and mock database profile deleted (Simulated)!");
+        
+        // Dispatch custom update event
+        window.dispatchEvent(new Event('shattered_auth_update'));
+        
+        setTimeout(() => {
+          setAuthSuccess(null);
+          onClose();
+          window.location.reload();
+        }, 1500);
+      }, 1000);
+    } else {
+      // Real Supabase Account Deletion via RPC
+      try {
+        const token = storage.get('supabase_session_token');
+        if (!token) throw new Error("No active session found.");
+        
+        const res = await fetch(`${supabaseUrl}/rest/v1/rpc/delete_user_account`, {
+          method: 'POST',
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || `Account deletion failed with status ${res.status}`);
+        }
+        
+        // Log out locally
+        storage.remove('supabase_session_token');
+        storage.remove('shattered_email');
+        storage.remove('shattered_username');
+        
+        setAuthLoading(false);
+        setAuthSuccess("Your account and database logs have been permanently deleted.");
+        
+        // Dispatch custom update event
+        window.dispatchEvent(new Event('shattered_auth_update'));
+        
+        setTimeout(() => {
+          setAuthSuccess(null);
+          onClose();
+          window.location.reload();
+        }, 1500);
+      } catch (err) {
+        console.error("Account Deletion Error:", err);
+        setAuthError(err.message || "Failed to delete account. Please try again.");
+        setAuthLoading(false);
+      }
+    }
   };
 
   // Auth Operations
@@ -257,12 +315,20 @@ export default function SettingsModal({
                 </div>
               )}
 
-              <div className="flex justify-end pt-2">
+              <div className="flex justify-between items-center pt-2 gap-4">
                 <button
-                  onClick={handleSignOut}
-                  className="px-3 py-1.5 rounded bg-rose-950/20 border border-rose-500/20 hover:bg-rose-950/50 hover:border-rose-500 text-rose-400 text-xs font-bold uppercase tracking-wider cursor-pointer transition-all"
+                  type="button"
+                  onClick={handleDeleteAccount}
+                  className="px-3 py-1.5 rounded bg-red-950/25 border border-red-500/20 hover:bg-red-950/60 hover:border-red-500 text-red-400 text-3xs font-extrabold uppercase tracking-wider cursor-pointer transition-all"
                 >
-                  Sign Out Account
+                  Delete Account
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="px-3 py-1.5 rounded bg-rose-950/20 border border-rose-500/20 hover:bg-rose-950/50 hover:border-rose-500 text-rose-455 text-3xs font-extrabold uppercase tracking-wider cursor-pointer transition-all"
+                >
+                  Sign Out
                 </button>
               </div>
             </div>
@@ -356,111 +422,9 @@ export default function SettingsModal({
           </button>
         </div>
 
-        {/* --- SECTION 3: ADVANCED BYOK CONFIGS (ACCORDION) --- */}
-        <div className="border-t border-slate-850 pt-4 mb-4">
-          <button
-            type="button"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="w-full flex justify-between items-center text-xs font-bold text-slate-400 hover:text-slate-200 uppercase tracking-widest cursor-pointer"
-          >
-            <span>Advanced: Custom API Keys (BYOK)</span>
-            <span className="text-sm font-bold transition-transform duration-200" style={{ transform: showAdvanced ? 'rotate(90deg)' : 'none' }}>
-              ▶
-            </span>
-          </button>
-
-          {showAdvanced && (
-            <div className="mt-4 space-y-4 p-4 rounded-lg bg-slate-950 border border-slate-850/60 animate-fadeIn">
-              <p className="text-3xs text-slate-400 leading-normal">
-                If Sandbox mode is disabled and you do not wish to authenticate using a Supabase account, you can supply your own API keys. Call direct AI Game Master endpoints securely from your browser.
-              </p>
-
-              {/* Gemini key */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-3xs font-semibold text-emerald-400 uppercase tracking-wider">
-                    Google Gemini Key (The Oracle)
-                  </label>
-                  <a
-                    href="https://aistudio.google.com/apikey"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-4xs text-amber-500/70 hover:text-amber-400 hover:underline"
-                  >
-                    Get Key ↗
-                  </a>
-                </div>
-                <input
-                  type="password"
-                  placeholder="Paste Gemini API Key..."
-                  value={localKeys.oracle}
-                  onChange={(e) => handleKeyChange('oracle', e.target.value)}
-                  disabled={localSandbox}
-                  className="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded focus:outline-none focus:border-emerald-500 text-slate-200 disabled:opacity-40"
-                />
-              </div>
-
-              {/* Groq key */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-3xs font-semibold text-amber-400 uppercase tracking-wider">
-                    Groq Key (The Titan)
-                  </label>
-                  <a
-                    href="https://console.groq.com/keys"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-4xs text-amber-500/70 hover:text-amber-400 hover:underline"
-                  >
-                    Get Key ↗
-                  </a>
-                </div>
-                <input
-                  type="password"
-                  placeholder="Paste Groq API Key..."
-                  value={localKeys.titan}
-                  onChange={(e) => handleKeyChange('titan', e.target.value)}
-                  disabled={localSandbox}
-                  className="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded focus:outline-none focus:border-amber-500 text-slate-200 disabled:opacity-40"
-                />
-              </div>
-
-              {/* Cerebras key */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-3xs font-semibold text-purple-400 uppercase tracking-wider">
-                    Cerebras Key (The Ancient)
-                  </label>
-                  <a
-                    href="https://cloud.cerebras.ai"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-4xs text-amber-500/70 hover:text-amber-400 hover:underline"
-                  >
-                    Get Key ↗
-                  </a>
-                </div>
-                <input
-                  type="password"
-                  placeholder="Paste Cerebras API Key..."
-                  value={localKeys.ancient}
-                  onChange={(e) => handleKeyChange('ancient', e.target.value)}
-                  disabled={localSandbox}
-                  className="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded focus:outline-none focus:border-purple-500 text-slate-200 disabled:opacity-40"
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={handleSaveKeys}
-                className={`w-full py-2 rounded text-slate-950 text-xs font-bold uppercase tracking-wider cursor-pointer transition-all ${
-                  isSaved ? 'bg-emerald-500 font-extrabold' : 'bg-slate-300 hover:bg-white active:scale-99'
-                }`}
-              >
-                {isSaved ? 'API Keys Saved!' : 'Save Direct API Keys'}
-              </button>
-            </div>
-          )}
+        {/* --- SECTION 3: SYSTEM LOGO --- */}
+        <div className="border-t border-slate-850 pt-4 mb-4 text-center">
+          <span className="text-5xs text-slate-655 uppercase tracking-widest font-semibold font-serif">Shattered Saga Web Engine v1.0.0</span>
         </div>
 
         {/* Modal Actions */}
