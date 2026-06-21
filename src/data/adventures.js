@@ -136,5 +136,71 @@ export const ADVENTURES_LIST = [
     ],
     items: ['Focal static core', 'Sky-Stalker Bow', 'Astral Gravity Compass'],
     settings: ['Windrunner Sky-Bridges', 'Floating Leyline Isles', 'Gravity Siphon Spires', 'Astral Focal Altar']
+  },
+  {
+    id: 'clockwork_conservatory',
+    name: 'The Clockwork Conservatory',
+    desc: 'Investigate the steam-shrouded conservatory of the eccentric Baron von Rictor. Re-align the planetary astrolabe, bypass the rogue guardian Unit-7, and recover the Stabilized Chrono-Core before the boilers detonate.',
+    element: 'earth',
+    suggestedGm: 'oracle',
+    artwork: oracleBanner,
+    startingDay: 1,
+    startingHour: 16.0, // 4:00 PM
+    startingPrompt: 'The heavy brass door behind you locks with a resonant clank, sealing you inside the towering glass dome of Baron von Rictor\'s conservatory. Above, grey rain patters against cracked glass panes, casting distorted shadows on the ironwood trees and copper roses below. The air is thick with the scent of grease, hot steam, and ozone. In the center of the Brass Rotunda, a massive planetary astrolabe spins erratically, its copper arms casting shifting golden reflections. A crackling, mechanical voice broadcasts from a brass trumpet high on the wall: \'Intruder detected. Mainspring fracture imminent. Core stabilization required.\' To the north lies the Steam-Weaving Gallery, choked with high-pressure steam. To the east, the glass doors to the Clockwork Arboretum are sealed by a lock requiring three celestial gear keys. A small brass spider-automaton clicks nervously at your feet, its mechanical leg bent. How do you wish to proceed?',
+    objectives: [
+      'Re-align the planetary astrolabe in the Brass Rotunda to lower the steam pressure.',
+      'Find the three celestial gear keys (Sun, Moon, and Star) hidden within the conservatory.',
+      'Disable or repair the rogue guardian automaton, Unit-7, in the Alchemical Lab.',
+      'Retrieve the Stabilized Chrono-Core and install it in the central engine.',
+      'Escape the conservatory before the boiler core suffers a catastrophic meltdown.'
+    ],
+    backstory: 'The glass-domed manor conservatory of Baron von Rictor, once a sanctuary of revolutionary alchemical botany and clockwork engineering, has fallen silent. The Baron sought to forge a mechanical heart to bypass his own failing mortality, but the installation went wrong. A mechanical alarm echoes through the steam-filled chambers, while the steam boilers are dangerously close to a catastrophic meltdown. You must enter, bypass the rogue guardian Unit-7, re-align the stellar astrolabe, and retrieve the Stabilized Chrono-Core to silence the sirens.',
+    npcs: [
+      { 
+        name: 'Baron von Rictor', 
+        role: 'Fading Clocksmith', 
+        desc: 'His biological body lies comatose in the Chronos Vault. His consciousness is split, echoing through the brass intercom trumpets.',
+        stats: { HP: 1, Willpower: 5, Intellect: 6, Special: 'Can adjust steam valves or unlock doors if reasoned with.' }
+      },
+      { 
+        name: 'Unit-7 (Nanny)', 
+        role: 'Rogue Guardian', 
+        desc: 'A nine-foot-tall, copper-plated automaton with four scissor-like arms. Its maternal protection subroutines have corrupted into a manic drive to "disinfect and sanitize" all organic matter.',
+        stats: { HP: 35, Defense: 16, Attacks: 'Scissor Snip (+3 Coordination, 2 Fatigue damage + Bleeding Tier 1 on hit), Steam Vent Spray (+2 Coordination, 3 fire damage, close range). Weakness: Lightning damage or oiling its gear pivots.' }
+      },
+      { 
+        name: 'Pip', 
+        role: 'Clockwork Helper', 
+        desc: 'A small, brass spider-automaton. One of its copper legs is missing. If repaired, it can fit into tiny floor-grates to unlock locked chests or distract guards.',
+        stats: { HP: 4, Stealth: 4, Lockpicking: 3, Special: 'Cannot attack directly.' }
+      },
+      { 
+        name: 'Eleanor\'s Hologram', 
+        role: 'Spectral Archivist', 
+        desc: 'A blue light projection activated by the primary astrolabe. She holds the override sequence to the Chronos Vault but requires proof that her husband\'s suffering will end.',
+        stats: { HP: 999, Intellect: 5, Special: 'Immune to physical damage. Can be disabled if the projecting lens is smashed or covered.' }
+      }
+    ],
+    items: ['Sun Gear Key', 'Moon Gear Key', 'Star Gear Key', 'Aether-Wrench', 'Stabilized Chrono-Core', 'Von Rictor\'s Ledger', 'Tiny Copper Leg', 'Alchemical Acid Flask'],
+    itemsDetail: [
+      { name: 'Sun Gear Key', desc: 'A heavy golden-brass gear key engraved with solar rays. It is hot to the touch. Located in the Boiler Core Basement, held by a molten slag-heap.' },
+      { name: 'Moon Gear Key', desc: 'A silver-plated crescent gear key. It emits a soft, cold light. Worn by Unit-7 as a brooch.' },
+      { name: 'Star Gear Key', desc: 'A delicate, star-shaped brass gear key. It vibrates gently at a high frequency. Hidden inside the Queen Bee\'s hive in the Arboretum.' },
+      { name: 'Aether-Wrench', desc: 'A specialized clocksmith\'s tool glowing with green light-emitting runes.', properties: 'Counts as a +1 Light Weapon. Can be used to safely tighten steam valves, disassemble automata, or lower mechanical check difficulties by one tier.' },
+      { name: 'Stabilized Chrono-Core', desc: 'A humming sphere of tempered glass containing glowing blue sand.', properties: 'Can be installed in the central engine to stabilize the power, or used to reverse time to heal a player\'s HP by 5.' },
+      { name: 'Von Rictor\'s Ledger', desc: 'A leather-bound notebook written in cipher.', properties: 'If translated (requires Languages or Intellect check), it reveals Unit-7\'s shut-down phrase ("Aethelgard-9") and the planetary alignment code (Sun: 45, Moon: 90, Star: 180).' },
+      { name: 'Tiny Copper Leg', desc: 'A spare mechanical part found on a workbench in the Alchemical Lab.', properties: 'Can be given to Pip to recruit him as a helper.' },
+      { name: 'Alchemical Acid Flask', desc: 'A flask of highly corrosive green fluid.', properties: 'Can be thrown as a weapon (+2 coordination, melts armor of Unit-7, or dissolves rusted door locks).' }
+    ],
+    settings: ['The Brass Rotunda', 'The Steam-Weaving Gallery', 'The Clockwork Arboretum', 'The Alchemical Lab', 'The Chronos Vault', 'The Boiler Core Basement'],
+    settingDescriptions: {
+      'The Brass Rotunda': 'The main entrance of the conservatory. A massive, three-tiered copper astrolabe sits in the center, spinning erratically and locking the steam valves. Brass megaphone horns on the stone walls hiss with steam and echo the Baron\'s fading warnings. Locked iron gates block passage to the east.',
+      'The Steam-Weaving Gallery': 'A long, claustrophobic stone corridor where steam pipes have ruptured. Blasts of scalding white steam vent in rhythmic intervals. Traversing without shutting the valves requires a coordination check or heat protection. A frozen clockwork watchman stands in the center, holding a key.',
+      'The Clockwork Arboretum': 'Under a cracked glass dome, copper-leaved trees and mechanical brass roses bloom. Copper-winged mechanical bees buzz around brass hives, collecting mercury nectar. They are hostile to anyone harvesting the plants. The Star Gear Key is hidden inside the queen bee\'s hive.',
+      'The Alchemical Lab': 'A cluttered workshop smelling of ozone, mercury, and sulfur. Beakers of green acid bubbled on iron racks. Guarded by the rampaging Unit-7, who patrols the room cleaning tables and attacking intruders. The Moon Gear Key is mounted on Unit-7\'s chest as a decorative brooch.',
+      'The Chronos Vault': 'A heavy, airtight vault door leads here from the Rotunda. Inside, Baron von Rictor\'s comatose body is suspended in a glass chamber filled with life-sustaining fluid, wired into a massive brass engine. The engine core is fracturing, venting blue planar static. The Stabilized Chrono-Core hums in the center altar.',
+      'The Boiler Core Basement': 'A red-hot basement chamber filled with roaring fire tubes and massive iron boilers. Pressure gauges are in the red zone. Ruptured valves leak boiling water. A manual emergency steam release wheel is jammed with a rusted iron bar.'
+    }
   }
 ];
+

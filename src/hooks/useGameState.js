@@ -1543,6 +1543,35 @@ export default function useGameState() {
     // 2. Prepare system instructions
     let systemPrompt = BASE_SYSTEM_PROMPT + activeGm.promptOverride;
 
+    const activeAdventure = ADVENTURES_LIST.find(a => a.id === activeAdventureId);
+    if (activeAdventure) {
+      systemPrompt += `\n\n[ACTIVE ADVENTURE: ${activeAdventure.name.toUpperCase()}]
+Backstory & Lore: ${activeAdventure.backstory || activeAdventure.desc}
+Suggested GM: ${activeAdventure.suggestedGm}
+
+[OBJECTIVES]
+${activeAdventure.objectives.map(o => `- ${o}`).join('\n')}
+
+[LOCATIONS & ROOM DESCRIPTIONS]
+${activeAdventure.settings.map(s => {
+  const desc = activeAdventure.settingDescriptions?.[s] || 'A location in the adventure.';
+  return `- ${s}: ${desc}`;
+}).join('\n')}
+
+[NPCS, ROLES & STATS]
+${(activeAdventure.npcs || []).map(npc => {
+  const statsStr = npc.stats ? ` (Stats: ${JSON.stringify(npc.stats)})` : '';
+  return `- ${npc.name} (${npc.role}): ${npc.desc}${statsStr}`;
+}).join('\n')}
+
+[ADVENTURE ITEMS & GEAR DETAILS]
+${(activeAdventure.itemsDetail || []).map(item => {
+  const propStr = item.properties ? ` [Properties: ${item.properties}]` : '';
+  return `- ${item.name}: ${item.desc}${propStr}`;
+}).join('\n')}
+`;
+    }
+
     // Pass the player's full character sheet to the system prompt!
     systemPrompt += `\n\n[PLAYER CHARACTER SHEET]
 Name: ${character.name}
