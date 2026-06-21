@@ -667,6 +667,15 @@ export default function Splash({
             >
               Privacy Policy
             </a>
+            <span>•</span>
+            <a 
+              href="/terms.html" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-slate-500 hover:text-amber-400 transition-colors hover:underline"
+            >
+              Terms of Service
+            </a>
           </div>
         </div>
 
