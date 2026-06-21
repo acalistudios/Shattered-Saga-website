@@ -654,6 +654,20 @@ export default function Splash({
               Chronal rewinds, character resurrection, special strongholds, exclusive items, and high-value custom adventures will be unlocked here.
             </p>
           </div>
+
+          {/* Subtle Privacy Footer */}
+          <div className="mt-8 text-5xs text-slate-600 flex justify-center gap-4 select-none">
+            <span>© {new Date().getFullYear()} ACALI Studios</span>
+            <span>•</span>
+            <a 
+              href="/privacy.html" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-slate-500 hover:text-amber-400 transition-colors hover:underline"
+            >
+              Privacy Policy
+            </a>
+          </div>
         </div>
 
       </div>
