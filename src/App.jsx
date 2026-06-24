@@ -331,10 +331,14 @@ function App() {
     setScreen('adventure_selection');
   };
 
-  const handleSelectAdventure = (adventureId) => {
+  const handleSelectAdventure = (adventureId, isFreeRoam = false) => {
     const adv = ADVENTURES_LIST.find(a => a.id === adventureId);
     if (!adv) return;
-    startAdventure(adventureId, adv.suggestedGm, adv.startingPrompt);
+    let startingPrompt = adv.startingPrompt;
+    if (isFreeRoam) {
+      startingPrompt = `You travel back to the lands of ${adv.name}. The storm has passed and the direct threats are gone. Ethereal calm fills the air, and the locals welcome you back as their savior. You are here to rest, recover, converse with characters like ${adv.npcs.map(n => n.name).join(', ')}, or manage your resources. Tell the player what they see as they arrive back.`;
+    }
+    startAdventure(adventureId, adv.suggestedGm, startingPrompt, isFreeRoam);
     setScreen('play');
   };
 

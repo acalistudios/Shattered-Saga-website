@@ -280,6 +280,8 @@ const DEFAULT_CHARACTER = {
   inventory: ['Bedroll', 'Rations (5)', 'Tinderbox', 'Waterskin'],
   active_quests: ['Explore the High Fantasy Realm'],
   completed_quests: [],
+  completed_adventures: [],
+  is_free_roaming: false,
   equipment: { weapon: null, shield: null, armor: null },
   setting: 'High Fantasy',
   morality: 0,
@@ -550,6 +552,16 @@ export default function useGameState() {
         equipment = { weapon: null, shield: null, armor: null };
         needsUpdate = true;
       }
+      let completed_adventures = character.completed_adventures;
+      let is_free_roaming = character.is_free_roaming;
+      if (completed_adventures === undefined) {
+        completed_adventures = [];
+        needsUpdate = true;
+      }
+      if (is_free_roaming === undefined) {
+        is_free_roaming = false;
+        needsUpdate = true;
+      }
 
       if (needsUpdate) {
         setCharacter(prev => ({
@@ -557,7 +569,9 @@ export default function useGameState() {
           stats,
           completed_quests: completed_quests || [],
           active_quests: active_quests || ['Explore the High Fantasy Realm'],
-          equipment: equipment || { weapon: null, shield: null, armor: null }
+          equipment: equipment || { weapon: null, shield: null, armor: null },
+          completed_adventures: completed_adventures || [],
+          is_free_roaming: is_free_roaming !== undefined ? is_free_roaming : false
         }));
       }
     }
@@ -1572,6 +1586,17 @@ ${(activeAdventure.itemsDetail || []).map(item => {
 `;
     }
 
+    if (character.is_free_roaming) {
+      systemPrompt += `\n\n[MODE: FREE ROAM / REST & RECOVER]
+The player has already completed the main quest of this adventure.
+This session is in a peaceful, roleplay-centric "Free Roam" mode.
+- The main boss (e.g. Malachar, Warlord wraith, Unit-7) is already defeated or contained.
+- The local residents are friendly and welcoming, recognizing the player as their champion.
+- The player can rest at local taverns/strongholds to recover fatigue/HP, trade items, buy rations, or talk to NPCs.
+- Focus on low-stakes adventure, training, resting, and character relationships. Do not force high-threat combat scenarios unless the player seeks out wild beasts, dangerous dungeons, or explicitly asks for trouble.
+`;
+    }
+
     // Pass the player's full character sheet to the system prompt!
     systemPrompt += `\n\n[PLAYER CHARACTER SHEET]
 Name: ${character.name}
@@ -2298,9 +2323,15 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const newMaxArcane = (updatedSkills.arcane_drawing || 0) * 3;
       const newMaxDivine = (updatedSkills.divine_communion || 0) * 3;
 
+      const nextCompletedAdventures = [...(prev.completed_adventures || [])];
+      if (activeAdventureId && !nextCompletedAdventures.includes(activeAdventureId)) {
+        nextCompletedAdventures.push(activeAdventureId);
+      }
+
       return {
         ...prev,
         skills: updatedSkills,
+        completed_adventures: nextCompletedAdventures,
         stats: {
           ...prev.stats,
           level: prev.stats.level + 1, // Increase level on milestone!
@@ -2348,6 +2379,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     setSkillTally({});
     setWarningMessage(null);
     setApiError(null);
+    setCharacter(prev => ({ ...prev, is_free_roaming: false }));
   };
 
   const quitActiveAdventure = () => {
@@ -2363,9 +2395,10 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     setSkillTally({});
     setWarningMessage(null);
     setApiError(null);
+    setCharacter(prev => ({ ...prev, is_free_roaming: false }));
   };
 
-  const startAdventure = (adventureId, gmId, startingPrompt) => {
+  const startAdventure = (adventureId, gmId, startingPrompt, isFreeRoam = false) => {
     setActiveAdventureId(adventureId);
     setActiveGmId(gmId);
     storage.set(`slot_${activeSlotIndex}_pre_adventure_character`, character);
@@ -2394,6 +2427,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       return {
         ...prev,
         equipment: nextEquipment,
+        is_free_roaming: isFreeRoam,
         stats: {
           ...prev.stats,
           day: startDay,
