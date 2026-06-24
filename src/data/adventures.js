@@ -201,6 +201,69 @@ export const ADVENTURES_LIST = [
       'The Chronos Vault': 'A heavy, airtight vault door leads here from the Rotunda. Inside, Baron von Rictor\'s comatose body is suspended in a glass chamber filled with life-sustaining fluid, wired into a massive brass engine. The engine core is fracturing, venting blue planar static. The Stabilized Chrono-Core hums in the center altar.',
       'The Boiler Core Basement': 'A red-hot basement chamber filled with roaring fire tubes and massive iron boilers. Pressure gauges are in the red zone. Ruptured valves leak boiling water. A manual emergency steam release wheel is jammed with a rusted iron bar.'
     }
+  },
+  {
+    id: 'frostfire_crypt',
+    name: 'The Frostfire Crypt',
+    desc: 'Delve into the glacial tomb of Kaelen-Ghar, where an ancient warlord\'s frozen heart burns with blue frostfire. Re-ignite the twin thermal braziers, decipher the runic cryo-glyphs, and contain the awakening wraith before the glacial vault collapses.',
+    element: 'water',
+    suggestedGm: 'ancient',
+    artwork: ancientBanner,
+    startingDay: 1,
+    startingHour: 9.0, // 9:00 AM
+    startingPrompt: 'The heavy stone door of the tomb seals behind you with a grinding thud, shutting out the howling blizzard of the Frostglen Pass. Before you lies the Frostfire Crypt of Kaelen-Ghar. The walls are sheeted in thick blue glacial ice, reflecting the flickering light of two massive, unlit bronze braziers in the main vestibule. The air is so cold your breath freezes instantly into crystal mist, and a low, resonant humming vibrates through the stone floor. Written in ancient cryo-runes above the archway is a warning: \'Only the twin embers can melt the seal of the Warlord.\' To your left, a narrow stair slick with frost descends into the Sunken Reliquary, where ice-spiders nest. To your right, a passage lined with frozen statues leads to the Glyphed Catacombs. A dying explorer rests against the brazier, his fingers blackened by frostbite, clutching a broken flint. How do you wish to proceed?',
+    objectives: [
+      'Re-ignite the twin thermal braziers in the Vestibule to melt the main vault seal.',
+      'Decipher the cryo-glyphs in the Catacombs to learn the containment ritual.',
+      'Avoid or disable the crushing ice-trap pendulums in the Glacial Reach.',
+      'Retrieve the Frostfire Heart from Kaelen-Ghar\'s sarcophagus.',
+      'Contain the awakening Frostfire Wraith before the tomb collapses.'
+    ],
+    backstory: 'The Frostfire Crypt was built three centuries ago to inter Kaelen-Ghar, a warlord who bound a fire elemental into a heart of glacial ice. This fusion created \'frostfire\'—a cold, blue flame that burns without heat but freezes everything it touches. The containment runes have begun to crack due to the shifting glacier above. If the frostfire heart fully escapes its vessel, it will freeze the entire Frostglen valley into a permanent ice wasteland. You must reseal the heart or destroy the warlord\'s wraith.',
+    npcs: [
+      { 
+        name: 'Theron the Scribe', 
+        role: 'Dying Explorer', 
+        desc: 'A scholar who led the expedition to the crypt. He is suffering from hypothermia and frostbite, and can provide a map if warmed or healed.',
+        stats: { HP: 2, Willpower: 3, Intellect: 4, Special: 'Exhausted and near death. Holds Theron\'s Map.' }
+      },
+      { 
+        name: 'Kaelen-Ghar (Wraith)', 
+        role: 'Frostfire Warlord', 
+        desc: 'The spectral form of the warlord, wielding a frostfire glaive. He seeks to freeze his intruders and reclaim his corporeal form.',
+        stats: { HP: 40, Defense: 14, Attacks: 'Frostfire Glaive (+3 Coordination, 3 Fatigue damage + Frozen status on hit), Freezing Howl (+2 Willpower, 2 damage to all in room). Weakness: Fire damage or shattering the blue crystals in the room.' }
+      },
+      { 
+        name: 'Frostbite Spiders', 
+        role: 'Glacial Predators', 
+        desc: 'Large, pale blue spiders that spit freezing venom.',
+        stats: { HP: 12, Defense: 12, Attacks: 'Freezing Bite (+2 Coordination, 1 HP damage + Bleeding Tier 1). Weakness: Torchlight or open flames.' }
+      },
+      { 
+        name: 'The Guardian Golem', 
+        role: 'Clockwork Ice Warden', 
+        desc: 'A golem constructed of compacted ice and runic iron, protecting the reliquary keys.',
+        stats: { HP: 25, Defense: 15, Attacks: 'Glacial Slam (+3 Power, 4 Fatigue damage). Weakness: Vulnerable to alchemical acid or high heat.' }
+      }
+    ],
+    items: ['Twin Embers Pouch', 'Frostfire Heart', 'Runic Ice-Chisel', 'Theron\'s Map', 'Freezing Venom Vial', 'Runic Tablet Translation'],
+    itemsDetail: [
+      { name: 'Twin Embers Pouch', desc: 'A pouch containing two glowing, heat-generating sulfurous charcoal blocks. Can be used to light the braziers or warm up Theron.' },
+      { name: 'Frostfire Heart', desc: 'The legendary ice-encased heart of Kaelen-Ghar. It glows with a freezing blue light.' },
+      { name: 'Runic Ice-Chisel', desc: 'A chisel made of reinforced steel, engraved with runes of shattering.', properties: 'Counts as a +1 Light Weapon. Grants a +2 bonus to physical checks to shatter ice walls or lock mechanisms.' },
+      { name: 'Theron\'s Map', desc: 'A damp parchment map of the crypt showing the hidden path to Kaelen-Ghar\'s sarcophagus and the trap switch locations.' },
+      { name: 'Freezing Venom Vial', desc: 'A vial of venom harvested from the ice-spiders.', properties: 'Can be applied to weapons to add the Frozen status to targets on hit.' },
+      { name: 'Runic Tablet Translation', desc: 'A translation sheet containing the ancient cryo-runic alphabet.', properties: 'Allows easy translation of the catacomb walls without triggering traps.' }
+    ],
+    settings: ['The Runic Vestibule', 'The Sunken Reliquary', 'The Glyphed Catacombs', 'The Glacial Reach', 'The Sarcophagus Chamber', 'The Core Vault'],
+    settingDescriptions: {
+      'The Runic Vestibule': 'The entrance chamber featuring the twin thermal braziers, the massive sealed vault door, and the comatose explorer Theron.',
+      'The Sunken Reliquary': 'A damp, frozen basement beneath the vestibule. Eerie blue light shines through the ice walls. Thick, frost-dusted spiderwebs hang from the wooden ceiling beams. A stone chest sits in the center, guarded by pale spiders.',
+      'The Glyphed Catacombs': 'A series of stone alcoves containing standing sarcophagi. The walls are carved with glowing blue glyphs that thrum with planar magic. Inspecting them without translating first triggers a cold blast trap.',
+      'The Glacial Reach': 'A narrow corridor where massive ice pendulums swing back and forth from the ceiling. The floor is covered in crushed bones and shattered ice plates. A lever to stop the pendulums is visible on the far side.',
+      'The Sarcophagus Chamber': 'A vast dome of blue ice. In the center, Kaelen-Ghar\'s iron-banded sarcophagus rests on a raised altar. Four large frostfire crystals glow intensely, channeling cold energy into the warlord\'s sleeping wraith.',
+      'The Core Vault': 'The heart of the tomb\'s magical containment. A circular pit in the floor contains a spinning iron gyro that holds the Frostfire Heart. If the gyro stops spinning, the cold energy will explode.'
+    }
   }
 ];
 
