@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import storage from '../utils/storage';
-import { GMS, BASE_SYSTEM_PROMPT, SKILLS_LIST, PROFESSIONS_LIST, ELEMENTS_LIST } from '../data/gms';
+import { GMS, SAGA_ENGINES, BASE_SYSTEM_PROMPT, SKILLS_LIST, PROFESSIONS_LIST, ELEMENTS_LIST } from '../data/gms';
+import { calculateWeightAndVolume, getItemDetails, getItemSlot } from '../utils/items';
 import { generateCompletion, executeOpposedCheck, rollDie, rollAttributePrimary, rollAttributeSecondary, rollSkillRanks } from '../utils/ai';
 import { ADVENTURES_LIST } from '../data/adventures';
 import { checkSafetyViolation, getGMStrikeWarning, getGMSternWarning, calculateLockoutExpiry, isGloballyBanned } from '../utils/safety';
@@ -125,20 +126,8 @@ function getShieldSoakDie(shieldName) {
 }
 
 
-function getItemSlot(itemName) {
-  if (!itemName) return null;
-  const nameLower = itemName.toLowerCase();
-  if (nameLower.includes('shield')) {
-    return 'shield';
-  }
-  if (nameLower.includes('armor') || nameLower.includes('mail') || nameLower.includes('cuirass') || nameLower.includes('apron') || nameLower.includes('robes') || nameLower.includes('garb') || nameLower.includes('plate') || nameLower.includes('ringmail') || nameLower.includes('chainmail')) {
-    return 'armor';
-  }
-  if (nameLower.includes('sword') || nameLower.includes('dagger') || nameLower.includes('staff') || nameLower.includes('bow') || nameLower.includes('rapier') || nameLower.includes('foil') || nameLower.includes('scythe') || nameLower.includes('axe') || nameLower.includes('warhammer') || nameLower.includes('pitchfork') || nameLower.includes('cutlass') || nameLower.includes('spear') || nameLower.includes('hatchet')) {
-    return 'weapon';
-  }
-  return null;
-}
+
+
 
 function getArrowCount(inventory) {
   for (const item of inventory) {
@@ -282,7 +271,23 @@ const DEFAULT_CHARACTER = {
   completed_quests: [],
   completed_adventures: [],
   is_free_roaming: false,
-  equipment: { weapon: null, shield: null, armor: null },
+  equipment: {
+    head: null,
+    neck: null,
+    body: null,
+    legs: null,
+    feet: null,
+    hands: null, // gloves
+    hand_right: null,
+    hand_left: null,
+    ring_left: null,
+    ring_right: null,
+    backpack: 'Small Backpack',
+    hip_left: null,
+    hip_right: null,
+    hip_left_sheathed: null,
+    hip_right_sheathed: null
+  },
   setting: 'High Fantasy',
   morality: 0,
   daysWithoutFood: 0,
@@ -549,8 +554,38 @@ export default function useGameState() {
         needsUpdate = true;
       }
       if (equipment === undefined) {
-        equipment = { weapon: null, shield: null, armor: null };
+        equipment = {
+          head: null, neck: null, body: null, legs: null, feet: null, hands: null,
+          hand_right: null, hand_left: null, ring_left: null, ring_right: null,
+          backpack: 'Small Backpack', hip_left: null, hip_right: null,
+          hip_left_sheathed: null, hip_right_sheathed: null
+        };
         needsUpdate = true;
+      } else {
+        const isOldEquipment = equipment.weapon !== undefined || equipment.shield !== undefined || equipment.armor !== undefined || equipment.hand_right === undefined;
+        if (isOldEquipment) {
+          const oldWeapon = equipment.weapon;
+          const oldShield = equipment.shield;
+          const oldArmor = equipment.armor;
+          equipment = {
+            head: null,
+            neck: null,
+            body: oldArmor || null,
+            legs: null,
+            feet: null,
+            hands: null,
+            hand_right: oldWeapon || null,
+            hand_left: oldShield || null,
+            ring_left: null,
+            ring_right: null,
+            backpack: equipment.backpack || 'Small Backpack',
+            hip_left: null,
+            hip_right: null,
+            hip_left_sheathed: null,
+            hip_right_sheathed: null
+          };
+          needsUpdate = true;
+        }
       }
       let completed_adventures = character.completed_adventures;
       let is_free_roaming = character.is_free_roaming;
@@ -569,7 +604,7 @@ export default function useGameState() {
           stats,
           completed_quests: completed_quests || [],
           active_quests: active_quests || ['Explore the High Fantasy Realm'],
-          equipment: equipment || { weapon: null, shield: null, armor: null },
+          equipment: equipment,
           completed_adventures: completed_adventures || [],
           is_free_roaming: is_free_roaming !== undefined ? is_free_roaming : false
         }));
@@ -613,7 +648,8 @@ export default function useGameState() {
     return () => clearInterval(interval);
   }, [checkEnergyResets]);
 
-  const isGmDepleted = useCallback((gmId) => {
+  const isGmDepleted = useCallback((gmId, engineTier = 'free') => {
+    if (engineTier !== 'premium') return false;
     return gmEnergies[gmId] <= 0;
   }, [gmEnergies]);
 
@@ -892,16 +928,17 @@ export default function useGameState() {
     deductEnergy(gmId, tokenCost);
   }, [deductEnergy]);
 
-  const generateJournalSummary = async (newHistory, gm, apiKey, sandbox) => {
+  const generateJournalSummary = async (newHistory, engineTier, apiKey, sandbox) => {
     try {
       const userTurns = newHistory.filter(h => h.role === 'user').length;
       if (userTurns > 0 && userTurns % 5 === 0) {
         const summaryPrompt = `Based on the conversation history, summarize the campaign's "Story so far" in exactly two short sentences. Focus only on achievements and the active threat. Do not output anything else.`;
         
+        const engine = SAGA_ENGINES.find(e => e.id === engineTier) || SAGA_ENGINES[1];
         const sessionToken = storage.get('supabase_session_token') || null;
         const response = await generateCompletion({
-          provider: gm.provider,
-          model: gm.model,
+          provider: engine.provider,
+          model: engine.model,
           apiKey,
           systemPrompt: summaryPrompt,
           history: newHistory.slice(-10),
@@ -939,7 +976,16 @@ export default function useGameState() {
 
 
   // Perform a player action (and handle opposed rolls)
-  const sendPlayerAction = async (actionText, apiKey, sandbox, skillFocusId = null, difficulty = 'moderate', spSpend = 0, inventoryItemUsed = null) => {
+  const sendPlayerAction = async (
+    actionText, 
+    apiKey, 
+    sandbox, 
+    skillFocusId = null, 
+    difficulty = 'moderate', 
+    spSpend = 0, 
+    inventoryItemUsed = null,
+    engineTier = 'free'
+  ) => {
     if (!activeGmId || isLoading) return;
 
     if (character.stats.hp <= -5) {
@@ -951,9 +997,9 @@ export default function useGameState() {
     const sessionToken = storage.get('supabase_session_token');
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
-    if (sessionToken) {
-      let currentEnergy = 0;
-      let subscriptionTier = 'free';
+    if (sessionToken && engineTier === 'premium') {
+      let currentEnergy;
+      let subscriptionTier;
       
       if (!supabaseUrl) {
         // Simulation mode
@@ -1253,10 +1299,40 @@ export default function useGameState() {
       }
     }
 
+    // Calculate encumbrance first
+    const encumbrance = calculateWeightAndVolume(character);
+    const isPhysicalAction = (skillId) => {
+      if (!skillId) return false;
+      const skill = SKILLS_LIST.find(s => s.id === skillId);
+      if (!skill) return false;
+      return ['power', 'coordination', 'vigor'].includes(skill.primary);
+    };
+
+    // Helper to identify physical weapons vs shields
+    const isWeapon = (details) => {
+      if (!details) return false;
+      const nameLower = (details.name || '').toLowerCase();
+      if (nameLower.includes('shield') || nameLower.includes('buckler')) return false;
+      return details.slot === 'hand';
+    };
+
+    const rightItem = character.equipment?.hand_right;
+    const leftItem = character.equipment?.hand_left;
+    const rightDetails = rightItem ? getItemDetails(rightItem) : null;
+    const leftDetails = leftItem ? getItemDetails(leftItem) : null;
+
+    const weaponName = isWeapon(rightDetails) ? rightItem : (isWeapon(leftDetails) ? leftItem : null);
+    
+    const shieldName = (rightItem && (rightItem.toLowerCase().includes('shield') || rightItem.toLowerCase().includes('buckler'))) ? rightItem :
+                       ((leftItem && (leftItem.toLowerCase().includes('shield') || leftItem.toLowerCase().includes('buckler'))) ? leftItem : null);
+    
+    const armorName = character.equipment?.body;
+    const armorType = getArmorType(armorName);
+
     // 1. Enforce weapon constraints
     const weaponSkills = ['light_weapons', 'heavy_weapons', 'marksmanship', 'thrown_weapons'];
     if (finalSkillFocusId && weaponSkills.includes(finalSkillFocusId)) {
-      if (!character.equipment?.weapon) {
+      if (!weaponName) {
         setIsLoading(false);
         setApiError(`You cannot roll ${SKILLS_LIST.find(s => s.id === finalSkillFocusId)?.name || finalSkillFocusId} without a weapon equipped. Please equip a weapon first, or choose Brawling to fight unarmed.`);
         return;
@@ -1305,7 +1381,6 @@ export default function useGameState() {
     const starvationPenalty = localDaysWithoutFood;
 
     // Apply magic bonuses and armor penalties
-    const weaponName = character.equipment?.weapon;
     let weaponMagicBonus = 0;
     if (finalSkillFocusId) {
       if (weaponSkills.includes(finalSkillFocusId)) {
@@ -1319,18 +1394,28 @@ export default function useGameState() {
       }
     }
     
-    const shieldName = character.equipment?.shield;
     const shieldMagicBonus = (finalSkillFocusId === 'blocking') ? getMagicBonus(shieldName) : 0;
     
-    const armorName = character.equipment?.armor;
-    const armorType = getArmorType(armorName);
     let armorCheckPenalty = 0;
     if (finalSkillFocusId === 'acrobatics' || finalSkillFocusId === 'athletics') {
       if (armorType === 'medium') armorCheckPenalty = -1;
       else if (armorType === 'heavy') armorCheckPenalty = -2;
     }
 
-    const totalModifier = nextRollModifier - starvationPenalty - exhaustionPenalty + weaponMagicBonus + shieldMagicBonus + armorCheckPenalty;
+    // Encumbrance penalties
+    let encumbrancePenalty = 0;
+    let fatigueCostMultiplier = 1.0;
+
+    if (encumbrance.isEncumbered && isPhysicalAction(finalSkillFocusId)) {
+      encumbrancePenalty = encumbrance.rollModifier;
+      if (encumbrance.isOverloaded) {
+        fatigueCostMultiplier = 2.0;
+      } else {
+        fatigueCostMultiplier += encumbrance.penaltyPercentage / 100;
+      }
+    }
+
+    const totalModifier = nextRollModifier - starvationPenalty - exhaustionPenalty + weaponMagicBonus + shieldMagicBonus + armorCheckPenalty + encumbrancePenalty;
 
     // Determine spell resistance modifier based on SP spent
     let resistanceModifier = 0;
@@ -1383,6 +1468,9 @@ export default function useGameState() {
         if (exhaustionPenalty > 0) {
           finalActionText += `\n\n[Notice: Player is Over-Fatigued! (Fatigue: ${localFatigue.toFixed(1)}/${maxFatigue.toFixed(1)}). A -${exhaustionPenalty} penalty has been applied to this check.]`;
         }
+        if (encumbrancePenalty !== 0) {
+          finalActionText += `\n\n[Notice: Player is Encumbered (${encumbrance.weightRatio}% weight capacity)! A ${encumbrancePenalty} penalty has been applied to this physical check.]`;
+        }
 
         // Add to our skill tally for leveling up
         setSkillTally(prev => ({
@@ -1392,12 +1480,23 @@ export default function useGameState() {
       }
     }
 
+    if (encumbrance.isOverloaded) {
+      finalActionText += `\n\n[WARNING: Player is OVERLOADED (${encumbrance.weightRatio}% weight capacity)! Physical movement and actions risk physical collapse. Double fatigue is consumed.]`;
+    } else if (encumbrance.isSlowed) {
+      finalActionText += `\n\n[Notice: Player is SLOWED (${encumbrance.weightRatio}% weight capacity)! Physical actions suffer heavy fatigue and coordination penalties.]`;
+    }
+
     // Calculate time and resource progression for this action
-    let fatigueChange = -cost.fatigue;
+    let activeFatigueCost = cost.fatigue;
+    if (isPhysicalAction(finalSkillFocusId)) {
+      activeFatigueCost *= fatigueCostMultiplier;
+    }
+
+    let fatigueChange = -activeFatigueCost;
     let appliedPassiveRecovery = false;
     
     // Passive recovery: if action doesn't generate high fatigue and we are below 50% max
-    if (cost.fatigue < 0.05 && localFatigue < (maxFatigue * 0.5)) {
+    if (activeFatigueCost < 0.05 && localFatigue < (maxFatigue * 0.5)) {
       fatigueChange += 0.5;
       appliedPassiveRecovery = true;
     }
@@ -1614,10 +1713,25 @@ Fatigue: ${localFatigue.toFixed(1)}/${maxFatigue.toFixed(1)}
 Arcane SP: ${arcaneSP}/${maxArcaneSP}
 Divine SP: ${divineSP}/${maxDivineSP}
 Equipped Items:
-- Weapon: ${character.equipment?.weapon || 'None'}
-- Shield: ${character.equipment?.shield || 'None'}
-- Armor: ${character.equipment?.armor || 'None'}
+- Head: ${character.equipment?.head || 'None'}
+- Neck: ${character.equipment?.neck || 'None'}
+- Body: ${character.equipment?.body || 'None'}
+- Legs: ${character.equipment?.legs || 'None'}
+- Feet: ${character.equipment?.feet || 'None'}
+- Hands/Gloves: ${character.equipment?.hands || 'None'}
+- Right Hand: ${character.equipment?.hand_right || 'None'}
+- Left Hand: ${character.equipment?.hand_left || 'None'}
+- Left Ring: ${character.equipment?.ring_left || 'None'}
+- Right Ring: ${character.equipment?.ring_right || 'None'}
+- Backpack: ${character.equipment?.backpack || 'None'}
+- Left Hip: ${character.equipment?.hip_left || 'None'}${character.equipment?.hip_left_sheathed ? ` (Sheathed: ${character.equipment.hip_left_sheathed})` : ''}
+- Right Hip: ${character.equipment?.hip_right || 'None'}${character.equipment?.hip_right_sheathed ? ` (Sheathed: ${character.equipment.hip_right_sheathed})` : ''}
 Inventory: ${character.inventory.join(', ')}
+Encumbrance Status:
+- Carried Weight: ${encumbrance.totalWeight}/${encumbrance.maxWeight} lbs (${encumbrance.weightRatio}% capacity)
+- Backpack Volume: ${encumbrance.totalVolume}/${encumbrance.maxVolume} L (${encumbrance.volumeRatio}% capacity)
+- Level: ${encumbrance.isOverloaded ? 'OVERLOADED (Risks collapse, cannot move easily, 2x fatigue costs, heavy penalties)' : (encumbrance.isSlowed ? 'SLOWED' : (encumbrance.isEncumbered ? 'ENCUMBERED' : 'Light Load'))}
+- Physical Penalty: ${encumbrance.isEncumbered ? `${encumbrance.penaltyPercentage}% stat reduction, roll mod ${encumbrance.rollModifier}` : 'None'}
 Days Starving: ${character.daysWithoutFood || 0} (Roll Penalty: -${character.daysWithoutFood || 0})
 
 [CAMPAIGN STATE]
@@ -1638,10 +1752,11 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 `;
 
     try {
+      const engine = SAGA_ENGINES.find(e => e.id === engineTier) || SAGA_ENGINES[1];
       const sessionToken = storage.get('supabase_session_token') || null;
       const response = await generateCompletion({
-        provider: activeGm.provider,
-        model: activeGm.model,
+        provider: engine.provider,
+        model: engine.model,
         apiKey,
         systemPrompt,
         history: updatedHistory,
@@ -1670,6 +1785,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         setHistory(prev => prev.filter((h, i) => i !== prev.length - 1));
         return;
       }
+
+      let cleanedText = response.text || '';
 
       // Parse tags out of the response text (morality, roleplay, and advance_day)
       const moralityRegex = /\[morality:\s*([+-]?\d+)\]/gi;
@@ -2233,22 +2350,24 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         return nextHistoryList;
       });
 
-      deductEnergy(activeGmId, response.totalTokens);
+      if (engineTier === 'premium') {
+        deductEnergy(activeGmId, response.totalTokens);
 
-      if (sessionToken) {
-        if (!supabaseUrl) {
-          const email = storage.get('shattered_email') || 'adventurer@saga.com';
-          const mockProfile = storage.get(`mock_supabase_profile_${email}`, null);
-          if (mockProfile) {
-            const isUnlimitedMock = mockProfile.subscription_tier === 'adventurer' || mockProfile.subscription_tier === 'legend';
-            if (!isUnlimitedMock) {
-              mockProfile.energy_balance = Math.max(0, mockProfile.energy_balance - 1);
-              storage.set(`mock_supabase_profile_${email}`, mockProfile);
+        if (sessionToken) {
+          if (!supabaseUrl) {
+            const email = storage.get('shattered_email') || 'adventurer@saga.com';
+            const mockProfile = storage.get(`mock_supabase_profile_${email}`, null);
+            if (mockProfile) {
+              const isUnlimitedMock = mockProfile.subscription_tier === 'adventurer' || mockProfile.subscription_tier === 'legend';
+              if (!isUnlimitedMock) {
+                mockProfile.energy_balance = Math.max(0, mockProfile.energy_balance - 1);
+                storage.set(`mock_supabase_profile_${email}`, mockProfile);
+              }
+              setUserProfile(mockProfile);
             }
-            setUserProfile(mockProfile);
+          } else {
+            await fetchUserProfile();
           }
-        } else {
-          await fetchUserProfile();
         }
       }
 
@@ -2259,7 +2378,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         // Trigger the upgrade screen for completing an adventure step!
         setIsUpgradeScreenVisible(true);
       } else {
-        generateJournalSummary(nextHistory, activeGm, apiKey, sandbox);
+        generateJournalSummary(nextHistory, engineTier, apiKey, sandbox);
       }
 
     } catch (e) {
@@ -2276,8 +2395,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
   };
 
   // Trigger manual scene visualization (costs 10,000 / 2,000 tokens)
-  const triggerManualVisualization = (customPrompt) => {
-    if (!activeGmId || isGmDepleted(activeGmId)) return;
+  const triggerManualVisualization = (customPrompt, engineTier = 'free') => {
+    if (engineTier === 'premium' && (!activeGmId || isGmDepleted(activeGmId, engineTier))) return;
 
     const imgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(customPrompt)}?width=600&height=400&nologo=true`;
     const assistantMsg = {
@@ -2289,7 +2408,10 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     };
 
     setHistory(prev => [...prev, assistantMsg]);
-    deductImageCost(activeGmId);
+    
+    if (engineTier === 'premium') {
+      deductImageCost(activeGmId);
+    }
   };
 
   // Execute Skill Upgrades on Adventure/Milestone Complete
@@ -2416,11 +2538,39 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const expectedMaxArcane = drawingRank * 3;
       const expectedMaxDivine = communionRank * 3;
 
-      const nextEquipment = { weapon: null, shield: null, armor: null };
+      const nextEquipment = {
+        head: null, neck: null, body: null, legs: null, feet: null, hands: null,
+        hand_right: null, hand_left: null, ring_left: null, ring_right: null,
+        backpack: 'Small Backpack', hip_left: null, hip_right: null,
+        hip_left_sheathed: null, hip_right_sheathed: null
+      };
       (prev.inventory || []).forEach(item => {
-        const slot = getItemSlot(item);
-        if (slot && !nextEquipment[slot]) {
-          nextEquipment[slot] = item;
+        const details = getItemDetails(item);
+        const slot = details.slot;
+        if (!slot) return;
+
+        if (slot === 'hand') {
+          if (!nextEquipment.hand_right) {
+            nextEquipment.hand_right = item;
+          } else if (!nextEquipment.hand_left) {
+            nextEquipment.hand_left = item;
+          }
+        } else if (slot === 'ring') {
+          if (!nextEquipment.ring_left) {
+            nextEquipment.ring_left = item;
+          } else if (!nextEquipment.ring_right) {
+            nextEquipment.ring_right = item;
+          }
+        } else if (slot === 'hip') {
+          if (!nextEquipment.hip_left) {
+            nextEquipment.hip_left = item;
+          } else if (!nextEquipment.hip_right) {
+            nextEquipment.hip_right = item;
+          }
+        } else {
+          if (nextEquipment[slot] === null) {
+            nextEquipment[slot] = item;
+          }
         }
       });
 
@@ -2581,17 +2731,146 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     });
   };
 
+  const equipItem = (itemName, slotName) => {
+    setCharacter(prev => {
+      if (!prev.inventory.includes(itemName)) return prev;
+
+      const details = getItemDetails(itemName);
+      if (!details.slot) return prev;
+
+      // Validate matching slot
+      let isValidSlot = false;
+      if (details.slot === 'head' && slotName === 'head') isValidSlot = true;
+      else if (details.slot === 'neck' && slotName === 'neck') isValidSlot = true;
+      else if (details.slot === 'body' && slotName === 'body') isValidSlot = true;
+      else if (details.slot === 'legs' && slotName === 'legs') isValidSlot = true;
+      else if (details.slot === 'feet' && slotName === 'feet') isValidSlot = true;
+      else if (details.slot === 'hands' && slotName === 'hands') isValidSlot = true; // gloves
+      else if (details.slot === 'backpack' && slotName === 'backpack') isValidSlot = true;
+      else if (details.slot === 'hand' && (slotName === 'hand_right' || slotName === 'hand_left')) isValidSlot = true;
+      else if (details.slot === 'ring' && (slotName === 'ring_left' || slotName === 'ring_right')) isValidSlot = true;
+      else if (details.slot === 'hip' && (slotName === 'hip_left' || slotName === 'hip_right')) isValidSlot = true;
+      else if (slotName === 'hip_left_sheathed') {
+        isValidSlot = prev.equipment?.hip_left === 'Weapon Sheath' &&
+                      details.slot === 'hand' &&
+                      (details.subslot === 'small' || details.subslot === 'medium');
+      } else if (slotName === 'hip_right_sheathed') {
+        isValidSlot = prev.equipment?.hip_right === 'Weapon Sheath' &&
+                      details.slot === 'hand' &&
+                      (details.subslot === 'small' || details.subslot === 'medium');
+      }
+
+      if (!isValidSlot) return prev;
+
+      const nextEquipment = { ...prev.equipment };
+
+      // Ensure we don't exceed the number of copies of the item we actually have in inventory
+      const countInInventory = prev.inventory.filter(i => i === itemName).length;
+      const countEquippedInOtherSlots = Object.entries(nextEquipment)
+        .filter(([s, name]) => s !== slotName && name === itemName)
+        .length;
+
+      if (countEquippedInOtherSlots >= countInInventory) {
+        // Find one slot containing this item and clear it
+        const slotToClear = Object.entries(nextEquipment)
+          .find(([s, name]) => s !== slotName && name === itemName)?.[0];
+        if (slotToClear) {
+          nextEquipment[slotToClear] = null;
+        }
+      }
+
+      nextEquipment[slotName] = itemName;
+
+      return {
+        ...prev,
+        equipment: nextEquipment
+      };
+    });
+  };
+
+  const unequipItem = (slotName) => {
+    setCharacter(prev => {
+      const nextEquipment = { ...prev.equipment };
+      nextEquipment[slotName] = null;
+
+      // Cascade sheathing rule
+      if (slotName === 'hip_left') {
+        nextEquipment.hip_left_sheathed = null;
+      }
+      if (slotName === 'hip_right') {
+        nextEquipment.hip_right_sheathed = null;
+      }
+
+      return {
+        ...prev,
+        equipment: nextEquipment
+      };
+    });
+  };
+
+  const dropItem = (itemName) => {
+    setCharacter(prev => {
+      const idx = prev.inventory.indexOf(itemName);
+      if (idx === -1) return prev;
+
+      const nextInventory = [...prev.inventory];
+      nextInventory.splice(idx, 1);
+
+      const nextEquipment = { ...prev.equipment };
+      const countInInventory = nextInventory.filter(i => i === itemName).length;
+      const countEquipped = Object.values(nextEquipment).filter(name => name === itemName).length;
+
+      if (countEquipped > countInInventory) {
+        // Unequip one copy of the item
+        const slotToClear = Object.entries(nextEquipment).find(([s, name]) => name === itemName)?.[0];
+        if (slotToClear) {
+          nextEquipment[slotToClear] = null;
+          if (slotToClear === 'hip_left') nextEquipment.hip_left_sheathed = null;
+          if (slotToClear === 'hip_right') nextEquipment.hip_right_sheathed = null;
+        }
+      }
+
+      return {
+        ...prev,
+        inventory: nextInventory,
+        equipment: nextEquipment
+      };
+    });
+  };
+
   const toggleEquip = (itemName) => {
-    const slot = getItemSlot(itemName);
+    const details = getItemDetails(itemName);
+    const slot = details.slot;
     if (!slot) return;
 
     setCharacter(prev => {
       const nextEquipment = { ...prev.equipment };
-      if (nextEquipment[slot] === itemName) {
-        nextEquipment[slot] = null; // Unequip
+      // Find if this item is currently equipped in ANY slot
+      const equippedSlot = Object.entries(nextEquipment).find(([s, name]) => name === itemName)?.[0];
+      
+      if (equippedSlot) {
+        // Unequip it
+        nextEquipment[equippedSlot] = null;
+        if (equippedSlot === 'hip_left') nextEquipment.hip_left_sheathed = null;
+        if (equippedSlot === 'hip_right') nextEquipment.hip_right_sheathed = null;
       } else {
-        nextEquipment[slot] = itemName; // Equip
+        // Try to auto-equip it to a valid slot
+        let slotName = null;
+        if (slot === 'hand') {
+          slotName = !nextEquipment.hand_right ? 'hand_right' : (!nextEquipment.hand_left ? 'hand_left' : 'hand_right');
+        } else if (slot === 'ring') {
+          slotName = !nextEquipment.ring_left ? 'ring_left' : (!nextEquipment.ring_right ? 'ring_right' : 'ring_left');
+        } else if (slot === 'hip') {
+          slotName = !nextEquipment.hip_left ? 'hip_left' : (!nextEquipment.hip_right ? 'hip_right' : 'hip_left');
+        } else {
+          slotName = slot;
+        }
+
+        if (slotName) {
+          nextEquipment[slotName] = itemName;
+        }
       }
+
       return {
         ...prev,
         equipment: nextEquipment
@@ -2604,8 +2883,23 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     if (!enemyAttack) return;
 
     // Enforce weapon or shield requirement for blocking
-    const weaponName = character.equipment?.weapon;
-    const shieldName = character.equipment?.shield;
+    const rightItem = character.equipment?.hand_right;
+    const leftItem = character.equipment?.hand_left;
+    const rightDetails = rightItem ? getItemDetails(rightItem) : null;
+    const leftDetails = leftItem ? getItemDetails(leftItem) : null;
+
+    const isWeapon = (details) => {
+      if (!details) return false;
+      const nameLower = (details.name || '').toLowerCase();
+      if (nameLower.includes('shield') || nameLower.includes('buckler')) return false;
+      return details.slot === 'hand';
+    };
+
+    const weaponName = isWeapon(rightDetails) ? rightItem : (isWeapon(leftDetails) ? leftItem : null);
+    
+    const shieldName = (rightItem && (rightItem.toLowerCase().includes('shield') || rightItem.toLowerCase().includes('buckler'))) ? rightItem :
+                       ((leftItem && (leftItem.toLowerCase().includes('shield') || leftItem.toLowerCase().includes('buckler'))) ? leftItem : null);
+
     if (defenseSkillId === 'blocking' && !weaponName && !shieldName) {
       setApiError("You cannot block without a weapon or shield equipped! Please choose Acrobatics to dodge.");
       return;
@@ -2629,7 +2923,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     // Modifiers
     const shieldMagicBonus = (defenseSkillId === 'blocking') ? getMagicBonus(shieldName) : 0;
 
-    const armorName = character.equipment?.armor;
+    const armorName = character.equipment?.body;
     const armorType = getArmorType(armorName);
     let armorCheckPenalty = 0;
     if (defenseSkillId === 'acrobatics') {
@@ -2881,6 +3175,10 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     userProfile,
     fetchUserProfile,
     toggleEquip,
+    equipItem,
+    unequipItem,
+    dropItem,
+    calculateWeightAndVolume,
     enemyAttacksQueue,
     resolveEnemyAttack,
     useInventoryItem

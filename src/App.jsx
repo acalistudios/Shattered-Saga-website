@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import useSettings from './hooks/useSettings';
 import useGameState from './hooks/useGameState';
+import useAudioPlayer from './hooks/useAudioPlayer';
 import Splash from './screens/Splash';
 import GMSelection from './screens/GMSelection';
 import CharacterCreation from './screens/CharacterCreation';
@@ -15,7 +16,9 @@ function App() {
   const {
     settings,
     updateApiKey,
-    setSandboxMode
+    setSandboxMode,
+    setEngineTier,
+    setUserApiKey
   } = useSettings();
 
   const {
@@ -56,12 +59,17 @@ function App() {
     restCharacter,
     convertSP,
     toggleEquip,
+    equipItem,
+    unequipItem,
+    dropItem,
+    calculateWeightAndVolume,
     enemyAttacksQueue,
     resolveEnemyAttack,
     useInventoryItem
   } = useGameState();
 
   const [screen, setScreen] = useState('splash');
+  const audio = useAudioPlayer(screen, activeAdventureId, isLoading);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [username, setUsername] = useState(() => storage.get('shattered_username') || '');
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!storage.get('shattered_username'));
@@ -78,6 +86,21 @@ function App() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Unlock audio engine on first user click/keypress (autoplay compliance)
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      audio.forceStart();
+      document.removeEventListener('click', handleFirstInteraction);
+      document.removeEventListener('keydown', handleFirstInteraction);
+    };
+    document.addEventListener('click', handleFirstInteraction);
+    document.addEventListener('keydown', handleFirstInteraction);
+    return () => {
+      document.removeEventListener('click', handleFirstInteraction);
+      document.removeEventListener('keydown', handleFirstInteraction);
+    };
+  }, [audio]);
 
   const activeLayout = viewportMode === 'mobile'
     ? 'mobile'
@@ -372,12 +395,25 @@ function App() {
     setScreen('splash');
   };
 
-  const handleSendAction = (actionText, apiKey, sandbox, skillFocusId, difficulty, spSpend) => {
-    sendPlayerAction(actionText, apiKey, sandbox, skillFocusId, difficulty, spSpend);
+  const handleSendAction = (actionText, skillFocusId, difficulty, spSpend, inventoryItemUsed) => {
+    const apiKey = settings.engineTier === 'byok'
+      ? settings.userApiKey
+      : (settings.keys.oracle || '');
+
+    sendPlayerAction(
+      actionText,
+      apiKey,
+      settings.sandboxMode,
+      skillFocusId,
+      difficulty,
+      spSpend,
+      inventoryItemUsed,
+      settings.engineTier
+    );
   };
 
   const handleTriggerVisualize = (customPrompt) => {
-    triggerManualVisualization(customPrompt);
+    triggerManualVisualization(customPrompt, settings.engineTier);
   };
 
   const handleResetGame = () => {
@@ -420,6 +456,17 @@ function App() {
   const renderContent = () => {
     return (
       <>
+        {/* Global Sound Toggle Button */}
+        {screen !== 'play' && (
+          <button
+            onClick={audio.toggleMute}
+            className="absolute top-3.5 right-3.5 z-40 w-8 h-8 rounded-full bg-slate-950/80 border border-slate-800 hover:border-amber-500/40 text-slate-450 hover:text-amber-400 cursor-pointer shadow-md transition-all flex items-center justify-center text-xs animate-fadeIn"
+            title={audio.isMuted ? "Unmute Music" : "Mute Music"}
+          >
+            {audio.isMuted ? "🔇" : audio.isPlaying ? "🔊" : "🎵"}
+          </button>
+        )}
+
         {screen === 'splash' && (
           <Splash
             onImportCharacter={handleImportCharacter}
@@ -443,11 +490,13 @@ function App() {
             getResetCountdown={getResetCountdown}
             settings={settings}
             onOpenSettings={() => setIsSettingsOpen(true)}
-            isGmDepleted={(gmId) => isGmDepleted(gmId) || isGmLocked(gmId)}
+            isGmDepleted={(gmId) => isGmDepleted(gmId, settings.engineTier) || isGmLocked(gmId)}
             isGmLocked={isGmLocked}
             characterCreated={!!character.name}
             onBack={() => setScreen('splash')}
             layoutMode={activeLayout}
+            setEngineTier={setEngineTier}
+            setUserApiKey={setUserApiKey}
           />
         )}
 
@@ -500,12 +549,17 @@ function App() {
             onRest={restCharacter}
             onConvertSP={convertSP}
             onToggleEquip={toggleEquip}
+            onEquipItem={equipItem}
+            onUnequipItem={unequipItem}
+            onDropItem={dropItem}
+            calculateWeightAndVolume={calculateWeightAndVolume}
             gems={gems}
             onSpendGem={handleSpendGem}
             layoutMode={activeLayout}
             enemyAttacksQueue={enemyAttacksQueue}
             onResolveEnemyAttack={resolveEnemyAttack}
             onUseInventoryItem={useInventoryItem}
+            audio={audio}
           />
         )}
 

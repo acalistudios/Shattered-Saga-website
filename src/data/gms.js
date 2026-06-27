@@ -27,15 +27,50 @@ Rule Enforcement & Safety:
 13. Fatigue, SP & Time Tracking: The game tracks time (Day and Hour), Fatigue, and separate SP pools (Arcane vs. Divine). If the player's fatigue drops below 0 (negative), they suffer a roll penalty (-1 per 0.5 below 0) and physical strain. If fatigue drops below 0, and especially below -5, you must advise the player in-character to rest soon. If they drop below -10, they collapse. Rest actions require rations to recover.
 `;
 
+export const SAGA_ENGINES = [
+  {
+    id: 'premium',
+    name: 'Premium Engine',
+    model: 'gemini-1.5-pro',
+    provider: 'gemini',
+    description: 'Deep, rich narrative depth with maximum memory retention. Uses Gemini 1.5 Pro. Consumes 0.1 Gems per turn.',
+    glowClass: 'shadow-violet-500/20 border-violet-500/40 hover:border-violet-400',
+    badgeClass: 'bg-violet-950/60 text-violet-400 border border-violet-500/30',
+    icon: '💎',
+    accentText: 'text-violet-400',
+    badgeText: 'Paid (Gems)'
+  },
+  {
+    id: 'free',
+    name: 'Free Engine',
+    model: 'gemini-1.5-flash',
+    provider: 'gemini',
+    description: 'Fast, responsive, and action-oriented storytelling. Uses Gemini 1.5 Flash. Supported by banner ads.',
+    glowClass: 'shadow-emerald-500/20 border-emerald-500/40 hover:border-emerald-400',
+    badgeClass: 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/30',
+    icon: '📺',
+    accentText: 'text-emerald-400',
+    badgeText: 'Free (With Ads)'
+  },
+  {
+    id: 'byok',
+    name: 'Sandbox Engine',
+    model: 'gemini-1.5-flash',
+    provider: 'gemini',
+    description: 'Bring Your Own API Key. Direct browser-to-Google connections with unlimited turns and zero ads.',
+    glowClass: 'shadow-amber-500/20 border-amber-500/40 hover:border-amber-400',
+    badgeClass: 'bg-amber-950/60 text-amber-400 border border-amber-500/30',
+    icon: '🔑',
+    accentText: 'text-amber-400',
+    badgeText: 'BYOK (No Ads)'
+  }
+];
+
 export const GMS = [
   {
     id: 'oracle',
     name: 'The Oracle',
     avatar: oraclePortrait,
-    provider: 'gemini',
-    model: 'gemini-2.5-flash',
-    dailyLimit: 1000000,
-    resetTimeUTC: { hour: 8, minute: 30 }, // 08:30 UTC
     colorClass: 'emerald',
     theme: {
       primaryColor: '#10b981', // emerald
@@ -44,7 +79,7 @@ export const GMS = [
       barColor: 'bg-emerald-500',
       badgeClass: 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/30',
       avatarBorder: 'border-emerald-500',
-      accentText: 'text-emerald-405',
+      accentText: 'text-emerald-400',
     },
     description: 'A veiled prophetess who reads the threads of destiny in her glowing emerald scrying pool. Her words carry the weight of prophecy and inevitable fate.',
     promptOverride: `
@@ -52,17 +87,12 @@ Specific Tone Instructions:
 - Speak in a mystical, formal, and prophetic tone.
 - Frequently reference 'destiny', 'fate', 'the threads', and 'the weave'.
 - Maintain a high-fantasy, magical, and mysterious atmosphere.
-- Gemini Specifics: Ensure you strictly follow instructions regarding JSON handoffs when requested, and never output anything outside of the JSON block when a handoff is triggered.
 `,
   },
   {
     id: 'titan',
     name: 'The Titan',
     avatar: titanPortrait,
-    provider: 'groq',
-    model: 'llama3-70b-8192',
-    dailyLimit: 50000, // Scaled for Groq limits
-    resetTimeUTC: { hour: 0, minute: 30 }, // 00:30 UTC
     colorClass: 'amber',
     theme: {
       primaryColor: '#f59e0b', // amber
@@ -86,10 +116,6 @@ Specific Tone Instructions:
     id: 'ancient',
     name: 'The Ancient',
     avatar: ancientPortrait,
-    provider: 'cerebras',
-    model: 'llama3.1-70b',
-    dailyLimit: 1000000,
-    resetTimeUTC: { hour: 0, minute: 30 }, // 00:30 UTC
     colorClass: 'purple-blue',
     theme: {
       primaryColor: '#8b5cf6', // purple

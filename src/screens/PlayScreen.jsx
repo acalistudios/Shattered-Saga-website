@@ -5,30 +5,26 @@ import { signCharacter } from '../utils/secureHash';
 import { ADVENTURES_LIST } from '../data/adventures';
 import { PRESET_METADATA } from '../data/portraits';
 import storage from '../utils/storage';
+import { calculateWeightAndVolume, getItemDetails, getItemSlot } from '../utils/items';
+
+const MOCK_ADS = [
+  "Martha's Provisions: Stock up on Rations today! (10% off for Earth-Kin)",
+  "Vance's Forge: +1 Shields in stock. Ask for the Ashveil road discount!",
+  "Aethelgard Elixirs: Restore your SP instantly. Pure ingredients, no filler.",
+  "Need a healer? Visit Mirra at the prisoner barracks. Redvein ore extraction site.",
+  "Wanted: Able-bodied fighters to clear the mines. High hazard pay. Inquire at Tavern.",
+  "The Wandering Mage Shop: Spell scrolls of Fireball and Invisibility back in stock!",
+  "Whispering Woods Inn: Warm hearth, cold ale, and double-locked doors for safety."
+];
 
 function formatTime(day, hourFloat) {
   const totalMinutes = Math.round(hourFloat * 60);
-  const hours = Math.floor(totalMinutes / 60) % 24;
+  const hour24 = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  const displayHours = hours % 12 === 0 ? 12 : hours % 12;
-  const displayMinutes = minutes.toString().padStart(2, '0');
-  return `Day ${day}, ${displayHours}:${displayMinutes} ${ampm}`;
-}
-
-function getItemSlot(itemName) {
-  if (!itemName) return null;
-  const nameLower = itemName.toLowerCase();
-  if (nameLower.includes('shield')) {
-    return 'shield';
-  }
-  if (nameLower.includes('armor') || nameLower.includes('mail') || nameLower.includes('cuirass') || nameLower.includes('apron') || nameLower.includes('robes') || nameLower.includes('garb') || nameLower.includes('plate') || nameLower.includes('ringmail') || nameLower.includes('chainmail')) {
-    return 'armor';
-  }
-  if (nameLower.includes('sword') || nameLower.includes('dagger') || nameLower.includes('staff') || nameLower.includes('bow') || nameLower.includes('rapier') || nameLower.includes('foil') || nameLower.includes('scythe') || nameLower.includes('axe') || nameLower.includes('warhammer') || nameLower.includes('pitchfork') || nameLower.includes('cutlass') || nameLower.includes('spear') || nameLower.includes('hatchet')) {
-    return 'weapon';
-  }
-  return null;
+  const ampm = hour24 >= 12 ? 'PM' : 'AM';
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  const minStr = minutes < 10 ? `0${minutes}` : minutes;
+  return `Day ${day}, ${hour12}:${minStr} ${ampm}`;
 }
 
 export default function PlayScreen({
@@ -44,11 +40,9 @@ export default function PlayScreen({
   warningMessage,
   isUpgradeScreenVisible,
   onSendAction,
-  onSwapGm,
   onTriggerVisualize,
   onResetGame,
   onOpenSettings,
-  closeUpgradeScreen,
   executeMilestoneUpgrades,
   settings,
   onRetryLastAction,
@@ -57,17 +51,30 @@ export default function PlayScreen({
   activeAdventureId,
   onUpdatePortrait,
   gems,
-  onSpendGem,
   onEatRation,
   onRest,
   onConvertSP,
   onToggleEquip,
+  onEquipItem,
+  onUnequipItem,
+  onDropItem,
   layoutMode = 'desktop',
   enemyAttacksQueue = [],
   onResolveEnemyAttack,
-  onUseInventoryItem
+  onUseInventoryItem,
+  audio
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
+  const [adIndex, setAdIndex] = useState(0);
+
+  useEffect(() => {
+    if (settings?.engineTier !== 'free') return;
+    const interval = setInterval(() => {
+      setAdIndex((prev) => (prev + 1) % MOCK_ADS.length);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [settings?.engineTier]);
+
   const [inputText, setInputText] = useState('');
   const [skillFocus, setSkillFocus] = useState(''); // Empty string means no specific check
   const [difficulty, setDifficulty] = useState('moderate');
@@ -84,6 +91,8 @@ export default function PlayScreen({
   
   const [isJournalOpen, setIsJournalOpen] = useState(true);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
+  const [isEquipmentOpen, setIsEquipmentOpen] = useState(false);
+  const [activeItemMenu, setActiveItemMenu] = useState(null);
   const [isCurrencyOpen, setIsCurrencyOpen] = useState(false);
   const [isStorageOpen, setIsStorageOpen] = useState(false);
   const [isStrongholdsOpen, setIsStrongholdsOpen] = useState(false);
@@ -137,8 +146,6 @@ export default function PlayScreen({
     // Call state sender passing the text, key, sandbox, and the skill focus + difficulty
     onSendAction(
       inputText.trim(),
-      settings.sandboxMode ? '' : settings.keys[activeGm.id],
-      settings.sandboxMode,
       skillFocus || null,
       difficulty,
       spSpend
@@ -493,24 +500,39 @@ export default function PlayScreen({
 
           {/* Equipped Items Card */}
           <div className="rounded border border-amber-500/20 bg-slate-950/45 p-4">
-            <h3 className="text-2xs uppercase tracking-widest text-slate-500 font-bold mb-3">Equipped Equipment</h3>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-2xs uppercase tracking-widest text-slate-500 font-bold">Equipped Gear</h3>
+              <button
+                type="button"
+                onClick={() => setIsEquipmentOpen(true)}
+                className="px-2 py-0.5 rounded bg-slate-900 border border-slate-850 hover:border-amber-500/40 text-amber-450 hover:text-amber-455 text-5xs font-extrabold uppercase tracking-wider transition-all cursor-pointer"
+              >
+                Manage
+              </button>
+            </div>
             <div className="space-y-2 text-2xs">
-              <div className="flex justify-between items-center border-b border-slate-900 pb-1.5">
-                <span className="text-slate-400 font-medium">Weapon slot:</span>
-                <strong className={character.equipment?.weapon ? "text-amber-450 truncate max-w-[150px]" : "text-slate-600 italic"}>
-                  {character.equipment?.weapon || 'Empty'}
+              <div className="flex justify-between items-center border-b border-slate-900/50 pb-1.5">
+                <span className="text-slate-400 font-medium">Right Hand:</span>
+                <strong className={character.equipment?.hand_right ? "text-amber-455 truncate max-w-[130px]" : "text-slate-650 italic"}>
+                  {character.equipment?.hand_right || 'Empty'}
                 </strong>
               </div>
-              <div className="flex justify-between items-center border-b border-slate-900 pb-1.5">
-                <span className="text-slate-400 font-medium">Shield slot:</span>
-                <strong className={character.equipment?.shield ? "text-amber-450 truncate max-w-[150px]" : "text-slate-600 italic"}>
-                  {character.equipment?.shield || 'Empty'}
+              <div className="flex justify-between items-center border-b border-slate-900/50 pb-1.5">
+                <span className="text-slate-400 font-medium">Left Hand:</span>
+                <strong className={character.equipment?.hand_left ? "text-amber-455 truncate max-w-[130px]" : "text-slate-650 italic"}>
+                  {character.equipment?.hand_left || 'Empty'}
+                </strong>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-900/50 pb-1.5">
+                <span className="text-slate-400 font-medium">Armor (Body):</span>
+                <strong className={character.equipment?.body ? "text-amber-455 truncate max-w-[130px]" : "text-slate-650 italic"}>
+                  {character.equipment?.body || 'Empty'}
                 </strong>
               </div>
               <div className="flex justify-between items-center pb-0.5">
-                <span className="text-slate-400 font-medium">Armor slot:</span>
-                <strong className={character.equipment?.armor ? "text-amber-450 truncate max-w-[150px]" : "text-slate-600 italic"}>
-                  {character.equipment?.armor || 'Empty'}
+                <span className="text-slate-400 font-medium">Backpack:</span>
+                <strong className={character.equipment?.backpack ? "text-amber-455 truncate max-w-[130px]" : "text-slate-650 italic"}>
+                  {character.equipment?.backpack || 'None'}
                 </strong>
               </div>
             </div>
@@ -557,14 +579,14 @@ export default function PlayScreen({
                       {(() => {
                         const slot = getItemSlot(item);
                         if (!slot) return null;
-                        const isEquipped = character.equipment?.[slot] === item;
+                        const isEquipped = Object.values(character.equipment || {}).includes(item);
                         return (
                           <button
                             type="button"
                             onClick={() => onToggleEquip(item)}
                             className={`px-1.5 py-0.5 rounded text-3xs font-extrabold uppercase transition-all cursor-pointer border ${
                               isEquipped
-                                ? 'bg-slate-900 text-amber-500 border-amber-500/35 hover:bg-slate-800'
+                                ? 'bg-slate-900 text-amber-500 border-amber-500/35 hover:bg-slate-850'
                                 : 'bg-amber-950 text-amber-400 border-amber-500/15 hover:bg-amber-900/40'
                             }`}
                           >
@@ -894,6 +916,67 @@ export default function PlayScreen({
             </h2>
           </div>
           
+          {/* Audio Controls Widget */}
+          {audio && (
+            <div className="flex items-center gap-2 md:gap-3 bg-slate-950/80 border border-slate-850 px-2 py-0.5 md:px-3 md:py-1 rounded-full text-3xs font-medium text-slate-300 max-w-[150px] md:max-w-xs xl:max-w-md overflow-hidden transition-all duration-300 select-none shadow-inner shadow-black/40">
+              {/* Skip Back */}
+              <button 
+                onClick={audio.skipBackward}
+                className="hidden sm:inline-block hover:text-amber-400 transition-colors cursor-pointer"
+                title="Previous Track"
+              >
+                ⏮️
+              </button>
+              
+              {/* Play / Pause */}
+              <button 
+                onClick={audio.togglePlay}
+                className="w-4 h-4 md:w-5 md:h-5 flex items-center justify-center bg-slate-900 rounded-full hover:bg-slate-850 text-3xs md:text-2xs hover:text-amber-400 transition-all cursor-pointer border border-slate-800"
+                title={audio.isPlaying ? "Pause Music" : "Play Music"}
+              >
+                {audio.isPlaying ? "⏸️" : "▶️"}
+              </button>
+
+              {/* Skip Forward */}
+              <button 
+                onClick={audio.skipForward}
+                className="hidden sm:inline-block hover:text-amber-400 transition-colors cursor-pointer"
+                title="Next Track"
+              >
+                ⏭️
+              </button>
+
+              {/* Now Playing text */}
+              <div className="hidden xs:block w-16 sm:w-28 lg:w-40 overflow-hidden relative whitespace-nowrap text-slate-400 border-l border-slate-850 pl-2 text-[9px] md:text-3xs">
+                <div className="inline-block animate-marquee select-none">
+                  {audio.currentTrack ? audio.currentTrack.name : 'Silence'}
+                </div>
+              </div>
+
+              {/* Volume Slider & Mute Button */}
+              <div className="flex items-center gap-1 border-l border-slate-850 pl-1 md:pl-2">
+                <button 
+                  onClick={audio.toggleMute}
+                  className="hover:text-amber-400 transition-colors cursor-pointer text-4xs md:text-3xs"
+                  title={audio.isMuted ? "Unmute" : "Mute"}
+                >
+                  {audio.isMuted ? "🔇" : "🔊"}
+                </button>
+                {!audio.isMuted && (
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="1" 
+                    step="0.05" 
+                    value={audio.volume} 
+                    onChange={(e) => audio.setVolume(parseFloat(e.target.value))}
+                    className="hidden lg:inline-block w-10 lg:w-14 h-1 bg-slate-850 rounded-lg appearance-none cursor-pointer accent-amber-500 hover:accent-amber-450 transition-all"
+                  />
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-3">
             <button
               onClick={onOpenSettings}
@@ -917,6 +1000,20 @@ export default function PlayScreen({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
               <span>Journal</span>
+            </button>
+
+            <button
+              onClick={() => setIsEquipmentOpen(!isEquipmentOpen)}
+              className={`p-1.5 rounded border transition-all text-xs font-semibold cursor-pointer flex items-center gap-1.5 ${
+                isEquipmentOpen
+                  ? 'bg-amber-500/10 border-amber-500/55 text-amber-400'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-amber-400'
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+              <span>Gear & Pack</span>
             </button>
           </div>
         </div>
@@ -1205,12 +1302,22 @@ export default function PlayScreen({
               disabled={isLoading || history.length === 0}
               className="text-slate-450 hover:text-amber-400 hover:underline cursor-pointer disabled:opacity-40 disabled:hover:text-slate-450 disabled:no-underline flex items-center gap-1"
             >
-              ✨ <span>Visualize Current Scene (-{activeGm.id === 'titan' ? '2K' : '10K'} Power)</span>
+              ✨ <span>Visualize Current Scene {settings.engineTier === 'premium' ? `(-${activeGm.id === 'titan' ? '2K' : '10K'} Power)` : ''}</span>
             </button>
             <span>*Opposed rolls are rolled client-side instantly and appended to inputs.</span>
           </div>
 
         </form>
+        )}
+
+        {/* Mock Fantasy Ad Banner */}
+        {settings.engineTier === 'free' && (
+          <div className="w-full bg-slate-950 border-t border-slate-900 px-4 py-2 flex items-center justify-center gap-3 animate-fadeIn select-none h-10 shrink-0">
+            <span className="text-[10px] uppercase tracking-widest text-slate-505 font-bold">Sponsored:</span>
+            <div className="text-xs text-amber-400 font-medium transition-all duration-500 truncate max-w-full">
+              📢 {MOCK_ADS[adIndex]}
+            </div>
+          </div>
         )}
 
       </div>
@@ -1496,6 +1603,321 @@ export default function PlayScreen({
           </div>
         );
       })()}
+
+      {/* ----------------- SLIDE-OUT EQUIPMENT DRAWER ----------------- */}
+      {isEquipmentOpen && (
+        <div
+          onClick={() => setIsEquipmentOpen(false)}
+          className="absolute inset-0 z-38 bg-black/60 backdrop-blur-xs transition-opacity duration-300"
+        />
+      )}
+
+      <div className={`absolute top-0 right-0 z-40 h-full w-80 sm:w-96 border-l border-slate-900 bg-slate-950/95 backdrop-blur-md shadow-2xl transition-transform duration-300 flex flex-col p-4 ${isEquipmentOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        <div className="flex justify-between items-center border-b border-slate-900 pb-3 mb-4">
+          <h3 className="text-xs uppercase tracking-widest text-amber-400 font-extrabold flex items-center gap-1.5 font-serif">
+            <span>🎒 Character Gear & Pack</span>
+          </h3>
+          <button
+            type="button"
+            onClick={() => setIsEquipmentOpen(false)}
+            className="p-1 rounded bg-slate-900 border border-slate-800 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Section 1: Carrying Capacity Gauges */}
+        {(() => {
+          const enc = calculateWeightAndVolume(character);
+          return (
+            <div className="space-y-3 bg-slate-900/40 p-3 rounded border border-slate-900/80 mb-4 flex-shrink-0">
+              {/* Weight Bar */}
+              <div>
+                <div className="flex justify-between items-center text-3xs font-bold uppercase text-slate-400 mb-1">
+                  <span>Carried Weight</span>
+                  <span className={enc.isOverloaded ? "text-rose-400 font-extrabold animate-pulse" : (enc.isSlowed ? "text-amber-500 font-bold" : "text-amber-400")}>
+                    {enc.totalWeight} / {enc.maxWeight} lbs ({enc.weightRatio}%)
+                  </span>
+                </div>
+                <div className="w-full h-2 rounded bg-slate-950 border border-slate-900 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      enc.isOverloaded ? 'bg-rose-600' : (enc.isSlowed ? 'bg-amber-600' : 'bg-emerald-600')
+                    }`}
+                    style={{ width: `${Math.min(100, enc.weightRatio)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Volume Bar */}
+              <div>
+                <div className="flex justify-between items-center text-3xs font-bold uppercase text-slate-400 mb-1">
+                  <span>Backpack Volume</span>
+                  <span className={enc.volumeRatio > 100 ? "text-rose-400 font-extrabold animate-pulse" : "text-amber-450"}>
+                    {enc.totalVolume} / {enc.maxVolume} L ({enc.volumeRatio}%)
+                  </span>
+                </div>
+                <div className="w-full h-2 rounded bg-slate-950 border border-slate-900 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      enc.volumeRatio > 100 ? 'bg-rose-600' : (enc.volumeRatio > 75 ? 'bg-amber-600' : 'bg-indigo-600')
+                    }`}
+                    style={{ width: `${Math.min(100, enc.volumeRatio)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Status Banner */}
+              {enc.isEncumbered && (
+                <div className={`p-2 rounded border text-3xs font-semibold ${
+                  enc.isOverloaded 
+                    ? 'bg-rose-950/20 border-rose-500/30 text-rose-400' 
+                    : (enc.isSlowed ? 'bg-amber-950/20 border-amber-500/30 text-amber-400' : 'bg-yellow-950/15 border-yellow-500/20 text-yellow-450')
+                }`}>
+                  <div className="font-bold uppercase mb-0.5">
+                    ⚠️ {enc.isOverloaded ? 'Overloaded' : (enc.isSlowed ? 'Slowed' : 'Encumbered')} Load
+                  </div>
+                  <p className="leading-relaxed text-slate-400">
+                    {enc.isOverloaded 
+                      ? 'Cannot move easily. Risks collapse. Physical actions require Vigor check and consume double fatigue.' 
+                      : `Suffer a ${enc.penaltyPercentage}% speed penalty and -${Math.abs(enc.rollModifier)} to physical checks.`}
+                  </p>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Section 2: Equipment Paper-Doll Slots */}
+        <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar space-y-4 pr-1 pb-4">
+          <div>
+            <h4 className="text-3xs uppercase tracking-widest text-slate-500 font-bold mb-2">Equipped Slots</h4>
+            
+            <div className="grid grid-cols-2 gap-2 text-2xs">
+              {/* Head / Neck */}
+              {(() => {
+                const renderSlot = (slotId, label, icon) => {
+                  const itemName = character.equipment?.[slotId];
+                  return (
+                    <div 
+                      key={slotId}
+                      className={`p-2 rounded border bg-slate-950/60 flex flex-col justify-between transition-all group relative cursor-pointer ${
+                        itemName 
+                          ? 'border-amber-500/30 hover:border-amber-500/50 hover:bg-slate-900/40' 
+                          : 'border-slate-900 hover:border-slate-800 hover:bg-slate-900/25'
+                      }`}
+                      onClick={() => {
+                        if (itemName) onUnequipItem(slotId);
+                      }}
+                      title={itemName ? "Click to unequip" : "No item equipped. To equip, choose an item from Backpack Contents below."}
+                    >
+                      <div className="flex justify-between items-center text-[10px] text-slate-500 uppercase tracking-wider font-bold select-none">
+                        <span>{label}</span>
+                        <span>{icon}</span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between min-h-[16px]">
+                        <span className={`text-3xs font-bold truncate ${itemName ? 'text-amber-400' : 'text-slate-655 italic'}`}>
+                          {itemName || 'Empty'}
+                        </span>
+                        {itemName && (
+                          <span className="text-[9px] text-slate-550 group-hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity font-extrabold uppercase ml-1 flex-shrink-0">
+                            ✖
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                };
+
+                const leftHipHasSheath = character.equipment?.hip_left === 'Weapon Sheath';
+                const rightHipHasSheath = character.equipment?.hip_right === 'Weapon Sheath';
+
+                return (
+                  <>
+                    {renderSlot('head', 'Head / Helm', '🪖')}
+                    {renderSlot('neck', 'Neck / Amulet', '📿')}
+                    {renderSlot('body', 'Body / Armor', '🛡️')}
+                    {renderSlot('legs', 'Legs / Pants', '👖')}
+                    {renderSlot('feet', 'Feet / Boots', '🥾')}
+                    {renderSlot('hands', 'Hands / Gloves', '🧤')}
+                    {renderSlot('hand_right', 'Right Hand', '⚔️')}
+                    {renderSlot('hand_left', 'Left Hand', '🛡️')}
+                    {renderSlot('ring_left', 'Left Ring', '💍')}
+                    {renderSlot('ring_right', 'Right Ring', '💍')}
+                    {renderSlot('backpack', 'Backpack Slot', '🎒')}
+                    {renderSlot('hip_left', 'Left Hip Gear', '🎒')}
+                    {renderSlot('hip_right', 'Right Hip Gear', '🎒')}
+                    
+                    {leftHipHasSheath && renderSlot('hip_left_sheathed', 'Left Sheath Weapon', '🗡️')}
+                    {rightHipHasSheath && renderSlot('hip_right_sheathed', 'Right Sheath Weapon', '🗡️')}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Section 3: Backpack Inventory */}
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <h4 className="text-3xs uppercase tracking-widest text-slate-500 font-bold">Backpack Contents</h4>
+              <span className="text-[10px] text-slate-500 font-bold">
+                {character.inventory?.length || 0} Items
+              </span>
+            </div>
+
+            {(!character.inventory || character.inventory.length === 0) ? (
+              <div className="text-3xs text-slate-600 italic py-4 text-center border border-dashed border-slate-900 rounded bg-slate-950/20">
+                Your pack is empty.
+              </div>
+            ) : (
+              <ul className="space-y-1.5">
+                {character.inventory.map((item, idx) => {
+                  const details = getItemDetails(item);
+                  const isEquipped = Object.values(character.equipment || {}).includes(item);
+                  
+                  // Usable checks
+                  const nameLower = item.toLowerCase();
+                  const isRations = nameLower.includes('rations');
+                  const isBandage = nameLower.includes('bandage');
+                  const isHealerKit = nameLower.includes("healer's kit") || nameLower.includes("healer's satchel");
+                  const isHerb = nameLower.includes('herb') || nameLower.includes('poultice');
+                  const isUsable = isBandage || isHealerKit || isHerb;
+
+                  const leftHipHasSheath = character.equipment?.hip_left === 'Weapon Sheath';
+                  const rightHipHasSheath = character.equipment?.hip_right === 'Weapon Sheath';
+
+                  return (
+                    <li 
+                      key={idx} 
+                      className={`p-2 rounded border bg-slate-900/30 flex flex-col relative transition-all ${
+                        isEquipped ? 'border-amber-500/20 bg-amber-500/5' : 'border-slate-900/60'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <span className="text-2xs font-semibold text-slate-300 truncate" title={item}>
+                          {item}
+                        </span>
+                        <span className="text-[10px] text-slate-555 flex-shrink-0 font-medium">
+                          {details.weight} lbs / {details.volume} L
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center mt-1.5 border-t border-slate-950 pt-1.5">
+                        <span className="text-[10px] text-slate-500 font-semibold select-none">
+                          {isEquipped ? 'Equipped' : (details.slot ? `Slot: ${details.slot.toUpperCase()}` : 'Storage')}
+                        </span>
+                        <div className="flex gap-1.5 items-center">
+                          {/* Equip button with sub-dropdown options */}
+                          {details.slot && (
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (activeItemMenu === idx) {
+                                    setActiveItemMenu(null);
+                                  } else {
+                                    setActiveItemMenu(idx);
+                                  }
+                                }}
+                                className="px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-amber-400 border border-slate-800 text-3xs font-extrabold uppercase transition-all cursor-pointer flex items-center gap-0.5"
+                              >
+                                <span>Equip</span>
+                                <span className="text-[8px]">▼</span>
+                              </button>
+                              
+                              {activeItemMenu === idx && (
+                                <div className="absolute right-0 bottom-6 z-50 min-w-[120px] rounded bg-slate-900 border border-slate-800 shadow-2xl p-1 flex flex-col gap-0.5 text-left select-none">
+                                  {(() => {
+                                    const slots = [];
+                                    if (details.slot === 'hand') {
+                                      slots.push({ id: 'hand_right', label: 'Right Hand ⚔️' });
+                                      slots.push({ id: 'hand_left', label: 'Left Hand 🛡️' });
+                                      if (leftHipHasSheath && (details.subslot === 'small' || details.subslot === 'medium')) {
+                                        slots.push({ id: 'hip_left_sheathed', label: 'Sheath Left 🗡️' });
+                                      }
+                                      if (rightHipHasSheath && (details.subslot === 'small' || details.subslot === 'medium')) {
+                                        slots.push({ id: 'hip_right_sheathed', label: 'Sheath Right 🗡️' });
+                                      }
+                                    } else if (details.slot === 'ring') {
+                                      slots.push({ id: 'ring_left', label: 'Left Ring 💍' });
+                                      slots.push({ id: 'ring_right', label: 'Right Ring 💍' });
+                                    } else if (details.slot === 'hip') {
+                                      slots.push({ id: 'hip_left', label: 'Left Hip 🎒' });
+                                      slots.push({ id: 'hip_right', label: 'Right Hip 🎒' });
+                                    } else {
+                                      slots.push({ id: details.slot, label: `Equip ${details.slot.toUpperCase()}` });
+                                    }
+
+                                    return slots.map(sl => (
+                                      <button
+                                        key={sl.id}
+                                        type="button"
+                                        onClick={() => {
+                                          onEquipItem(item, sl.id);
+                                          setActiveItemMenu(null);
+                                        }}
+                                        className="px-2 py-1 text-left hover:bg-slate-850 hover:text-amber-400 rounded text-3xs font-semibold cursor-pointer"
+                                      >
+                                        {sl.label}
+                                      </button>
+                                    ));
+                                  })()}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {isUsable && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onUseInventoryItem(item, settings.sandboxMode ? '' : settings.keys[activeGm.id], settings.sandboxMode);
+                                setActiveItemMenu(null);
+                              }}
+                              disabled={isLoading || enemyAttacksQueue.length > 0}
+                              className="px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-900 text-3xs font-extrabold uppercase transition-all cursor-pointer disabled:opacity-40"
+                            >
+                              Use
+                            </button>
+                          )}
+
+                          {isRations && (character.daysWithoutFood > 0 || (character.stats.fatigue !== undefined && character.stats.fatigue < character.stats.maxFatigue)) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onEatRation();
+                                setActiveItemMenu(null);
+                              }}
+                              disabled={isLoading || enemyAttacksQueue.length > 0}
+                              className="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-900 text-3xs font-extrabold uppercase transition-all cursor-pointer disabled:opacity-40"
+                            >
+                              Eat
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onDropItem(item);
+                              setActiveItemMenu(null);
+                            }}
+                            disabled={isLoading}
+                            className="px-1.5 py-0.5 rounded bg-rose-955/20 hover:bg-rose-900/30 text-rose-400 border border-rose-500/20 text-3xs font-extrabold uppercase transition-all cursor-pointer disabled:opacity-40"
+                          >
+                            Drop
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
 
     </div>
   );

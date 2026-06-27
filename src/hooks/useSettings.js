@@ -8,6 +8,8 @@ const DEFAULT_SETTINGS = {
     ancient: import.meta.env.VITE_CEREBRAS_API_KEY || '',
   },
   sandboxMode: !(import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_GROQ_API_KEY || import.meta.env.VITE_CEREBRAS_API_KEY),
+  engineTier: 'free',
+  userApiKey: '',
 };
 
 export default function useSettings() {
@@ -22,7 +24,10 @@ export default function useSettings() {
       ? stored.sandboxMode
       : !(import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_GROQ_API_KEY || import.meta.env.VITE_CEREBRAS_API_KEY);
     
-    return { keys, sandboxMode };
+    const engineTier = stored.engineTier || 'free';
+    const userApiKey = stored.userApiKey || '';
+    
+    return { keys, sandboxMode, engineTier, userApiKey };
   });
 
   const updateSettings = (newSettings) => {
@@ -55,10 +60,28 @@ export default function useSettings() {
     });
   };
 
+  const setEngineTier = (tier) => {
+    setSettings((prev) => {
+      const updated = { ...prev, engineTier: tier };
+      storage.set('settings', updated);
+      return updated;
+    });
+  };
+
+  const setUserApiKey = (key) => {
+    setSettings((prev) => {
+      const updated = { ...prev, userApiKey: key };
+      storage.set('settings', updated);
+      return updated;
+    });
+  };
+
   return {
     settings,
     updateSettings,
     updateApiKey,
     setSandboxMode,
+    setEngineTier,
+    setUserApiKey,
   };
 }
