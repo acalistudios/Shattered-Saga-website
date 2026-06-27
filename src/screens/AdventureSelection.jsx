@@ -148,149 +148,33 @@ export default function AdventureSelection({
             {/* The Visual Cartography Map Box */}
             <div className={`relative bg-slate-955/40 border border-slate-850 rounded-xl overflow-hidden shadow-2xl flex flex-col justify-between ${isDesktopLayout ? 'col-span-8 h-[520px]' : 'h-[380px]'}`}>
               
-              {/* Map Background Aesthetics (Coastlines, Compass, Grid) */}
-              <div className="absolute inset-0 bg-grid-pattern opacity-10 pointer-events-none"></div>
+              {/* Map Background Aesthetics (Grid, Parchment Image) */}
+              <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none z-0"></div>
               
-              {/* SVG Link lines and background map elements */}
-              <svg viewBox="0 0 1000 600" preserveAspectRatio="none" className="absolute inset-0 w-full h-full pointer-events-none">
+              <img 
+                src={mapLevel === 'world' ? '/images/world_map_parchment.png' : '/images/region_map_parchment.png'} 
+                alt="Saga Campaign Map" 
+                className="absolute inset-0 w-full h-full object-cover opacity-[0.92] select-none pointer-events-none filter sepia-[10%] brightness-[92%] contrast-[105%] z-0"
+              />
+              
+              {/* SVG Link lines */}
+              <svg viewBox="0 0 1000 600" preserveAspectRatio="none" className="absolute inset-0 w-full h-full pointer-events-none z-10">
                 <defs>
                   <filter id="glow-gold" x="-20%" y="-20%" width="140%" height="140%">
                     <feGaussianBlur stdDeviation="3" result="blur" />
                     <feComposite in="SourceGraphic" in2="blur" operator="over" />
                   </filter>
-                  
-                  {/* Mountain symbol */}
-                  <g id="map-mountain" stroke="#d97706" strokeWidth="1" fill="#1e293b" fillOpacity="0.8">
-                    <polygon points="0,-8 -8,8 8,8" />
-                    <line x1="0" y1="-8" x2="-1" y2="8" stroke="#f59e0b" strokeWidth="0.8" />
-                  </g>
-
-                  {/* Volcanic peak symbol */}
-                  <g id="map-volcano" stroke="#f43f5e" strokeWidth="1.2" fill="#1e1b4b" fillOpacity="0.8">
-                    <polygon points="0,-10 -10,10 10,10" />
-                    <polygon points="0,-10 -3,-3 3,-3" fill="#ef4444" stroke="none" />
-                  </g>
-
-                  {/* Pine tree symbol */}
-                  <g id="map-tree" stroke="#059669" strokeWidth="0.8" fill="#064e3b" fillOpacity="0.85">
-                    <polygon points="0,-5 -4,3 4,3" />
-                    <polygon points="0,0 -5,8 5,8" />
-                    <line x1="0" y1="8" x2="0" y2="10" stroke="#78350f" />
-                  </g>
-
-                  {/* Dead tree symbol (for graveyard/wasteland) */}
-                  <g id="map-dead-tree" stroke="#64748b" strokeWidth="1" strokeLinecap="round">
-                    <line x1="0" y1="8" x2="0" y2="0" />
-                    <line x1="0" y1="3" x2="-3" y2="1" />
-                    <line x1="0" y1="1" x2="3" y2="-1" />
-                  </g>
-
-                  {/* Snow mountain symbol */}
-                  <g id="map-snow-mountain" stroke="#38bdf8" strokeWidth="1" fill="#0f172a" fillOpacity="0.8">
-                    <polygon points="0,-8 -8,8 8,8" />
-                    <polygon points="0,-8 -3,0 3,0" fill="#e0f2fe" stroke="none" />
-                  </g>
                 </defs>
 
                 {mapLevel === 'world' ? (
                   <>
-                    {/* --- WORLD MAP VISUALS --- */}
-                    {/* High-level continent shape */}
-                    <path 
-                      d="M 150 150 C 250 80, 450 50, 600 100 C 750 150, 850 200, 820 350 C 790 480, 650 520, 500 500 C 350 480, 200 520, 150 400 C 100 280, 50 220, 150 150 Z" 
-                      fill="#0f172a" 
-                      fillOpacity="0.4" 
-                      stroke="#d97706" 
-                      strokeWidth="2" 
-                      strokeOpacity="0.25" 
-                    />
-                    
-                    {/* Oceans and Seas decoration */}
-                    <text x="500" y="80" fill="#64748b" fontSize="12" fontStyle="italic" opacity="0.4" textAnchor="middle" letterSpacing="6">THE WHISPERING DEEP</text>
-                    <text x="500" y="540" fill="#64748b" fontSize="12" fontStyle="italic" opacity="0.4" textAnchor="middle" letterSpacing="6">THE SHATTERED SEA</text>
-                    <text x="150" y="480" fill="#64748b" fontSize="10" fontStyle="italic" opacity="0.3" textAnchor="middle" letterSpacing="4">FORBIDDEN REACHES</text>
-
-                    {/* Dotted travel lines connecting regions */}
-                    <path d="M 350 270 Q 500 220 650 180" fill="none" stroke="#d97706" strokeWidth="1.5" strokeDasharray="6,6" strokeOpacity="0.2" />
-                    <path d="M 350 270 Q 450 360 550 450" fill="none" stroke="#d97706" strokeWidth="1.5" strokeDasharray="6,6" strokeOpacity="0.2" />
-                    <path d="M 350 270 Q 250 345 200 420" fill="none" stroke="#d97706" strokeWidth="1.5" strokeDasharray="6,6" strokeOpacity="0.2" />
-
-                    {/* World Map decorative elements */}
-                    <use href="#map-mountain" x="480" y="150" />
-                    <use href="#map-mountain" x="510" y="180" />
-                    <use href="#map-mountain" x="540" y="210" />
-                    
-                    <use href="#map-tree" x="250" y="180" />
-                    <use href="#map-tree" x="280" y="210" />
-                    <use href="#map-tree" x="220" y="220" />
-                    
-                    <use href="#map-snow-mountain" x="520" y="420" />
-                    <use href="#map-snow-mountain" x="550" y="450" />
+                    {/* Dotted travel lines connecting regions on the world map */}
+                    <path d="M 350 270 Q 500 220 650 180" fill="none" stroke="#d97706" strokeWidth="2.5" strokeDasharray="6,6" strokeOpacity="0.45" filter="url(#glow-gold)" />
+                    <path d="M 350 270 Q 450 360 550 450" fill="none" stroke="#d97706" strokeWidth="2.5" strokeDasharray="6,6" strokeOpacity="0.45" filter="url(#glow-gold)" />
+                    <path d="M 350 270 Q 250 345 200 420" fill="none" stroke="#d97706" strokeWidth="2.5" strokeDasharray="6,6" strokeOpacity="0.45" filter="url(#glow-gold)" />
                   </>
                 ) : (
                   <>
-                    {/* --- REGION 1 MAP VISUALS --- */}
-                    {/* Region 1 Landmass Outline */}
-                    <path 
-                      d="M 60 120 C 220 50, 520 30, 780 90 C 920 130, 970 280, 940 430 C 870 540, 620 570, 450 530 C 280 500, 90 550, 50 400 C 20 280, 10 160, 60 120 Z" 
-                      fill="#0f172a" 
-                      fillOpacity="0.35" 
-                      stroke="#d97706" 
-                      strokeWidth="1.5" 
-                      strokeOpacity="0.25" 
-                    />
-                    
-                    {/* Coastal wave rings */}
-                    <path 
-                      d="M 55 115 C 215 45, 515 25, 785 85 C 925 125, 975 275, 945 425 C 875 535, 625 565, 445 525 C 275 495, 85 545, 45 395 C 15 275, 5 155, 55 115 Z" 
-                      fill="none" 
-                      stroke="#d97706" 
-                      strokeWidth="0.8" 
-                      strokeOpacity="0.12" 
-                    />
-
-                    {/* Water Bodies (Lake Aetherius) */}
-                    <ellipse cx="480" cy="240" rx="90" ry="60" fill="#1e3a8a" fillOpacity="0.15" stroke="#3b82f6" strokeWidth="1" strokeDasharray="3,3" />
-                    <ellipse cx="480" cy="240" rx="50" ry="33" fill="none" stroke="#3b82f6" strokeWidth="0.8" strokeOpacity="0.3" />
-                    
-                    {/* Rivers */}
-                    <path d="M 450 48 C 420 100, 400 120, 440 180 T 480 240" fill="none" stroke="#2563eb" strokeWidth="1.5" strokeOpacity="0.35" />
-                    <path d="M 480 240 C 580 258, 640 288, 700 330 T 880 390" fill="none" stroke="#2563eb" strokeWidth="1.5" strokeOpacity="0.35" />
-                    
-                    {/* Forests (Whispering Woods near Ashveil Keep x:18% y:25% -> X:180 Y:150) */}
-                    <use href="#map-tree" x="100" y="90" />
-                    <use href="#map-tree" x="130" y="72" />
-                    <use href="#map-tree" x="180" y="84" />
-                    <use href="#map-tree" x="220" y="96" />
-                    <use href="#map-tree" x="120" y="168" />
-                    <use href="#map-tree" x="150" y="192" />
-                    <use href="#map-tree" x="240" y="180" />
-                    <use href="#map-tree" x="260" y="132" />
-
-                    {/* Wastelands (Saltblood Mines area x:18% y:70% -> X:180 Y:420) */}
-                    <use href="#map-dead-tree" x="120" y="372" />
-                    <use href="#map-dead-tree" x="150" y="444" />
-                    <use href="#map-dead-tree" x="220" y="390" />
-                    <use href="#map-dead-tree" x="240" y="456" />
-                    
-                    {/* Volcanic Mountains (Obsidian Vault area x:45% y:62% -> X:450 Y:372) */}
-                    <use href="#map-mountain" x="380" y="348" />
-                    <use href="#map-mountain" x="400" y="384" />
-                    <use href="#map-mountain" x="520" y="378" />
-                    <use href="#map-mountain" x="490" y="342" />
-                    
-                    {/* Frozen Mountains (Frostfire Crypt area x:48% y:82% -> X:480 Y:492) */}
-                    <use href="#map-snow-mountain" x="420" y="510" />
-                    <use href="#map-snow-mountain" x="540" y="498" />
-                    <use href="#map-snow-mountain" x="450" y="534" />
-
-                    {/* Region Text Labels */}
-                    <text x="140" y="108" fill="#64748b" fontSize="8" fontStyle="italic" opacity="0.65" textAnchor="middle">Whispering Woods</text>
-                    <text x="120" y="468" fill="#64748b" fontSize="8" fontStyle="italic" opacity="0.65" textAnchor="middle">Saltblood Badlands</text>
-                    <text x="370" y="384" fill="#b45309" fontSize="8" fontStyle="italic" opacity="0.65" textAnchor="end">Ignis Ridge</text>
-                    <text x="480" y="276" fill="#3b82f6" fontSize="8" fontStyle="italic" opacity="0.65" textAnchor="middle">Lake Aetherius</text>
-                    <text x="560" y="534" fill="#0ea5e9" fontSize="8" fontStyle="italic" opacity="0.65" textAnchor="start">Frostfire Glacier</text>
-
                     {/* Node Connection Lines */}
                     {MAP_CONNECTIONS.map((conn, idx) => {
                       const fromNode = MAP_NODES[conn.from];
@@ -308,8 +192,8 @@ export default function AdventureSelection({
                           y1={`${fromNode.y * 6}`}
                           x2={`${toNode.x * 10}`}
                           y2={`${toNode.y * 6}`}
-                          className={isActive ? "stroke-amber-500/50 stroke-[2.5]" : "stroke-slate-800/40 stroke-[1.5]"}
-                          strokeDasharray={isActive ? "none" : "6,6"}
+                          className={isActive ? "stroke-amber-500/60 stroke-[3]" : "stroke-slate-900/35 stroke-[2]"}
+                          strokeDasharray={isActive ? "none" : "5,5"}
                           filter={isActive ? "url(#glow-gold)" : "none"}
                         />
                       );
@@ -317,24 +201,6 @@ export default function AdventureSelection({
                   </>
                 )}
               </svg>
-
-              {/* Decorative Compass Rose SVG */}
-              <div className="absolute bottom-4 left-4 w-16 h-16 opacity-25 pointer-events-none rotate-12">
-                <svg viewBox="0 0 100 100" className="w-full h-full stroke-amber-550 fill-none stroke-1">
-                  <circle cx="50" cy="50" r="45" />
-                  <circle cx="50" cy="50" r="41" strokeDasharray="3,3" />
-                  <line x1="50" y1="5" x2="50" y2="95" />
-                  <line x1="5" y1="50" x2="95" y2="50" />
-                  <polygon points="50,5 53,40 50,47" fill="#d97706" />
-                  <polygon points="50,5 47,40 50,47" fill="#f59e0b" />
-                  <polygon points="50,95 53,60 50,53" fill="#d97706" />
-                  <polygon points="50,95 47,60 50,53" fill="#f59e0b" />
-                  <polygon points="95,50 60,53 53,50" fill="#d97706" />
-                  <polygon points="95,50 60,47 53,50" fill="#f59e0b" />
-                  <polygon points="5,50 40,53 47,50" fill="#d97706" />
-                  <polygon points="5,50 40,47 47,50" fill="#f59e0b" />
-                </svg>
-              </div>
 
               {/* Zoom Out Button */}
               {mapLevel === 'region1' && (
