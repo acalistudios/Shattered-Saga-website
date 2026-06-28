@@ -10,6 +10,7 @@ const DEFAULT_SETTINGS = {
   sandboxMode: !(import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_GROQ_API_KEY || import.meta.env.VITE_CEREBRAS_API_KEY),
   engineTier: 'free',
   userApiKey: '',
+  strongholdChest: [],
 };
 
 export default function useSettings() {
@@ -26,8 +27,9 @@ export default function useSettings() {
     
     const engineTier = stored.engineTier || 'free';
     const userApiKey = stored.userApiKey || '';
+    const strongholdChest = stored.strongholdChest || [];
     
-    return { keys, sandboxMode, engineTier, userApiKey };
+    return { keys, sandboxMode, engineTier, userApiKey, strongholdChest };
   });
 
   const updateSettings = (newSettings) => {
@@ -76,6 +78,17 @@ export default function useSettings() {
     });
   };
 
+  const addToStrongholdChest = (items) => {
+    setSettings((prev) => {
+      const updated = {
+        ...prev,
+        strongholdChest: [...(prev.strongholdChest || []), ...items]
+      };
+      storage.set('settings', updated);
+      return updated;
+    });
+  };
+
   return {
     settings,
     updateSettings,
@@ -83,5 +96,6 @@ export default function useSettings() {
     setSandboxMode,
     setEngineTier,
     setUserApiKey,
+    addToStrongholdChest,
   };
 }

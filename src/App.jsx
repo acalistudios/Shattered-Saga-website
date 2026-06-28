@@ -18,7 +18,8 @@ function App() {
     updateApiKey,
     setSandboxMode,
     setEngineTier,
-    setUserApiKey
+    setUserApiKey,
+    addToStrongholdChest
   } = useSettings();
 
   const {
@@ -62,6 +63,9 @@ function App() {
     equipItem,
     unequipItem,
     dropItem,
+    pickUpItem,
+    currentLocation,
+    droppedItems,
     calculateWeightAndVolume,
     enemyAttacksQueue,
     resolveEnemyAttack,
@@ -391,7 +395,7 @@ function App() {
   };
 
   const handleExitAdventure = () => {
-    exitAdventureSavingProgress();
+    exitAdventureSavingProgress(addToStrongholdChest);
     setScreen('splash');
   };
 
@@ -552,6 +556,9 @@ function App() {
             onEquipItem={equipItem}
             onUnequipItem={unequipItem}
             onDropItem={dropItem}
+            onPickUpItem={pickUpItem}
+            currentLocation={currentLocation}
+            droppedItems={droppedItems}
             calculateWeightAndVolume={calculateWeightAndVolume}
             gems={gems}
             onSpendGem={handleSpendGem}

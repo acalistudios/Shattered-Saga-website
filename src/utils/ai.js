@@ -225,10 +225,47 @@ async function readStream(response, provider, onChunk) {
   return accumulatedText;
 }
 
+// Client-side cache for prompt completions to optimize tokens, cost, and latency
+const COMPLETIONS_CACHE = {};
+
+export async function generateCompletion(params) {
+  const { provider, model, systemPrompt, history, onChunk } = params;
+  
+  // Generate a key combining the provider, model, system instruction, and the last user input turn
+  const lastUserMsg = [...history].reverse().find(m => m.role === 'user')?.content || '';
+  const cacheKey = `${provider}||${model}||${systemPrompt}||${lastUserMsg}`;
+  
+  if (COMPLETIONS_CACHE[cacheKey]) {
+    const cachedResponse = COMPLETIONS_CACHE[cacheKey];
+    if (onChunk) {
+      // Simulate streaming chunks for a smooth, consistent UI feel
+      const text = cachedResponse.text;
+      const step = Math.ceil(text.length / 5);
+      let currentLen = 0;
+      for (let i = 0; i < 5; i++) {
+        currentLen += step;
+        onChunk(text.slice(0, currentLen));
+        await new Promise(resolve => setTimeout(resolve, 30));
+      }
+      onChunk(text);
+    }
+    return cachedResponse;
+  }
+  
+  const result = await executeRawCompletion(params);
+  
+  // Cache the response if there was no API error and it has actual text content
+  if (result && result.text && !result.error) {
+    COMPLETIONS_CACHE[cacheKey] = result;
+  }
+  
+  return result;
+}
+
 /**
- * Main completion caller.
+ * Raw completion caller.
  */
-export async function generateCompletion({
+async function executeRawCompletion({
   provider,
   model,
   apiKey,

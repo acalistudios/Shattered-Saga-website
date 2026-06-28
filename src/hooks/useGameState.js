@@ -264,7 +264,9 @@ const DEFAULT_CHARACTER = {
     hour: 13.0,
     bleedingTier: 0,
     deathCountdown: null,
-    defenseCount: 0
+    defenseCount: 0,
+    elementalAbility: null,
+    elementalAbilityUsed: false
   },
   inventory: ['Bedroll', 'Rations (5)', 'Tinderbox', 'Waterskin'],
   active_quests: ['Explore the High Fantasy Realm'],
@@ -422,6 +424,11 @@ export default function useGameState() {
   const [lastHandoffJson, setLastHandoffJson] = useState(null);
   const [isHandoffScreenVisible, setIsHandoffScreenVisible] = useState(false);
 
+  // Codex Architecture: NPC Memory, Location, and Ground Items state
+  const [currentLocation, setCurrentLocation] = useState(() => storage.get(`slot_${activeSlotIndex}_current_location`, ''));
+  const [droppedItems, setDroppedItems] = useState(() => storage.get(`slot_${activeSlotIndex}_dropped_items`, {}));
+  const [npcMemory, setNpcMemory] = useState(() => storage.get(`slot_${activeSlotIndex}_npc_memory`, {}));
+
   // UI state
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState(null);
@@ -495,6 +502,24 @@ export default function useGameState() {
       storage.set(`slot_${activeSlotIndex}_handoff_state`, handoffState);
     }
   }, [handoffState, activeSlotIndex, character?.name]);
+
+  useEffect(() => {
+    if (character && character.name) {
+      storage.set(`slot_${activeSlotIndex}_current_location`, currentLocation);
+    }
+  }, [currentLocation, activeSlotIndex, character?.name]);
+
+  useEffect(() => {
+    if (character && character.name) {
+      storage.set(`slot_${activeSlotIndex}_dropped_items`, droppedItems);
+    }
+  }, [droppedItems, activeSlotIndex, character?.name]);
+
+  useEffect(() => {
+    if (character && character.name) {
+      storage.set(`slot_${activeSlotIndex}_npc_memory`, npcMemory);
+    }
+  }, [npcMemory, activeSlotIndex, character?.name]);
 
   useEffect(() => {
     if (character && character.name && character.stats) {
@@ -1682,7 +1707,29 @@ ${(activeAdventure.itemsDetail || []).map(item => {
   const propStr = item.properties ? ` [Properties: ${item.properties}]` : '';
   return `- ${item.name}: ${item.desc}${propStr}`;
 }).join('\n')}
+
+${activeAdventure.playabilityGuidance ? `[PLAYABILITY GUIDANCE]\n${activeAdventure.playabilityGuidance}\n` : `[PLAYABILITY GUIDANCE]\nRun this adventure as a branching scenario, not a checklist. Surface at least two viable approaches to major obstacles, let NPC motives complicate simple combat, foreshadow the ending choices before the finale, and award the listed rewards only when the player's actions justify them.\n`}
+
+${activeAdventure.rewards ? `[ENDING REWARDS]\n${Object.entries(activeAdventure.rewards).map(([ending, rewards]) => `- ${ending}: ${(Array.isArray(rewards) ? rewards : [rewards]).join(' ')}`).join('\n')}\n` : ''}
+
+${activeAdventure.elementalAbilities ? `[ELEMENTAL AWAKENING REWARDS]\n${Object.entries(activeAdventure.elementalAbilities).map(([element, ability]) => `- ${element}: ${ability.name} - ${ability.properties}`).join('\n')}\n` : ''}
+
+[CURRENT LOCATION & PERSISTENT WORLD GROUND STATE]
+Active Location: ${currentLocation || activeAdventure.settings[0] || 'Unknown'}
+Items lying on the ground in this room: ${(droppedItems[activeAdventureId]?.[currentLocation || activeAdventure.settings[0]] || []).join(', ') || 'None'}
+(Rules: Whenever the player successfully moves to a different area, you MUST output the exact tag: [location: Room Name], where 'Room Name' matches one of the settings defined above. If the player drops items here, narrate them on the ground.)
 `;
+
+      // Inject NPC memories if any are stored for NPCs in this adventure
+      const adventureNpcNames = (activeAdventure.npcs || []).map(n => n.name.toLowerCase());
+      const filteredMemories = Object.entries(npcMemory).filter(([npcId]) => adventureNpcNames.includes(npcId.toLowerCase()));
+      if (filteredMemories.length > 0) {
+        systemPrompt += `\n[NPC RELATIONSHIP MEMORIES]\n`;
+        filteredMemories.forEach(([npcId, data]) => {
+          systemPrompt += `- ${npcId}: Trust ${data.trust || 50}/100, Fear ${data.fear || 10}/100, Greed ${data.greed || 50}/100, Mood: ${data.mood || 'neutral'}. Known facts: ${(data.facts || []).join(', ') || 'None'}\n`;
+        });
+        systemPrompt += `(Instructions: You can propose modifications to NPC parameters by outputting [npc_trust: NPC_Name +5], [npc_fear: NPC_Name -10], or record facts using [npc_fact: NPC_Name Fact description].)\n`;
+      }
     }
 
     if (character.is_free_roaming) {
@@ -1712,6 +1759,8 @@ HP: ${character.stats.hp}/${character.stats.maxHp}
 Fatigue: ${localFatigue.toFixed(1)}/${maxFatigue.toFixed(1)}
 Arcane SP: ${arcaneSP}/${maxArcaneSP}
 Divine SP: ${divineSP}/${maxDivineSP}
+Elemental Ability: ${character.stats?.elementalAbility ? `${character.stats.elementalAbility}${character.stats.elementalAbilityUsed ? ' (used since last rest)' : ' (ready)'}` : 'None unlocked'}
+Elemental Ability Rule: If an elemental ability is unlocked and ready, the player may use it once between rests. When it is used, output [elemental_ability_used]. If an adventure unlocks one, output [elemental_ability_unlock: element], where element is air, earth, fire, water, or aether.
 Equipped Items:
 - Head: ${character.equipment?.head || 'None'}
 - Neck: ${character.equipment?.neck || 'None'}
@@ -1748,6 +1797,8 @@ GM Instructions for automated tags:
 - Adjust quests: [add_quest: Description], [complete_quest: Description], [remove_quest: Description]
 - Apply damage or healing: [damage: X], [heal: X]
 - Rest/Advance day: [advance_day]
+- Unlock elemental ability: [elemental_ability_unlock: fire|earth|air|water|aether]
+- Mark elemental ability as spent when used: [elemental_ability_used]
 Ensure all tags are formatted exactly as shown. Always describe the narrative event corresponding to the tags.
 `;
 
@@ -1787,6 +1838,26 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       }
 
       let cleanedText = response.text || '';
+
+      // A. Location tag parsing
+      const locationRegex = /\[location:\s*([^\]]+)\]/gi;
+      const locationMatch = [...cleanedText.matchAll(locationRegex)].pop();
+      let newLocation = locationMatch ? locationMatch[1].trim() : null;
+      cleanedText = cleanedText.replace(locationRegex, '').trim();
+
+      // B. NPC relationship trust/fear parsing
+      const npcTrustRegex = /\[npc_trust:\s*([^\]\s]+)\s*([+-]?\d+)\]/gi;
+      const npcTrustMatches = [...cleanedText.matchAll(npcTrustRegex)].map(m => ({ npcId: m[1].trim(), amount: parseInt(m[2], 10) }));
+      cleanedText = cleanedText.replace(npcTrustRegex, '').trim();
+
+      const npcFearRegex = /\[npc_fear:\s*([^\]\s]+)\s*([+-]?\d+)\]/gi;
+      const npcFearMatches = [...cleanedText.matchAll(npcFearRegex)].map(m => ({ npcId: m[1].trim(), amount: parseInt(m[2], 10) }));
+      cleanedText = cleanedText.replace(npcFearRegex, '').trim();
+
+      // C. NPC fact parsing
+      const npcFactRegex = /\[npc_fact:\s*([^\]\s]+)\s*([^\]]+)\]/gi;
+      const npcFactMatches = [...cleanedText.matchAll(npcFactRegex)].map(m => ({ npcId: m[1].trim(), fact: m[2].trim() }));
+      cleanedText = cleanedText.replace(npcFactRegex, '').trim();
 
       // Parse tags out of the response text (morality, roleplay, and advance_day)
       const moralityRegex = /\[morality:\s*([+-]?\d+)\]/gi;
@@ -1903,6 +1974,15 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const statusMatches = [...cleanedText.matchAll(statusRegex)];
       cleanedText = cleanedText.replace(statusRegex, '').trim();
 
+      // 12. Elemental ability unlock/use
+      const elementalUnlockRegex = /\[elemental_ability_unlock:\s*(air|earth|fire|water|aether)\]/gi;
+      const elementalUnlockMatches = [...cleanedText.matchAll(elementalUnlockRegex)].map(m => m[1].toLowerCase());
+      cleanedText = cleanedText.replace(elementalUnlockRegex, '').trim();
+
+      const elementalUsedRegex = /\[elemental_ability_used\]/gi;
+      const elementalAbilityUsed = elementalUsedRegex.test(cleanedText);
+      cleanedText = cleanedText.replace(elementalUsedRegex, '').trim();
+
       // Calculate HP damage mitigation details for feedback
       let combatNotice = '';
       let totalNetDamage = 0;
@@ -1994,8 +2074,47 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       if (parsedEnemyAttacks.length > 0) {
         tagsFeedback += `\n\n[Combat: Enemy is attacking! Defense roll required. Attacks queued: ${parsedEnemyAttacks.length}]`;
       }
+      if (elementalUnlockMatches.length > 0) {
+        tagsFeedback += `\n\n[Elemental Ability Unlocked: ${elementalUnlockMatches[elementalUnlockMatches.length - 1].toUpperCase()}]`;
+      }
+      if (elementalAbilityUsed) {
+        tagsFeedback += `\n\n[Elemental Ability Used: refreshes after an 8-hour rest with rations.]`;
+      }
 
       cleanedText += combatNotice + tagsFeedback;
+
+      if (newLocation) {
+        setCurrentLocation(newLocation);
+      }
+
+      if (npcTrustMatches.length > 0 || npcFearMatches.length > 0 || npcFactMatches.length > 0) {
+        setNpcMemory(prev => {
+          const nextMemory = { ...prev };
+          
+          npcTrustMatches.forEach(({ npcId, amount }) => {
+            const key = npcId.toLowerCase();
+            if (!nextMemory[key]) nextMemory[key] = { trust: 50, fear: 10, greed: 50, mood: 'neutral', facts: [] };
+            nextMemory[key].trust = Math.max(0, Math.min(100, (nextMemory[key].trust || 50) + amount));
+          });
+
+          npcFearMatches.forEach(({ npcId, amount }) => {
+            const key = npcId.toLowerCase();
+            if (!nextMemory[key]) nextMemory[key] = { trust: 50, fear: 10, greed: 50, mood: 'neutral', facts: [] };
+            nextMemory[key].fear = Math.max(0, Math.min(100, (nextMemory[key].fear || 10) + amount));
+          });
+
+          npcFactMatches.forEach(({ npcId, fact }) => {
+            const key = npcId.toLowerCase();
+            if (!nextMemory[key]) nextMemory[key] = { trust: 50, fear: 10, greed: 50, mood: 'neutral', facts: [] };
+            if (!nextMemory[key].facts) nextMemory[key].facts = [];
+            if (!nextMemory[key].facts.includes(fact)) {
+              nextMemory[key].facts = [...nextMemory[key].facts, fact];
+            }
+          });
+
+          return nextMemory;
+        });
+      }
 
       setCharacter(prev => {
         const updated = { ...prev };
@@ -2053,7 +2172,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
             hour: 8.0,
             fatigue: hasRations ? (prev.stats.maxFatigue || 15) : (prev.stats.fatigue || 0),
             arcaneSP: hasRations ? (prev.stats.maxArcaneSP || 0) : (prev.stats.arcaneSP || 0),
-            divineSP: hasRations ? (prev.stats.maxDivineSP || 0) : (prev.stats.divineSP || 0)
+            divineSP: hasRations ? (prev.stats.maxDivineSP || 0) : (prev.stats.divineSP || 0),
+            elementalAbilityUsed: hasRations ? false : (prev.stats.elementalAbilityUsed || false)
           };
           
           if (hasRations) {
@@ -2227,7 +2347,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
               fatigue: updated.stats.maxFatigue || 15,
               arcaneSP: updated.stats.maxArcaneSP || 0,
               divineSP: updated.stats.maxDivineSP || 0,
-              hp: nextHp
+              hp: nextHp,
+              elementalAbilityUsed: false
             };
           } else {
             const daysCount = Math.floor(restHours / 24) || 1;
@@ -2298,6 +2419,13 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
             }
           });
           updated.stats.statuses = merged;
+        }
+
+        if (elementalUnlockMatches.length > 0) {
+          updated.stats.elementalAbility = elementalUnlockMatches[elementalUnlockMatches.length - 1];
+          updated.stats.elementalAbilityUsed = false;
+        } else if (elementalAbilityUsed && updated.stats.elementalAbility) {
+          updated.stats.elementalAbilityUsed = true;
         }
 
         const maxFatigue = updated.stats.maxFatigue || 15;
@@ -2492,9 +2620,24 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     }));
   };
 
-  const exitAdventureSavingProgress = () => {
+  const exitAdventureSavingProgress = (onCollectGroundItems) => {
+    if (activeAdventureId && onCollectGroundItems) {
+      const advDrops = droppedItems[activeAdventureId] || {};
+      const allDroppedItems = Object.values(advDrops).flat();
+      if (allDroppedItems.length > 0) {
+        onCollectGroundItems(allDroppedItems);
+      }
+      
+      setDroppedItems(prev => {
+        const next = { ...prev };
+        delete next[activeAdventureId];
+        return next;
+      });
+    }
+
     storage.remove(`slot_${activeSlotIndex}_pre_adventure_character`);
     setActiveAdventureId(null);
+    setCurrentLocation('');
     setHistory([]);
     setJournal({ storySoFar: '', recentTurns: [] });
     setHandoffState(null);
@@ -2505,12 +2648,22 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
   };
 
   const quitActiveAdventure = () => {
+    // Clear dropped items state for this slot
+    if (activeAdventureId) {
+      setDroppedItems(prev => {
+        const next = { ...prev };
+        delete next[activeAdventureId];
+        return next;
+      });
+    }
+
     const preAdvChar = storage.get(`slot_${activeSlotIndex}_pre_adventure_character`);
     if (preAdvChar) {
       setCharacter(preAdvChar);
       storage.remove(`slot_${activeSlotIndex}_pre_adventure_character`);
     }
     setActiveAdventureId(null);
+    setCurrentLocation('');
     setHistory([]);
     setJournal({ storySoFar: '', recentTurns: [] });
     setHandoffState(null);
@@ -2526,6 +2679,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     storage.set(`slot_${activeSlotIndex}_pre_adventure_character`, character);
     
     const adventure = ADVENTURES_LIST.find(a => a.id === adventureId);
+    const startLocation = adventure?.settings?.[0] || '';
+    setCurrentLocation(startLocation);
+
     const startDay = adventure?.startingDay || 1;
     const startHour = adventure?.startingHour !== undefined ? adventure.startingHour : 13.0;
 
@@ -2678,13 +2834,14 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         stats.fatigue = stats.maxFatigue || 15;
         stats.arcaneSP = stats.maxArcaneSP || 0;
         stats.divineSP = stats.maxDivineSP || 0;
+        stats.elementalAbilityUsed = false;
         
         setTimeout(() => {
           setHistory(h => [
             ...h,
             {
               role: 'model',
-              content: `*You set up camp and rest for 8 hours, consuming a ration. Your physical energy and spiritual focus are fully restored.*`,
+              content: `*You set up camp and rest for 8 hours, consuming a ration. Your physical energy, spiritual focus, and elemental focus are fully restored.*`,
               checkDetails: null
             }
           ]);
@@ -2830,10 +2987,58 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         }
       }
 
+      // Add to dropped items for the current active room/location
+      if (activeAdventureId) {
+        const activeAdventure = ADVENTURES_LIST.find(a => a.id === activeAdventureId);
+        const loc = currentLocation || activeAdventure?.settings?.[0] || 'Unknown';
+        setDroppedItems(prevDrops => {
+          const advDrops = prevDrops[activeAdventureId] || {};
+          const roomDrops = advDrops[loc] || [];
+          return {
+            ...prevDrops,
+            [activeAdventureId]: {
+              ...advDrops,
+              [loc]: [...roomDrops, itemName]
+            }
+          };
+        });
+      }
+
       return {
         ...prev,
         inventory: nextInventory,
         equipment: nextEquipment
+      };
+    });
+  };
+
+  const pickUpItem = (itemName) => {
+    if (!activeAdventureId) return;
+    const activeAdventure = ADVENTURES_LIST.find(a => a.id === activeAdventureId);
+    const loc = currentLocation || activeAdventure?.settings?.[0] || 'Unknown';
+
+    setDroppedItems(prevDrops => {
+      const advDrops = prevDrops[activeAdventureId] || {};
+      const roomDrops = advDrops[loc] || [];
+      const itemIdx = roomDrops.indexOf(itemName);
+      if (itemIdx === -1) return prevDrops;
+
+      const nextRoomDrops = [...roomDrops];
+      nextRoomDrops.splice(itemIdx, 1);
+
+      setCharacter(prev => {
+        return {
+          ...prev,
+          inventory: [...prev.inventory, itemName]
+        };
+      });
+
+      return {
+        ...prevDrops,
+        [activeAdventureId]: {
+          ...advDrops,
+          [loc]: nextRoomDrops
+        }
       };
     });
   };
@@ -3178,6 +3383,10 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     equipItem,
     unequipItem,
     dropItem,
+    pickUpItem,
+    currentLocation,
+    droppedItems,
+    npcMemory,
     calculateWeightAndVolume,
     enemyAttacksQueue,
     resolveEnemyAttack,

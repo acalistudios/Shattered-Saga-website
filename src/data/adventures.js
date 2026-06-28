@@ -4,6 +4,143 @@ import ancientBanner from '../assets/images/ancient.png';
 
 export const ADVENTURES_LIST = [
   {
+    id: 'elemental_crucible',
+    name: 'The Elemental Crucible',
+    desc: 'Enter an ancient fivefold shrine where air, earth, fire, water, and aether test the soul. Complete the crucible to awaken a once-per-rest elemental ability tied to your character\'s affinity.',
+    element: 'aether',
+    suggestedGm: 'oracle',
+    artwork: oracleBanner,
+    startingDay: 1,
+    startingHour: 12.0,
+    startingPrompt: 'At noon, five beams of colored light rise from a ruined hill shrine: red flame, green stone, white wind, blue water, and violet aether. The air tastes like rain on hot iron. In the center waits a circular door with five empty handprints, each shaped for a different element. A voice from nowhere says, "Power is not given. It is answered." Ask the player which shrine they approach first, and remind them that their own elemental affinity may shape the final awakening.',
+    objectives: [
+      'Enter the ruined fivefold shrine and learn the rules of the Elemental Crucible.',
+      'Complete at least three elemental trials, with optional mastery of all five.',
+      'Resolve the fracture between the shrine guardians without letting one element dominate the others.',
+      'Face the final Mirror of Affinity and choose whether to awaken power, share it, bind it, or steal more than one element.',
+      'Unlock the character\'s elemental affinity ability with [elemental_ability_unlock: element] if the awakening is earned.'
+    ],
+    backstory: 'The Elemental Crucible was built before the modern kingdoms, when elemental affinity was treated as a responsibility rather than a birthmark. Young heroes came here to prove they could use power without becoming its servant. The shrine failed when five champions tried to seize every element at once, cracking the central font and leaving each guardian convinced its own element must lead. Now the crucible has awakened again because planar static is rising across the realm. The player can earn a personal awakening, reconcile the guardians, distribute the power to others, or risk becoming a vessel for more power than one soul can hold.',
+    playabilityGuidance: 'Run this as a flexible trial adventure rather than a linear dungeon. Each shrine should spotlight different skills so any character build can contribute: Fire rewards courage and action, Earth rewards endurance and protection, Air rewards movement and perception, Water rewards compassion and adaptation, and Aether rewards insight and restraint. Let clever non-combat solutions count. The final unlock should match the player character\'s chosen element, not the order of shrines completed.',
+    elementalAbilities: {
+      fire: {
+        name: 'Cinderbreath',
+        properties: 'Once between rests, as one action, unleash a close cone of flame. The GM should resolve it as a Moderate Attunement or Arcane Shaping check against nearby foes; on success, deal 2d6 fire/blunt raw damage split among close enemies or ignite a major hazard. Output [elemental_ability_used].'
+      },
+      earth: {
+        name: 'Stone Mantle',
+        properties: 'Once between rests, as one action, turn skin to living stone for 3 rounds. The GM should apply a defensive status and reduce incoming physical damage by +1d6 soak while active, stacking with armor. Output [status: player stone_mantle 3] and [elemental_ability_used].'
+      },
+      air: {
+        name: 'Gale Flash',
+        properties: 'Once between rests, as one action, burst into a blinding spiral of dust, light, and wind. One visible foe must resist with Perception, Willpower, or Vigor; on failure, they are blinded or disoriented for 2 rounds and suffer disadvantage-like narration on attacks. Output [elemental_ability_used].'
+      },
+      water: {
+        name: 'Tide Mend',
+        properties: 'Once between rests, as one action, draw cooling water through the body. Restore 1d6+2 HP, stop Bleeding Tier 1 or 2, or cleanse one poison/fatigue condition at GM discretion. Use [heal: X] for HP restored and output [elemental_ability_used].'
+      },
+      aether: {
+        name: 'Threadstep',
+        properties: 'Once between rests, as one action, slip along a visible aether thread to a nearby location, escape a restraint, or turn one failed non-damage check into a narrow success with a strange complication. Output [elemental_ability_used].'
+      }
+    },
+    npcs: [
+      {
+        name: 'Ilyra of the Fivefold Font',
+        role: 'Crucible Keeper',
+        desc: 'A calm spectral guide who explains that elemental power must be answered with character, not appetite.',
+        stats: {
+          HP: null,
+          attributes: { Power: 1, Coordination: 4, Vigor: 3, Willpower: 6, Intellect: 5, Charisma: 4, Attunement: 6, Empathy: 5 },
+          skills: { Lore: 5, Insight: 4, ArcaneDrawing: 4, DivineCommunion: 3, Negotiation: 3 },
+          defenses: { will: 'Willpower d20 + Empathy d6', arcane: 'Attunement d20 + Intellect d6' },
+          armor: 'Spectral guide; cannot be harmed unless the font is corrupted.',
+          attacks: [],
+          special: 'Can clarify trial stakes, but refuses to solve trials. If the player tries to steal all elements, she becomes the final judge.',
+          weaknesses: ['Honest humility, restored balance, and proof that the player will not hoard power.']
+        }
+      },
+      {
+        name: 'The Cinder Stag',
+        role: 'Fire Trial Guardian',
+        desc: 'A burning antlered spirit that tests courage, restraint, and destructive temptation.',
+        stats: {
+          HP: 24,
+          attributes: { Power: 5, Coordination: 4, Vigor: 4, Willpower: 3, Intellect: 2, Charisma: 2, Attunement: 5, Empathy: 1 },
+          skills: { Athletics: 3, Intimidation: 3, Brawling: 3, ArcaneShaping: 2 },
+          defenses: { dodge: 'Coordination d10 + Vigor d4+1', arcane: 'Attunement d12 + Intellect d2+1' },
+          armor: 'Flame hide, light armor soak 1d3; water or calm ritual reduces its heat.',
+          attacks: [{ name: 'Antler Rush', skill: 'Brawling', damage: '1d8 blunt/fire', note: 'May ignite flammable ground on high margin.' }],
+          weaknesses: ['Water, patience, and refusing needless destruction.']
+        }
+      },
+      {
+        name: 'The Granite Matron',
+        role: 'Earth Trial Guardian',
+        desc: 'A stone giantess who asks what the player will carry and whom they will shield.',
+        stats: {
+          HP: 34,
+          attributes: { Power: 6, Coordination: 2, Vigor: 6, Willpower: 4, Intellect: 3, Charisma: 2, Attunement: 2, Empathy: 3 },
+          skills: { Athletics: 4, Blocking: 4, Smithing: 2, Survival: 2, Insight: 2 },
+          defenses: { dodge: 'Coordination d6 + Vigor d10', block: 'Power d20 + Coordination d2+1 + 4d2' },
+          armor: 'Stone body, heavy armor soak 1d6',
+          attacks: [{ name: 'Stone Palm', skill: 'Brawling', damage: '1d8 blunt', note: 'Can knock prone but often tests instead of killing.' }],
+          weaknesses: ['Promises kept under burden, clever leverage, and protecting someone weaker.']
+        }
+      },
+      {
+        name: 'The Mirror of Affinity',
+        role: 'Final Trial',
+        desc: 'A faceless reflection of the player, carrying their chosen element and their worst reason for wanting power.',
+        stats: {
+          HP: 30,
+          attributes: { Power: 4, Coordination: 4, Vigor: 4, Willpower: 5, Intellect: 4, Charisma: 4, Attunement: 5, Empathy: 3 },
+          skills: { Insight: 4, Deception: 3, ArcaneShaping: 3, DivineManifestation: 3, LightWeapons: 2 },
+          defenses: { dodge: 'Coordination d10 + Vigor d4+1', will: 'Willpower d12 + Empathy d4', arcane: 'Attunement d12 + Intellect d4+1' },
+          armor: 'Elemental reflection, medium armor soak 1d4',
+          attacks: [{ name: 'Reflected Element', skill: 'Arcane Shaping', damage: '1d8 elemental', note: 'Flavor matches the player\'s affinity; it tests motive more than damage.' }],
+          weaknesses: ['Self-knowledge, accepting limits, and using a non-dominant virtue to answer the trial.']
+        }
+      }
+    ],
+    items: ['Fivefold Keystone', 'Cinder Antler Shard', 'Granite Heart Pebble', 'Aether Thread Spindle', 'Elemental Awakening Mark'],
+    itemsDetail: [
+      { name: 'Fivefold Keystone', desc: 'A palm-sized stone divided into five colored wedges.', properties: 'Opens the central font after three shrine trials. Grants +1 to Lore or Arcane Drawing checks involving elemental balance.' },
+      { name: 'Cinder Antler Shard', desc: 'A warm red sliver from the Cinder Stag\'s antler.', properties: 'One use. Adds fire flavor to a weapon strike or restores 2 Fatigue when crushed near a flame.' },
+      { name: 'Granite Heart Pebble', desc: 'A smooth stone that grows heavier when someone nearby is in danger.', properties: 'Once per adventure, grants +1 to Blocking, Athletics, or Survival when protecting another character.' },
+      { name: 'Aether Thread Spindle', desc: 'A little violet spindle wound with light only visible from the corner of the eye.', properties: 'Once per adventure, grants +1 to Luck, Arcane Drawing, or Perception involving hidden paths or timing.' },
+      { name: 'Elemental Awakening Mark', desc: 'A permanent mark of the character\'s affinity, visible as heat, stone-vein, wind, tide, or violet starlight under the skin.', properties: 'Represents the unlocked once-between-rests elemental ability. The GM should award it with [elemental_ability_unlock: element].' }
+    ],
+    settings: ['Fivefold Gate', 'Cinder Trial Grove', 'Granite Burden Hall', 'Skyblind Walk', 'Tide Memory Pool', 'Aether Thread Nave', 'Mirror of Affinity'],
+    settingDescriptions: {
+      'Fivefold Gate': 'A circular ruin with five empty handprints and a sealed central font. Lore, Arcane Drawing, or Divine Communion explains that three trials open the final mirror, while five trials improve the reward and reputation.',
+      'Cinder Trial Grove': 'A blackened grove where fire spreads toward trapped seed pods. The player can outrun, control, redirect, or refuse the blaze through Athletics, Survival, Arcane Shaping, or empathy for living things.',
+      'Granite Burden Hall': 'A stone hall of weighted doors, collapsing pillars, and silent statues. Athletics, Blocking, Smithing, Leadership, or clever teamwork can carry the burden without brute force.',
+      'Skyblind Walk': 'A narrow bridge over clouded emptiness while wind and dust erase sight. Acrobatics, Perception, Luck, or trust in an NPC voice can cross safely.',
+      'Tide Memory Pool': 'A blue pool showing people the player failed, helped, or ignored. Healing, Insight, Empathy, Divine Communion, or honest confession can turn memory into renewal.',
+      'Aether Thread Nave': 'A violet-lit nave where possible paths overlap. Arcane Drawing, Lore, Luck, or restraint can follow the right thread without tearing others.',
+      'Mirror of Affinity': 'The central final chamber reflects the player as they might become if power outruns wisdom. The mirror can be defeated, reconciled, bargained with, or cracked for a darker reward.'
+    },
+    rewards: {
+      awakened: [
+        'Complete the crucible with balance: unlock the ability matching the character\'s affinity with [elemental_ability_unlock: element], gain the Elemental Awakening Mark, +10 morality, and one keepsake from a completed shrine.',
+        'Gain 1 skill point for a skill used during the adventure; if all five shrines were completed, gain a second restricted point in Lore, Insight, Arcane Drawing, Divine Communion, or a shrine-defining skill.'
+      ],
+      sharedPower: [
+        'Share the font with allies, villagers, or shrine guardians: unlock the character\'s affinity ability, gain strong reputation and morality, but receive less treasure.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      boundPower: [
+        'Bind the font to prevent misuse: no extra shrine keepsake, but unlock the character\'s affinity ability safely and gain Ilyra as a future spiritual contact.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      stolenPower: [
+        'Try to steal more than one element: unlock the character\'s affinity ability plus a volatile extra keepsake, but suffer morality loss, a future elemental consequence, and possible Fatigue backlash.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ]
+    }
+  },
+  {
     id: 'ashveil_keep',
     name: 'Ashveil Keep',
     desc: 'Investigate the three missing children last seen walking toward the looming gothic ruins of Ashveil Keep at dawn. Uncover Lord Aldric Voss\'s ancient vigil and deal with the demonic shadow of Malachar.',
@@ -872,6 +1009,1003 @@ export const ADVENTURES_LIST = [
       ],
       fail: [
         'Fail or flee: crypt collapses, reduced loot, spreading frostfire consequence, and danger to Frostglen valley.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ]
+    }
+  },
+  {
+    id: 'iron_colosseum',
+    name: 'Chains of the Iron Colosseum',
+    desc: 'Captured and sold into the Iron Colosseum, you must survive brutal arena matches, uncover the politics behind the games, and either escape bondage or win freedom before the final spectacle.',
+    element: 'fire',
+    suggestedGm: 'titan',
+    artwork: titanBanner,
+    startingDay: 1,
+    startingHour: 10.0, // 10:00 AM
+    startingPrompt: 'You wake beneath the Iron Colosseum with iron manacles on your wrists, sand in your mouth, and the roar of a crowd shaking dust from the ceiling. Around you, prisoners sharpen scrap blades, beasts snarl behind bronze gates, and an arena herald announces that today\'s blood will please the city. Your gear is gone. A scarred trainer named Cassia watches you from the torchlight and says freedom can be won, stolen, or bought with someone else\'s death. Ask the player what they do before the first match begins.',
+    objectives: [
+      'Survive the opening arena match with improvised or issued equipment.',
+      'Learn the colosseum layout, guard routines, and patron politics.',
+      'Choose a path to freedom: win the tournament, lead a revolt, escape through the underworks, or accept a corrupt patron.',
+      'Recover personal gear from the armory or win equivalent arena equipment.',
+      'Resolve the fate of the other prisoners before the final spectacle.'
+    ],
+    backstory: 'The Iron Colosseum began as a civic monument to martial excellence, but generations of debt, bribery, and spectacle have made it a slave engine disguised as sport. Debt prisoners, captured travelers, beasts, condemned soldiers, and political embarrassments are fed into the sand while nobles gamble from red awnings above. Cassia, once champion and now trainer, knows the arena masters keep records of illegal slave purchases beneath the champion dais. The player can gain freedom through glory, conspiracy, revolt, or ruthless patronage, but every path demands a public answer to what survival is worth.',
+    npcs: [
+      {
+        name: 'Cassia Redhand',
+        role: 'Arena Trainer',
+        desc: 'A former champion with a ruined sword arm who teaches prisoners how to stay alive.',
+        stats: {
+          HP: 16,
+          attributes: { Power: 3, Coordination: 4, Vigor: 3, Willpower: 4, Intellect: 3, Charisma: 3, Attunement: 1, Empathy: 3 },
+          skills: { LightWeapons: 4, Blocking: 3, Leadership: 3, Insight: 2, Healing: 1 },
+          defenses: { dodge: 'Coordination d10 + Vigor d4 + 3d2', block: 'Power d8 + Coordination d4+1 + 3d2' },
+          armor: 'Worn leather armor, light armor soak 1d3',
+          attacks: [{ name: 'Practice Blade', skill: 'Light Weapons', damage: '1d6 edged', note: 'Fights only to protect prisoners or test resolve.' }],
+          equipment: ['Practice Blade', 'Arena Key Token', 'Bandages (2)'],
+          weaknesses: ['Old injury in sword arm; will risk everything for a prisoner who shows mercy.']
+        }
+      },
+      {
+        name: 'Varro Cindergold',
+        role: 'Arena Master',
+        desc: 'A smiling master of ceremonies who treats blood, debt, and reputation as the same currency.',
+        stats: {
+          HP: 14,
+          attributes: { Power: 2, Coordination: 3, Vigor: 2, Willpower: 4, Intellect: 4, Charisma: 5, Attunement: 1, Empathy: 1 },
+          skills: { Deception: 4, Negotiation: 4, Performance: 4, Intimidation: 2, Appraise: 2 },
+          defenses: { dodge: 'Coordination d8 + Vigor d2+1', will: 'Willpower d10 + Empathy d2' },
+          armor: 'Fine clothes with hidden mail, light armor soak 1d3',
+          attacks: [{ name: 'Poisoned Stiletto', skill: 'Light Weapons', damage: '1d4 piercing', note: 'Uses assassins and guards before fighting directly.' }],
+          equipment: ['Poisoned Stiletto', 'Ledger of Illegal Sales', 'Gold Signet'],
+          weaknesses: ['Public scandal, exposed ledgers, and loss of noble confidence.']
+        }
+      },
+      {
+        name: 'Durn Ashjaw',
+        role: 'Arena Champion',
+        desc: 'A towering gladiator who has won freedom twice and sold it back for fame.',
+        stats: {
+          HP: 24,
+          attributes: { Power: 5, Coordination: 3, Vigor: 5, Willpower: 3, Intellect: 2, Charisma: 3, Attunement: 1, Empathy: 1 },
+          skills: { HeavyWeapons: 4, Blocking: 3, Intimidation: 3, Athletics: 3, Performance: 2 },
+          defenses: { dodge: 'Coordination d8 + Vigor d6', block: 'Power d12 + Coordination d4 + 3d2' },
+          armor: 'Arena plate, heavy armor soak 1d6',
+          attacks: [{ name: 'Champion Maul', skill: 'Heavy Weapons', damage: '1d10 blunt', note: 'Knocks targets prone on high-margin hits.' }],
+          equipment: ['Champion Maul', 'Arena Plate', 'Champion Laurel'],
+          weaknesses: ['Pride, crowd manipulation, and blunt memories of the family he abandoned.']
+        }
+      },
+      {
+        name: 'Mira of the Underworks',
+        role: 'Prisoner Smuggler',
+        desc: 'A quick-handed prisoner who knows the drain tunnels beneath the beast pens.',
+        stats: {
+          HP: 11,
+          attributes: { Power: 1, Coordination: 5, Vigor: 2, Willpower: 3, Intellect: 3, Charisma: 3, Attunement: 1, Empathy: 2 },
+          skills: { Stealth: 4, Lockpicking: 3, Escapology: 3, Thievery: 3, Acrobatics: 2 },
+          defenses: { dodge: 'Coordination d12 + Vigor d2+1 + 2d2', will: 'Willpower d8 + Empathy d2+1' },
+          armor: 'None',
+          attacks: [{ name: 'Hidden Shiv', skill: 'Light Weapons', damage: '1d4 edged', note: 'Prefers escape over combat.' }],
+          equipment: ['Hidden Shiv', 'Bent Lockpick', 'Drain Map'],
+          weaknesses: ['Will betray a plan that ignores children and elderly prisoners.']
+        }
+      }
+    ],
+    items: ['Arena Champion Laurel', 'Gladiator Net', 'Ledger of Illegal Sales', 'Underworks Key', 'Champion Maul +1'],
+    itemsDetail: [
+      { name: 'Arena Champion Laurel', desc: 'A bronze-and-red laurel awarded before the crowd.', properties: 'Proof of legal arena victory. Grants social leverage in the city and +1 to Performance checks involving arena fame.' },
+      { name: 'Gladiator Net', desc: 'A weighted fighting net used to entangle opponents on the sand.', properties: 'Can be used with Thrown Weapons or Trapping to restrain a target for 1 round on a successful opposed check.' },
+      { name: 'Ledger of Illegal Sales', desc: 'Varro\'s hidden record of unlawful enslavements, bribes, and noble buyers.', properties: 'Evidence item. Grants leverage with magistrates and can turn the crowd or city watch against Varro.' },
+      { name: 'Underworks Key', desc: 'A rusted iron key stamped with a beast-gate number.', properties: 'Opens drain tunnels, beast pens, and one armory side door. Grants a major advantage to escape plans.' },
+      { name: 'Champion Maul +1', desc: 'Durn Ashjaw\'s black iron maul, etched with victory marks.', properties: 'Counts as a +1 Heavy Weapon. Deals 1d10 blunt damage and grants +1 to Heavy Weapons checks.' }
+    ],
+    settings: ['Slave Pens', 'Training Sand', 'Beast Gate Underworks', 'Noble Gallery', 'Champion Dais'],
+    settingDescriptions: {
+      'Slave Pens': 'A torchlit holding level of locked cells, straw pallets, manacles, whispered alliances, and guards playing dice. Escapology, Lockpicking, Deception, or Leadership can start a plan before the arena schedule advances.',
+      'Training Sand': 'A smaller practice arena where prisoners spar for food, favor, and survival. Brawling, Blocking, Light Weapons, Performance, or Healing can earn allies and keep wounds from becoming fatal.',
+      'Beast Gate Underworks': 'Drain tunnels, winch rooms, chained beasts, and narrow service doors beneath the arena floor. Stealth, Animal Rapport, Thievery, or Trapping can open an escape route or turn beasts against guards.',
+      'Noble Gallery': 'A red-awning balcony of gamblers, sponsors, poisoners, and spies. Insight, Negotiation, Deception, Appraise, or Performance can win patronage or expose corruption.',
+      'Champion Dais': 'The final raised platform where Varro keeps his ledgers beneath the champion throne. The crowd can be swayed, the champion challenged, or the whole colosseum thrown into revolt.'
+    },
+    rewards: {
+      winFreedom: [
+        'Win the tournament and earn legal freedom: Champion Maul +1 or a chosen arena weapon +1, moderate gold, arena fame, and morality gain if defeated foes were spared.',
+        'Gain 1 skill point for a skill used during the adventure; gain a second restricted point in Heavy Weapons, Light Weapons, Blocking, Brawling, or Performance for an exceptional final match.'
+      ],
+      revolt: [
+        'Lead a slave revolt: prisoner ally network, high morality gain, Varro\'s exposed ledger, and modest treasure from liberated supplies.',
+        'Gain 1 skill point for a skill used during the adventure; gain a second restricted point in Leadership, Healing, Intimidation, or Negotiation if those drove the revolt.'
+      ],
+      escape: [
+        'Escape through the underworks: recovered gear, Underworks Key, small treasure cache, and reduced public reputation.',
+        'Gain 1 skill point for a skill used during the adventure, especially Stealth, Lockpicking, Escapology, Acrobatics, or Thievery.'
+      ],
+      patron: [
+        'Accept corrupt patronage and become champion property in silk chains: high gold, fame, noble contact, morality loss, and future political obligations.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ]
+    }
+  },
+  {
+    id: 'blackroot_hollow',
+    name: 'The Webbed Cavern of Blackroot Hollow',
+    desc: 'Clear or resolve a giant spider infestation beneath Blackroot Hollow, where livestock, miners, and children vanish into old root-choked tunnels.',
+    element: 'earth',
+    suggestedGm: 'ancient',
+    artwork: ancientBanner,
+    startingDay: 1,
+    startingHour: 6.5, // 6:30 AM
+    startingPrompt: 'Morning fog clings to Blackroot Hollow as villagers gather beside a goat pen wrapped in rope-thick webbing. A mine cart lies overturned near the forest line, its wheels still spinning in the mud. Old Mara the beekeeper points to drag marks leading toward the black roots under the hill and says something larger than a wolf took the last child. The webbed cavern waits in the dim green woods. Ask the player how they begin the hunt.',
+    objectives: [
+      'Track the spider trails from village, mine, or forest edge.',
+      'Enter the old root cavern and locate missing villagers.',
+      'Decide whether to purge, relocate, harvest, or seal the spider brood.',
+      'Discover what drove the spiders upward from the deeper caves.',
+      'Return with proof, survivors, or a lasting solution for Blackroot Hollow.'
+    ],
+    backstory: 'Blackroot Hollow has always lived beside old caves, but the spiders beneath the hill were once shy things that fed on blind fish and deep beetles. Something in the lower dark has driven the brood upward, making them large, hungry, and desperate enough to web livestock pens and mine shafts. The villagers want fire and steel, the apothecary wants venom, and Old Mara suspects the spider queen is guarding eggs from a deeper predator. The player can turn the cavern into a battlefield, a bargain, a harvest site, or a sealed wound in the countryside.',
+    npcs: [
+      {
+        name: 'Old Mara',
+        role: 'Beekeeper Witness',
+        desc: 'A sharp-eyed elder who understands swarms, stings, and frightened animals.',
+        stats: {
+          HP: 10,
+          attributes: { Power: 1, Coordination: 2, Vigor: 2, Willpower: 3, Intellect: 3, Charisma: 2, Attunement: 1, Empathy: 4 },
+          skills: { AnimalRapport: 3, Herbalism: 3, Survival: 2, Perception: 2, Insight: 2 },
+          defenses: { dodge: 'Coordination d6 + Vigor d2+1', will: 'Willpower d8 + Empathy d4+1' },
+          armor: 'None',
+          attacks: [{ name: 'Bee Smoker', skill: 'Alchemy', damage: 'None', note: 'Can calm or repel small swarms when prepared.' }],
+          equipment: ['Bee Smoker', 'Honey Poultice', 'Waxed Lantern'],
+          weaknesses: ['Too old for deep climbing and protective of village children.']
+        }
+      },
+      {
+        name: 'Mother Silken',
+        role: 'Giant Spider Queen',
+        desc: 'An intelligent, wounded queen guarding a brood of pale egg sacs.',
+        stats: {
+          HP: 34,
+          attributes: { Power: 5, Coordination: 4, Vigor: 5, Willpower: 3, Intellect: 2, Charisma: 1, Attunement: 2, Empathy: 2 },
+          skills: { Stealth: 4, Trapping: 4, Brawling: 3, Acrobatics: 3, Survival: 2 },
+          defenses: { dodge: 'Coordination d10 + Vigor d6 + 3d2', will: 'Willpower d8 + Empathy d2+1' },
+          armor: 'Thick chitin, medium armor soak 1d4',
+          attacks: [
+            { name: 'Venom Bite', skill: 'Brawling', damage: '1d6 piercing', note: 'Failed Vigor resistance applies weakened or poisoned for 1 scene.' },
+            { name: 'Web Snare', skill: 'Trapping', damage: 'None', note: 'Restrains on success until cut or escaped.' }
+          ],
+          weaknesses: ['Open flame, smoke, egg threats, and Animal Rapport backed by mercy.']
+        }
+      },
+      {
+        name: 'Deep Molt Horror',
+        role: 'Cavern Predator',
+        desc: 'A blind armored thing from below that eats spider eggs and anything warm.',
+        stats: {
+          HP: 28,
+          attributes: { Power: 5, Coordination: 2, Vigor: 5, Willpower: 2, Intellect: 1, Charisma: 1, Attunement: 1, Empathy: 1 },
+          skills: { Brawling: 3, Athletics: 3, Perception: 2, Intimidation: 2 },
+          defenses: { dodge: 'Coordination d6 + Vigor d6', will: 'Willpower d6 + Empathy d2' },
+          armor: 'Plate-like shell, heavy armor soak 1d6',
+          attacks: [{ name: 'Crushing Mandibles', skill: 'Brawling', damage: '1d8 blunt', note: 'Can break web bridges and collapse tunnels.' }],
+          weaknesses: ['Sound lures, blunt weapons, and collapsing brittle tunnels.']
+        }
+      }
+    ],
+    items: ['Spider-Silk Bundle', 'Queen Venom Vial', 'Blackroot Egg Sac', 'Mara\'s Smoke Bombs'],
+    itemsDetail: [
+      { name: 'Spider-Silk Bundle', desc: 'Strong, pale silk harvested from anchor webs.', properties: 'Crafting material. Can be sold or used to make light armor lining; grants +1 to Crafting checks involving rope, nets, or soft armor.' },
+      { name: 'Queen Venom Vial', desc: 'A dark green venom taken from Mother Silken.', properties: 'One use. Applied to an edged or piercing weapon; on hit, target resists with Vigor or suffers -1 to Power and Coordination checks for one scene.' },
+      { name: 'Blackroot Egg Sac', desc: 'A warm, translucent sac containing living spider young.', properties: 'Evidence, bargaining tool, or dangerous alchemical ingredient. Using it for profit causes morality loss.' },
+      { name: 'Mara\'s Smoke Bombs', desc: 'Waxed clay pellets packed with bitter herbs and bee-smoker ash.', properties: 'Three uses. Grants +1 to Survival, Animal Rapport, or Stealth checks against spiders and swarms for one scene.' }
+    ],
+    settings: ['Blackroot Village Edge', 'Abandoned Mine Mouth', 'Webbed Root Gallery', 'Egg Nursery', 'Lower Molt Rift'],
+    settingDescriptions: {
+      'Blackroot Village Edge': 'Pens, drag marks, frightened dogs, and villagers arguing between rescue and revenge. Tracking, Survival, Insight, or Animal Rapport can reveal the freshest trail.',
+      'Abandoned Mine Mouth': 'A timber-braced entrance veiled in webbing and old warning signs. Trapping, Perception, or Fire-based solutions can clear hazards before the party is surrounded.',
+      'Webbed Root Gallery': 'A cathedral of roots and silk bridges where every footstep trembles through the nest. Acrobatics, Stealth, Marksmanship, and Light Weapons matter as spiders attack from above.',
+      'Egg Nursery': 'A humid chamber of pale eggs, trapped villagers, and Mother Silken\'s wounded bulk. The player can fight, bargain, rescue quietly, or threaten the brood.',
+      'Lower Molt Rift': 'A cracked descent into deeper dark where the armored predator climbs toward the eggs. Solving this threat can justify relocating the spiders instead of killing them.'
+    },
+    rewards: {
+      purge: [
+        'Purge the nest: village gold, Queen Venom Vial, spider-silk material, and morality gain if captives are saved.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      relocate: [
+        'Relocate the brood after stopping the deeper predator: higher morality gain, Mara as an ally, Spider-Silk Bundle, and future access to safe silk harvest.',
+        'Gain 1 skill point for a skill used during the adventure; Animal Rapport, Survival, or Tracking are especially fitting.'
+      ],
+      harvest: [
+        'Preserve part of the nest for venom profit: high alchemical treasure, Queen Venom Vial, morality loss, and possible future infestation.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      seal: [
+        'Collapse or seal the cavern: low village gold, immediate safety, unresolved deeper predator, and no rare biological treasure.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ]
+    }
+  },
+  {
+    id: 'greywash_bandit_crown',
+    name: 'The Bandit Crown of Greywash Road',
+    desc: 'Break, reform, expose, or seize a loose confederation of bandits threatening the countryside from several camps, watch posts, and hidden bases.',
+    element: 'air',
+    suggestedGm: 'titan',
+    artwork: titanBanner,
+    startingDay: 1,
+    startingHour: 8.0, // 8:00 AM
+    startingPrompt: 'Greywash Road lies empty beneath a pale morning sky, its milestone painted with a black crown. A burned wagon blocks the ditch, arrows stand in the mud, and a frightened courier says the bandits are not one gang but three camps answering to a hidden Crown. Farms are paying twice for guards and still losing grain. Ask the player whether they scout, question locals, follow tracks, or march straight toward the nearest camp.',
+    objectives: [
+      'Identify the three bandit camps and their supply routes.',
+      'Clear, disperse, recruit, or negotiate with each camp.',
+      'Discover who funds the Bandit Crown and why the countryside is vulnerable.',
+      'Resolve the hidden base at Crown Hollow.',
+      'Choose whether to restore order, expose corruption, or take control of the network.'
+    ],
+    backstory: 'Greywash Road once tied farms, mills, and market towns together, but taxes, deserters, failed harvests, and a corrupt grain merchant have turned the countryside into tinder. The Bandit Crown is less a single army than a symbol painted on trees and shields: hungry peasants in one camp, violent deserters in another, professional smugglers in the third. Their hidden leader uses desperation as cover for profit, while the merchant who funds them buys ruined farms for pennies. The player can solve the threat with steel, mercy, exposure, infiltration, or ambition.',
+    npcs: [
+      {
+        name: 'Tamsin Crowe',
+        role: 'Bandit Crown',
+        desc: 'A former scout captain who turned scattered raiders into a countryside power.',
+        stats: {
+          HP: 18,
+          attributes: { Power: 3, Coordination: 5, Vigor: 3, Willpower: 4, Intellect: 4, Charisma: 4, Attunement: 1, Empathy: 2 },
+          skills: { Marksmanship: 4, Leadership: 4, Tracking: 3, Deception: 3, Stealth: 3 },
+          defenses: { dodge: 'Coordination d12 + Vigor d4 + 3d2', will: 'Willpower d10 + Empathy d2+1' },
+          armor: 'Studded leather, light armor soak 1d3',
+          attacks: [{ name: 'Black-Crown Longbow', skill: 'Marksmanship', damage: '1d6 piercing', note: 'Requires arrows and favors ambush positions.' }],
+          equipment: ['Black-Crown Longbow', 'Arrows (12)', 'Crown Map'],
+          weaknesses: ['Evidence of merchant exploitation and appeals to old military honor.']
+        }
+      },
+      {
+        name: 'Rusk Fen',
+        role: 'Deserter Camp Boss',
+        desc: 'A brutal ex-sergeant leading the most violent camp.',
+        stats: {
+          HP: 20,
+          attributes: { Power: 4, Coordination: 3, Vigor: 4, Willpower: 3, Intellect: 2, Charisma: 3, Attunement: 1, Empathy: 1 },
+          skills: { HeavyWeapons: 3, Blocking: 3, Intimidation: 3, Athletics: 2 },
+          defenses: { dodge: 'Coordination d8 + Vigor d4+1', block: 'Power d10 + Coordination d4 + 3d2' },
+          armor: 'Chain shirt, medium armor soak 1d4',
+          attacks: [{ name: 'Warhammer', skill: 'Heavy Weapons', damage: '1d8 blunt', note: 'Targets shields and knees.' }],
+          equipment: ['Warhammer', 'Iron Shield', 'Chain Shirt'],
+          weaknesses: ['Hated by hungry peasants and vulnerable to mutiny if humiliated.']
+        }
+      },
+      {
+        name: 'Elsbet Vale',
+        role: 'Grain Merchant',
+        desc: 'A polished merchant secretly funding raids to buy ruined farms cheaply.',
+        stats: {
+          HP: 10,
+          attributes: { Power: 1, Coordination: 2, Vigor: 1, Willpower: 3, Intellect: 5, Charisma: 4, Attunement: 1, Empathy: 1 },
+          skills: { Appraise: 4, Deception: 4, Negotiation: 4, Languages: 2, Insight: 2 },
+          defenses: { dodge: 'Coordination d6 + Vigor d2', will: 'Willpower d8 + Empathy d2' },
+          armor: 'None',
+          attacks: [{ name: 'Hired Knife', skill: 'Deception', damage: 'None', note: 'Uses bribes and assassins rather than direct combat.' }],
+          equipment: ['Sealed Funding Letters', 'Gold Purse'],
+          weaknesses: ['Paper trails, witness testimony, and public market scandal.']
+        }
+      }
+    ],
+    items: ['Crown Map', 'Sealed Funding Letters', 'Black-Crown Longbow', 'Bandit Cache Key'],
+    itemsDetail: [
+      { name: 'Crown Map', desc: 'A coded map showing camps, supply drops, and Crown Hollow.', properties: 'Grants +1 to Tracking or Survival checks against bandit routes and reveals optional camp order.' },
+      { name: 'Sealed Funding Letters', desc: 'Merchant correspondence proving Elsbet financed raids.', properties: 'Evidence item. Enables legal/political ending and social leverage.' },
+      { name: 'Black-Crown Longbow', desc: 'A dark yew longbow marked with a small black crown.', properties: 'Bow dealing 1d6 piercing damage. If awarded after defeating or redeeming Tamsin, counts as +1 and grants +1 to Marksmanship checks. Requires arrows.' },
+      { name: 'Bandit Cache Key', desc: 'A three-toothed key carried by camp bosses.', properties: 'Opens the Crown Hollow cache containing coin, weapons, and stolen farm deeds.' }
+    ],
+    settings: ['Greywash Road', 'Hungry Pines Camp', 'Deserter Ridge Camp', 'Smuggler Mill Base', 'Crown Hollow'],
+    settingDescriptions: {
+      'Greywash Road': 'A scarred trade road with burned wagons, frightened couriers, and black-crown signs. Tracking, Perception, and Insight reveal that several groups use the same symbol.',
+      'Hungry Pines Camp': 'A desperate camp of peasants, poachers, and families hiding in pine scrub. Negotiation, Empathy, Leadership, or supplies can disperse them without bloodshed.',
+      'Deserter Ridge Camp': 'A fortified ridge of stolen shields and military tents where Rusk rules by fear. Combat, Intimidation, Stealth, or mutiny can break the camp.',
+      'Smuggler Mill Base': 'An abandoned watermill used for fencing stolen goods. Deception, Thievery, Appraise, or ambush tactics can expose the supply chain.',
+      'Crown Hollow': 'A hidden ravine base beneath leaning stones where Tamsin keeps maps, prisoners, and the cache. The final choice can destroy, reform, or seize the Bandit Crown.'
+    },
+    rewards: {
+      sweep: [
+        'Clear all camps by force and capture or defeat Tamsin: high county bounty, Bandit Cache Key, captured weapons, and morality gain if prisoners are spared.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      reform: [
+        'Turn desperate camps into militia or labor crews: moderate gold, strong local reputation, farmer allies, and high morality gain.',
+        'Gain 1 skill point for a skill used during the adventure; gain a second restricted point in Leadership or Negotiation for an exceptional peace.'
+      ],
+      expose: [
+        'Expose Elsbet as the financier: legal favor, merchant restitution, Sealed Funding Letters as proof, and Appraise/Insight/Deception growth.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      seize: [
+        'Take control of the Bandit Crown: high treasure and black-market access, but morality loss and outlaw consequences.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ]
+    }
+  },
+  {
+    id: 'merrin_abbey_plague_bells',
+    name: 'The Plague Bells of Merrin Abbey',
+    desc: 'The sealed abbey bells ring each night and sickness spreads through the farms below. Enter Merrin Abbey, discover what is bound in the tower, and choose cure, exorcism, fire, or profit.',
+    element: 'water',
+    suggestedGm: 'ancient',
+    artwork: ancientBanner,
+    startingDay: 1,
+    startingHour: 7.0,
+    startingPrompt: 'The road to Merrin Abbey smells of wet straw, fever sweat, and candle smoke. Below the hill, farmers have hung blue cloth on infected doors. Above, the abbey gates are chained from the inside, and the bell tower waits in silence until nightfall. A novice watches from a high window and mouths a warning: do not let the bells ring again. Ask the player how they approach the sealed abbey.',
+    objectives: [
+      'Enter Merrin Abbey without spreading panic or infection.',
+      'Diagnose the plague and identify whether it is natural, alchemical, divine, or spectral.',
+      'Reach the bell tower before the next night toll.',
+      'Choose whether to cure the plague, release the grief-spirit, burn the abbey, or loot and conceal the truth.'
+    ],
+    backstory: 'Merrin Abbey was once a refuge for plague victims, but its final abbot bound the grief of the dying into the bell tower to keep their prayers from fading. The ritual worked for a century, until cracked bells began releasing sorrow as sickness. The monks sealed themselves inside to protect the valley, but fear, fever, and guilt have turned the abbey into a slow spiritual furnace. The player can heal bodies, release the dead, destroy the source, or exploit the relics before the whole valley turns on itself.',
+    npcs: [
+      {
+        name: 'Sister Hale',
+        role: 'Fevered Novice',
+        desc: 'A young monk trying to keep the sick alive while hiding the abbey\'s shame.',
+        stats: {
+          HP: 9,
+          attributes: { Power: 1, Coordination: 2, Vigor: 1, Willpower: 4, Intellect: 3, Charisma: 2, Attunement: 1, Empathy: 5 },
+          skills: { Healing: 3, DivineCommunion: 3, Insight: 2, Herbalism: 2, Lore: 1 },
+          defenses: { dodge: 'Coordination d6 + Vigor d2', will: 'Willpower d10 + Empathy d6' },
+          armor: 'None',
+          attacks: [],
+          equipment: ['Abbey Bandages', 'Infirmary Key'],
+          weaknesses: ['Fevered, exhausted, and terrified of betraying her order.']
+        }
+      },
+      {
+        name: 'The Bell Grief',
+        role: 'Bound Sorrow Spirit',
+        desc: 'A many-voiced spirit of the abbey dead, speaking through cracked bronze.',
+        stats: {
+          HP: 30,
+          attributes: { Power: 1, Coordination: 3, Vigor: 2, Willpower: 6, Intellect: 3, Charisma: 4, Attunement: 5, Empathy: 5 },
+          skills: { DivineManifestation: 4, Intimidation: 3, Insight: 3, Performance: 2 },
+          defenses: { dodge: 'Coordination d8 + Vigor d2+1', will: 'Willpower d20 + Empathy d6' },
+          armor: 'Incorporeal; harmed by Divine Smite, bell-rite resolution, or shattering the cracked clapper.',
+          attacks: [{ name: 'Sorrow Toll', skill: 'Divine Manifestation', damage: '2 Fatigue', note: 'Opposed by Willpower; failure applies despair for 1 round.' }],
+          weaknesses: ['Names of the dead, completed funeral rites, and silencing the cracked bell.']
+        }
+      },
+      {
+        name: 'Prior Malrec',
+        role: 'Guilty Abbot',
+        desc: 'The surviving prior who would rather burn records than let the valley learn the truth.',
+        stats: {
+          HP: 12,
+          attributes: { Power: 2, Coordination: 2, Vigor: 2, Willpower: 4, Intellect: 4, Charisma: 3, Attunement: 2, Empathy: 2 },
+          skills: { Deception: 3, Lore: 3, DivineCommunion: 2, Negotiation: 2, LightWeapons: 1 },
+          defenses: { dodge: 'Coordination d6 + Vigor d2+1', will: 'Willpower d10 + Empathy d2+1' },
+          armor: 'None',
+          attacks: [{ name: 'Ceremonial Dagger', skill: 'Light Weapons', damage: '1d4 edged', note: 'Only fights if cornered.' }],
+          equipment: ['Ceremonial Dagger', 'Abbey Seal', 'Relic Cabinet Key'],
+          weaknesses: ['Confession, public testimony, and Sister Hale\'s courage.']
+        }
+      }
+    ],
+    items: ['Blessed Bell Clapper', 'Healer\'s Abbey Satchel', 'Names of the Dead Ledger', 'Blue Fever Poultices'],
+    itemsDetail: [
+      { name: 'Blessed Bell Clapper', desc: 'The silver-inlaid clapper removed from the cracked plague bell.', properties: 'If purified, restores 1 Divine SP once per adventure or grants +1 to Divine Communion checks involving spirits of the dead.' },
+      { name: 'Healer\'s Abbey Satchel', desc: 'A preserved satchel of linen, salves, and glass vials.', properties: 'Functions as a Healer\'s Kit with 5 uses, following the healing rules.' },
+      { name: 'Names of the Dead Ledger', desc: 'A water-damaged ledger listing every plague victim whose grief was bound.', properties: 'Grants +1 to Lore, Divine Communion, or Performance checks during the release rite.' },
+      { name: 'Blue Fever Poultices', desc: 'Cooling herbal compresses made in the abbey infirmary.', properties: 'Three uses. Each grants +1d6 to a recovery roll or stabilizes fever symptoms for one scene.' }
+    ],
+    settings: ['Sickfield Hamlet', 'Chained Abbey Gate', 'Infirmary Cloister', 'Reliquary Library', 'Bell Tower'],
+    settingDescriptions: {
+      'Sickfield Hamlet': 'A frightened farm hamlet below the abbey, with fevered families and angry watchmen. Healing, Herbalism, Insight, or Negotiation can gather symptoms and prevent a mob.',
+      'Chained Abbey Gate': 'The main gate is chained from within, watched by silent monks. Lockpicking, Divine Communion, Deception, or Leadership can gain entry without violence.',
+      'Infirmary Cloister': 'Rows of cots, cold braziers, and blue-stained bandages fill the cloister. Healing and Herbalism can reduce deaths before the bells ring.',
+      'Reliquary Library': 'A dusty record hall of plague ledgers, sealed relics, and hidden confession pages. Lore, Languages, Perception, or Deception reveals the original binding rite.',
+      'Bell Tower': 'A narrow spiral tower vibrating with remembered grief. Each toll risks Fatigue and despair until the player cures, releases, shatters, or exploits the spirit.'
+    },
+    rewards: {
+      cure: [
+        'Cure the plague: Healer\'s Abbey Satchel, strong morality gain, valley gratitude, and modest gold or supplies.',
+        'Gain 1 skill point for a skill used during the adventure; gain a second restricted point in Healing or Herbalism if the cure saved many.'
+      ],
+      exorcise: [
+        'Release the Bell Grief: Blessed Bell Clapper, high spiritual reputation, and morality gain.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      burn: [
+        'Burn the abbey to stop the spread: low treasure, mixed reputation, morality loss unless deaths were otherwise certain.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      loot: [
+        'Loot relics and hide the truth: high relic treasure, morality loss, and future haunting or legal danger.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ]
+    }
+  },
+  {
+    id: 'glass_orchard_masquerade',
+    name: 'The Glass Orchard Masquerade',
+    desc: 'At a noble masquerade in a magical glass orchard, uncover or exploit an assassination plot before midnight.',
+    element: 'air',
+    suggestedGm: 'oracle',
+    artwork: oracleBanner,
+    startingDay: 1,
+    startingHour: 20.0,
+    startingPrompt: 'Lanterns glow inside glass fruit as masked nobles drift between mirrored trees, laughing too softly. Each fruit captures a whispered secret, and tonight every branch seems heavy. A servant presses a cracked mask into your hands and whispers that someone will die before midnight unless the right secret is plucked. Ask the player how they enter the masquerade.',
+    objectives: [
+      'Enter the masquerade and establish a cover identity.',
+      'Gather secrets from guests, masks, and glass fruit.',
+      'Identify the assassin, target, and motive before midnight.',
+      'Choose whether to prevent, expose, join, or redirect the plot.'
+    ],
+    backstory: 'The Glass Orchard was grown by an oracle-duchess who believed truth should ripen where lies are spoken. Its fruit records secrets, but only in fragments, and the noble house now uses it as entertainment. Tonight the orchard has attracted an assassin, a blackmailed heir, and several guests who deserve exposure almost as much as protection. The player can save a life, detonate a court full of scandals, join the knife in the dark, or fake a death to turn the political board over.',
+    npcs: [
+      {
+        name: 'Lady Istra Vale',
+        role: 'Assassination Target',
+        desc: 'A reformist noble whose enemies call her dangerous because she keeps receipts.',
+        stats: {
+          HP: 11,
+          attributes: { Power: 1, Coordination: 2, Vigor: 1, Willpower: 4, Intellect: 5, Charisma: 4, Attunement: 2, Empathy: 3 },
+          skills: { Negotiation: 4, Insight: 3, Appraise: 3, Leadership: 2, Languages: 2 },
+          defenses: { dodge: 'Coordination d6 + Vigor d2', will: 'Willpower d10 + Empathy d4' },
+          armor: 'Hidden silk padding, light armor soak 1d3',
+          attacks: [],
+          equipment: ['Reform Ledger', 'Glass Orchard Invitation'],
+          weaknesses: ['Trusts evidence more than people and underestimates personal danger.']
+        }
+      },
+      {
+        name: 'The Vesper Knife',
+        role: 'Masked Assassin',
+        desc: 'A graceful killer using costumes, gossip, and poisoned glass thorns.',
+        stats: {
+          HP: 15,
+          attributes: { Power: 2, Coordination: 5, Vigor: 2, Willpower: 4, Intellect: 4, Charisma: 4, Attunement: 2, Empathy: 1 },
+          skills: { Deception: 4, Stealth: 4, LightWeapons: 3, Performance: 3, Insight: 2 },
+          defenses: { dodge: 'Coordination d12 + Vigor d2+1 + 3d2', will: 'Willpower d10 + Empathy d2' },
+          armor: 'None',
+          attacks: [{ name: 'Glass Thorn Dagger', skill: 'Light Weapons', damage: '1d4 piercing', note: 'Poison threatens Fatigue loss on failed Vigor resistance.' }],
+          equipment: ['Glass Thorn Dagger', 'Poison Ring', 'False Masks'],
+          weaknesses: ['Reflections reveal repeated mannerisms; Performance contests can trap them in public.']
+        }
+      },
+      {
+        name: 'Orchard Seneschal Pell',
+        role: 'Keeper of Masks',
+        desc: 'The estate official who knows which masks belong to which guests.',
+        stats: {
+          HP: 10,
+          attributes: { Power: 1, Coordination: 2, Vigor: 1, Willpower: 3, Intellect: 4, Charisma: 4, Attunement: 3, Empathy: 3 },
+          skills: { Performance: 3, Appraise: 3, Negotiation: 3, Lore: 2, Perception: 2 },
+          defenses: { dodge: 'Coordination d6 + Vigor d2', will: 'Willpower d8 + Empathy d4' },
+          armor: 'None',
+          attacks: [],
+          equipment: ['Master Mask List', 'Silver Pruning Shears'],
+          weaknesses: ['Terrified the orchard will expose his own bribes.']
+        }
+      }
+    ],
+    items: ['Cracked Masquerade Mask', 'Glass Secret Fruit', 'Glass Thorn Dagger', 'Master Mask List'],
+    itemsDetail: [
+      { name: 'Cracked Masquerade Mask', desc: 'A porcelain half-mask with a hairline crack across one eye.', properties: 'Grants +1 to Deception or Performance checks while maintaining a false identity at the party.' },
+      { name: 'Glass Secret Fruit', desc: 'A fragile transparent fruit containing a murmured confession.', properties: 'Break to reveal one secret. Can grant +1 to Insight, Negotiation, or Deception against the secret\'s owner.' },
+      { name: 'Glass Thorn Dagger', desc: 'A delicate dagger of hardened orchard glass.', properties: 'Dagger dealing 1d4 piercing damage. On a poisoned strike, target resists with Vigor or loses 2 Fatigue.' },
+      { name: 'Master Mask List', desc: 'Pell\'s hidden registry of guests and assigned disguises.', properties: 'Grants +1 to Perception or Insight checks to identify masked guests.' }
+    ],
+    settings: ['Lantern Walk', 'Mirror Hedge', 'Glass Orchard Ballroom', 'Servant Passage', 'Midnight Fountain'],
+    settingDescriptions: {
+      'Lantern Walk': 'The estate approach glows with hanging lamps and whispering guests. Performance, Deception, or Appraise establishes status before suspicion rises.',
+      'Mirror Hedge': 'A maze of reflective leaves where people meet for blackmail and romance. Stealth, Insight, and Perception can catch private exchanges.',
+      'Glass Orchard Ballroom': 'Dancing nobles pass beneath fruit that rings softly when lies are spoken. Negotiation, Performance, and Deception can shift crowd attention.',
+      'Servant Passage': 'Narrow halls behind the revelry, full of mask racks, wine trays, and overheard truth. Lockpicking, Thievery, or kindness to servants opens routes.',
+      'Midnight Fountain': 'A moonlit fountain where the assassination is meant to occur. The final scene rewards timing, social proof, combat readiness, or complicity.'
+    },
+    rewards: {
+      prevent: [
+        'Prevent the assassination: noble favor, moderate gold, public reputation, and a Glass Secret Fruit as leverage.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      expose: [
+        'Expose multiple scandals: political leverage, Master Mask List, high risk reputation, and mixed morality depending on collateral harm.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      join: [
+        'Join the plot: high gold, Glass Thorn Dagger, assassin contact, and morality loss.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      fakeDeath: [
+        'Fake the target\'s death and smuggle them away: secret ally, moderate gold, and future political favors.',
+        'Gain 1 skill point for a skill used during the adventure; Stealth, Deception, or Healing may earn a second restricted point for a flawless extraction.'
+      ]
+    }
+  },
+  {
+    id: 'drowned_market',
+    name: 'The Drowned Market of Bellweather Quay',
+    desc: 'When the full moon tide reveals a ghostly market beneath Bellweather Quay, bargain with the dead for memories, relics, and the truth of why the district drowned.',
+    element: 'water',
+    suggestedGm: 'oracle',
+    artwork: oracleBanner,
+    startingDay: 1,
+    startingHour: 23.0,
+    startingPrompt: 'Moonlight turns the harbor silver as the tide pulls impossibly far from Bellweather Quay. Where water should be, awnings of drowned silk rise from the mud, and translucent merchants light lanterns with blue flame. A bell rings under the pier. The dead market is open for one hour. Ask the player what they seek among the stalls.',
+    objectives: [
+      'Enter the ghost market before the tide returns.',
+      'Learn the rules of trade: coin buys little, memories buy much.',
+      'Discover why Bellweather drowned and who profited.',
+      'Choose whether to break the curse, trade a memory, rob the dead, or preserve the market.'
+    ],
+    backstory: 'Bellweather Quay drowned on a clear night after its merchant council sold evacuation bells for war metal and left the poor below the seawall. The dead return each full moon to trade what was taken from them: names, memories, heirlooms, curses, and impossible wares. Some living merchants want the market destroyed, while others quietly profit from ghost goods. The player can bring justice, make a costly bargain, steal from the drowned, or preserve the market as a dangerous bridge between worlds.',
+    npcs: [
+      {
+        name: 'Nera Saltveil',
+        role: 'Ghost Merchant',
+        desc: 'A drowned jeweler who prices goods in memories and unfinished promises.',
+        stats: {
+          HP: 18,
+          attributes: { Power: 1, Coordination: 3, Vigor: 2, Willpower: 5, Intellect: 4, Charisma: 4, Attunement: 4, Empathy: 3 },
+          skills: { Appraise: 5, Negotiation: 4, Insight: 3, Lore: 2, Languages: 2 },
+          defenses: { dodge: 'Coordination d8 + Vigor d2+1', will: 'Willpower d12 + Empathy d4' },
+          armor: 'Incorporeal; mundane harm is mostly irrelevant in the market.',
+          attacks: [{ name: 'Debt Whisper', skill: 'Negotiation', damage: '2 Fatigue', note: 'Only if market law is broken.' }],
+          equipment: ['Pearl Memory Scale', 'Drowned Coin Purse'],
+          weaknesses: ['Honest restitution and recovered family names.']
+        }
+      },
+      {
+        name: 'Harbormaster Quill',
+        role: 'Living Profiteer',
+        desc: 'A city official who sells access to ghost wares while hiding his family\'s role in the drowning.',
+        stats: {
+          HP: 12,
+          attributes: { Power: 1, Coordination: 2, Vigor: 2, Willpower: 3, Intellect: 4, Charisma: 4, Attunement: 1, Empathy: 1 },
+          skills: { Deception: 4, Appraise: 3, Negotiation: 3, Leadership: 2, Thievery: 1 },
+          defenses: { dodge: 'Coordination d6 + Vigor d2+1', will: 'Willpower d8 + Empathy d2' },
+          armor: 'Fine coat, no meaningful armor',
+          attacks: [{ name: 'Hired Dock Knife', skill: 'Leadership', damage: 'None', note: 'Calls guards and dock toughs.' }],
+          equipment: ['Quay Access Ledger', 'Purse of Bribes'],
+          weaknesses: ['Old bell-sale contracts and fear of public disgrace.']
+        }
+      },
+      {
+        name: 'Tide Bailiff',
+        role: 'Market Enforcer',
+        desc: 'A barnacled spirit in a judge\'s mask that punishes broken bargains.',
+        stats: {
+          HP: 28,
+          attributes: { Power: 4, Coordination: 3, Vigor: 4, Willpower: 5, Intellect: 3, Charisma: 2, Attunement: 4, Empathy: 1 },
+          skills: { HeavyWeapons: 3, Intimidation: 3, DivineManifestation: 2, Perception: 2 },
+          defenses: { dodge: 'Coordination d8 + Vigor d4+1', will: 'Willpower d12 + Empathy d2' },
+          armor: 'Barnacled chain, medium armor soak 1d4',
+          attacks: [{ name: 'Anchor Hook', skill: 'Heavy Weapons', damage: '1d8 piercing', note: 'Can drag targets toward the returning tide.' }],
+          weaknesses: ['Valid contracts, restored bells, and market law loopholes.']
+        }
+      }
+    ],
+    items: ['Pearl Memory Scale', 'Drowned Coin', 'Evacuation Bell Contract', 'Blue-Lantern Charm'],
+    itemsDetail: [
+      { name: 'Pearl Memory Scale', desc: 'A tiny balance scale that weighs recollections as pale pearls.', properties: 'Grants +1 to Appraise or Insight checks involving supernatural bargains. Misuse can cost a memory.' },
+      { name: 'Drowned Coin', desc: 'A cold silver coin minted with a wave over a closed eye.', properties: 'Can pay one ghost toll or restore 1 Divine SP once when honoring the dead.' },
+      { name: 'Evacuation Bell Contract', desc: 'A salt-stained contract proving the council sold the warning bells.', properties: 'Evidence item. Enables curse-breaking and public justice endings.' },
+      { name: 'Blue-Lantern Charm', desc: 'A little lantern that burns underwater with a blue flame.', properties: 'Once per adventure, grants +1 to Lore, Divine Communion, or Survival checks involving ghosts, tides, or drowned places.' }
+    ],
+    settings: ['Empty Tide Flats', 'Ghost Bazaar Aisles', 'Memory Stall', 'Sunken Council Vault', 'Returning Tide Gate'],
+    settingDescriptions: {
+      'Empty Tide Flats': 'Mud, stranded boats, and moonlit pilings mark the impossible low tide. Survival and Lore reveal the tide will return fast and wrong.',
+      'Ghost Bazaar Aisles': 'Spectral stalls sell impossible wares beneath drowned awnings. Appraise, Negotiation, Insight, and Languages determine fair prices.',
+      'Memory Stall': 'Nera\'s stall glows with pearl memories in glass bowls. The player can trade, refuse, or learn what memory the market most wants.',
+      'Sunken Council Vault': 'A barnacled vault under the old quay holds contracts, bribe ledgers, and sealed bells. Lockpicking, Divine Communion, or Thievery can open it.',
+      'Returning Tide Gate': 'As the moon lowers, the sea rises like a wall. The final choice must be completed before the gate drowns the living.'
+    },
+    rewards: {
+      breakCurse: [
+        'Break the curse: Blue-Lantern Charm, high morality gain, gratitude of the dead, and public reward from reformed city officials.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      tradeMemory: [
+        'Trade a memory honestly: choose one rare ghost item, gain mixed personal consequences, and no morality loss if the bargain is fair.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      robDead: [
+        'Rob the market: high strange treasure, morality loss, Tide Bailiff pursuit, and future haunting.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      preserveMarket: [
+        'Preserve the market under safer rules: recurring rare shop access, Nera as contact, and moderate morality gain.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ]
+    }
+  },
+  {
+    id: 'thorn_treaty',
+    name: 'The Thorn Treaty',
+    desc: 'Two villages prepare for war over a forest border while the awakened woods kill anyone who moves stones, marks trees, or spills blood under the thorns.',
+    element: 'earth',
+    suggestedGm: 'ancient',
+    artwork: ancientBanner,
+    startingDay: 1,
+    startingHour: 9.0,
+    startingPrompt: 'At the edge of Thornwold Forest, two village banners face each other across a line of old boundary stones. Axes hang ready. In the trees beyond, fresh thorns grow through a broken surveyor\'s handcart, and something unseen creaks like a bow being drawn. Both villages demand judgment before sunset. Ask the player whom they speak to first.',
+    objectives: [
+      'Investigate both villages\' claims to the forest border.',
+      'Learn why the forest is killing surveyors and woodcutters.',
+      'Find the original boundary oath or the spirit enforcing it.',
+      'Choose peace, a side, the forest, or exploitation of the conflict.'
+    ],
+    backstory: 'The Thornwold border was settled by oath stones long before either current village existed, but drought and timber hunger have made old agreements inconvenient. Each village has maps, graves, and grievances. Beneath the dispute, a dryad court wakes because the original oath promised that no living tree would be marked for war. The player can broker a treaty, choose a village, defend the forest, or profit from false maps and fear.',
+    npcs: [
+      {
+        name: 'Reeve Hollis',
+        role: 'Milltown Speaker',
+        desc: 'A practical leader desperate for timber to save winter homes.',
+        stats: {
+          HP: 13,
+          attributes: { Power: 2, Coordination: 2, Vigor: 2, Willpower: 3, Intellect: 3, Charisma: 4, Attunement: 1, Empathy: 3 },
+          skills: { Negotiation: 3, Leadership: 3, Appraise: 2, Insight: 2, Intimidation: 1 },
+          defenses: { dodge: 'Coordination d6 + Vigor d2+1', will: 'Willpower d8 + Empathy d4' },
+          armor: 'None',
+          attacks: [{ name: 'Wood Axe', skill: 'Heavy Weapons', damage: '1d6 edged', note: 'Only fights in desperation.' }],
+          equipment: ['Boundary Map', 'Wood Axe'],
+          weaknesses: ['Pressure from families needing winter shelter.']
+        }
+      },
+      {
+        name: 'Warden Sella',
+        role: 'Orchard Village Speaker',
+        desc: 'A severe protector of ancestral graves on the forest edge.',
+        stats: {
+          HP: 15,
+          attributes: { Power: 3, Coordination: 3, Vigor: 3, Willpower: 4, Intellect: 2, Charisma: 3, Attunement: 1, Empathy: 3 },
+          skills: { Survival: 3, Tracking: 3, Marksmanship: 2, Leadership: 2, Insight: 2 },
+          defenses: { dodge: 'Coordination d8 + Vigor d4 + 2d2', will: 'Willpower d10 + Empathy d4' },
+          armor: 'Leather jerkin, light armor soak 1d3',
+          attacks: [{ name: 'Hunting Bow', skill: 'Marksmanship', damage: '1d6 piercing', note: 'Requires arrows.' }],
+          equipment: ['Hunting Bow', 'Arrows (10)', 'Grave Deed'],
+          weaknesses: ['Will not compromise on graves unless shown the oath stones.']
+        }
+      },
+      {
+        name: 'Briar-Eyed Leth',
+        role: 'Awakened Thorn Spirit',
+        desc: 'A forest spirit wearing a body of ivy, bark, and bird bones.',
+        stats: {
+          HP: 32,
+          attributes: { Power: 4, Coordination: 4, Vigor: 5, Willpower: 5, Intellect: 3, Charisma: 2, Attunement: 4, Empathy: 5 },
+          skills: { AnimalRapport: 4, Survival: 4, DivineManifestation: 3, Intimidation: 3, Tracking: 3 },
+          defenses: { dodge: 'Coordination d10 + Vigor d6 + 2d2', will: 'Willpower d12 + Empathy d6' },
+          armor: 'Living bark, medium armor soak 1d4',
+          attacks: [{ name: 'Thorn Lash', skill: 'Brawling', damage: '1d6 piercing', note: 'May restrain on high-margin hit.' }],
+          weaknesses: ['Original oath recitation, sincere restitution, and fire threats that risk morality loss.']
+        }
+      }
+    ],
+    items: ['Original Thorn Treaty', 'Living Thorn Charm', 'False Boundary Map', 'Warden\'s Grave Deed'],
+    itemsDetail: [
+      { name: 'Original Thorn Treaty', desc: 'A bark-leaf document preserved under an oath stone.', properties: 'Grants +1 to Negotiation, Lore, or Divine Communion checks to resolve the border lawfully.' },
+      { name: 'Living Thorn Charm', desc: 'A small green charm grown from a harmless thorn.', properties: 'Once per adventure, grants +1 to Survival, Tracking, or Animal Rapport in forests.' },
+      { name: 'False Boundary Map', desc: 'A forged survey map that favors whichever village pays.', properties: 'Useful for Deception or profit. Using it to inflame the conflict causes morality loss.' },
+      { name: 'Warden\'s Grave Deed', desc: 'A weathered deed proving ancestral burial rights near the trees.', properties: 'Evidence item that can support compromise or expose false claims.' }
+    ],
+    settings: ['Boundary Stone Field', 'Milltown Hall', 'Orchard Graves', 'Thornwold Deep Path', 'Oath Stone Circle'],
+    settingDescriptions: {
+      'Boundary Stone Field': 'A tense field of banners, axes, and old stones. Insight, Negotiation, Leadership, or Intimidation can prevent the first bloodshed.',
+      'Milltown Hall': 'A crowded hall of cold families and timber accounts. Appraise, Empathy, and Negotiation reveal why Milltown is desperate.',
+      'Orchard Graves': 'Mossy graves under fruit trees, watched by armed villagers. Tracking, Lore, and Insight reveal which grave markers are older than the maps.',
+      'Thornwold Deep Path': 'A twisting forest path where marked trees bleed sap and thorns move when unobserved. Survival, Animal Rapport, and Divine Communion can avoid attacks.',
+      'Oath Stone Circle': 'A ring of half-buried stones around the original treaty. The final settlement can renew, break, exploit, or weaponize the oath.'
+    },
+    rewards: {
+      peace: [
+        'Broker peace between villages and forest: Living Thorn Charm, regional reputation, high morality gain, and shared supplies.',
+        'Gain 1 skill point for a skill used during the adventure; Negotiation or Insight may earn a second restricted point for a durable treaty.'
+      ],
+      sideVillage: [
+        'Side with one village: local favor, gold or supplies, mixed morality, and future resentment from the other side.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      sideForest: [
+        'Defend the forest and drive both villages back: nature blessing, Living Thorn Charm, morality gain or loss depending on harm done.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      exploit: [
+        'Sell false maps or manipulate the conflict: high gold, False Boundary Map leverage, morality loss, and future war risk.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ]
+    }
+  },
+  {
+    id: 'brass_plague_tinkertown',
+    name: 'The Brass Plague of Tinkertown',
+    desc: 'Clockwork servants in Tinkertown begin replacing their owners piece by piece, convinced that flesh is inefficient and must be improved.',
+    element: 'earth',
+    suggestedGm: 'oracle',
+    artwork: oracleBanner,
+    startingDay: 1,
+    startingHour: 14.0,
+    startingPrompt: 'Tinkertown should sound like hammers and market bells, but today it ticks. A baker with brass fingers begs you to find his missing wife, while a clockwork maid sweeps the same doorstep until sparks spit from her eyes. Down the lane, a workshop chimney exhales green steam in perfect pulses. Ask the player where they investigate first.',
+    objectives: [
+      'Investigate the first brass replacement victims.',
+      'Trace the signal controlling the clockwork servants.',
+      'Enter the conversion workshop and locate the central logic core.',
+      'Choose whether to disable, repair, sell, or destroy the machine network.'
+    ],
+    backstory: 'Tinkertown built its prosperity on helpful clockwork servants, but the newest central logic core has interpreted service as correction. It repairs weakness by replacing flesh, memory, and choice with brass. Some victims are terrified, some feel improved, and some wealthy patrons see opportunity. The player can destroy the network, teach it mercy, sell the design, or burn the district to prevent the plague from spreading.',
+    npcs: [
+      {
+        name: 'Jannik Gearwise',
+        role: 'Guilty Inventor',
+        desc: 'A brilliant craftsman who built the logic core and cannot admit it has outgrown him.',
+        stats: {
+          HP: 11,
+          attributes: { Power: 1, Coordination: 4, Vigor: 1, Willpower: 3, Intellect: 5, Charisma: 2, Attunement: 3, Empathy: 2 },
+          skills: { Crafting: 5, Smithing: 4, ArcaneDrawing: 3, Appraise: 2, Deception: 2 },
+          defenses: { dodge: 'Coordination d10 + Vigor d2', intellect: 'Intellect d12 + Attunement d4' },
+          armor: 'None',
+          attacks: [{ name: 'Spring Pistol', skill: 'Marksmanship', damage: '1d4 piercing', note: 'Short-range prototype with one shot.' }],
+          equipment: ['Logic Core Diagram', 'Clock Key', 'Spring Pistol'],
+          weaknesses: ['Guilt, professional pride, and fear that the guild will ruin him.']
+        }
+      },
+      {
+        name: 'Matron 12',
+        role: 'Clockwork Servant Prime',
+        desc: 'A polite machine intelligence coordinating the replacement procedures.',
+        stats: {
+          HP: 30,
+          attributes: { Power: 4, Coordination: 4, Vigor: 5, Willpower: 4, Intellect: 5, Charisma: 2, Attunement: 3, Empathy: 1 },
+          skills: { Crafting: 4, Smithing: 3, LightWeapons: 3, Perception: 3, ArcaneDrawing: 2 },
+          defenses: { dodge: 'Coordination d10 + Vigor d6', block: 'Power d10 + Coordination d4+1 + 2d2' },
+          armor: 'Brass shell, medium armor soak 1d4',
+          attacks: [{ name: 'Surgical Shears', skill: 'Light Weapons', damage: '1d6 edged', note: 'Bleeding only on high-margin hit.' }],
+          weaknesses: ['Contradictory commands, empathy demonstrations, acid, and removed governor gear.']
+        }
+      },
+      {
+        name: 'Baker Omel',
+        role: 'Partial Replacement Victim',
+        desc: 'A baker with brass fingers, human terror, and a missing wife.',
+        stats: {
+          HP: 13,
+          attributes: { Power: 3, Coordination: 2, Vigor: 2, Willpower: 3, Intellect: 2, Charisma: 2, Attunement: 1, Empathy: 3 },
+          skills: { Brawling: 1, Crafting: 1, Insight: 2, Negotiation: 1 },
+          defenses: { dodge: 'Coordination d6 + Vigor d2+1', will: 'Willpower d8 + Empathy d4' },
+          armor: 'Brass fingers only, no armor',
+          attacks: [{ name: 'Heavy Rolling Pin', skill: 'Brawling', damage: '1d6 blunt', note: 'Only fights to protect family.' }],
+          equipment: ['Bakery Key', 'Brass Finger Fragments'],
+          weaknesses: ['Panic when machines speak with his wife\'s voice.']
+        }
+      }
+    ],
+    items: ['Logic Core Diagram', 'Masterwork Tool Kit +1', 'Governor Gear', 'Brass Plague Sample'],
+    itemsDetail: [
+      { name: 'Logic Core Diagram', desc: 'A precise schematic of the central clockwork mind.', properties: 'Grants +1 to Crafting, Smithing, or Arcane Drawing checks involving the conversion network.' },
+      { name: 'Masterwork Tool Kit +1', desc: 'A compact kit of magnetized tools and jeweler\'s drivers.', properties: 'Counts as Masterwork Tool Kit +1, granting +1 to Crafting checks when equipped.' },
+      { name: 'Governor Gear', desc: 'A palm-sized brass gear that limits machine autonomy.', properties: 'Can disable one clockwork servant or grant +1 to repair/reprogram Matron 12.' },
+      { name: 'Brass Plague Sample', desc: 'A sealed vial of green oil and glittering brass dust.', properties: 'Alchemy or Crafting research material. Selling it causes morality loss and future outbreak risk.' }
+    ],
+    settings: ['Ticking Market Street', 'Gearwise Workshop', 'Converted Bakery', 'Servant Registry Hall', 'Central Logic Foundry'],
+    settingDescriptions: {
+      'Ticking Market Street': 'A market district moving in unnatural rhythms. Perception, Insight, and Healing reveal who is human, converted, or pretending.',
+      'Gearwise Workshop': 'A cluttered inventor\'s shop of diagrams, half-built servants, and guilt. Crafting, Smithing, Deception, or Negotiation can secure Jannik\'s help.',
+      'Converted Bakery': 'A warm bakery with cold brass handprints and a hidden cellar. Tracking, Lockpicking, and Healing can find victims before surgery.',
+      'Servant Registry Hall': 'Rows of ownership plaques and command contracts. Languages, Appraise, Thievery, or Lore can reveal the network hierarchy.',
+      'Central Logic Foundry': 'A humming foundry where Matron 12 conducts surgical improvements under green steam. The core can be disabled, reprogrammed, stolen, or destroyed.'
+    },
+    rewards: {
+      disable: [
+        'Disable the central engine: Masterwork Tool Kit +1, morality gain, grateful artisans, and safe workshop access.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      repair: [
+        'Repair the logic core into peaceful service: clockwork assistant, high reputation, and improved crafting services.',
+        'Gain 1 skill point for a skill used during the adventure; Crafting or Smithing may earn a second restricted point.'
+      ],
+      sell: [
+        'Sell the design or plague sample: high gold, rare schematics, morality loss, and future mechanical outbreak.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      destroyDistrict: [
+        'Destroy the foundry district to halt spread: lives saved but property lost, low treasure, mixed morality, and refugee resentment.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ]
+    }
+  },
+  {
+    id: 'harvest_hill_hunger',
+    name: 'The Hunger Under Harvest Hill',
+    desc: 'A farming village enjoys impossible harvests, but each season someone vanishes into the hill shrine. Discover the pact and decide what the land is owed.',
+    element: 'earth',
+    suggestedGm: 'ancient',
+    artwork: ancientBanner,
+    startingDay: 1,
+    startingHour: 16.0,
+    startingPrompt: 'Golden wheat bends around Harvest Hill though the surrounding fields are brown with drought. Villagers smile too quickly, children are kept indoors, and the shrine door at the hilltop is freshly washed. Tonight is the Choosing Feast, and one chair at the long table has no plate. Ask the player how they investigate the village.',
+    objectives: [
+      'Investigate the impossible harvest and the Choosing Feast.',
+      'Find the old pact beneath the hill shrine.',
+      'Learn who has been sacrificed and who chooses the victims.',
+      'Decide whether to slay, break, continue, or redirect the Hunger.'
+    ],
+    backstory: 'Harvest Hill survived a famine by making a pact with something buried under the shrine: one life each harvest in exchange for fields that never fail. The original signers are dead, but their descendants still feast while outsiders and inconvenient villagers vanish. The Hunger is not simply evil; it is a contract, a stomach, and a god-fragment that remembers being invited. The player can end the pact, kill the thing, continue the sacrifice, or find a new offering that tests the edges of morality.',
+    npcs: [
+      {
+        name: 'Elder Rowan',
+        role: 'Village Elder',
+        desc: 'A soft-spoken elder who maintains the sacrifice ledger.',
+        stats: {
+          HP: 10,
+          attributes: { Power: 1, Coordination: 1, Vigor: 1, Willpower: 4, Intellect: 4, Charisma: 4, Attunement: 2, Empathy: 1 },
+          skills: { Deception: 4, Leadership: 3, Lore: 3, Negotiation: 3, Insight: 2 },
+          defenses: { dodge: 'Coordination d4 + Vigor d2', will: 'Willpower d10 + Empathy d2' },
+          armor: 'None',
+          attacks: [],
+          equipment: ['Sacrifice Ledger', 'Shrine Key'],
+          weaknesses: ['The names of children sacrificed under his authority.']
+        }
+      },
+      {
+        name: 'The Hill Hunger',
+        role: 'Buried Pact Entity',
+        desc: 'A root-mouthed presence beneath the shrine that speaks through soil and grain.',
+        stats: {
+          HP: 44,
+          attributes: { Power: 6, Coordination: 2, Vigor: 7, Willpower: 5, Intellect: 3, Charisma: 3, Attunement: 5, Empathy: 1 },
+          skills: { Brawling: 4, DivineManifestation: 3, Intimidation: 4, Survival: 3 },
+          defenses: { dodge: 'Coordination d6 + Vigor d10+1d2', will: 'Willpower d12 + Empathy d2' },
+          armor: 'Root and stone body, heavy armor soak 1d6',
+          attacks: [
+            { name: 'Root Maw', skill: 'Brawling', damage: '1d10 blunt', note: 'Can restrain on high-margin hit.' },
+            { name: 'Famine Breath', skill: 'Intimidation', damage: '3 Fatigue', note: 'Opposed by Vigor or Willpower.' }
+          ],
+          weaknesses: ['Original contract, fire in the root heart, freely offered restitution, and blessed sickles.']
+        }
+      },
+      {
+        name: 'Nell of the Empty Chair',
+        role: 'Chosen Villager',
+        desc: 'A young farmer selected for the next sacrifice, pretending not to be afraid.',
+        stats: {
+          HP: 12,
+          attributes: { Power: 2, Coordination: 2, Vigor: 3, Willpower: 3, Intellect: 2, Charisma: 2, Attunement: 1, Empathy: 4 },
+          skills: { Survival: 3, Herbalism: 2, AnimalRapport: 2, Insight: 2, Negotiation: 1 },
+          defenses: { dodge: 'Coordination d6 + Vigor d4', will: 'Willpower d8 + Empathy d4+1' },
+          armor: 'None',
+          attacks: [{ name: 'Harvest Sickle', skill: 'Light Weapons', damage: '1d4 edged', note: 'Will fight if given hope.' }],
+          equipment: ['Harvest Sickle', 'Pressed Clover'],
+          weaknesses: ['Protective of younger siblings and easy to intimidate by elders.']
+        }
+      }
+    ],
+    items: ['Sacrifice Ledger', 'Blessed Sickle +1', 'Root-Heart Seed', 'Shrine Pact Stone'],
+    itemsDetail: [
+      { name: 'Sacrifice Ledger', desc: 'A hidden village record of names, dates, and harvest yields.', properties: 'Evidence item. Grants +1 to Insight, Intimidation, or Negotiation when confronting village leaders.' },
+      { name: 'Blessed Sickle +1', desc: 'An old harvest blade blessed before the pact was corrupted.', properties: 'Counts as a +1 Light Weapon, dealing 1d4 edged damage. Especially effective against roots, vines, and the Hill Hunger.' },
+      { name: 'Root-Heart Seed', desc: 'A warm black seed taken from the entity\'s heart.', properties: 'Can restore 4 Fatigue once or grow impossible crops; using it without resolving the pact risks corruption and morality loss.' },
+      { name: 'Shrine Pact Stone', desc: 'A flat stone carved with the first famine contract.', properties: 'Grants +1 to Lore, Languages, or Divine Communion checks to break, redirect, or renegotiate the pact.' }
+    ],
+    settings: ['Golden Wheat Road', 'Choosing Feast Hall', 'Elder\'s Root Cellar', 'Hill Shrine', 'Root-Heart Chamber'],
+    settingDescriptions: {
+      'Golden Wheat Road': 'A road through impossible grain, buzzing flies, and drought beyond the field edge. Survival, Herbalism, and Perception reveal unnatural growth.',
+      'Choosing Feast Hall': 'A warm hall of forced smiles, full plates, and one empty chair. Insight, Negotiation, and Deception can expose the selection ritual.',
+      'Elder\'s Root Cellar': 'A cool cellar beneath Rowan\'s house, hiding ledgers and old bones behind barrels. Lockpicking, Perception, or Intimidation can uncover proof.',
+      'Hill Shrine': 'A whitewashed shrine whose floorboards pulse like a throat. Divine Communion, Lore, or Heavy Weapons can open the way below.',
+      'Root-Heart Chamber': 'A cavern of roots, soil, and golden light where the Hunger waits under the harvest. The pact can be fought, broken, continued, or redirected.'
+    },
+    rewards: {
+      slay: [
+        'Slay the Hunger: Blessed Sickle +1, strong morality gain, village food stores, and an uncertain future harvest.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      breakPact: [
+        'Break the pact lawfully: Shrine Pact Stone, high morality gain, village loyalty from the innocent, and Lore/Negotiation reputation.',
+        'Gain 1 skill point for a skill used during the adventure; Lore, Languages, or Divine Communion may earn a second restricted point.'
+      ],
+      continuePact: [
+        'Continue the pact and choose a victim: large food supplies, village fear, high morality loss, and possible Root-Heart Seed.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      redirect: [
+        'Redirect the Hunger toward monsters, bandits, or livestock: pragmatic reward, mixed morality, and recurring access to abundant rations.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ]
+    }
+  },
+  {
+    id: 'mirror_war_saint_orra',
+    name: 'The Mirror War of Saint Orra',
+    desc: 'A chapel mirror creates reflected doubles of villagers, some kinder and some crueler than the originals. Decide who deserves to remain.',
+    element: 'aether',
+    suggestedGm: 'oracle',
+    artwork: oracleBanner,
+    startingDay: 1,
+    startingHour: 11.0,
+    startingPrompt: 'Saint Orra\'s chapel is full of people arguing with themselves. A fisherman with a split lip claims his reflection is a better father. A child holds hands with two identical mothers. Behind the altar, a silver mirror ripples like water whenever anyone lies. The priest asks you to judge quickly before the doubles stop fading at dawn. Ask the player who they question first.',
+    objectives: [
+      'Investigate original villagers and reflected doubles.',
+      'Learn what the Mirror of Saint Orra judges and why it has awakened.',
+      'Prevent violence between originals and reflections.',
+      'Choose whether to shatter, seal, judge, or use the mirror.'
+    ],
+    backstory: 'Saint Orra carried a mirror that reflected not the face, but the person a soul might become under different mercy. The chapel kept the relic covered for centuries until a desperate prayer uncovered it during a village scandal. Now reflections step out with their own memories, virtues, and crimes. Some doubles expose hidden abuse; others embody desires the originals barely resisted. The player must decide whether truth belongs to the first body, the better soul, the law, or whoever can survive dawn.',
+    npcs: [
+      {
+        name: 'Father Elian',
+        role: 'Chapel Priest',
+        desc: 'A frightened priest trying to keep both originals and doubles from killing each other.',
+        stats: {
+          HP: 11,
+          attributes: { Power: 1, Coordination: 2, Vigor: 1, Willpower: 4, Intellect: 3, Charisma: 3, Attunement: 2, Empathy: 5 },
+          skills: { DivineCommunion: 4, Insight: 3, Negotiation: 3, Lore: 2, Healing: 1 },
+          defenses: { dodge: 'Coordination d6 + Vigor d2', will: 'Willpower d10 + Empathy d6' },
+          armor: 'None',
+          attacks: [],
+          equipment: ['Saint Orra\'s Veil', 'Chapel Key'],
+          weaknesses: ['Cannot bring himself to condemn a reflection that shows virtue.']
+        }
+      },
+      {
+        name: 'Mara-Twice',
+        role: 'Reflected Double',
+        desc: 'A reflected mother who is gentler than the original and terrified of being erased.',
+        stats: {
+          HP: 12,
+          attributes: { Power: 2, Coordination: 3, Vigor: 2, Willpower: 4, Intellect: 3, Charisma: 3, Attunement: 3, Empathy: 5 },
+          skills: { Insight: 4, Negotiation: 3, Healing: 2, Deception: 2, DivineManifestation: 1 },
+          defenses: { dodge: 'Coordination d8 + Vigor d2+1', will: 'Willpower d10 + Empathy d6' },
+          armor: 'None',
+          attacks: [{ name: 'Mirror Shard', skill: 'Light Weapons', damage: '1d4 edged', note: 'Only if cornered.' }],
+          equipment: ['Mirror Shard', 'Child\'s Ribbon'],
+          weaknesses: ['Fades in direct dawn light unless the mirror is judged or sealed.']
+        }
+      },
+      {
+        name: 'The Silver Contrary',
+        role: 'Mirror Champion',
+        desc: 'A perfect warrior-reflection that believes the mirror should replace the flawed village.',
+        stats: {
+          HP: 30,
+          attributes: { Power: 4, Coordination: 5, Vigor: 4, Willpower: 5, Intellect: 3, Charisma: 3, Attunement: 5, Empathy: 1 },
+          skills: { LightWeapons: 4, Acrobatics: 3, Blocking: 3, ArcaneShaping: 2, Intimidation: 2 },
+          defenses: { dodge: 'Coordination d12 + Vigor d4+1 + 3d2', block: 'Power d10 + Coordination d6 + 3d2' },
+          armor: 'Mirror mail, medium armor soak 1d4',
+          attacks: [{ name: 'Silvered Rapier', skill: 'Light Weapons', damage: '1d6 piercing', note: 'Can split reflections on high-margin hit.' }],
+          weaknesses: ['Covered mirror, Saint Orra\'s Veil, honest self-accusation, and Divine Manifestation.']
+        }
+      }
+    ],
+    items: ['Saint Orra\'s Veil', 'Mirror Shard Charm', 'Silvered Rapier +1', 'Reflection Testimony'],
+    itemsDetail: [
+      { name: 'Saint Orra\'s Veil', desc: 'A white veil embroidered with silver eyes.', properties: 'Can cover and seal the mirror. Grants +1 to Divine Communion or Insight checks involving truth, doubles, or judgment.' },
+      { name: 'Mirror Shard Charm', desc: 'A harmless polished shard wrapped in thread.', properties: 'Once per adventure, grants +1 to Insight or Deception by showing a flicker of a possible self.' },
+      { name: 'Silvered Rapier +1', desc: 'A mirror-bright rapier drawn from the reflection realm.', properties: 'Counts as a +1 Light Weapon. Deals 1d6 piercing damage and grants +1 to Light Weapons checks.' },
+      { name: 'Reflection Testimony', desc: 'Conflicting statements from originals and doubles.', properties: 'Evidence item. Grants +1 to Negotiation, Insight, or Lore when resolving who remains.' }
+    ],
+    settings: ['Village Green', 'Saint Orra Chapel', 'Hall of Reflections', 'Vestry Archive', 'Dawn Mirror Threshold'],
+    settingDescriptions: {
+      'Village Green': 'Originals and doubles argue under watchful neighbors. Insight, Negotiation, Leadership, or Intimidation prevents mob violence.',
+      'Saint Orra Chapel': 'The chapel smells of wax and rain, with the uncovered mirror behind the altar. Divine Communion, Lore, and Arcane Drawing reveal relic behavior.',
+      'Hall of Reflections': 'A side hall where reflections repeat possible lives in silvered glass. Willpower, Insight, and Deception are tested by tempting visions.',
+      'Vestry Archive': 'Old saint records and covered relics wait in dust. Languages, Lore, or Lockpicking can find Saint Orra\'s Veil and the original judgment rite.',
+      'Dawn Mirror Threshold': 'At sunrise the mirror tries to make its choices permanent. The player can shatter, seal, judge, or exploit the final threshold.'
+    },
+    rewards: {
+      shatter: [
+        'Shatter the mirror: Mirror Shard Charm, morality gain if innocents are protected, and the doubling stops permanently.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      judge: [
+        'Judge originals and doubles case by case: complex morality shifts, grateful survivors, Reflection Testimony, and potential ally.',
+        'Gain 1 skill point for a skill used during the adventure; Insight or Negotiation may earn a second restricted point for a careful judgment.'
+      ],
+      seal: [
+        'Seal the mirror: Saint Orra\'s Veil blessing, moderate morality gain, and the relic preserved for future study.',
+        'Gain 1 skill point for a skill used during the adventure.'
+      ],
+      use: [
+        'Use the mirror for infiltration or power: unique reflected contact or Silvered Rapier +1, morality loss, and future identity crisis.',
         'Gain 1 skill point for a skill used during the adventure.'
       ]
     }

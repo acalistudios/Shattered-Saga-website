@@ -58,6 +58,9 @@ export default function PlayScreen({
   onEquipItem,
   onUnequipItem,
   onDropItem,
+  onPickUpItem,
+  currentLocation,
+  droppedItems,
   layoutMode = 'desktop',
   enemyAttacksQueue = [],
   onResolveEnemyAttack,
@@ -1216,9 +1219,43 @@ export default function PlayScreen({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="border-t border-slate-900 p-4 bg-slate-950 flex flex-col gap-2">
-          
-          {/* Check Configurations Bar */}
-          <div className="flex gap-2 mb-1 text-2xs font-semibold text-slate-400">
+            
+            {/* Ground Items and Current Location Status Header */}
+            {(() => {
+              const activeAdventure = ADVENTURES_LIST?.find(a => a.id === activeAdventureId);
+              const activeRoom = currentLocation || activeAdventure?.settings?.[0] || 'Unknown Room';
+              const groundItems = droppedItems[activeAdventureId]?.[activeRoom] || [];
+
+              return (
+                <div className="flex flex-wrap justify-between items-center bg-slate-900/60 border border-slate-850 px-3 py-1.5 rounded-lg text-2xs mb-1">
+                  <div className="flex items-center gap-1.5 text-slate-350 font-bold">
+                    <span className="text-amber-500 font-serif">📍 Location:</span>
+                    <span className="text-slate-200 capitalize font-medium">{activeRoom}</span>
+                  </div>
+                  
+                  {groundItems.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 text-slate-400 mt-1 sm:mt-0 font-medium">
+                      <span className="text-amber-500 font-serif">📦 Ground:</span>
+                      {groundItems.map((item, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => onPickUpItem(item)}
+                          title="Click to pick up item"
+                          className="px-2 py-0.5 rounded bg-slate-800 hover:bg-amber-600/25 border border-slate-700 hover:border-amber-500/40 text-slate-300 hover:text-amber-400 font-bold text-3xs transition-all cursor-pointer flex items-center gap-1"
+                        >
+                          <span>{item}</span>
+                          <span className="text-4xs text-amber-500/70">➕</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+            
+            {/* Check Configurations Bar */}
+            <div className="flex gap-2 mb-1 text-2xs font-semibold text-slate-400">
             <div className="flex items-center gap-1.5">
               <span>Skill Focus:</span>
               <select
