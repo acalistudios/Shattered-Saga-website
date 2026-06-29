@@ -57,7 +57,10 @@ export default function AdventureSelection({
   onBack,
   gems,
   onSpendGem,
-  layoutMode = 'desktop'
+  layoutMode = 'desktop',
+  strongholdChest = [],
+  onUpdateStrongholdChest,
+  onUpdateCharacterStats
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
   const completedAdventures = character?.completed_adventures || [];
@@ -69,6 +72,101 @@ export default function AdventureSelection({
 
   const selectedRegion = WORLD_REGIONS.find(r => r.id === selectedRegionId);
   const selectedAdventure = ADVENTURES_LIST.find(a => a.id === selectedNodeId);
+
+  const [isChestOpen, setIsChestOpen] = useState(false);
+
+  const ITEM_PRICES = {
+    "creator's binding seal tile": 100,
+    "demon-cult amulet": 80,
+    "aldric's signet ring": 50,
+    "+1 dagger (voss crest)": 120,
+    "+1 shield (voss crest)": 150,
+    "holy water": 30,
+    "silver mirror": 40,
+    "binding prayer scroll": 50,
+    "iron shield": 30,
+    "dagger": 15,
+    "health potion": 40,
+    "rations": 5,
+    "heavy weapons": 100,
+    "light weapons": 50,
+    "chainmail": 150,
+    "leather armor": 50,
+    "plate mail": 300
+  };
+
+  const getItemBaseValue = (itemName) => {
+    for (const adv of ADVENTURES_LIST) {
+      const detail = adv.itemsDetail?.find(d => d.name.toLowerCase() === itemName.toLowerCase());
+      if (detail) {
+        if (detail.value !== undefined) return detail.value;
+        if (detail.price !== undefined) return detail.price;
+      }
+    }
+    const cleanName = itemName.toLowerCase().trim();
+    if (ITEM_PRICES[cleanName] !== undefined) {
+      return ITEM_PRICES[cleanName];
+    }
+    return 20; // Default fallback base value
+  };
+
+  const handleDepositToChest = (itemName) => {
+    if (onUpdateCharacterStats) {
+      onUpdateCharacterStats(prev => {
+        const idx = prev.inventory.indexOf(itemName);
+        if (idx === -1) return prev;
+        const nextInv = [...prev.inventory];
+        nextInv.splice(idx, 1);
+        return { ...prev, inventory: nextInv };
+      });
+    }
+    if (onUpdateStrongholdChest) {
+      onUpdateStrongholdChest([...strongholdChest, itemName]);
+    }
+  };
+
+  const handleWithdrawFromChest = (chestIdx) => {
+    const itemName = strongholdChest[chestIdx];
+    if (!itemName) return;
+
+    if (character.inventory.length >= 20) {
+      alert("Your character backpack is full (Max 20 items). Deposit or sell other items first!");
+      return;
+    }
+
+    if (onUpdateCharacterStats) {
+      onUpdateCharacterStats(prev => {
+        return { ...prev, inventory: [...prev.inventory, itemName] };
+      });
+    }
+    if (onUpdateStrongholdChest) {
+      const nextChest = [...strongholdChest];
+      nextChest.splice(chestIdx, 1);
+      onUpdateStrongholdChest(nextChest);
+    }
+  };
+
+  const handleSellFromChest = (chestIdx, sellPrice) => {
+    const itemName = strongholdChest[chestIdx];
+    if (!itemName) return;
+
+    if (!window.confirm(`Are you sure you want to sell your ${itemName} for ${sellPrice} Gold?`)) {
+      return;
+    }
+
+    if (onUpdateCharacterStats) {
+      onUpdateCharacterStats(prev => {
+        const nextStats = { ...prev.stats };
+        nextStats.gold = (nextStats.gold || 0) + sellPrice;
+        return { ...prev, stats: nextStats };
+      });
+    }
+    if (onUpdateStrongholdChest) {
+      const nextChest = [...strongholdChest];
+      nextChest.splice(chestIdx, 1);
+      onUpdateStrongholdChest(nextChest);
+    }
+  };
   const unlockState = selectedAdventure ? getUnlockStatus(selectedAdventure.id, completedAdventures) : { unlocked: false, requirements: [] };
   const isCompleted = completedAdventures.includes(selectedNodeId);
 
@@ -120,20 +218,32 @@ export default function AdventureSelection({
           </button>
         </div>
         
-        {/* Character Summary Badge */}
+        {/* Character Summary Badge & Stash Button */}
         {character && (
-          <div className="hidden sm:flex items-center gap-3 bg-slate-900/60 border border-slate-850 rounded-lg p-2">
-            {character.portraitUrl && (
-              <div className="w-10 h-10 rounded border border-amber-500/20 overflow-hidden bg-slate-950">
-                <img src={character.portraitUrl} alt={character.name} className="w-full h-full object-cover" />
-              </div>
-            )}
-            <div className="text-right">
-              <div className="text-xs font-bold text-amber-100 leading-tight">{character.name}</div>
-              <div className="text-5xs text-slate-450 uppercase tracking-wider mt-0.5">
-                Lvl {character.stats.level} • {character.element.toUpperCase()}-KIN
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-3 bg-slate-900/60 border border-slate-850 rounded-lg p-2">
+              {character.portraitUrl && (
+                <div className="w-10 h-10 rounded border border-amber-500/20 overflow-hidden bg-slate-950">
+                  <img src={character.portraitUrl} alt={character.name} className="w-full h-full object-cover" />
+                </div>
+              )}
+              <div className="text-right">
+                <div className="text-xs font-bold text-amber-100 leading-tight">{character.name}</div>
+                <div className="text-5xs text-slate-450 uppercase tracking-wider mt-0.5">
+                  Lvl {character.stats.level} • {character.element.toUpperCase()}-KIN
+                </div>
               </div>
             </div>
+            
+            <button
+              type="button"
+              onClick={() => setIsChestOpen(true)}
+              className="px-3 py-2 rounded bg-slate-900 border border-slate-800 hover:border-amber-500/40 text-xs font-bold text-slate-350 hover:text-amber-400 cursor-pointer transition-all flex items-center gap-1.5 shadow-sm"
+              title="Open Stronghold Stash Chest"
+            >
+              <span>📦</span>
+              <span>Stash ({strongholdChest.length})</span>
+            </button>
           </div>
         )}
       </div>
@@ -597,6 +707,139 @@ export default function AdventureSelection({
         )}
 
       </div>
+
+      {/* Stronghold Chest Modal */}
+      {isChestOpen && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-4xl bg-slate-950 border border-amber-900/35 rounded-xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh] font-sans">
+            
+            {/* Modal Header */}
+            <div className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-bold font-serif text-amber-400 tracking-wider flex items-center gap-2">
+                  <span>🏰 Stronghold Chest (Stash)</span>
+                </h3>
+                <p className="text-3xs text-slate-400 uppercase tracking-widest mt-0.5">
+                  Transfer gear between your character and home vault. Sell surplus items for 50% gold value.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsChestOpen(false)}
+                className="text-slate-400 hover:text-slate-200 text-sm font-bold p-1 bg-slate-800 rounded cursor-pointer transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-950/90">
+              
+              {/* Left Column: Character Inventory */}
+              <div className="flex flex-col border border-slate-850 rounded-lg bg-slate-950 p-4">
+                <div className="flex justify-between items-center border-b border-slate-900 pb-2 mb-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-350 flex items-center gap-1.5">
+                    <span>👤 Active Inventory</span>
+                  </h4>
+                  <div className="text-3xs text-slate-450 font-bold flex gap-3">
+                    <span>💰 {character?.stats?.gold || 0} Gold</span>
+                    <span>⚖️ Weight: {character?.inventory?.length || 0}/20 slots</span>
+                  </div>
+                </div>
+                
+                {(!character || !character.inventory || character.inventory.length === 0) ? (
+                  <div className="flex-1 flex items-center justify-center text-3xs text-slate-500 italic py-12">
+                    Your backpack is empty.
+                  </div>
+                ) : (
+                  <ul className="space-y-1.5 max-h-[40vh] overflow-y-auto pr-1">
+                    {character.inventory.map((item, idx) => {
+                      const value = getItemBaseValue(item);
+                      return (
+                        <li key={idx} className="flex justify-between items-center p-2 rounded bg-slate-900/60 border border-slate-850 text-2xs">
+                          <div>
+                            <span className="font-semibold text-slate-250 capitalize">{item}</span>
+                            <span className="text-[10px] text-slate-450 block">Value: {value}g (Sell: {Math.floor(value * 0.5)}g)</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDepositToChest(item)}
+                            className="px-2.5 py-1 rounded bg-amber-950 border border-amber-800/40 text-amber-400 hover:bg-amber-600/25 hover:border-amber-500/40 transition-colors text-3xs font-extrabold uppercase cursor-pointer"
+                          >
+                            Deposit 📥
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+              
+              {/* Right Column: Stronghold Chest */}
+              <div className="flex flex-col border border-slate-850 rounded-lg bg-slate-950 p-4">
+                <div className="flex justify-between items-center border-b border-slate-900 pb-2 mb-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-350 flex items-center gap-1.5">
+                    <span>📦 Stashed Items ({strongholdChest.length})</span>
+                  </h4>
+                </div>
+                
+                {strongholdChest.length === 0 ? (
+                  <div className="flex-1 flex items-center justify-center text-3xs text-slate-500 italic py-12">
+                    Stash chest is empty. Items left on the ground during quests will appear here.
+                  </div>
+                ) : (
+                  <ul className="space-y-1.5 max-h-[40vh] overflow-y-auto pr-1">
+                    {strongholdChest.map((item, idx) => {
+                      const value = getItemBaseValue(item);
+                      const sellPrice = Math.floor(value * 0.5);
+                      return (
+                        <li key={idx} className="flex justify-between items-center p-2 rounded bg-slate-900/60 border border-slate-850 text-2xs">
+                          <div>
+                            <span className="font-semibold text-slate-250 capitalize">{item}</span>
+                            <span className="text-[10px] text-slate-450 block">Value: {value}g (Sell: {sellPrice}g)</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleWithdrawFromChest(idx)}
+                              className="px-2.5 py-1 rounded bg-emerald-950 border border-emerald-800/40 text-emerald-400 hover:bg-emerald-600/25 hover:border-emerald-500/40 transition-colors text-3xs font-extrabold uppercase cursor-pointer"
+                            >
+                              Withdraw 📤
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSellFromChest(idx, sellPrice)}
+                              className="px-2 py-1 rounded bg-red-955/30 border border-red-500/30 text-red-400 hover:bg-red-600/25 hover:border-red-500/40 transition-colors text-3xs font-extrabold uppercase cursor-pointer animate-pulse"
+                            >
+                              Sell 🪙
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+              
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="bg-slate-900 border-t border-slate-800 px-6 py-4 flex justify-between items-center">
+              <span className="text-3xs text-slate-500">
+                Note: Equipping or unequipping items must be done during active play.
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsChestOpen(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-300 text-3xs font-extrabold uppercase tracking-wider rounded transition-colors cursor-pointer"
+              >
+                Close Vault
+              </button>
+            </div>
+            
+          </div>
+        </div>
+      )}
 
       {/* Footer info */}
       <div className="mt-6 flex justify-center text-4xs text-slate-550 border-t border-slate-900 pt-3 text-center">

@@ -628,6 +628,10 @@ function runSandboxMock(provider, history, isHandoff, characterData, currentSitu
       }
 
       let text = '';
+      const activeRoom = characterData?.setting || 'The Runic Vestibule';
+      const outputLocationTag = `[location: ${activeRoom}]`;
+      const outputChoices = `\n[choice: Search the room | perception | novice]\n[choice: Inspect the local layout | survival | moderate]\n[choice: Attempt to force your way | athletics | veteran]`;
+
       if (provider === 'oracle' || provider === 'gemini') {
         text = `*The Oracle peers into the shimmering elemental green waters of her basin, her voice echoey and calm.* 
         
@@ -659,6 +663,9 @@ Do you wish to continue exploring this path, or take a different action?"
 
 [image: ${imagePrompt}]`;
       }
+
+      // Append mock tags for location and choices to trigger parser updates
+      text += `\n\n${outputLocationTag}${outputChoices}`;
 
       resolve({
         text,

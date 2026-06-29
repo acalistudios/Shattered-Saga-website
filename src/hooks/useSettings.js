@@ -89,6 +89,17 @@ export default function useSettings() {
     });
   };
 
+  const updateStrongholdChest = (newChest) => {
+    setSettings((prev) => {
+      const updated = {
+        ...prev,
+        strongholdChest: newChest
+      };
+      storage.set('settings', updated);
+      return updated;
+    });
+  };
+
   return {
     settings,
     updateSettings,
@@ -97,5 +108,6 @@ export default function useSettings() {
     setEngineTier,
     setUserApiKey,
     addToStrongholdChest,
+    updateStrongholdChest,
   };
 }

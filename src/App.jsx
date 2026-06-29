@@ -19,10 +19,12 @@ function App() {
     setSandboxMode,
     setEngineTier,
     setUserApiKey,
-    addToStrongholdChest
+    addToStrongholdChest,
+    updateStrongholdChest
   } = useSettings();
 
   const {
+    updateCharacterStats,
     character,
     activeGmId,
     activeGm,
@@ -520,6 +522,9 @@ function App() {
             gems={gems}
             onSpendGem={handleSpendGem}
             layoutMode={activeLayout}
+            strongholdChest={settings.strongholdChest || []}
+            onUpdateStrongholdChest={updateStrongholdChest}
+            onUpdateCharacterStats={updateCharacterStats}
           />
         )}
 

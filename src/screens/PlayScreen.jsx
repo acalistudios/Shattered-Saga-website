@@ -17,6 +17,13 @@ const MOCK_ADS = [
   "Whispering Woods Inn: Warm hearth, cold ale, and double-locked doors for safety."
 ];
 
+const DIFFICULTY_LABELS = {
+  novice: 'Novice',
+  professional: 'Professional',
+  veteran: 'Veteran',
+  legendary: 'Legendary'
+};
+
 function formatTime(day, hourFloat) {
   const totalMinutes = Math.round(hourFloat * 60);
   const hour24 = Math.floor(totalMinutes / 60);
@@ -80,7 +87,7 @@ export default function PlayScreen({
 
   const [inputText, setInputText] = useState('');
   const [skillFocus, setSkillFocus] = useState(''); // Empty string means no specific check
-  const [difficulty, setDifficulty] = useState('moderate');
+  const [difficulty, setDifficulty] = useState('professional');
   const [spSpend, setSpSpend] = useState(0);
 
   useEffect(() => {
@@ -102,7 +109,9 @@ export default function PlayScreen({
   const [isRelationshipsOpen, setIsRelationshipsOpen] = useState(false);
   const [isScarsOpen, setIsScarsOpen] = useState(false);
   const [isQuestLogOpen, setIsQuestLogOpen] = useState(true);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const chatEndRef = useRef(null);
+  const inputRef = useRef(null);
 
   // States for Level Up Portrait Refinement
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
@@ -223,6 +232,27 @@ export default function PlayScreen({
   const energyBalance = userProfile ? userProfile.energy_balance : null;
   const energyIsCritical = sessionToken ? (energyBalance !== null && energyBalance <= 10) : (gmEnergies[activeGm.id] <= 20);
   const activeAdventure = ADVENTURES_LIST.find((a) => a.id === activeAdventureId);
+  const activeRoom = currentLocation || activeAdventure?.settings?.[0] || null;
+  const activeRoomChoices = activeRoom ? (activeAdventure?.settingChoices?.[activeRoom] || []) : [];
+  const activeRoomImage = activeRoom ? activeAdventure?.settingImages?.[activeRoom] : null;
+  const getSkillLabel = (skillId) => (
+    SKILLS_LIST.find((skill) => skill.id === skillId)?.name || skillId.replace(/_/g, ' ')
+  );
+
+  const handleSuggestedChoice = (choice) => {
+    if (!choice || isLoading) return;
+
+    const rank = character.skills?.[choice.skill] || 0;
+    const suggestedSpSpend = ['arcane_shaping', 'divine_manifestation'].includes(choice.skill)
+      ? Math.min(1, rank)
+      : 0;
+
+    onSendAction(choice.text, choice.skill || null, choice.difficulty || 'professional', suggestedSpSpend);
+    setInputText('');
+    setSkillFocus('');
+    setDifficulty('professional');
+    setSpSpend(0);
+  };
 
   return (
     <div className={`flex-1 flex h-full overflow-hidden bg-slate-950 relative ${isDesktopLayout ? 'flex-row' : 'flex-col'}`}>
@@ -982,6 +1012,15 @@ export default function PlayScreen({
 
           <div className="flex items-center gap-3">
             <button
+              onClick={() => setIsHelpOpen(true)}
+              className="p-1.5 rounded bg-slate-900 border border-slate-800 hover:border-amber-500/40 text-slate-400 hover:text-amber-400 cursor-pointer transition-colors text-xs font-semibold flex items-center gap-1.5"
+              title="View Game Rules & Tutorial"
+            >
+              <span>❔</span>
+              <span>Rules</span>
+            </button>
+
+            <button
               onClick={onOpenSettings}
               className="p-1.5 rounded bg-slate-900 border border-slate-800 hover:border-amber-500/40 text-slate-400 hover:text-amber-400 cursor-pointer transition-colors text-xs font-semibold flex items-center gap-1.5"
             >
@@ -1222,15 +1261,14 @@ export default function PlayScreen({
             
             {/* Ground Items and Current Location Status Header */}
             {(() => {
-              const activeAdventure = ADVENTURES_LIST?.find(a => a.id === activeAdventureId);
-              const activeRoom = currentLocation || activeAdventure?.settings?.[0] || 'Unknown Room';
-              const groundItems = droppedItems[activeAdventureId]?.[activeRoom] || [];
+              const displayRoom = activeRoom || 'Unknown Room';
+              const groundItems = droppedItems[activeAdventureId]?.[displayRoom] || [];
 
               return (
                 <div className="flex flex-wrap justify-between items-center bg-slate-900/60 border border-slate-850 px-3 py-1.5 rounded-lg text-2xs mb-1">
                   <div className="flex items-center gap-1.5 text-slate-350 font-bold">
                     <span className="text-amber-500 font-serif">📍 Location:</span>
-                    <span className="text-slate-200 capitalize font-medium">{activeRoom}</span>
+                    <span className="text-slate-200 capitalize font-medium">{displayRoom}</span>
                   </div>
                   
                   {groundItems.length > 0 && (
@@ -1253,6 +1291,64 @@ export default function PlayScreen({
                 </div>
               );
             })()}
+
+            {(activeRoomImage || activeRoomChoices.length > 0) && (
+              <div className="rounded border border-slate-850 bg-slate-900/35 overflow-hidden mb-1">
+                {activeRoomImage && (
+                  <img
+                    src={activeRoomImage}
+                    alt={activeRoom || 'Current adventure location'}
+                    className="w-full max-h-40 object-cover border-b border-slate-850"
+                    onError={(event) => {
+                      event.currentTarget.style.display = 'none';
+                    }}
+                  />
+                )}
+
+                {activeRoomChoices.length > 0 && (
+                  <div className="p-3 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-3xs uppercase tracking-widest text-slate-500 font-bold">Suggested Actions</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setInputText('');
+                          setSkillFocus('');
+                          inputRef.current?.focus();
+                        }}
+                        disabled={isLoading}
+                        className="text-[10px] text-slate-500 hover:text-amber-400 disabled:opacity-40 disabled:hover:text-slate-500 transition-colors cursor-pointer"
+                      >
+                        Do something else...
+                      </button>
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {activeRoomChoices.map((choice, idx) => {
+                        const rank = character.skills?.[choice.skill] || 0;
+                        const skillName = getSkillLabel(choice.skill);
+                        const difficultyLabel = DIFFICULTY_LABELS[choice.difficulty] || choice.difficulty;
+
+                        return (
+                          <button
+                            key={`${choice.text}-${idx}`}
+                            type="button"
+                            onClick={() => handleSuggestedChoice(choice)}
+                            disabled={isLoading}
+                            className="min-h-20 rounded border border-slate-800 bg-slate-950/60 hover:bg-slate-900 hover:border-amber-500/35 disabled:opacity-45 disabled:hover:border-slate-800 disabled:hover:bg-slate-950/60 text-left p-3 transition-all cursor-pointer"
+                          >
+                            <span className="block text-xs font-bold text-slate-200 leading-snug">{choice.text}</span>
+                            <span className="block mt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                              {skillName} | {difficultyLabel} | Rank {rank}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             
             {/* Check Configurations Bar */}
             <div className="flex gap-2 mb-1 text-2xs font-semibold text-slate-400">
@@ -1308,6 +1404,7 @@ export default function PlayScreen({
 
           <div className="flex gap-2">
             <input
+              ref={inputRef}
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
@@ -1955,6 +2052,110 @@ export default function PlayScreen({
           </div>
         </div>
       </div>
+
+      {/* Onboarding Help & Rules Modal */}
+      {isHelpOpen && (
+        <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in font-sans">
+          <div className="w-full max-w-3xl bg-slate-950 border border-amber-900/35 rounded-xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+            
+            {/* Modal Header */}
+            <div className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-bold font-serif text-amber-400 tracking-wider flex items-center gap-2">
+                  <span>📜 Chronicles of the Shattered Sage: Rulebook</span>
+                </h3>
+                <p className="text-3xs text-slate-400 uppercase tracking-widest mt-0.5">
+                  Understand attributes, skill tests, combat maneuvers, and survival states.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsHelpOpen(false)}
+                className="text-slate-400 hover:text-slate-200 text-sm font-bold p-1 bg-slate-800 rounded cursor-pointer transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 text-slate-300 text-2xs leading-relaxed bg-slate-950/90 custom-scrollbar">
+              
+              {/* Section 1: The Rolling Mechanic */}
+              <section className="space-y-2 border-b border-slate-900 pb-4">
+                <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider font-serif">1. Opposed Skill & Attribute Checks</h4>
+                <p>
+                  Every challenge in Shattered Saga is resolved using a **Step-Die Dice Rolling Formula**:
+                </p>
+                <div className="bg-slate-900 border border-slate-850 p-3 rounded-lg text-center font-mono text-3xs text-amber-400 select-all">
+                  Check Roll = [Primary Attribute Die] + [Secondary Attribute Die] + [Skill Focus Ranks] + [Modifiers]
+                </div>
+                <ul className="list-disc pl-5 space-y-1 mt-2 text-slate-400">
+                  <li><strong>Attributes</strong> dictate the die size (e.g. Score 1 = d4, Score 2 = d6, Score 3 = d8, Score 4 = d10, Score 5 = d12, Score 6+ = d20).</li>
+                  <li><strong>Skill Focus</strong> adds flat bonuses (e.g. +1 for Novice rank, up to +5 for Legendary rank).</li>
+                  <li>Your roll is compared directly to the challenge difficulty or opponent roll. A positive margin represents a **Success**, while a negative margin results in a **Failure** or **Complication**.</li>
+                </ul>
+              </section>
+
+              {/* Section 2: Combat & Armor Soak */}
+              <section className="space-y-2 border-b border-slate-900 pb-4">
+                <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider font-serif">2. Combat Resolution & Defense</h4>
+                <p>
+                  When enemies attack, they place actions in the **🛡️ Defense Required** queue. You must react before you can perform another narrative turn:
+                </p>
+                <ul className="list-disc pl-5 space-y-1 text-slate-400">
+                  <li><strong>Acrobatics (Dodge)</strong>: Uses Coordination + Vigor. Avoids all damage on success. Heavy armor applies penalties (Medium: -1, Heavy: -2).</li>
+                  <li><strong>Blocking (Block)</strong>: Uses Power + Coordination. Requires a weapon or shield to be equipped.</li>
+                  <li><strong>Damage Mitigation (Soak)</strong>: If an attack hits, your equipped armor rolls to absorb raw damage:
+                    <ul className="list-circle pl-5 mt-1 space-y-0.5 text-slate-450">
+                      <li>Light Armor: Soaks 1d3 damage.</li>
+                      <li>Medium Armor: Soaks 1d4 damage.</li>
+                      <li>Heavy Armor: Soaks 1d6 damage.</li>
+                    </ul>
+                  </li>
+                </ul>
+              </section>
+
+              {/* Section 3: Fatigue, Food, & Survival */}
+              <section className="space-y-2 border-b border-slate-900 pb-4">
+                <h4 className="text-xs font-bold text-rose-400 uppercase tracking-wider font-serif">3. Survival, Fatigue, & Starvation</h4>
+                <p>
+                  Time flows dynamically. Travel and stressful actions burn calories and drain your stamina:
+                </p>
+                <ul className="list-disc pl-5 space-y-1.5 text-slate-400">
+                  <li><strong>Starvation</strong>: If you go past midnight without eating Rations, your hunger rises. Each starving day applies a cumulative <strong>-1 penalty</strong> to all check rolls. Eating a Ration cleanses hunger instantly.</li>
+                  <li><strong>Exhaustion</strong>: Stamina points (SP) represent your energy. Letting your fatigue drop below 0 triggers Exhaustion, applying a severe penalty: <strong>-2 penalty per negative SP tier</strong>.</li>
+                  <li><strong>Recovery</strong>: Eat rations to recover fatigue, or choose the "Rest" downtime option at taverns/campfires between adventures.</li>
+                </ul>
+              </section>
+
+              {/* Section 4: Dynamic NPC Memory */}
+              <section className="space-y-2">
+                <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider font-serif">4. The Living World & NPC Memory</h4>
+                <p>
+                  The AI Game Master acts as a storyteller and holds structural memories of your character:
+                </p>
+                <ul className="list-disc pl-5 space-y-1 text-slate-400">
+                  <li>NPCs remember your honesty, threats, and deals. Their trust and fear parameters are injected into GMs prompts to alter dialog and quest outcomes.</li>
+                  <li>Items dropped on the ground remain in that specific room. At the end of the adventure, the village guards salvage what was left behind and place it in your persistent <strong>Stronghold Chest</strong>.</li>
+                </ul>
+              </section>
+
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="bg-slate-900 border-t border-slate-800 px-6 py-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsHelpOpen(false)}
+                className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 border border-amber-550 text-slate-950 font-bold text-3xs font-extrabold uppercase tracking-wider rounded transition-colors cursor-pointer shadow-md"
+              >
+                Close Rulebook
+              </button>
+            </div>
+            
+          </div>
+        </div>
+      )}
 
     </div>
   );

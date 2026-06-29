@@ -1,8 +1,9 @@
 import oracleBanner from '../assets/images/oracle.png';
 import titanBanner from '../assets/images/titan.png';
 import ancientBanner from '../assets/images/ancient.png';
+import { ADVENTURE_SETTING_METADATA } from './adventureEnhancements';
 
-export const ADVENTURES_LIST = [
+const BASE_ADVENTURES_LIST = [
   {
     id: 'elemental_crucible',
     name: 'The Elemental Crucible',
@@ -2011,3 +2012,8 @@ export const ADVENTURES_LIST = [
     }
   }
 ];
+
+export const ADVENTURES_LIST = BASE_ADVENTURES_LIST.map((adventure) => ({
+  ...adventure,
+  ...(ADVENTURE_SETTING_METADATA[adventure.id] || {}),
+}));

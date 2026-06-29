@@ -3341,8 +3341,17 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     sendPlayerAction(`I use my ${itemName} to treat myself.`, apiKey, sandbox, null, 'moderate', 0, itemName);
   };
 
+  const updateCharacterStats = (updater) => {
+    setCharacter((prev) => {
+      const nextChar = updater(prev);
+      storage.set(`slot_${activeSlotIndex}_character`, nextChar);
+      return nextChar;
+    });
+  };
+
   return {
     character,
+    updateCharacterStats,
     activeGmId,
     activeGm,
     gmEnergies,
