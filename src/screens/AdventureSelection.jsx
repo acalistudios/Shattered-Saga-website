@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { ADVENTURES_LIST } from '../data/adventures';
 import { GMS } from '../data/gms';
 import { printCharacterSheet } from '../utils/print';
+import { getItemDetails } from '../utils/items';
+import { coinValue } from '../data/economy';
 
 // Absolute coordinates of the adventure nodes on a 100% x 100% map canvas
 const MAP_NODES = {
@@ -75,39 +77,12 @@ export default function AdventureSelection({
 
   const [isChestOpen, setIsChestOpen] = useState(false);
 
-  const ITEM_PRICES = {
-    "creator's binding seal tile": 100,
-    "demon-cult amulet": 80,
-    "aldric's signet ring": 50,
-    "+1 dagger (voss crest)": 120,
-    "+1 shield (voss crest)": 150,
-    "holy water": 30,
-    "silver mirror": 40,
-    "binding prayer scroll": 50,
-    "iron shield": 30,
-    "dagger": 15,
-    "health potion": 40,
-    "rations": 5,
-    "heavy weapons": 100,
-    "light weapons": 50,
-    "chainmail": 150,
-    "leather armor": 50,
-    "plate mail": 300
-  };
-
-  const getItemBaseValue = (itemName) => {
-    for (const adv of ADVENTURES_LIST) {
-      const detail = adv.itemsDetail?.find(d => d.name.toLowerCase() === itemName.toLowerCase());
-      if (detail) {
-        if (detail.value !== undefined) return detail.value;
-        if (detail.price !== undefined) return detail.price;
-      }
-    }
-    const cleanName = itemName.toLowerCase().trim();
-    if (ITEM_PRICES[cleanName] !== undefined) {
-      return ITEM_PRICES[cleanName];
-    }
-    return 20; // Default fallback base value
+  const formatCoin = (coins) => {
+    const parts = [];
+    if (coins.gp > 0) parts.push(`${coins.gp}g`);
+    if (coins.sp > 0) parts.push(`${coins.sp}s`);
+    if (coins.cp > 0 || parts.length === 0) parts.push(`${coins.cp}c`);
+    return parts.join(' ');
   };
 
   const handleDepositToChest = (itemName) => {
@@ -146,19 +121,36 @@ export default function AdventureSelection({
     }
   };
 
-  const handleSellFromChest = (chestIdx, sellPrice) => {
+  const handleSellFromChest = (chestIdx, sellPriceCp, displayPrice) => {
     const itemName = strongholdChest[chestIdx];
     if (!itemName) return;
 
-    if (!window.confirm(`Are you sure you want to sell your ${itemName} for ${sellPrice} Gold?`)) {
+    if (!window.confirm(`Are you sure you want to sell your ${itemName} for ${displayPrice}?`)) {
       return;
     }
 
     if (onUpdateCharacterStats) {
       onUpdateCharacterStats(prev => {
-        const nextStats = { ...prev.stats };
-        nextStats.gold = (nextStats.gold || 0) + sellPrice;
-        return { ...prev, stats: nextStats };
+        const currGp = prev.currency?.gp ?? prev.currency?.gold ?? 0;
+        const currSp = prev.currency?.sp ?? 0;
+        const currCp = prev.currency?.cp ?? 0;
+        
+        const totalCp = currGp * 100 + currSp * 10 + currCp + sellPriceCp;
+        
+        const newGp = Math.floor(totalCp / 100);
+        const newSp = Math.floor((totalCp % 100) / 10);
+        const newCp = totalCp % 10;
+        
+        return {
+          ...prev,
+          currency: {
+            gp: newGp,
+            sp: newSp,
+            cp: newCp,
+            gold: newGp,
+            fateCoins: prev.currency?.fateCoins ?? 0
+          }
+        };
       });
     }
     if (onUpdateStrongholdChest) {
@@ -742,7 +734,7 @@ export default function AdventureSelection({
                     <span>👤 Active Inventory</span>
                   </h4>
                   <div className="text-3xs text-slate-450 font-bold flex gap-3">
-                    <span>💰 {character?.stats?.gold || 0} Gold</span>
+                    <span>💰 {formatCoin(character?.currency || { gp: 0, sp: 0, cp: 0 })}</span>
                     <span>⚖️ Weight: {character?.inventory?.length || 0}/20 slots</span>
                   </div>
                 </div>
@@ -754,12 +746,15 @@ export default function AdventureSelection({
                 ) : (
                   <ul className="space-y-1.5 max-h-[40vh] overflow-y-auto pr-1">
                     {character.inventory.map((item, idx) => {
-                      const value = getItemBaseValue(item);
+                      const details = getItemDetails(item);
+                      const basePrice = formatCoin(details.value);
+                      const sellPriceCp = Math.floor(details.valueCp * 0.5) || 1;
+                      const sellPrice = formatCoin(coinValue(sellPriceCp));
                       return (
                         <li key={idx} className="flex justify-between items-center p-2 rounded bg-slate-900/60 border border-slate-850 text-2xs">
                           <div>
                             <span className="font-semibold text-slate-250 capitalize">{item}</span>
-                            <span className="text-[10px] text-slate-450 block">Value: {value}g (Sell: {Math.floor(value * 0.5)}g)</span>
+                            <span className="text-[10px] text-slate-450 block">Value: {basePrice} (Sell: {sellPrice})</span>
                           </div>
                           <button
                             type="button"
@@ -790,13 +785,15 @@ export default function AdventureSelection({
                 ) : (
                   <ul className="space-y-1.5 max-h-[40vh] overflow-y-auto pr-1">
                     {strongholdChest.map((item, idx) => {
-                      const value = getItemBaseValue(item);
-                      const sellPrice = Math.floor(value * 0.5);
+                      const details = getItemDetails(item);
+                      const basePrice = formatCoin(details.value);
+                      const sellPriceCp = Math.floor(details.valueCp * 0.5) || 1;
+                      const sellPrice = formatCoin(coinValue(sellPriceCp));
                       return (
                         <li key={idx} className="flex justify-between items-center p-2 rounded bg-slate-900/60 border border-slate-850 text-2xs">
                           <div>
                             <span className="font-semibold text-slate-250 capitalize">{item}</span>
-                            <span className="text-[10px] text-slate-450 block">Value: {value}g (Sell: {sellPrice}g)</span>
+                            <span className="text-[10px] text-slate-450 block">Value: {basePrice} (Sell: {sellPrice})</span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <button
@@ -808,7 +805,7 @@ export default function AdventureSelection({
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleSellFromChest(idx, sellPrice)}
+                              onClick={() => handleSellFromChest(idx, sellPriceCp, sellPrice)}
                               className="px-2 py-1 rounded bg-red-955/30 border border-red-500/30 text-red-400 hover:bg-red-600/25 hover:border-red-500/40 transition-colors text-3xs font-extrabold uppercase cursor-pointer animate-pulse"
                             >
                               Sell 🪙

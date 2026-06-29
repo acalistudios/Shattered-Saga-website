@@ -1,4 +1,5 @@
 // Item database and carrying capacity calculator for Shattered Saga
+import { GENERIC_ITEM_VALUE_BY_NAME, coinValue } from '../data/economy';
 
 export const ITEMS_DATABASE = {
   // Backpacks (Gear Slot: backpack)
@@ -66,14 +67,70 @@ export function cleanItemName(itemName) {
   return itemName.replace(/\s*\(\d+\)$/, '').trim();
 }
 
+function getGenericValue(itemName) {
+  const exact = GENERIC_ITEM_VALUE_BY_NAME[itemName];
+  const clean = GENERIC_ITEM_VALUE_BY_NAME[cleanItemName(itemName)];
+  if (exact || clean) {
+    const match = exact || clean;
+    const qtyMatch = itemName.match(/\((\d+)\)/);
+    if (qtyMatch && cleanItemName(itemName).toLowerCase().includes('ration')) {
+      const valueCp = parseInt(qtyMatch[1], 10) * GENERIC_ITEM_VALUE_BY_NAME.Ration.valueCp;
+      return { valueCp, value: coinValue(valueCp), valueCategory: 'provisions' };
+    }
+    return { valueCp: match.valueCp, value: match.value, valueCategory: match.category };
+  }
+  const nameLower = itemName.toLowerCase();
+  const fallback = [
+    ['+1 shield', '+1 Shield'],
+    ['+1', '+1 Weapon'],
+    ['greatsword', 'Greatsword'],
+    ['warhammer', 'Warhammer'],
+    ['longsword', 'Longsword'],
+    ['shortsword', 'Shortsword'],
+    ['rapier', 'Shortsword'],
+    ['cutlass', 'Shortsword'],
+    ['hatchet', 'Hatchet'],
+    ['dagger', 'Dagger'],
+    ['knife', 'Knife'],
+    ['bow', 'Hunting Bow'],
+    ['shield', 'Wooden Shield'],
+    ['chainmail', 'Steel Chainmail'],
+    ['leather armor', 'Leather Armor'],
+    ['helm', 'Plate Helm'],
+    ['gauntlet', 'Plate Gauntlets'],
+    ['backpack', 'Medium Backpack'],
+    ['lockpick', 'Lockpicks'],
+    ['tool', 'Crafting Tools'],
+    ['satchel', 'Healer\'s Satchel'],
+    ['bandage', 'Bandages (5)'],
+    ['herb', 'Healing Herbs'],
+    ['poultice', 'Poultice'],
+    ['holy water', 'Holy Water'],
+    ['acid', 'Acid Flask'],
+    ['venom', 'Venom Vial'],
+    ['elixir', 'Major Potion or Elixir'],
+    ['potion', 'Minor Potion or Elixir'],
+    ['scroll', 'Common Scroll'],
+    ['ring', 'Silver Ring'],
+    ['gem', 'Small Gemstone'],
+    ['relic', 'Minor Relic'],
+  ].find(([keyword]) => nameLower.includes(keyword));
+  if (fallback) {
+    const match = GENERIC_ITEM_VALUE_BY_NAME[fallback[1]];
+    return { valueCp: match.valueCp, value: match.value, valueCategory: match.category };
+  }
+  return { valueCp: 0, value: coinValue(0), valueCategory: 'misc' };
+}
+
 // Get weight, volume, slot and properties for any item
 export function getItemDetails(itemName) {
-  if (!itemName) return { name: '', weight: 0, volume: 0, slot: null, subslot: null, properties: '' };
+  if (!itemName) return { name: '', weight: 0, volume: 0, slot: null, subslot: null, properties: '', valueCp: 0, value: coinValue(0), valueCategory: 'misc' };
   
   const clean = cleanItemName(itemName);
   const dbMatch = ITEMS_DATABASE[itemName] || ITEMS_DATABASE[clean];
   
   if (dbMatch) {
+    const valueDetails = getGenericValue(itemName);
     // If it's a ration pack, scale weight/volume by current quantity
     const qtyMatch = itemName.match(/\((\d+)\)/);
     if (qtyMatch && clean.toLowerCase().includes('ration')) {
@@ -81,10 +138,11 @@ export function getItemDetails(itemName) {
       return {
         ...dbMatch,
         weight: qty * 0.5,
-        volume: qty * 0.5
+        volume: qty * 0.5,
+        ...valueDetails
       };
     }
-    return dbMatch;
+    return { ...dbMatch, ...valueDetails };
   }
   
   // Keyword fallbacks for dynamically generated items
@@ -137,7 +195,8 @@ export function getItemDetails(itemName) {
   if (wtMatch) weight = parseFloat(wtMatch[1]);
   if (volMatch) volume = parseFloat(volMatch[1]);
 
-  return { name: itemName, weight, volume, slot, subslot, properties };
+  const valueDetails = getGenericValue(itemName);
+  return { name: itemName, weight, volume, slot, subslot, properties, ...valueDetails };
 }
 
 // Calculate total weight, volume and encumbrance metrics

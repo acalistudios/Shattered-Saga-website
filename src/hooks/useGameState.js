@@ -1708,6 +1708,14 @@ ${(activeAdventure.itemsDetail || []).map(item => {
   return `- ${item.name}: ${item.desc}${propStr}`;
 }).join('\n')}
 
+[ADVENTURE ECONOMY]
+Currency: 10 cp = 1 sp, 10 sp = 1 gp, so 1 gp = 100 cp. Treat copper value as the authoritative price and display gold/silver/copper naturally in narration.
+Item Values:
+${Object.entries(activeAdventure.itemValues || {}).map(([itemName, value]) => `- ${itemName}: ${value.value?.gp || 0} gp, ${value.value?.sp || 0} sp, ${value.value?.cp || 0} cp (${value.valueCp} cp), category: ${value.category}. ${value.notes || ''}`).join('\n') || '- No adventure-specific item values listed; use the generic gear value table from the rules reference.'}
+Merchants:
+${(activeAdventure.merchants || []).map(merchant => `- ${merchant.name} (${merchant.role}) at ${merchant.location}: sells ${(merchant.sells || []).map(sale => `${sale.item} for ${sale.price?.gp || 0} gp, ${sale.price?.sp || 0} sp, ${sale.price?.cp || 0} cp; stock ${sale.stock}`).join('; ') || 'nothing listed'}; buys ${(merchant.buys || []).join(', ') || 'nothing listed'} at ${Math.round((merchant.buyRate || 0.5) * 100)}% listed value before Negotiation. ${merchant.notes || ''}`).join('\n') || '- No fixed merchants listed in this adventure.'}
+Trade Rules: Merchants sell at listed value and buy relevant categories at 50% of listed value. A successful Negotiation check can improve the player's purchase price or sale payout by up to 25%. Best purchase price is 75% of list; best sale payout is 75% of list. Use [currency: +/-N cp|sp|gp] plus [add_item] or [remove_item] tags for completed transactions.
+
 ${activeAdventure.playabilityGuidance ? `[PLAYABILITY GUIDANCE]\n${activeAdventure.playabilityGuidance}\n` : `[PLAYABILITY GUIDANCE]\nRun this adventure as a branching scenario, not a checklist. Surface at least two viable approaches to major obstacles, let NPC motives complicate simple combat, foreshadow the ending choices before the finale, and award the listed rewards only when the player's actions justify them.\n`}
 
 ${activeAdventure.rewards ? `[ENDING REWARDS]\n${Object.entries(activeAdventure.rewards).map(([ending, rewards]) => `- ${ending}: ${(Array.isArray(rewards) ? rewards : [rewards]).join(' ')}`).join('\n')}\n` : ''}
@@ -1793,6 +1801,7 @@ ${(character.completed_quests || []).map(q => `- ${q}`).join('\n')}
 
 GM Instructions for automated tags:
 - Issue or deduct gold: [add_gold: X], [remove_gold: X]
+- Issue or deduct currency: [currency: +/-N cp|sp|gp]
 - Issue or deduct items: [add_item: Item Name], [remove_item: Item Name]
 - Adjust quests: [add_quest: Description], [complete_quest: Description], [remove_quest: Description]
 - Apply damage or healing: [damage: X], [heal: X]
