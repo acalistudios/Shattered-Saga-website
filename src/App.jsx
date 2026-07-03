@@ -525,6 +525,7 @@ function App() {
             strongholdChest={settings.strongholdChest || []}
             onUpdateStrongholdChest={updateStrongholdChest}
             onUpdateCharacterStats={updateCharacterStats}
+            sandboxMode={settings.sandboxMode || false}
           />
         )}
 

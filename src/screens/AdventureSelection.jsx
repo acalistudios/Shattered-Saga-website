@@ -149,7 +149,8 @@ export default function AdventureSelection({
   layoutMode = 'desktop',
   strongholdChest = [],
   onUpdateStrongholdChest,
-  onUpdateCharacterStats
+  onUpdateCharacterStats,
+  sandboxMode = false
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
   const completedAdventures = character?.completed_adventures || [];
@@ -246,7 +247,9 @@ export default function AdventureSelection({
       onUpdateStrongholdChest(nextChest);
     }
   };
-  const unlockState = selectedAdventure ? getUnlockStatus(selectedAdventure.id, completedAdventures) : { unlocked: false, requirements: [] };
+  const unlockState = selectedAdventure 
+    ? (sandboxMode ? { unlocked: true, requirements: [] } : getUnlockStatus(selectedAdventure.id, completedAdventures)) 
+    : { unlocked: false, requirements: [] };
   const isCompleted = completedAdventures.includes(selectedNodeId);
 
   const handlePrintCharacter = () => {
@@ -370,8 +373,8 @@ export default function AdventureSelection({
                       const toNode = MAP_NODES[conn.to];
                       if (!fromNode || !toNode) return null;
                       
-                      const fromUnlock = getUnlockStatus(conn.from, completedAdventures);
-                      const toUnlock = getUnlockStatus(conn.to, completedAdventures);
+                      const fromUnlock = sandboxMode ? { unlocked: true } : getUnlockStatus(conn.from, completedAdventures);
+                      const toUnlock = sandboxMode ? { unlocked: true } : getUnlockStatus(conn.to, completedAdventures);
                       const isActive = fromUnlock.unlocked && toUnlock.unlocked;
 
                       return (
@@ -405,9 +408,10 @@ export default function AdventureSelection({
               {/* World Region Interactive Nodes */}
               {mapLevel === 'world' && WORLD_REGIONS.map((reg) => {
                 const isSelected = selectedRegionId === reg.id;
+                const unlocked = sandboxMode || isRegionUnlocked(reg.id, completedAdventures);
                 let markerStyle = "bg-slate-900 border-slate-700 text-slate-500 cursor-not-allowed";
 
-                if (reg.unlocked) {
+                if (unlocked) {
                   markerStyle = "bg-slate-950 border-amber-500 text-amber-305 hover:scale-110 shadow-[0_0_15px_rgba(245,158,11,0.25)]";
                 }
 
@@ -424,21 +428,21 @@ export default function AdventureSelection({
                       setSelectedRegionId(reg.id);
                     }}
                     onDoubleClick={() => {
-                      if (reg.unlocked) {
-                        setMapLevel('region1');
+                      if (unlocked) {
+                        setMapLevel(reg.id);
                       }
                     }}
                   >
 
                     {/* Region Core Orb */}
                     <div className={`w-10 h-10 rounded-full border-[2px] flex items-center justify-center font-bold text-sm transition-all duration-300 ${markerStyle}`}>
-                      {reg.unlocked ? "👁️" : "🔒"}
+                      {unlocked ? "👁️" : "🔒"}
                     </div>
 
                     {/* Region Label */}
-                    <div className="absolute pointer-events-none select-none text-center transition-all bg-slate-950/80 px-2 py-0.5 rounded border border-slate-800 text-[10px] font-bold text-slate-350 mt-1 whitespace-nowrap group-hover:text-amber-305 group-hover:bg-slate-950 top-12">
+                    <div className="absolute pointer-events-none select-none text-center transition-all bg-slate-950/80 px-2 py-0.5 rounded border border-slate-800 text-[10px] font-bold text-slate-355 mt-1 whitespace-nowrap group-hover:text-amber-305 group-hover:bg-slate-950 top-12">
                       {reg.name}
-                      {!isRegionUnlocked(reg.id, completedAdventures) && <span className="text-red-400 ml-1">🔒</span>}
+                      {!unlocked && <span className="text-red-400 ml-1">🔒</span>}
                     </div>
                   </div>
                 );
@@ -449,7 +453,7 @@ export default function AdventureSelection({
                 const coords = MAP_NODES[adv.id];
                 if (!coords || coords.region !== mapLevel) return null;
 
-                const { unlocked } = getUnlockStatus(adv.id, completedAdventures);
+                const { unlocked } = sandboxMode ? { unlocked: true } : getUnlockStatus(adv.id, completedAdventures);
                 const isNodeCompleted = completedAdventures.includes(adv.id);
                 const isSelected = selectedNodeId === adv.id;
 
@@ -526,15 +530,15 @@ export default function AdventureSelection({
                           {selectedRegion.name}
                         </h3>
                         <span className={`px-1.5 py-0.5 text-5xs uppercase tracking-wider rounded font-bold bg-slate-950 border border-slate-800 ${
-                          isRegionUnlocked(selectedRegion.id, completedAdventures) ? 'text-emerald-455 border-emerald-500/30' : 'text-red-400 border-red-500/30'
+                          (sandboxMode || isRegionUnlocked(selectedRegion.id, completedAdventures)) ? 'text-emerald-455 border-emerald-500/30' : 'text-red-400 border-red-500/30'
                         }`}>
-                          {isRegionUnlocked(selectedRegion.id, completedAdventures) ? 'Active' : 'Locked'}
+                          {(sandboxMode || isRegionUnlocked(selectedRegion.id, completedAdventures)) ? 'Active' : 'Locked'}
                         </span>
                       </div>
 
                       {/* Status Badge */}
                       <div className="mb-3">
-                        {isRegionUnlocked(selectedRegion.id, completedAdventures) ? (
+                        {(sandboxMode || isRegionUnlocked(selectedRegion.id, completedAdventures)) ? (
                           <span className="px-2 py-0.5 bg-emerald-955/60 text-emerald-400 border border-emerald-500/20 text-4xs uppercase tracking-wider font-extrabold rounded">
                             ✦ Exploration Active
                           </span>
@@ -552,7 +556,7 @@ export default function AdventureSelection({
 
                     {/* Actions Block */}
                     <div className="mt-4 pt-4 border-t border-slate-800/80">
-                      {isRegionUnlocked(selectedRegion.id, completedAdventures) ? (
+                      {(sandboxMode || isRegionUnlocked(selectedRegion.id, completedAdventures)) ? (
                         <button
                           onClick={() => setMapLevel(selectedRegion.id)}
                           className="w-full py-2.5 bg-gradient-to-r from-amber-600 to-amber-550 hover:from-amber-500 hover:to-amber-450 text-slate-950 rounded text-3xs font-extrabold uppercase tracking-widest cursor-pointer shadow-lg hover:shadow-amber-500/10 transition-all text-center"
@@ -696,7 +700,7 @@ export default function AdventureSelection({
           <div className={`grid gap-6 w-full ${isDesktopLayout ? 'grid-cols-3' : 'grid-cols-1'}`}>
             {ADVENTURES_LIST.map((adv) => {
               const gm = GMS.find(g => g.id === adv.suggestedGm);
-              const { unlocked, requirements } = getUnlockStatus(adv.id, completedAdventures);
+              const { unlocked, requirements } = sandboxMode ? { unlocked: true, requirements: [] } : getUnlockStatus(adv.id, completedAdventures);
               const isLocCompleted = completedAdventures.includes(adv.id);
 
               let elementColorClass = 'text-amber-505';
