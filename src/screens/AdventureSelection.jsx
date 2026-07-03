@@ -7,49 +7,136 @@ import { coinValue } from '../data/economy';
 
 // Absolute coordinates of the adventure nodes on a 100% x 100% map canvas
 const MAP_NODES = {
-  ashveil_keep: { x: 18, y: 25, labelOffset: 'bottom' },
-  saltblood_mines: { x: 18, y: 70, labelOffset: 'bottom' },
-  clockwork_conservatory: { x: 45, y: 18, labelOffset: 'bottom' },
-  sunken_spire: { x: 48, y: 40, labelOffset: 'right' },
-  obsidian_vault: { x: 45, y: 62, labelOffset: 'bottom' },
-  frostfire_crypt: { x: 48, y: 82, labelOffset: 'right' },
-  astral_sky: { x: 80, y: 50, labelOffset: 'top' }
+  // Region 1: Aethelgard
+  elemental_crucible: { region: 'region1', x: 50, y: 50, labelOffset: 'bottom' },
+  ashveil_keep: { region: 'region1', x: 25, y: 28, labelOffset: 'bottom' },
+  saltblood_mines: { region: 'region1', x: 15, y: 72, labelOffset: 'top' },
+  clockwork_conservatory: { region: 'region1', x: 75, y: 22, labelOffset: 'bottom' },
+  sunken_spire: { region: 'region1', x: 80, y: 68, labelOffset: 'left' },
+  greywash_bandit_crown: { region: 'region1', x: 38, y: 20, labelOffset: 'bottom' },
+  thorn_treaty: { region: 'region1', x: 58, y: 35, labelOffset: 'right' },
+  harvest_hill_hunger: { region: 'region1', x: 32, y: 58, labelOffset: 'bottom' },
+  mirror_war_saint_orra: { region: 'region1', x: 55, y: 78, labelOffset: 'top' },
+  
+  // Region 2: Ignis Ridge
+  obsidian_vault: { region: 'region2', x: 30, y: 40, labelOffset: 'bottom' },
+  iron_colosseum: { region: 'region2', x: 50, y: 65, labelOffset: 'top' },
+  brass_plague_tinkertown: { region: 'region2', x: 70, y: 30, labelOffset: 'bottom' },
+  
+  // Region 3: Frostfire Glacier
+  frostfire_crypt: { region: 'region3', x: 45, y: 35, labelOffset: 'bottom' },
+  blackroot_hollow: { region: 'region3', x: 25, y: 68, labelOffset: 'top' },
+  merrin_abbey_plague_bells: { region: 'region3', x: 75, y: 55, labelOffset: 'bottom' },
+  
+  // Region 4: Sapphire Deep
+  astral_sky: { region: 'region4', x: 50, y: 28, labelOffset: 'bottom' },
+  drowned_market: { region: 'region4', x: 25, y: 72, labelOffset: 'top' },
+  glass_orchard_masquerade: { region: 'region4', x: 75, y: 65, labelOffset: 'bottom' }
 };
 
-// Connections between nodes to render as SVG lines
-const MAP_CONNECTIONS = [
-  { from: 'ashveil_keep', to: 'clockwork_conservatory' },
-  { from: 'ashveil_keep', to: 'sunken_spire' },
-  { from: 'saltblood_mines', to: 'obsidian_vault' },
-  { from: 'saltblood_mines', to: 'frostfire_crypt' },
-  { from: 'clockwork_conservatory', to: 'astral_sky' },
-  { from: 'obsidian_vault', to: 'astral_sky' }
-];
+// Connections between nodes to render as SVG lines by region
+const MAP_CONNECTIONS = {
+  region1: [
+    { from: 'ashveil_keep', to: 'greywash_bandit_crown' },
+    { from: 'greywash_bandit_crown', to: 'clockwork_conservatory' },
+    { from: 'clockwork_conservatory', to: 'thorn_treaty' },
+    { from: 'thorn_treaty', to: 'elemental_crucible' },
+    { from: 'elemental_crucible', to: 'sunken_spire' },
+    { from: 'ashveil_keep', to: 'harvest_hill_hunger' },
+    { from: 'harvest_hill_hunger', to: 'saltblood_mines' },
+    { from: 'saltblood_mines', to: 'mirror_war_saint_orra' },
+    { from: 'mirror_war_saint_orra', to: 'elemental_crucible' }
+  ],
+  region2: [
+    { from: 'obsidian_vault', to: 'iron_colosseum' },
+    { from: 'iron_colosseum', to: 'brass_plague_tinkertown' }
+  ],
+  region3: [
+    { from: 'blackroot_hollow', to: 'frostfire_crypt' },
+    { from: 'frostfire_crypt', to: 'merrin_abbey_plague_bells' }
+  ],
+  region4: [
+    { from: 'drowned_market', to: 'astral_sky' },
+    { from: 'astral_sky', to: 'glass_orchard_masquerade' }
+  ]
+};
 
 const WORLD_REGIONS = [
-  { id: 'region1', name: 'Region 1: Aethelgard', x: 35, y: 45, unlocked: true, desc: 'Central kingdom of grassy plains, whispering forests, and ancient ruins. Contains the gothic stronghold of Ashveil Keep, the Saltblood Mines, the Sunken Spire, and the clockwork spires of Baron von Rictor.' },
-  { id: 'region2', name: 'Region 2: Ignis Ridge', x: 65, y: 30, unlocked: false, desc: 'A scorched volcanic wasteland separated from Aethelgard by the Boiling Sea. The magma rivers of Ignis Ridge are currently sealed by planar tempests.' },
-  { id: 'region3', name: 'Region 3: Frostfire Glacier', x: 55, y: 75, unlocked: false, desc: 'A frozen northern wilderness where absolute-zero tempests freeze the land. Home to ancient cryo-vaults locked by elemental forces.' },
-  { id: 'region4', name: 'Region 4: The Sapphire Deep', x: 20, y: 70, unlocked: false, desc: 'An abyssal ocean realm of submerged elven archives. Heavy siren song tides lock the portal gates from dry-landers.' }
+  { id: 'region1', name: 'Region 1: Aethelgard', x: 35, y: 45, desc: 'Central kingdom of grassy plains, whispering forests, and ancient ruins. Contains the gothic stronghold of Ashveil Keep, the Saltblood Mines, the Sunken Spire, and the clockwork spires of Baron von Rictor.' },
+  { id: 'region2', name: 'Region 2: Ignis Ridge', x: 65, y: 30, desc: 'A scorched volcanic wasteland separated from Aethelgard by the Boiling Sea. The magma rivers of Ignis Ridge are currently sealed by planar tempests.' },
+  { id: 'region3', name: 'Region 3: Frostfire Glacier', x: 55, y: 75, desc: 'A frozen northern wilderness where absolute-zero tempests freeze the land. Home to ancient cryo-vaults locked by elemental forces.' },
+  { id: 'region4', name: 'Region 4: The Sapphire Deep', x: 20, y: 70, desc: 'An abyssal ocean realm of submerged elven archives. Heavy siren song tides lock the portal gates from dry-landers.' }
 ];
+
+const isRegionUnlocked = (regionId, completedAdventures = []) => {
+  if (regionId === 'region1') return true;
+  if (regionId === 'region2') {
+    return completedAdventures.includes('saltblood_mines');
+  }
+  if (regionId === 'region3') {
+    return completedAdventures.includes('ashveil_keep');
+  }
+  if (regionId === 'region4') {
+    return completedAdventures.includes('sunken_spire') || completedAdventures.includes('clockwork_conservatory');
+  }
+  return false;
+};
 
 // Helper to determine if a node is unlocked based on completed adventures
 const getUnlockStatus = (advId, completedAdventures = []) => {
-  if (advId === 'ashveil_keep' || advId === 'saltblood_mines') {
+  // Base starting adventures in Region 1
+  if (advId === 'ashveil_keep' || advId === 'saltblood_mines' || advId === 'elemental_crucible') {
     return { unlocked: true, requirements: [] };
   }
-  if (advId === 'clockwork_conservatory' || advId === 'sunken_spire') {
+  
+  // Unlocked by completing Ashveil Keep
+  if (advId === 'clockwork_conservatory' || advId === 'sunken_spire' || advId === 'greywash_bandit_crown') {
     const isUnlocked = completedAdventures.includes('ashveil_keep');
     return { unlocked: isUnlocked, requirements: ['Ashveil Keep'] };
   }
-  if (advId === 'obsidian_vault' || advId === 'frostfire_crypt') {
+  
+  // Unlocked by completing Saltblood Mines
+  if (advId === 'harvest_hill_hunger' || advId === 'thorn_treaty') {
     const isUnlocked = completedAdventures.includes('saltblood_mines');
     return { unlocked: isUnlocked, requirements: ['The Saltblood Mines'] };
   }
-  if (advId === 'astral_sky') {
-    const isUnlocked = completedAdventures.includes('clockwork_conservatory') || completedAdventures.includes('obsidian_vault');
-    return { unlocked: isUnlocked, requirements: ['The Clockwork Conservatory', 'The Obsidian Vault'] };
+  
+  // Unlocked by completing Elemental Crucible
+  if (advId === 'mirror_war_saint_orra') {
+    const isUnlocked = completedAdventures.includes('elemental_crucible');
+    return { unlocked: isUnlocked, requirements: ['The Elemental Crucible'] };
   }
+  
+  // Region 2: Ignis Ridge (requires entering the region / completing Saltblood Mines)
+  if (advId === 'obsidian_vault') {
+    const isUnlocked = completedAdventures.includes('saltblood_mines');
+    return { unlocked: isUnlocked, requirements: ['The Saltblood Mines'] };
+  }
+  if (advId === 'iron_colosseum' || advId === 'brass_plague_tinkertown') {
+    const isUnlocked = completedAdventures.includes('obsidian_vault');
+    return { unlocked: isUnlocked, requirements: ['The Obsidian Vault'] };
+  }
+  
+  // Region 3: Frostfire Glacier (requires entering the region / completing Ashveil Keep)
+  if (advId === 'frostfire_crypt') {
+    const isUnlocked = completedAdventures.includes('ashveil_keep');
+    return { unlocked: isUnlocked, requirements: ['Ashveil Keep'] };
+  }
+  if (advId === 'blackroot_hollow' || advId === 'merrin_abbey_plague_bells') {
+    const isUnlocked = completedAdventures.includes('frostfire_crypt');
+    return { unlocked: isUnlocked, requirements: ['The Frostfire Crypt'] };
+  }
+  
+  // Region 4: Sapphire Deep (requires entering the region / completing Sunken Spire or Clockwork Conservatory)
+  if (advId === 'astral_sky') {
+    const isUnlocked = completedAdventures.includes('sunken_spire') || completedAdventures.includes('clockwork_conservatory');
+    return { unlocked: isUnlocked, requirements: ['Whispers of the Sunken Spire or The Clockwork Conservatory'] };
+  }
+  if (advId === 'drowned_market' || advId === 'glass_orchard_masquerade') {
+    const isUnlocked = completedAdventures.includes('astral_sky');
+    return { unlocked: isUnlocked, requirements: ['Threads of the Astral Sky'] };
+  }
+  
   return { unlocked: false, requirements: [] };
 };
 
@@ -254,7 +341,7 @@ export default function AdventureSelection({
               <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none z-0"></div>
               
               <img 
-                src={mapLevel === 'world' ? '/images/world_map_parchment.png' : '/images/region_map_parchment.png'} 
+                src={mapLevel === 'world' ? '/images/world_map_parchment.png' : `/images/${mapLevel}_map_parchment.png`} 
                 alt="Saga Campaign Map" 
                 className="absolute inset-0 w-full h-full object-cover opacity-[0.92] select-none pointer-events-none filter sepia-[10%] brightness-[92%] contrast-[105%] z-0"
               />
@@ -278,7 +365,7 @@ export default function AdventureSelection({
                 ) : (
                   <>
                     {/* Node Connection Lines */}
-                    {MAP_CONNECTIONS.map((conn, idx) => {
+                    {(MAP_CONNECTIONS[mapLevel] || []).map((conn, idx) => {
                       const fromNode = MAP_NODES[conn.from];
                       const toNode = MAP_NODES[conn.to];
                       if (!fromNode || !toNode) return null;
@@ -305,7 +392,7 @@ export default function AdventureSelection({
               </svg>
 
               {/* Zoom Out Button */}
-              {mapLevel === 'region1' && (
+              {mapLevel !== 'world' && (
                 <button
                   onClick={() => setMapLevel('world')}
                   className="absolute top-4 left-4 z-20 px-2.5 py-1.5 rounded bg-slate-900 border border-slate-800 hover:border-amber-500/40 text-[10px] font-bold text-slate-400 hover:text-amber-400 cursor-pointer transition-colors shadow-lg flex items-center gap-1.5"
@@ -351,16 +438,16 @@ export default function AdventureSelection({
                     {/* Region Label */}
                     <div className="absolute pointer-events-none select-none text-center transition-all bg-slate-950/80 px-2 py-0.5 rounded border border-slate-800 text-[10px] font-bold text-slate-350 mt-1 whitespace-nowrap group-hover:text-amber-305 group-hover:bg-slate-950 top-12">
                       {reg.name}
-                      {!reg.unlocked && <span className="text-red-400 ml-1">🔒</span>}
+                      {!isRegionUnlocked(reg.id, completedAdventures) && <span className="text-red-400 ml-1">🔒</span>}
                     </div>
                   </div>
                 );
               })}
 
               {/* Map Interactive Nodes */}
-              {mapLevel === 'region1' && ADVENTURES_LIST.map((adv) => {
+              {mapLevel !== 'world' && ADVENTURES_LIST.map((adv) => {
                 const coords = MAP_NODES[adv.id];
-                if (!coords) return null;
+                if (!coords || coords.region !== mapLevel) return null;
 
                 const { unlocked } = getUnlockStatus(adv.id, completedAdventures);
                 const isNodeCompleted = completedAdventures.includes(adv.id);
@@ -416,7 +503,7 @@ export default function AdventureSelection({
 
               {/* Decorative map boundary label */}
               <div className="absolute bottom-3 right-3 text-5xs uppercase tracking-widest text-slate-500 font-serif">
-                {mapLevel === 'world' ? '"Shattered Saga" World Map' : '"Shattered Saga" Region 1 Map'}
+                {mapLevel === 'world' ? '"Shattered Saga" World Map' : `"Shattered Saga" ${WORLD_REGIONS.find(r => r.id === mapLevel)?.name || 'Region Map'}`}
               </div>
             </div>
 
@@ -439,15 +526,15 @@ export default function AdventureSelection({
                           {selectedRegion.name}
                         </h3>
                         <span className={`px-1.5 py-0.5 text-5xs uppercase tracking-wider rounded font-bold bg-slate-950 border border-slate-800 ${
-                          selectedRegion.unlocked ? 'text-emerald-455 border-emerald-500/30' : 'text-red-400 border-red-500/30'
+                          isRegionUnlocked(selectedRegion.id, completedAdventures) ? 'text-emerald-455 border-emerald-500/30' : 'text-red-400 border-red-500/30'
                         }`}>
-                          {selectedRegion.unlocked ? 'Active' : 'Locked'}
+                          {isRegionUnlocked(selectedRegion.id, completedAdventures) ? 'Active' : 'Locked'}
                         </span>
                       </div>
 
                       {/* Status Badge */}
                       <div className="mb-3">
-                        {selectedRegion.unlocked ? (
+                        {isRegionUnlocked(selectedRegion.id, completedAdventures) ? (
                           <span className="px-2 py-0.5 bg-emerald-955/60 text-emerald-400 border border-emerald-500/20 text-4xs uppercase tracking-wider font-extrabold rounded">
                             ✦ Exploration Active
                           </span>
@@ -465,9 +552,9 @@ export default function AdventureSelection({
 
                     {/* Actions Block */}
                     <div className="mt-4 pt-4 border-t border-slate-800/80">
-                      {selectedRegion.unlocked ? (
+                      {isRegionUnlocked(selectedRegion.id, completedAdventures) ? (
                         <button
-                          onClick={() => setMapLevel('region1')}
+                          onClick={() => setMapLevel(selectedRegion.id)}
                           className="w-full py-2.5 bg-gradient-to-r from-amber-600 to-amber-550 hover:from-amber-500 hover:to-amber-450 text-slate-950 rounded text-3xs font-extrabold uppercase tracking-widest cursor-pointer shadow-lg hover:shadow-amber-500/10 transition-all text-center"
                         >
                           Enter Region Map
