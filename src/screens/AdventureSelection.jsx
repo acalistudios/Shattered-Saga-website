@@ -272,7 +272,7 @@ export default function AdventureSelection({
           )}
           <div>
             <h1 className="font-extrabold text-amber-405 text-2xl font-serif">
-              {mapLevel === 'world' ? 'WORLD MAP' : 'REGION 1: AETHELGARD'}
+              {mapLevel === 'world' ? 'CONTINENT MAP' : (WORLD_REGIONS.find(r => r.id === mapLevel)?.name || 'REGION MAP').toUpperCase()}
             </h1>
             <p className="text-slate-400 uppercase tracking-widest font-semibold text-5xs">
               {mapLevel === 'world' ? 'Select a region of the continent to explore' : 'Plot your course and select a destination'}
@@ -348,8 +348,7 @@ export default function AdventureSelection({
                 alt="Saga Campaign Map" 
                 className="absolute inset-0 w-full h-full object-cover opacity-[0.92] select-none pointer-events-none filter sepia-[10%] brightness-[92%] contrast-[105%] z-0"
               />
-              
-              {/* SVG Link lines */}
+              {/* SVG overlay (used for potential canvas effects/filters) */}
               <svg viewBox="0 0 1000 600" preserveAspectRatio="none" className="absolute inset-0 w-full h-full pointer-events-none z-10">
                 <defs>
                   <filter id="glow-gold" x="-20%" y="-20%" width="140%" height="140%">
@@ -357,41 +356,6 @@ export default function AdventureSelection({
                     <feComposite in="SourceGraphic" in2="blur" operator="over" />
                   </filter>
                 </defs>
-
-                {mapLevel === 'world' ? (
-                  <>
-                    {/* Dotted travel lines connecting regions on the world map */}
-                    <path d="M 350 270 Q 500 220 650 180" fill="none" stroke="#d97706" strokeWidth="2.5" strokeDasharray="6,6" strokeOpacity="0.45" filter="url(#glow-gold)" />
-                    <path d="M 350 270 Q 450 360 550 450" fill="none" stroke="#d97706" strokeWidth="2.5" strokeDasharray="6,6" strokeOpacity="0.45" filter="url(#glow-gold)" />
-                    <path d="M 350 270 Q 250 345 200 420" fill="none" stroke="#d97706" strokeWidth="2.5" strokeDasharray="6,6" strokeOpacity="0.45" filter="url(#glow-gold)" />
-                  </>
-                ) : (
-                  <>
-                    {/* Node Connection Lines */}
-                    {(MAP_CONNECTIONS[mapLevel] || []).map((conn, idx) => {
-                      const fromNode = MAP_NODES[conn.from];
-                      const toNode = MAP_NODES[conn.to];
-                      if (!fromNode || !toNode) return null;
-                      
-                      const fromUnlock = sandboxMode ? { unlocked: true } : getUnlockStatus(conn.from, completedAdventures);
-                      const toUnlock = sandboxMode ? { unlocked: true } : getUnlockStatus(conn.to, completedAdventures);
-                      const isActive = fromUnlock.unlocked && toUnlock.unlocked;
-
-                      return (
-                        <line
-                          key={idx}
-                          x1={`${fromNode.x * 10}`}
-                          y1={`${fromNode.y * 6}`}
-                          x2={`${toNode.x * 10}`}
-                          y2={`${toNode.y * 6}`}
-                          className={isActive ? "stroke-amber-500/60 stroke-[3]" : "stroke-slate-900/35 stroke-[2]"}
-                          strokeDasharray={isActive ? "none" : "5,5"}
-                          filter={isActive ? "url(#glow-gold)" : "none"}
-                        />
-                      );
-                    })}
-                  </>
-                )}
               </svg>
 
               {/* Zoom Out Button */}
@@ -399,7 +363,7 @@ export default function AdventureSelection({
                 <button
                   onClick={() => setMapLevel('world')}
                   className="absolute top-4 left-4 z-20 px-2.5 py-1.5 rounded bg-slate-900 border border-slate-800 hover:border-amber-500/40 text-[10px] font-bold text-slate-400 hover:text-amber-400 cursor-pointer transition-colors shadow-lg flex items-center gap-1.5"
-                  title="Return to World Map"
+                  title="Return to Continent Map"
                 >
                   🗺️ Zoom Out
                 </button>
@@ -507,7 +471,7 @@ export default function AdventureSelection({
 
               {/* Decorative map boundary label */}
               <div className="absolute bottom-3 right-3 text-5xs uppercase tracking-widest text-slate-500 font-serif">
-                {mapLevel === 'world' ? '"Shattered Saga" World Map' : `"Shattered Saga" ${WORLD_REGIONS.find(r => r.id === mapLevel)?.name || 'Region Map'}`}
+                {mapLevel === 'world' ? '"Shattered Saga" Continent Map' : `"Shattered Saga" ${WORLD_REGIONS.find(r => r.id === mapLevel)?.name || 'Region Map'}`}
               </div>
             </div>
 
