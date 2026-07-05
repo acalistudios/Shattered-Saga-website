@@ -228,6 +228,70 @@ function formatTime(day, hourFloat) {
   return `Day ${day}, ${displayHours}:${displayMinutes} ${ampm}`;
 }
 
+export function applyPriceRecovery(character) {
+  if (!character) return character;
+  if (!character.localEconomy) {
+    character.localEconomy = {
+      decay: {},
+      regionDecay: {},
+      relationships: {},
+      lastRecoveryTime: { day: 1, hour: 13.0 }
+    };
+  }
+
+  const currentDay = character.stats?.day || 1;
+  const currentHour = character.stats?.hour !== undefined ? character.stats.hour : 13.0;
+  const lastTime = character.localEconomy.lastRecoveryTime || { day: 1, hour: 13.0 };
+
+  const elapsedHours = (currentDay - lastTime.day) * 24 + (currentHour - lastTime.hour);
+
+  if (elapsedHours >= 8) {
+    const recoverySteps = Math.floor(elapsedHours / 8);
+
+    const nextDecay = { ...character.localEconomy.decay };
+    const nextRegionDecay = { ...character.localEconomy.regionDecay };
+
+    const decrementMap = (map, steps) => {
+      const nextMap = {};
+      for (const key in map) {
+        if (map[key] && typeof map[key] === 'object') {
+          const subMap = { ...map[key] };
+          let hasRemaining = false;
+          for (const item in subMap) {
+            if (typeof subMap[item] === 'number') {
+              subMap[item] = Math.max(0, subMap[item] - steps);
+              if (subMap[item] > 0) hasRemaining = true;
+            }
+          }
+          if (hasRemaining) {
+            nextMap[key] = subMap;
+          }
+        }
+      }
+      return nextMap;
+    };
+
+    const cleanedDecay = decrementMap(nextDecay, recoverySteps);
+    const cleanedRegionDecay = decrementMap(nextRegionDecay, recoverySteps);
+
+    const totalNewHours = lastTime.hour + recoverySteps * 8;
+    const nextLastDay = lastTime.day + Math.floor(totalNewHours / 24);
+    const nextLastHour = totalNewHours % 24;
+
+    return {
+      ...character,
+      localEconomy: {
+        ...character.localEconomy,
+        decay: cleanedDecay,
+        regionDecay: cleanedRegionDecay,
+        lastRecoveryTime: { day: nextLastDay, hour: nextLastHour }
+      }
+    };
+  }
+
+  return character;
+}
+
 const DEFAULT_CHARACTER = {
   name: '',
   gender: 'Other',
@@ -299,6 +363,12 @@ const DEFAULT_CHARACTER = {
   currency: { gp: 100, sp: 0, cp: 0, gold: 100, fateCoins: 0 },
   strongholds: ["None"],
   relationships: { "Sylas the Wise": "Friendly" },
+  localEconomy: {
+    decay: {},
+    regionDecay: {},
+    relationships: {},
+    lastRecoveryTime: { day: 1, hour: 13.0 }
+  }
 };
 
 const DEFAULT_ENERGIES = {
@@ -3358,8 +3428,127 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     });
   };
 
+  const triggerPriceRecovery = () => {
+    updateCharacterStats((prev) => {
+      return applyPriceRecovery(prev);
+    });
+  };
+
+  const buyItemFromMerchant = (merchantName, itemName, priceCp, count = 1) => {
+    updateCharacterStats((prev) => {
+      const totalCost = priceCp * count;
+      let cp = prev.currency?.cp || 0;
+      let sp = prev.currency?.sp || 0;
+      let gp = prev.currency?.gp || 0;
+      let totalCp = gp * 100 + sp * 10 + cp;
+      if (totalCp < totalCost) return prev;
+      totalCp -= totalCost;
+      gp = Math.floor(totalCp / 100);
+      sp = Math.floor((totalCp % 100) / 10);
+      cp = totalCp % 10;
+      const nextInventory = [...(prev.inventory || [])];
+      for (let i = 0; i < count; i++) {
+        nextInventory.push(itemName);
+      }
+      const relChange = Math.floor(totalCost / 100);
+      const rels = { ...(prev.localEconomy?.relationships || {}) };
+      const oldScore = rels[merchantName] || 0;
+      rels[merchantName] = Math.max(-100, Math.min(100, oldScore + relChange));
+      return {
+        ...prev,
+        inventory: nextInventory,
+        currency: { ...prev.currency, gp, sp, cp, gold: gp },
+        localEconomy: { ...(prev.localEconomy || {}), relationships: rels }
+      };
+    });
+  };
+
+  const sellItemToMerchant = (merchantName, regionId, itemName, sellPriceCp) => {
+    updateCharacterStats((prev) => {
+      const itemIdx = prev.inventory.indexOf(itemName);
+      if (itemIdx === -1) return prev;
+      const nextInventory = prev.inventory.filter((_, idx) => idx !== itemIdx);
+      let cp = prev.currency?.cp || 0;
+      let sp = prev.currency?.sp || 0;
+      let gp = prev.currency?.gp || 0;
+      let totalCp = gp * 100 + sp * 10 + cp + sellPriceCp;
+      gp = Math.floor(totalCp / 100);
+      sp = Math.floor((totalCp % 100) / 10);
+      cp = totalCp % 10;
+      const relChange = Math.floor(sellPriceCp / 100);
+      const rels = { ...(prev.localEconomy?.relationships || {}) };
+      const oldScore = rels[merchantName] || 0;
+      rels[merchantName] = Math.max(-100, Math.min(100, oldScore + relChange));
+      const nextDecay = { ...(prev.localEconomy?.decay || {}) };
+      const mercDecay = { ...(nextDecay[merchantName] || {}) };
+      mercDecay[itemName] = (mercDecay[itemName] || 0) + 1;
+      nextDecay[merchantName] = mercDecay;
+      const nextRegionDecay = { ...(prev.localEconomy?.regionDecay || {}) };
+      const regDecay = { ...(nextRegionDecay[regionId] || {}) };
+      regDecay[itemName] = (regDecay[itemName] || 0) + 1;
+      nextRegionDecay[regionId] = regDecay;
+      return {
+        ...prev,
+        inventory: nextInventory,
+        currency: { ...prev.currency, gp, sp, cp, gold: gp },
+        localEconomy: { ...(prev.localEconomy || {}), decay: nextDecay, regionDecay: nextRegionDecay, relationships: rels }
+      };
+    });
+  };
+
+  const adjustMerchantRelationship = (merchantName, amount) => {
+    updateCharacterStats((prev) => {
+      const rels = { ...(prev.localEconomy?.relationships || {}) };
+      const oldScore = rels[merchantName] || 0;
+      if (amount > 0 && oldScore <= -30) {
+        return prev;
+      }
+      rels[merchantName] = Math.max(-100, Math.min(100, oldScore + amount));
+      return {
+        ...prev,
+        localEconomy: { ...(prev.localEconomy || {}), relationships: rels }
+      };
+    });
+  };
+
+  const buyTavernService = (merchantName, serviceType, priceCp, healHp = 0, fatigueReduce = 0) => {
+    updateCharacterStats((prev) => {
+      let cp = prev.currency?.cp || 0;
+      let sp = prev.currency?.sp || 0;
+      let gp = prev.currency?.gp || 0;
+      let totalCp = gp * 100 + sp * 10 + cp;
+      if (totalCp < priceCp) return prev;
+      totalCp -= priceCp;
+      gp = Math.floor(totalCp / 100);
+      sp = Math.floor((totalCp % 100) / 10);
+      cp = totalCp % 10;
+      const stats = { ...prev.stats };
+      if (healHp > 0) {
+        stats.hp = Math.min(stats.maxHp || 10, (stats.hp || 10) + healHp);
+      }
+      if (fatigueReduce > 0) {
+        stats.fatigue = Math.min(stats.maxFatigue || 15, (stats.fatigue || 0) + fatigueReduce);
+      }
+      const relChange = Math.floor(priceCp / 100);
+      const rels = { ...(prev.localEconomy?.relationships || {}) };
+      const oldScore = rels[merchantName] || 0;
+      rels[merchantName] = Math.max(-100, Math.min(100, oldScore + relChange));
+      return {
+        ...prev,
+        stats,
+        currency: { ...prev.currency, gp, sp, cp, gold: gp },
+        localEconomy: { ...(prev.localEconomy || {}), relationships: rels }
+      };
+    });
+  };
+
   return {
     character,
+    triggerPriceRecovery,
+    buyItemFromMerchant,
+    sellItemToMerchant,
+    adjustMerchantRelationship,
+    buyTavernService,
     updateCharacterStats,
     activeGmId,
     activeGm,

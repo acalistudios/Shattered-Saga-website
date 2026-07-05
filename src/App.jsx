@@ -8,6 +8,7 @@ import CharacterCreation from './screens/CharacterCreation';
 import AdventureSelection from './screens/AdventureSelection';
 import PlayScreen from './screens/PlayScreen';
 import SettingsModal from './components/SettingsModal';
+import DowntimeMarketModal from './components/DowntimeMarketModal';
 import { ADVENTURES_LIST } from './data/adventures';
 import { isGloballyBanned } from './utils/safety';
 import storage from './utils/storage';
@@ -71,12 +72,18 @@ function App() {
     calculateWeightAndVolume,
     enemyAttacksQueue,
     resolveEnemyAttack,
-    useInventoryItem
+    useInventoryItem,
+    triggerPriceRecovery,
+    buyItemFromMerchant,
+    sellItemToMerchant,
+    adjustMerchantRelationship,
+    buyTavernService
   } = useGameState();
 
   const [screen, setScreen] = useState('splash');
   const audio = useAudioPlayer(screen, activeAdventureId, isLoading);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDowntimeMarketOpen, setIsDowntimeMarketOpen] = useState(false);
   const [username, setUsername] = useState(() => storage.get('shattered_username') || '');
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!storage.get('shattered_username'));
   const [gems, setGems] = useState(0);
@@ -526,6 +533,7 @@ function App() {
             onUpdateStrongholdChest={updateStrongholdChest}
             onUpdateCharacterStats={updateCharacterStats}
             sandboxMode={settings.sandboxMode || false}
+            onOpenDowntimeMarket={() => setIsDowntimeMarketOpen(true)}
           />
         )}
 
@@ -584,6 +592,17 @@ function App() {
           setSandboxMode={setSandboxMode}
           userProfile={userProfile}
           fetchUserProfile={fetchUserProfile}
+        />
+
+        <DowntimeMarketModal
+          character={character}
+          isOpen={isDowntimeMarketOpen}
+          onClose={() => setIsDowntimeMarketOpen(false)}
+          buyItemFromMerchant={buyItemFromMerchant}
+          sellItemToMerchant={sellItemToMerchant}
+          adjustMerchantRelationship={adjustMerchantRelationship}
+          buyTavernService={buyTavernService}
+          triggerPriceRecovery={triggerPriceRecovery}
         />
       </>
     );

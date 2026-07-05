@@ -150,7 +150,8 @@ export default function AdventureSelection({
   strongholdChest = [],
   onUpdateStrongholdChest,
   onUpdateCharacterStats,
-  sandboxMode = false
+  sandboxMode = false,
+  onOpenDowntimeMarket
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
   const completedAdventures = character?.completed_adventures || [];
@@ -325,6 +326,16 @@ export default function AdventureSelection({
             >
               <span>📦</span>
               <span>Stash ({strongholdChest.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenDowntimeMarket}
+              className="px-3 py-2 rounded bg-slate-900 border border-slate-800 hover:border-amber-500/40 text-xs font-bold text-slate-350 hover:text-amber-400 cursor-pointer transition-all flex items-center gap-1.5 shadow-sm"
+              title="Visit Downtime Marketplace"
+            >
+              <span>🛒</span>
+              <span>Market</span>
             </button>
           </div>
         )}
