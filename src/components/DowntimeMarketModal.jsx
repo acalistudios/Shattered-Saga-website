@@ -535,17 +535,21 @@ export default function DowntimeMarketModal({
                       {/* TAVERN SERVICES TAB */}
                       {activeTab === 'tavern' && tavernDef && (
                         <div className="flex flex-col gap-3">
-                          {/* Meal */}
+                          
+                          {/* Hearty Meal */}
                           <div className="p-4 rounded-lg border border-slate-850 bg-slate-950/20 flex justify-between items-center">
                             <div>
-                              <h4 className="text-3xs font-bold text-amber-200">{tavernDef.mealName}</h4>
-                              <p className="text-[10px] text-slate-450 mt-1">Consuming this hearty meal restores 2 HP and reduces fatigue by 1.</p>
+                              <h4 className="text-3xs font-bold text-amber-205">🥣 {tavernDef.mealName}</h4>
+                              <p className="text-[10px] text-slate-450 mt-1">Consuming this hearty meal restores 2 points of physical fatigue (0 HP).</p>
                             </div>
                             <div className="flex items-center gap-4">
-                              <span className="font-mono text-xs font-bold text-amber-400">{formatCoins(tavernDef.mealPriceCp)}</span>
+                              <span className="font-mono text-xs font-bold text-amber-400">{formatCoins(10)}</span>
                               <button
-                                onClick={() => buyTavernService(selectedMerchant.name, 'meal', tavernDef.mealPriceCp, tavernDef.mealHealHp, tavernDef.mealFatigueReduce)}
-                                disabled={(character.currency?.gp * 100 + character.currency?.sp * 10 + character.currency?.cp) < tavernDef.mealPriceCp}
+                                onClick={() => {
+                                  buyTavernService(selectedMerchant.name, 'meal', 10, 0, 2);
+                                  setInteractMessage(`You eat the ${tavernDef.mealName}. Your physical fatigue is partially restored!`);
+                                }}
+                                disabled={(character.currency?.gp * 100 + character.currency?.sp * 10 + character.currency?.cp) < 10}
                                 className="px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 text-[10px] font-bold cursor-pointer transition-colors disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed"
                               >
                                 Purchase Meal
@@ -553,25 +557,46 @@ export default function DowntimeMarketModal({
                             </div>
                           </div>
 
+                          {/* Inn Lodging Rest */}
+                          <div className="p-4 rounded-lg border border-slate-850 bg-slate-950/20 flex justify-between items-center">
+                            <div>
+                              <h4 className="text-3xs font-bold text-amber-205">🛌 Spend the Night (Inn Lodging)</h4>
+                              <p className="text-[10px] text-slate-450 mt-1">Rent a private chamber. Fully restores your health (HP) and physical energy (Fatigue). Advances the game clock by 8 hours without consuming rations.</p>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <span className="font-mono text-xs font-bold text-amber-400">{formatCoins(30)}</span>
+                              <button
+                                onClick={() => {
+                                  buyTavernService(selectedMerchant.name, 'inn', 30, 0, 0, 8);
+                                  setInteractMessage(`You spend the night in a comfortable bed at the inn. Time advances by 8 hours. Health and physical energy are completely restored!`);
+                                }}
+                                disabled={(character.currency?.gp * 100 + character.currency?.sp * 10 + character.currency?.cp) < 30}
+                                className="px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 text-[10px] font-bold cursor-pointer transition-colors disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed"
+                              >
+                                Stay the Night
+                              </button>
+                            </div>
+                          </div>
+
                           {/* Rumors */}
                           <div className="p-4 rounded-lg border border-slate-850 bg-slate-950/20 flex justify-between items-center">
                             <div>
-                              <h4 className="text-3xs font-bold text-amber-200">Listen for Rumors</h4>
+                              <h4 className="text-3xs font-bold text-amber-205">📣 Listen for Rumors</h4>
                               <p className="text-[10px] text-slate-450 mt-1">Spend coins to hear local gossip and whispers about the region.</p>
                             </div>
                             <div className="flex items-center gap-4">
-                              <span className="font-mono text-xs font-bold text-amber-400">{formatCoins(tavernDef.rumorPriceCp)}</span>
+                              <span className="font-mono text-xs font-bold text-amber-400">{formatCoins(50)}</span>
                               <button
                                 onClick={() => {
                                   const walletCp = character.currency?.gp * 100 + character.currency?.sp * 10 + character.currency?.cp;
-                                  if (walletCp < tavernDef.rumorPriceCp) return;
-                                  buyTavernService(selectedMerchant.name, 'rumor', tavernDef.rumorPriceCp, 0, 0);
+                                  if (walletCp < 50) return;
+                                  buyTavernService(selectedMerchant.name, 'rumor', 50, 0, 0);
                                   
                                   const rumorList = tavernDef.rumors || ["Nothing new in the tavern today."];
                                   const randomRumor = rumorList[Math.floor(Math.random() * rumorList.length)];
                                   setInteractMessage(`You slide some coins to ${selectedMerchant.name} who leans in and whispers: "${randomRumor}"`);
                                 }}
-                                disabled={(character.currency?.gp * 100 + character.currency?.sp * 10 + character.currency?.cp) < tavernDef.rumorPriceCp}
+                                disabled={(character.currency?.gp * 100 + character.currency?.sp * 10 + character.currency?.cp) < 50}
                                 className="px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 text-[10px] font-bold cursor-pointer transition-colors disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed"
                               >
                                 Listen & Bribe

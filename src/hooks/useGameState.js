@@ -3511,7 +3511,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     });
   };
 
-  const buyTavernService = (merchantName, serviceType, priceCp, healHp = 0, fatigueReduce = 0) => {
+  const buyTavernService = (merchantName, serviceType, priceCp, healHp = 0, fatigueReduce = 0, advanceHours = 0) => {
     updateCharacterStats((prev) => {
       let cp = prev.currency?.cp || 0;
       let sp = prev.currency?.sp || 0;
@@ -3523,22 +3523,41 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       sp = Math.floor((totalCp % 100) / 10);
       cp = totalCp % 10;
       const stats = { ...prev.stats };
-      if (healHp > 0) {
-        stats.hp = Math.min(stats.maxHp || 10, (stats.hp || 10) + healHp);
+      if (serviceType === 'inn') {
+        stats.hp = stats.maxHp || 10;
+        stats.fatigue = stats.maxFatigue || 15;
+      } else {
+        if (healHp > 0) {
+          stats.hp = Math.min(stats.maxHp || 10, (stats.hp || 10) + healHp);
+        }
+        if (fatigueReduce > 0) {
+          stats.fatigue = Math.min(stats.maxFatigue || 15, (stats.fatigue || 0) + fatigueReduce);
+        }
       }
-      if (fatigueReduce > 0) {
-        stats.fatigue = Math.min(stats.maxFatigue || 15, (stats.fatigue || 0) + fatigueReduce);
+      
+      let updated = {
+        ...prev,
+        stats,
+        currency: { ...prev.currency, gp, sp, cp, gold: gp }
+      };
+
+      if (advanceHours > 0) {
+        const timeResult = advanceTime(updated.stats.day || 1, updated.stats.hour || 13.0, advanceHours);
+        updated.stats.day = timeResult.nextDay;
+        updated.stats.hour = timeResult.nextHour;
       }
+
       const relChange = Math.floor(priceCp / 100);
       const rels = { ...(prev.localEconomy?.relationships || {}) };
       const oldScore = rels[merchantName] || 0;
       rels[merchantName] = Math.max(-100, Math.min(100, oldScore + relChange));
-      return {
-        ...prev,
-        stats,
-        currency: { ...prev.currency, gp, sp, cp, gold: gp },
-        localEconomy: { ...(prev.localEconomy || {}), relationships: rels }
-      };
+      updated.localEconomy = { ...(prev.localEconomy || {}), relationships: rels };
+
+      if (advanceHours > 0) {
+        updated = applyPriceRecovery(updated);
+      }
+
+      return updated;
     });
   };
 
