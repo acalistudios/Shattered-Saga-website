@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { TAVERNS, EXCLUSIVE_STOCK } from '../data/downtimeMerchants';
+import { TAVERNS, EXCLUSIVE_STOCK, TRAINING_EXPERTS } from '../data/downtimeMerchants';
 import { ADVENTURE_ECONOMY_METADATA } from '../data/adventureEconomy';
 import { GENERIC_ITEM_VALUES, GENERIC_ITEM_VALUE_BY_NAME, coinValue } from '../data/economy';
 import { ADVENTURES_LIST } from '../data/adventures';
+import { SKILLS_LIST } from '../data/gms';
 
 export default function DowntimeMarketModal({
   character,
@@ -13,11 +14,15 @@ export default function DowntimeMarketModal({
   adjustMerchantRelationship,
   buyTavernService,
   triggerPriceRecovery,
-  initializeMerchantStock
+  initializeMerchantStock,
+  trainSkillWithMerchant,
+  strongholdChest = [],
+  onUpdateStrongholdChest,
+  onUpdateCharacterStats
 }) {
   const [selectedHubId, setSelectedHubId] = useState(null);
   const [selectedMerchant, setSelectedMerchant] = useState(null);
-  const [activeTab, setActiveTab] = useState('buy'); // 'buy' | 'sell' | 'tavern' | 'interact'
+  const [activeTab, setActiveTab] = useState('buy'); // 'buy' | 'sell' | 'tavern' | 'interact' | 'stash' | 'train'
   const [interactMessage, setInteractMessage] = useState('');
   const [giftItemName, setGiftItemName] = useState('');
 
@@ -37,6 +42,43 @@ export default function DowntimeMarketModal({
       initializeMerchantStock(selectedMerchant.name, currentRelation);
     }
   }, [isOpen, selectedMerchant]);
+
+  const handleStashDeposit = (itemName) => {
+    if (onUpdateCharacterStats) {
+      onUpdateCharacterStats(prev => {
+        const idx = prev.inventory.indexOf(itemName);
+        if (idx === -1) return prev;
+        const nextInv = [...prev.inventory];
+        nextInv.splice(idx, 1);
+        return { ...prev, inventory: nextInv };
+      });
+    }
+    if (onUpdateStrongholdChest) {
+      onUpdateStrongholdChest([...strongholdChest, itemName]);
+    }
+    setInteractMessage(`Stashed 📦 ${itemName} into Stronghold chest.`);
+  };
+
+  const handleStashWithdraw = (chestIdx) => {
+    const itemName = strongholdChest[chestIdx];
+    if (!itemName) return;
+    if (character.inventory.length >= 20) {
+      setInteractMessage("Your backpack is full! Free some slots first.");
+      return;
+    }
+    if (onUpdateCharacterStats) {
+      onUpdateCharacterStats(prev => ({
+        ...prev,
+        inventory: [...prev.inventory, itemName]
+      }));
+    }
+    if (onUpdateStrongholdChest) {
+      const nextChest = [...strongholdChest];
+      nextChest.splice(chestIdx, 1);
+      onUpdateStrongholdChest(nextChest);
+    }
+    setInteractMessage(`Withdrew 🎒 ${itemName} into active inventory.`);
+  };
 
   if (!isOpen) return null;
 
@@ -440,6 +482,26 @@ export default function DowntimeMarketModal({
                   >
                     Interact & Influence
                   </button>
+
+                  <button
+                    onClick={() => setActiveTab('stash')}
+                    className={`px-4 py-2 border-b-2 text-3xs font-bold transition-all cursor-pointer ${
+                      activeTab === 'stash' ? 'border-amber-500 text-amber-305' : 'border-transparent text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    📦 Stronghold Stash
+                  </button>
+
+                  {TRAINING_EXPERTS[selectedMerchant.name] && (
+                    <button
+                      onClick={() => setActiveTab('train')}
+                      className={`px-4 py-2 border-b-2 text-3xs font-bold transition-all cursor-pointer ${
+                        activeTab === 'train' ? 'border-amber-500 text-amber-305' : 'border-transparent text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      🎓 Skill Training
+                    </button>
+                  )}
                 </div>
 
                 {/* Tab Contents */}
@@ -683,6 +745,115 @@ export default function DowntimeMarketModal({
                             </button>
                           </div>
 
+                        </div>
+                      )}
+
+                      {/* STASH TAB */}
+                      {activeTab === 'stash' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Active Pack */}
+                          <div className="flex flex-col border border-slate-850 bg-slate-950/20 rounded-lg p-4">
+                            <h4 className="text-3xs font-bold text-amber-205 mb-3 pb-1.5 border-b border-slate-800">🎒 Active Backpack ({character.inventory.length}/20)</h4>
+                            {character.inventory.length === 0 ? (
+                              <div className="text-3xs text-slate-500 italic py-6 text-center">Your pack is empty.</div>
+                            ) : (
+                              <ul className="space-y-1.5 max-h-[40vh] overflow-y-auto pr-1">
+                                {character.inventory.map((item, idx) => (
+                                  <li key={idx} className="flex justify-between items-center p-2 rounded bg-slate-900/60 border border-slate-850 text-3xs">
+                                    <span className="font-semibold text-slate-250 capitalize">{item}</span>
+                                    <button
+                                      onClick={() => handleStashDeposit(item)}
+                                      className="px-2 py-1 rounded bg-amber-955 hover:bg-amber-600/20 text-4xs font-bold cursor-pointer transition-colors"
+                                    >
+                                      Stash 📥
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+
+                          {/* Stronghold Stash */}
+                          <div className="flex flex-col border border-slate-850 bg-slate-950/20 rounded-lg p-4">
+                            <h4 className="text-3xs font-bold text-amber-205 mb-3 pb-1.5 border-b border-slate-800">📦 Stronghold Chest ({strongholdChest.length})</h4>
+                            {strongholdChest.length === 0 ? (
+                              <div className="text-3xs text-slate-500 italic py-6 text-center">Chest is empty.</div>
+                            ) : (
+                              <ul className="space-y-1.5 max-h-[40vh] overflow-y-auto pr-1">
+                                {strongholdChest.map((item, idx) => (
+                                  <li key={idx} className="flex justify-between items-center p-2 rounded bg-slate-900/60 border border-slate-850 text-3xs">
+                                    <span className="font-semibold text-slate-250 capitalize">{item}</span>
+                                    <button
+                                      onClick={() => handleStashWithdraw(idx)}
+                                      disabled={character.inventory.length >= 20}
+                                      className="px-2 py-1 rounded bg-emerald-955 border border-emerald-800/40 text-emerald-400 hover:bg-emerald-600/20 text-4xs font-bold cursor-pointer disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                      Withdraw 📤
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* TRAINING TAB */}
+                      {activeTab === 'train' && (
+                        <div className="flex flex-col gap-4">
+                          <div className="p-4 rounded-lg bg-amber-955/10 border border-amber-500/20 flex justify-between items-center">
+                            <div>
+                              <h4 className="text-3xs font-serif font-black text-amber-300">🎓 Guild Training</h4>
+                              <p className="text-[10px] text-slate-400 mt-1">Study specialized skills under {selectedMerchant.name}. Success is guaranteed, costs 100 cp per skill level, and advances time by 24 hours (fully resting HP/Fatigue).</p>
+                            </div>
+                            <div className="px-3 py-2 bg-amber-950/40 border border-amber-800/40 text-[10px] font-extrabold text-amber-300 rounded shadow-inner">
+                              Banked Slots: {character.trainingSlots || 0}
+                            </div>
+                          </div>
+
+                          {(!TRAINING_EXPERTS[selectedMerchant.name] || TRAINING_EXPERTS[selectedMerchant.name].length === 0) ? (
+                            <div className="text-center py-6 text-slate-500 text-3xs italic">This merchant does not offer specialized training.</div>
+                          ) : (
+                            <div className="grid grid-cols-1 gap-3">
+                              {TRAINING_EXPERTS[selectedMerchant.name].map(skillId => {
+                                const skill = SKILLS_LIST.find(s => s.id === skillId) || { name: skillId, desc: "Special training." };
+                                const rank = character.skills?.[skillId] || 0;
+                                const costCp = (rank + 1) * 100;
+                                const walletCp = character.currency?.gp * 100 + character.currency?.sp * 10 + character.currency?.cp;
+                                const canAfford = walletCp >= costCp;
+                                const hasSlots = (character.trainingSlots || 0) > 0;
+
+                                return (
+                                  <div key={skillId} className="p-4 rounded-lg border border-slate-850 bg-slate-950/20 flex justify-between items-center">
+                                    <div>
+                                      <h5 className="text-2xs font-extrabold text-amber-200 capitalize">{skill.name} <span className="text-[9px] text-slate-500 ml-1.5">(Current Rank: {rank}/5)</span></h5>
+                                      <p className="text-[10px] text-slate-450 mt-1 max-w-md">{skill.desc}</p>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                      {rank >= 5 ? (
+                                        <span className="text-4xs font-bold text-emerald-450 uppercase border border-emerald-950 bg-emerald-950/20 px-2 py-1 rounded">Max Rank (5)</span>
+                                      ) : (
+                                        <>
+                                          <span className="font-mono text-3xs font-extrabold text-amber-400">{formatCoins(costCp)}</span>
+                                          <button
+                                            onClick={() => {
+                                              trainSkillWithMerchant(selectedMerchant.name, skillId);
+                                              setInteractMessage(`Successfully trained ${skill.name} to Rank ${rank + 1}! It cost ${formatCoins(costCp)} and advanced game time by 24 hours. HP and fatigue fully restored.`);
+                                            }}
+                                            disabled={!hasSlots || !canAfford}
+                                            className="px-3.5 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 text-3xs font-extrabold cursor-pointer transition-colors disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed"
+                                            title={!hasSlots ? "No training slots left! Complete adventures to earn more." : !canAfford ? "Cannot afford this training cost." : `Train ${skill.name}`}
+                                          >
+                                            Train Rank {rank + 1}
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       )}
 

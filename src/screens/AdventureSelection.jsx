@@ -248,6 +248,24 @@ export default function AdventureSelection({
       onUpdateStrongholdChest(nextChest);
     }
   };
+
+  const handleEmbarkWithWarning = (adventureId, isReplay) => {
+    const unusedSlots = character?.trainingSlots || 0;
+    if (unusedSlots > 2) {
+      const excess = unusedSlots - 2;
+      if (!window.confirm(`Warning: You have ${unusedSlots} unused training slots. You can only bank up to 2 training slots between adventures. Starting this quest now will waste ${excess} training slot(s). Do you wish to embark anyway?`)) {
+        return;
+      }
+    }
+    if (onUpdateCharacterStats) {
+      onUpdateCharacterStats(prev => ({
+        ...prev,
+        trainingSlots: Math.min(2, prev.trainingSlots || 0)
+      }));
+    }
+    onSelectAdventure(adventureId, isReplay);
+  };
+
   const unlockState = selectedAdventure 
     ? (sandboxMode ? { unlocked: true, requirements: [] } : getUnlockStatus(selectedAdventure.id, completedAdventures)) 
     : { unlocked: false, requirements: [] };
@@ -318,6 +336,13 @@ export default function AdventureSelection({
               </div>
             </div>
             
+            {character.trainingSlots > 0 && (
+              <div className="px-2.5 py-2 rounded bg-amber-950/40 border border-amber-800/40 text-[10px] font-extrabold text-amber-300 flex items-center gap-1.5 shadow-sm" title="Available Training Slots">
+                <span>🎓</span>
+                <span>Training: {character.trainingSlots}</span>
+              </div>
+            )}
+
             <button
               type="button"
               onClick={() => setIsChestOpen(true)}
@@ -644,7 +669,7 @@ export default function AdventureSelection({
                         <button
                           onClick={() => {
                             if (window.confirm("Are you sure you want to replay the campaign? This will reset your story log for this area.")) {
-                              onSelectAdventure(selectedAdventure.id, false);
+                              handleEmbarkWithWarning(selectedAdventure.id, false);
                             }
                           }}
                           className="py-2.5 bg-slate-955 border border-slate-850 hover:border-amber-500/40 text-slate-350 hover:text-amber-400 rounded text-3xs font-bold uppercase tracking-wider cursor-pointer text-center transition-all"
@@ -654,7 +679,7 @@ export default function AdventureSelection({
                       </div>
                     ) : (
                       <button
-                        onClick={() => onSelectAdventure(selectedAdventure.id, false)}
+                        onClick={() => handleEmbarkWithWarning(selectedAdventure.id, false)}
                         className="w-full py-2.5 bg-gradient-to-r from-amber-600 to-amber-550 hover:from-amber-500 hover:to-amber-450 text-slate-950 rounded text-3xs font-extrabold uppercase tracking-widest cursor-pointer shadow-lg hover:shadow-amber-500/10 transition-all text-center"
                       >
                         Embark on Quest

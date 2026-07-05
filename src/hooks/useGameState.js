@@ -5,7 +5,7 @@ import { calculateWeightAndVolume, getItemDetails, getItemSlot } from '../utils/
 import { generateCompletion, executeOpposedCheck, rollDie, rollAttributePrimary, rollAttributeSecondary, rollSkillRanks } from '../utils/ai';
 import { ADVENTURES_LIST } from '../data/adventures';
 import { checkSafetyViolation, getGMStrikeWarning, getGMSternWarning, calculateLockoutExpiry, isGloballyBanned } from '../utils/safety';
-import { generateMerchantStock, getMerchantType } from '../data/downtimeMerchants';
+import { generateMerchantStock, getMerchantType, ADVENTURE_TRAINING_SLOTS, TRAINING_EXPERTS } from '../data/downtimeMerchants';
 import { ADVENTURE_ECONOMY_METADATA } from '../data/adventureEconomy';
 
 function consumeRationFromInventory(inventory) {
@@ -1755,7 +1755,26 @@ export default function useGameState() {
     let systemPrompt = BASE_SYSTEM_PROMPT + activeGm.promptOverride;
 
     const activeAdventure = ADVENTURES_LIST.find(a => a.id === activeAdventureId);
+    let relContext = '';
     if (activeAdventure) {
+      const rels = character.localEconomy?.relationships || {};
+      const relList = [];
+      const activeMerchants = activeAdventure.merchants || [];
+      activeMerchants.forEach(m => {
+        const score = rels[m.name] || 0;
+        let stand = 'Neutral';
+        if (score <= -30) stand = 'Banned/Hostile (locks doors, refuses trade/dialogue)';
+        else if (score <= -11) stand = 'Disliked/Hostile';
+        else if (score >= 80) stand = 'Allied/Trusted (warm greetings, helpful)';
+        else if (score >= 50) stand = 'Respected';
+        else if (score >= 11) stand = 'Friendly';
+        relList.push(`- ${m.name}: Relationship Score = ${score} (${stand}).`);
+      });
+
+      if (relList.length > 0) {
+        relContext = `\n[MERCHANT RELATIONSHIPS & LOCAL REPUTATION]\nThe player has established the following reputation with local merchants/NPCs in this area:\n${relList.join('\n')}\nNarrate NPC interactions according to these standings. Banned merchants lock doors or refuse trade/dialogue. Allied merchants are warm and cooperative.\n`;
+      }
+
       systemPrompt += `\n\n[ACTIVE ADVENTURE: ${activeAdventure.name.toUpperCase()}]
 Backstory & Lore: ${activeAdventure.backstory || activeAdventure.desc}
 Suggested GM: ${activeAdventure.suggestedGm}
@@ -1795,6 +1814,7 @@ ${activeAdventure.rewards ? `[ENDING REWARDS]\n${Object.entries(activeAdventure.
 
 ${activeAdventure.elementalAbilities ? `[ELEMENTAL AWAKENING REWARDS]\n${Object.entries(activeAdventure.elementalAbilities).map(([element, ability]) => `- ${element}: ${ability.name} - ${ability.properties}`).join('\n')}\n` : ''}
 
+${relContext}
 [CURRENT LOCATION & PERSISTENT WORLD GROUND STATE]
 Active Location: ${currentLocation || activeAdventure.settings[0] || 'Unknown'}
 Items lying on the ground in this room: ${(droppedItems[activeAdventureId]?.[currentLocation || activeAdventure.settings[0]] || []).join(', ') || 'None'}
@@ -2660,10 +2680,14 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         nextCompletedAdventures.push(activeAdventureId);
       }
 
+      const slotsAwarded = ADVENTURE_TRAINING_SLOTS[activeAdventureId] || 1;
+      const nextTrainingSlots = (prev.trainingSlots || 0) + slotsAwarded;
+
       return {
         ...prev,
         skills: updatedSkills,
         completed_adventures: nextCompletedAdventures,
+        trainingSlots: nextTrainingSlots,
         stats: {
           ...prev.stats,
           level: prev.stats.level + 1, // Increase level on milestone!
@@ -3620,9 +3644,72 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     });
   };
 
+  const trainSkillWithMerchant = (merchantName, skillId) => {
+    updateCharacterStats((prev) => {
+      const currentRank = prev.skills?.[skillId] || 0;
+      if (currentRank >= 5) return prev;
+      
+      const trainingSlots = prev.trainingSlots || 0;
+      if (trainingSlots <= 0) return prev;
+
+      const costCp = (currentRank + 1) * 100;
+      let cp = prev.currency?.cp || 0;
+      let sp = prev.currency?.sp || 0;
+      let gp = prev.currency?.gp || 0;
+      let totalCp = gp * 100 + sp * 10 + cp;
+      if (totalCp < costCp) return prev;
+
+      totalCp -= costCp;
+      gp = Math.floor(totalCp / 100);
+      sp = Math.floor((totalCp % 100) / 10);
+      cp = totalCp % 10;
+
+      const stats = { ...prev.stats };
+      stats.hp = stats.maxHp || 10;
+      stats.fatigue = stats.maxFatigue || 15;
+
+      const timeResult = advanceTime(stats.day || 1, stats.hour || 13.0, 24);
+      stats.day = timeResult.nextDay;
+      stats.hour = timeResult.nextHour;
+
+      const nextSkills = { ...(prev.skills || {}) };
+      nextSkills[skillId] = currentRank + 1;
+
+      if (skillId === 'arcane_drawing') {
+        stats.maxArcaneSP = nextSkills.arcane_drawing * 3;
+        stats.arcaneSP = stats.maxArcaneSP;
+      }
+      if (skillId === 'divine_communion') {
+        stats.maxDivineSP = nextSkills.divine_communion * 3;
+        stats.divineSP = stats.maxDivineSP;
+      }
+
+      const relChange = Math.floor(costCp / 100);
+      const rels = { ...(prev.localEconomy?.relationships || {}) };
+      const oldScore = rels[merchantName] || 0;
+      rels[merchantName] = Math.max(-100, Math.min(100, oldScore + relChange));
+
+      let updated = {
+        ...prev,
+        skills: nextSkills,
+        trainingSlots: trainingSlots - 1,
+        stats,
+        currency: { ...prev.currency, gp, sp, cp, gold: gp },
+        localEconomy: {
+          ...(prev.localEconomy || {}),
+          relationships: rels
+        }
+      };
+
+      updated = applyPriceRecovery(updated);
+      return updated;
+    });
+  };
+
   return {
     character,
     initializeMerchantStock,
+    trainSkillWithMerchant,
     triggerPriceRecovery,
     buyItemFromMerchant,
     sellItemToMerchant,

@@ -78,7 +78,8 @@ function App() {
     sellItemToMerchant,
     adjustMerchantRelationship,
     buyTavernService,
-    initializeMerchantStock
+    initializeMerchantStock,
+    trainSkillWithMerchant
   } = useGameState();
 
   const [screen, setScreen] = useState('splash');
@@ -605,6 +606,10 @@ function App() {
           buyTavernService={buyTavernService}
           triggerPriceRecovery={triggerPriceRecovery}
           initializeMerchantStock={initializeMerchantStock}
+          trainSkillWithMerchant={trainSkillWithMerchant}
+          strongholdChest={strongholdChest}
+          onUpdateStrongholdChest={onUpdateStrongholdChest}
+          onUpdateCharacterStats={updateCharacterStats}
         />
       </>
     );

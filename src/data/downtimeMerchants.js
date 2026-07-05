@@ -306,11 +306,178 @@ export const MERCHANT_POOLS = {
 };
 
 export const EXCLUSIVE_STOCK = {
-  // Blacksmiths
   "Vance Coalhand": [
     { item: "Plate Helm", priceCp: 300, reqRelationship: 50, stock: 1 },
     { item: "Steel Chainmail", priceCp: 1200, reqRelationship: 80, stock: 1 }
+  ],
+  "Mirra Fen": [
+    { item: "Healing Herbs", priceCp: 50, reqRelationship: 50, stock: 3 },
+    { item: "Poultice", priceCp: 80, reqRelationship: 70, stock: 1 }
+  ],
+  "Bram": [
+    { item: "Rope (50 ft)", priceCp: 80, reqRelationship: 50, stock: 2 },
+    { item: "Medium Backpack", priceCp: 100, reqRelationship: 80, stock: 1 }
+  ],
+  "Cogsmith Kael": [
+    { item: "Tinderbox", priceCp: 25, reqRelationship: 50, stock: 2 },
+    { item: "Brass Gears", priceCp: 150, reqRelationship: 75, stock: 1 }
+  ],
+  "Dennis": [
+    { item: "Acid Flask", priceCp: 100, reqRelationship: 60, stock: 2 },
+    { item: "Minor Potion or Elixir", priceCp: 250, reqRelationship: 80, stock: 1 }
+  ],
+  "Silas": [
+    { item: "Common Scroll", priceCp: 150, reqRelationship: 50, stock: 2 },
+    { item: "Rare Scroll", priceCp: 400, reqRelationship: 80, stock: 1 }
+  ],
+  "Frost-Weaver Karen": [
+    { item: "Shortsword", priceCp: 90, reqRelationship: 50, stock: 2 },
+    { item: "Wooden Shield", priceCp: 85, reqRelationship: 70, stock: 1 }
+  ],
+  "Captain Harek": [
+    { item: "Longsword", priceCp: 250, reqRelationship: 50, stock: 1 },
+    { item: "Steel Chainmail", priceCp: 1100, reqRelationship: 80, stock: 1 }
+  ],
+  "Master Kaelen": [
+    { item: "Fire-Resistant Cloak", priceCp: 500, reqRelationship: 60, stock: 1 },
+    { item: "Ember Oil", priceCp: 150, reqRelationship: 80, stock: 2 }
+  ],
+  "Arena Quartermaster": [
+    { item: "Warhammer", priceCp: 450, reqRelationship: 50, stock: 1 },
+    { item: "Greatsword", priceCp: 450, reqRelationship: 75, stock: 1 }
+  ],
+  "Slave-master Horg": [
+    { item: "Rope (50 ft)", priceCp: 90, reqRelationship: 50, stock: 2 }
+  ],
+  "Spidery Weaver": [
+    { item: "Small Backpack", priceCp: 45, reqRelationship: 50, stock: 2 },
+    { item: "Medium Backpack", priceCp: 90, reqRelationship: 75, stock: 1 }
+  ],
+  "Hermit Healer": [
+    { item: "Healing Herbs", priceCp: 45, reqRelationship: 50, stock: 3 },
+    { item: "Poultice", priceCp: 70, reqRelationship: 70, stock: 2 }
+  ],
+  "Smuggler Pete": [
+    { item: "Lockpicks", priceCp: 80, reqRelationship: 50, stock: 3 },
+    { item: "Poison Vial", priceCp: 120, reqRelationship: 70, stock: 2 }
+  ],
+  "Warden Elenya": [
+    { item: "Hunting Bow", priceCp: 260, reqRelationship: 60, stock: 1 },
+    { item: "Arrows (20)", priceCp: 8, reqRelationship: 50, stock: 3 }
+  ],
+  "Father Thomas": [
+    { item: "Holy Water", priceCp: 100, reqRelationship: 50, stock: 2 },
+    { item: "Bandages (5)", priceCp: 25, reqRelationship: 70, stock: 2 }
+  ],
+  "Ned": [
+    { item: "Torch", priceCp: 1, reqRelationship: 40, stock: 5 }
+  ],
+  "Lord Julian": [
+    { item: "Silver Ring", priceCp: 120, reqRelationship: 50, stock: 2 },
+    { item: "Gold Ring", priceCp: 350, reqRelationship: 75, stock: 1 }
+  ],
+  "Madame Sophie": [
+    { item: "Silk Robes", priceCp: 200, reqRelationship: 60, stock: 1 }
+  ],
+  "Forester Jack": [
+    { item: "Wooden Shield", priceCp: 80, reqRelationship: 50, stock: 2 },
+    { item: "Rope (50 ft)", priceCp: 85, reqRelationship: 70, stock: 1 }
+  ],
+  "Gethin": [
+    { item: "Healing Herbs", priceCp: 40, reqRelationship: 50, stock: 4 },
+    { item: "Acid Flask", priceCp: 90, reqRelationship: 80, stock: 2 }
+  ],
+  "Faelar": [
+    { item: "Common Scroll", priceCp: 140, reqRelationship: 55, stock: 2 }
+  ],
+  "Drowned Custodian": [
+    { item: "Tinderbox", priceCp: 30, reqRelationship: 50, stock: 2 }
+  ],
+  "Spectral Merchant": [
+    { item: "Relic Amulet", priceCp: 600, reqRelationship: 75, stock: 1 }
+  ],
+  "Sunken Merchant": [
+    { item: "Waterskin", priceCp: 12, reqRelationship: 40, stock: 2 }
+  ],
+  "Scrap-King Barnaby": [
+    { item: "Brass Gears", priceCp: 130, reqRelationship: 60, stock: 2 },
+    { item: "Lockpicks", priceCp: 90, reqRelationship: 55, stock: 3 }
+  ],
+  "Clockwork Doctor": [
+    { item: "Minor Potion or Elixir", priceCp: 220, reqRelationship: 70, stock: 2 },
+    { item: "Bandages (5)", priceCp: 20, reqRelationship: 50, stock: 3 }
+  ],
+  "Thomas": [
+    { item: "Rations (5)", priceCp: 22, reqRelationship: 50, stock: 4 }
+  ],
+  "Earth Shaman": [
+    { item: "Healing Herbs", priceCp: 45, reqRelationship: 50, stock: 3 }
+  ],
+  "Sister Clara": [
+    { item: "Holy Water", priceCp: 80, reqRelationship: 60, stock: 2 },
+    { item: "Bandages (5)", priceCp: 18, reqRelationship: 50, stock: 4 }
+  ],
+  "Mirrored Merchant": [
+    { item: "Mirror Shard", priceCp: 300, reqRelationship: 70, stock: 1 }
   ]
+};
+
+export const TRAINING_EXPERTS = {
+  "Vance Coalhand": ["smithing", "heavy_weapons"],
+  "Martha Greaves": ["negotiation"],
+  "Mirra Fen": ["healing", "herbalism"],
+  "Bram": ["appraise", "crafting"],
+  "Cogsmith Kael": ["trapping", "smithing"],
+  "Dennis": ["alchemy"],
+  "Silas": ["languages", "perception"],
+  "Frost-Weaver Karen": ["light_weapons", "blocking"],
+  "Captain Harek": ["blocking", "heavy_weapons"],
+  "Master Kaelen": ["alchemy", "arcane_shaping"],
+  "Arena Quartermaster": ["athletics", "brawling"],
+  "Slave-master Horg": ["intimidation"],
+  "Spidery Weaver": ["crafting", "stealth"],
+  "Hermit Healer": ["herbalism", "healing"],
+  "Smuggler Pete": ["thievery", "lockpicking"],
+  "Warden Elenya": ["marksmanship", "survival"],
+  "Father Thomas": ["divine_communion", "divine_manifestation"],
+  "Ned": ["survival", "athletics"],
+  "Lord Julian": ["appraise", "deception"],
+  "Madame Sophie": ["crafting", "deception"],
+  "Forester Jack": ["survival", "athletics"],
+  "Gethin": ["herbalism", "alchemy"],
+  "Faelar": ["languages", "arcane_drawing"],
+  "Drowned Custodian": ["appraise"],
+  "Spectral Merchant": ["luck"],
+  "Sunken Merchant": ["survival"],
+  "Scrap-King Barnaby": ["lockpicking", "trapping"],
+  "Clockwork Doctor": ["healing", "alchemy"],
+  "Thomas": ["negotiation"],
+  "Earth Shaman": ["animal_rapport", "herbalism"],
+  "Sister Clara": ["divine_communion", "healing"],
+  "Mirrored Merchant": ["luck"]
+};
+
+export const ADVENTURE_TRAINING_SLOTS = {
+  elemental_crucible: 1,
+  blackroot_hollow: 1,
+  harvest_hill_hunger: 1,
+  mirror_war_saint_orra: 1,
+  obsidian_vault: 1,
+  
+  ashveil_keep: 2,
+  saltblood_mines: 2,
+  clockwork_conservatory: 2,
+  sunken_spire: 2,
+  astral_sky: 2,
+  greywash_bandit_crown: 2,
+  merrin_abbey_plague_bells: 2,
+  glass_orchard_masquerade: 2,
+  drowned_market: 2,
+  thorn_treaty: 2,
+  
+  frostfire_crypt: 3,
+  iron_colosseum: 3,
+  brass_plague_tinkertown: 3
 };
 
 export function getMerchantType(merchant) {
