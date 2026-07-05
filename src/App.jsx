@@ -77,7 +77,8 @@ function App() {
     buyItemFromMerchant,
     sellItemToMerchant,
     adjustMerchantRelationship,
-    buyTavernService
+    buyTavernService,
+    initializeMerchantStock
   } = useGameState();
 
   const [screen, setScreen] = useState('splash');
@@ -603,6 +604,7 @@ function App() {
           adjustMerchantRelationship={adjustMerchantRelationship}
           buyTavernService={buyTavernService}
           triggerPriceRecovery={triggerPriceRecovery}
+          initializeMerchantStock={initializeMerchantStock}
         />
       </>
     );

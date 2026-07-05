@@ -1,14 +1,28 @@
 // Downtown trade hubs, taverns, and merchants database for completed adventures.
+import { GENERIC_ITEM_VALUE_BY_NAME } from './economy';
 
 export const TAVERNS = {
+  elemental_crucible: {
+    name: "Fivefold Shrine Sanctuary",
+    keeper: "Ilyra of the Fivefold Font",
+    location: "Fivefold Gate",
+    mealName: "Font Communion & Consecrated Nectar",
+    mealPriceCp: 10,
+    mealFatigueReduce: 2,
+    rumorPriceCp: 50,
+    rumors: [
+      "The Mirror of Affinity reflects the elemental balance of your soul, not your strength.",
+      "The Guardians of Earth and Fire have argued since the high font cracked.",
+      "Aether threads vibrate when planar static approaches from the capital."
+    ]
+  },
   ashveil_keep: {
     name: "Dermot's Hearthstone Inn",
     keeper: "Dermot Greaves",
     location: "Ashveil Village Square",
     mealName: "Hearty Mutton Stew & Crusty Bread",
     mealPriceCp: 10,
-    mealHealHp: 2,
-    mealFatigueReduce: 1,
+    mealFatigueReduce: 2,
     rumorPriceCp: 50,
     rumors: [
       "Vance the blacksmith is worried about the quality of coal coming from the south.",
@@ -17,13 +31,12 @@ export const TAVERNS = {
     ]
   },
   saltblood_mines: {
-    name: "The Rusty Shackle",
+    name: "The Rusty Shackle Mess",
     keeper: "Krag",
     location: "Prisoner Barracks",
     mealName: "Salted Moss Gruel & Weak Ale",
     mealPriceCp: 10,
-    mealHealHp: 2,
-    mealFatigueReduce: 1,
+    mealFatigueReduce: 2,
     rumorPriceCp: 50,
     rumors: [
       "The guards take twice as long to rotate during the midnight shift change.",
@@ -32,13 +45,12 @@ export const TAVERNS = {
     ]
   },
   clockwork_conservatory: {
-    name: "The Steam & Spindle",
+    name: "The Steam & Spindle Tavern",
     keeper: "Vian",
     location: "Steam-Weaving Gallery",
     mealName: "Steam-Cooked Sausages & Potato Mash",
     mealPriceCp: 10,
-    mealHealHp: 2,
-    mealFatigueReduce: 1,
+    mealFatigueReduce: 2,
     rumorPriceCp: 50,
     rumors: [
       "The Baron's automated servants are wound using brass keys that are coded by serial numbers.",
@@ -47,13 +59,12 @@ export const TAVERNS = {
     ]
   },
   obsidian_vault: {
-    name: "The Basalt Tankard",
+    name: "The Basalt Tankard Tavern",
     keeper: "Brak",
     location: "Basalt Ridge Gatehouse",
     mealName: "Spiced Lava-Ridge Roasted Tubers",
     mealPriceCp: 10,
-    mealHealHp: 2,
-    mealFatigueReduce: 1,
+    mealFatigueReduce: 2,
     rumorPriceCp: 50,
     rumors: [
       "The molten lava tubes are unstable. Avoid wearing heavy iron armor if you fall in.",
@@ -62,13 +73,12 @@ export const TAVERNS = {
     ]
   },
   sunken_spire: {
-    name: "The Whispering Kelp",
+    name: "Archivist's Sanctuary",
     keeper: "Faelar",
     location: "Flooded Library Entrance",
-    mealName: "Dried Kelp Broth & Salty Sea-Biscuits",
+    mealName: "Submerged Elven Rations & Kelp Tea",
     mealPriceCp: 10,
-    mealHealHp: 2,
-    mealFatigueReduce: 1,
+    mealFatigueReduce: 2,
     rumorPriceCp: 50,
     rumors: [
       "The elven library towers were submerged during the planar convergence.",
@@ -77,13 +87,12 @@ export const TAVERNS = {
     ]
   },
   astral_sky: {
-    name: "The Windrunner's Rest",
+    name: "The Windrunner's Rest Stop",
     keeper: "Sora",
     location: "Windrunner Sky-Bridges",
     mealName: "Airdraft Nectar & Sweet-Grain Wafers",
     mealPriceCp: 10,
-    mealHealHp: 2,
-    mealFatigueReduce: 1,
+    mealFatigueReduce: 2,
     rumorPriceCp: 50,
     rumors: [
       "Strong wind gusts can carry lightweight travelers off the sky-bridges.",
@@ -92,13 +101,12 @@ export const TAVERNS = {
     ]
   },
   iron_colosseum: {
-    name: "The Gladiator's Rest",
+    name: "The Gladiator's Quarters",
     keeper: "Garr",
     location: "Slave Pens",
-    mealName: "Barley Porridge & Cold Water",
+    mealName: "Gladiator Slop & Barley Tea",
     mealPriceCp: 10,
-    mealHealHp: 2,
-    mealFatigueReduce: 1,
+    mealFatigueReduce: 2,
     rumorPriceCp: 50,
     rumors: [
       "The champion dias is guarded by elite soldiers loyal to the Colosseum Master.",
@@ -107,13 +115,12 @@ export const TAVERNS = {
     ]
   },
   blackroot_hollow: {
-    name: "The Silk Weaver's Hearth",
+    name: "The Silk Weaver's Hearth Inn",
     keeper: "Huld",
     location: "Blackroot Village Edge",
     mealName: "Roasted Cave Mushroom & Onion Soup",
     mealPriceCp: 10,
-    mealHealHp: 2,
-    mealFatigueReduce: 1,
+    mealFatigueReduce: 2,
     rumorPriceCp: 50,
     rumors: [
       "Miners refuse to enter the lower molt rift due to spider skittering noises.",
@@ -122,13 +129,12 @@ export const TAVERNS = {
     ]
   },
   greywash_bandit_crown: {
-    name: "The Smuggler's Cask",
+    name: "The Smuggler's Cask Inn",
     keeper: "Dermot",
     location: "Smuggler Mill Base",
     mealName: "Forest Venison Jerky & Honey Mead",
     mealPriceCp: 10,
-    mealHealHp: 2,
-    mealFatigueReduce: 1,
+    mealFatigueReduce: 2,
     rumorPriceCp: 50,
     rumors: [
       "The bandit crown is secretly funded by a wealthy grain merchant.",
@@ -142,8 +148,7 @@ export const TAVERNS = {
     location: "Sickfield Hamlet",
     mealName: "Thin Onion Broth & Stale Rye Bread",
     mealPriceCp: 10,
-    mealHealHp: 2,
-    mealFatigueReduce: 1,
+    mealFatigueReduce: 2,
     rumorPriceCp: 50,
     rumors: [
       "The plague bells only ring when the abbey gates are locked from inside.",
@@ -152,28 +157,26 @@ export const TAVERNS = {
     ]
   },
   glass_orchard_masquerade: {
-    name: "The Crystal Goblet",
+    name: "The Crystal Goblet Lounge",
     keeper: "Lord Julian",
     location: "Glass Orchard Ballroom",
     mealName: "Spiced Masquerade Wine & Sweet Fruit Skewers",
     mealPriceCp: 10,
-    mealHealHp: 2,
-    mealFatigueReduce: 1,
+    mealFatigueReduce: 2,
     rumorPriceCp: 50,
     rumors: [
-      "An assassination plot is planned for the midnight fountain toast.",
+      "An assassination plot is planned for the fountain toast at midnight.",
       "The mirrors in the hedge maze are arranged to reflect invisible light.",
       "Glass orchard trees grow crystal fruit that can be used for alchemy."
     ]
   },
   drowned_market: {
-    name: "The Drowned Sailor's Flagon",
+    name: "The Drowned Sailor's Ethereal Tap",
     keeper: "Ghostly Bill",
     location: "Ghost Bazaar Aisles",
-    mealName: "Tidal Eel Stew & Saltwater Bread",
+    mealName: "Tidal Eel Stew & Ghostly Ale",
     mealPriceCp: 10,
-    mealHealHp: 2,
-    mealFatigueReduce: 1,
+    mealFatigueReduce: 2,
     rumorPriceCp: 50,
     rumors: [
       "The market dead trade in memories, names, and old historical records.",
@@ -187,8 +190,7 @@ export const TAVERNS = {
     location: "Boundary Stone Field",
     mealName: "Spit-Roasted Pheasant & Hard Cider",
     mealPriceCp: 10,
-    mealHealHp: 2,
-    mealFatigueReduce: 1,
+    mealFatigueReduce: 2,
     rumorPriceCp: 50,
     rumors: [
       "The boundary stones are inscribed with protective sigils that repel roots.",
@@ -202,8 +204,7 @@ export const TAVERNS = {
     location: "Ticking Market Street",
     mealName: "Lubricated Mushroom Stew & Barley Tea",
     mealPriceCp: 10,
-    mealHealHp: 2,
-    mealFatigueReduce: 1,
+    mealFatigueReduce: 2,
     rumorPriceCp: 50,
     rumors: [
       "The clockwork servants believe biological flesh is inefficient.",
@@ -212,13 +213,12 @@ export const TAVERNS = {
     ]
   },
   harvest_hill_hunger: {
-    name: "The Feast Hall Tavern",
+    name: "The Feast Hall Hearth",
     keeper: "Elder Thomas",
     location: "Choosing Feast Hall",
     mealName: "Thick Cornbread & Sweet Squash Mash",
     mealPriceCp: 10,
-    mealHealHp: 2,
-    mealFatigueReduce: 1,
+    mealFatigueReduce: 2,
     rumorPriceCp: 50,
     rumors: [
       "The village crops grow three times faster than normal due to a hidden pact.",
@@ -227,20 +227,82 @@ export const TAVERNS = {
     ]
   },
   mirror_war_saint_orra: {
-    name: "The Reflected Reflection",
+    name: "The Chapel Hospice",
     keeper: "Sister Clara",
     location: "Saint Orra Chapel",
-    mealName: "Blessed Wheat Loaf & Cold Water",
+    mealName: "Blessed Wheat Loaf & Spring Water",
     mealPriceCp: 10,
-    mealHealHp: 2,
-    mealFatigueReduce: 1,
+    mealFatigueReduce: 2,
     rumorPriceCp: 50,
     rumors: [
       "Reflected double villagers have a slight silver tint in their eyes.",
       "The chapel mirror requires holy water to cleanse its reflections.",
       "Some doubles are kinder and more helpful than the originals."
     ]
+  },
+  frostfire_crypt: {
+    name: "Frostfire Altar Rest",
+    keeper: "Crypt-keeper Silas",
+    location: "Frostfire Crypt Vault",
+    mealName: "Ember-Baked Tubers & Melted Ice-Water",
+    mealPriceCp: 10,
+    mealFatigueReduce: 2,
+    rumorPriceCp: 50,
+    rumors: [
+      "Silas was once a royal scribe before the frost froze the crypt gates.",
+      "Frostfire weapons require both coal and frost shards to retain their properties.",
+      "The royal tomb is sealed with a combination key matching the Voss coat of arms."
+    ]
   }
+};
+
+export const MERCHANT_POOLS = {
+  blacksmith: [
+    { item: "Dagger", baseChance: 0.9, maxStock: 3 },
+    { item: "Shortsword", baseChance: 0.8, maxStock: 2 },
+    { item: "Longsword", baseChance: 0.7, maxStock: 1 },
+    { item: "Greatsword", baseChance: 0.4, maxStock: 1 },
+    { item: "Warhammer", baseChance: 0.5, maxStock: 1 },
+    { item: "Wooden Shield", baseChance: 0.8, maxStock: 2 },
+    { item: "Leather Armor", baseChance: 0.6, maxStock: 1 },
+    { item: "Steel Chainmail", baseChance: 0.3, maxStock: 1 },
+    { item: "Plate Helm", baseChance: 0.4, maxStock: 1 },
+    { item: "Plate Gauntlets", baseChance: 0.4, maxStock: 1 }
+  ],
+  provisioner: [
+    { item: "Rations (5)", baseChance: 1.0, maxStock: 6 },
+    { item: "Torch", baseChance: 1.0, maxStock: 10 },
+    { item: "Tinderbox", baseChance: 0.9, maxStock: 3 },
+    { item: "Waterskin", baseChance: 0.9, maxStock: 4 },
+    { item: "Bedroll", baseChance: 0.8, maxStock: 2 },
+    { item: "Rope (50 ft)", baseChance: 0.7, maxStock: 2 },
+    { item: "Small Backpack", baseChance: 0.6, maxStock: 1 },
+    { item: "Medium Backpack", baseChance: 0.4, maxStock: 1 }
+  ],
+  fletcher: [
+    { item: "Hunting Bow", baseChance: 0.8, maxStock: 2 },
+    { item: "Crossbow", baseChance: 0.5, maxStock: 1 },
+    { item: "Arrows (20)", baseChance: 0.95, maxStock: 5 },
+    { item: "Crossbow Bolts (20)", baseChance: 0.95, maxStock: 5 },
+    { item: "Leather Armor", baseChance: 0.6, maxStock: 2 }
+  ],
+  apothecary: [
+    { item: "Bandages (5)", baseChance: 0.95, maxStock: 4 },
+    { item: "Healing Herbs", baseChance: 0.8, maxStock: 4 },
+    { item: "Poultice", baseChance: 0.7, maxStock: 2 },
+    { item: "Holy Water", baseChance: 0.5, maxStock: 2 },
+    { item: "Acid Flask", baseChance: 0.4, maxStock: 2 },
+    { item: "Minor Potion or Elixir", baseChance: 0.3, maxStock: 1 }
+  ],
+  lore_keeper: [
+    { item: "Common Scroll", baseChance: 0.7, maxStock: 3 },
+    { item: "Rare Scroll", baseChance: 0.3, maxStock: 1 }
+  ],
+  jeweler: [
+    { item: "Silver Ring", baseChance: 0.8, maxStock: 2 },
+    { item: "Gold Ring", baseChance: 0.4, maxStock: 1 },
+    { item: "Signet Ring", baseChance: 0.2, maxStock: 1 }
+  ]
 };
 
 export const EXCLUSIVE_STOCK = {
@@ -250,3 +312,62 @@ export const EXCLUSIVE_STOCK = {
     { item: "Steel Chainmail", priceCp: 1200, reqRelationship: 80, stock: 1 }
   ]
 };
+
+export function getMerchantType(merchant) {
+  if (merchant.isTavern) return 'tavern';
+  
+  const roleLower = (merchant.role || '').toLowerCase();
+  if (roleLower.includes('blacksmith') || roleLower.includes('armorer') || roleLower.includes('weaponsmith') || roleLower.includes('forge') || roleLower.includes('smith')) {
+    return 'blacksmith';
+  }
+  if (roleLower.includes('provisioner') || roleLower.includes('general') || roleLower.includes('scavenger') || roleLower.includes('merchant') || roleLower.includes('trader')) {
+    if (roleLower.includes('jeweler') || roleLower.includes('gem') || roleLower.includes('appraiser')) {
+      return 'jeweler';
+    }
+    if (roleLower.includes('fletcher') || roleLower.includes('bowyer')) {
+      return 'fletcher';
+    }
+    if (roleLower.includes('smuggler') || roleLower.includes('fence')) {
+      return 'fence';
+    }
+    return 'provisioner';
+  }
+  if (roleLower.includes('healer') || roleLower.includes('apothecary') || roleLower.includes('shaman') || roleLower.includes('doctor') || roleLower.includes('alchemist')) {
+    return 'apothecary';
+  }
+  if (roleLower.includes('archivist') || roleLower.includes('scribe') || roleLower.includes('keeper') || roleLower.includes('librarian')) {
+    return 'lore_keeper';
+  }
+  
+  const buys = merchant.buys || [];
+  if (buys.includes('weapons') || buys.includes('armor')) return 'blacksmith';
+  if (buys.includes('healing') || buys.includes('alchemy')) return 'apothecary';
+  if (buys.includes('lore') || buys.includes('documents')) return 'lore_keeper';
+  if (buys.includes('jewelry') || buys.includes('gems')) return 'jeweler';
+  
+  return 'provisioner';
+}
+
+export function generateMerchantStock(merchant, relation = 0) {
+  const type = getMerchantType(merchant);
+  const pool = MERCHANT_POOLS[type];
+  if (!pool) return [];
+  
+  const stock = [];
+  const relationBoost = Math.max(-0.2, Math.min(0.1, relation * 0.001));
+
+  pool.forEach(entry => {
+    const chance = entry.baseChance + relationBoost;
+    if (Math.random() <= chance) {
+      const qty = Math.floor(Math.random() * entry.maxStock) + 1;
+      const itemInfo = GENERIC_ITEM_VALUE_BY_NAME[entry.item] || { valueCp: 100 };
+      stock.push({
+        item: entry.item,
+        priceCp: itemInfo.valueCp,
+        stock: qty
+      });
+    }
+  });
+
+  return stock;
+}

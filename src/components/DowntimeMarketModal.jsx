@@ -12,7 +12,8 @@ export default function DowntimeMarketModal({
   sellItemToMerchant,
   adjustMerchantRelationship,
   buyTavernService,
-  triggerPriceRecovery
+  triggerPriceRecovery,
+  initializeMerchantStock
 }) {
   const [selectedHubId, setSelectedHubId] = useState(null);
   const [selectedMerchant, setSelectedMerchant] = useState(null);
@@ -20,12 +21,22 @@ export default function DowntimeMarketModal({
   const [interactMessage, setInteractMessage] = useState('');
   const [giftItemName, setGiftItemName] = useState('');
 
+  const relationships = character.localEconomy?.relationships || {};
+  const currentRelation = selectedMerchant ? (relationships[selectedMerchant.name] || 0) : 0;
+
   // Trigger price recovery on modal load
   useEffect(() => {
     if (isOpen) {
       triggerPriceRecovery();
     }
   }, [isOpen]);
+
+  // Lazy-initialize merchant stock when selected merchant changes
+  useEffect(() => {
+    if (isOpen && selectedMerchant && !selectedMerchant.isTavern) {
+      initializeMerchantStock(selectedMerchant.name, currentRelation);
+    }
+  }, [isOpen, selectedMerchant]);
 
   if (!isOpen) return null;
 
@@ -70,9 +81,6 @@ export default function DowntimeMarketModal({
     setSelectedMerchant(merchantsList[0]);
   }
 
-  // Get active merchant relations and decay
-  const relationships = character.localEconomy?.relationships || {};
-  const currentRelation = selectedMerchant ? (relationships[selectedMerchant.name] || 0) : 0;
   const isBanned = currentRelation <= -30;
 
   // Determine relationship rank label
@@ -151,33 +159,44 @@ export default function DowntimeMarketModal({
   let merchantStock = [];
   if (selectedMerchant) {
     if (selectedMerchant.isTavern) {
-      // Tavern sells rations and beverages
       merchantStock = [
         { name: "Ration", valueCp: 5 },
         { name: "Rations (5)", valueCp: 25 }
       ];
     } else {
-      // General or blacksmith sells specific items
+      // 1. Get generated pool stock from character state
+      const poolStock = character.localEconomy?.merchantStock?.[selectedMerchant.name] || [];
+      merchantStock = poolStock.filter(s => s.stock > 0).map(s => ({
+        name: s.item,
+        valueCp: s.priceCp,
+        stock: s.stock
+      }));
+
+      // 2. Add fixed items from selectedMerchant's sells list (filtered to prevent duplicates)
       const standardSells = selectedMerchant.sells || [];
-      merchantStock = standardSells.map(s => {
-        const itemInfo = GENERIC_ITEM_VALUE_BY_NAME[s.item] || { valueCp: s.priceCp || 10, category: 'gear' };
-        return {
-          name: s.item,
-          valueCp: itemInfo.valueCp,
-          stock: s.stock
-        };
+      standardSells.forEach(s => {
+        if (!merchantStock.find(mItem => mItem.name === s.item)) {
+          const itemInfo = GENERIC_ITEM_VALUE_BY_NAME[s.item] || { valueCp: s.priceCp || 100 };
+          merchantStock.push({
+            name: s.item,
+            valueCp: itemInfo.valueCp,
+            stock: s.stock
+          });
+        }
       });
 
-      // Add rare stock if relationship allows
+      // 3. Add rare exclusive items based on relationship
       const rareItems = EXCLUSIVE_STOCK[selectedMerchant.name] || [];
       rareItems.forEach(rare => {
         if (currentRelation >= rare.reqRelationship) {
-          merchantStock.push({
-            name: rare.item,
-            valueCp: rare.priceCp,
-            stock: rare.stock,
-            isRare: true
-          });
+          if (!merchantStock.find(mItem => mItem.name === rare.item)) {
+            merchantStock.push({
+              name: rare.item,
+              valueCp: rare.priceCp,
+              stock: rare.stock,
+              isRare: true
+            });
+          }
         }
       });
     }

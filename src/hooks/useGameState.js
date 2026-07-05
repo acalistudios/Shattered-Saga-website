@@ -5,6 +5,8 @@ import { calculateWeightAndVolume, getItemDetails, getItemSlot } from '../utils/
 import { generateCompletion, executeOpposedCheck, rollDie, rollAttributePrimary, rollAttributeSecondary, rollSkillRanks } from '../utils/ai';
 import { ADVENTURES_LIST } from '../data/adventures';
 import { checkSafetyViolation, getGMStrikeWarning, getGMSternWarning, calculateLockoutExpiry, isGloballyBanned } from '../utils/safety';
+import { generateMerchantStock, getMerchantType } from '../data/downtimeMerchants';
+import { ADVENTURE_ECONOMY_METADATA } from '../data/adventureEconomy';
 
 function consumeRationFromInventory(inventory) {
   let hasRations = false;
@@ -284,7 +286,8 @@ export function applyPriceRecovery(character) {
         ...character.localEconomy,
         decay: cleanedDecay,
         regionDecay: cleanedRegionDecay,
-        lastRecoveryTime: { day: nextLastDay, hour: nextLastHour }
+        lastRecoveryTime: { day: nextLastDay, hour: nextLastHour },
+        merchantStock: {}
       }
     };
   }
@@ -3454,11 +3457,27 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const rels = { ...(prev.localEconomy?.relationships || {}) };
       const oldScore = rels[merchantName] || 0;
       rels[merchantName] = Math.max(-100, Math.min(100, oldScore + relChange));
+
+      // Decrement merchant stock count if it exists in local economy
+      const nextStock = { ...(prev.localEconomy?.merchantStock || {}) };
+      if (nextStock[merchantName]) {
+        nextStock[merchantName] = nextStock[merchantName].map(s => {
+          if (s.item === itemName) {
+            return { ...s, stock: Math.max(0, s.stock - count) };
+          }
+          return s;
+        });
+      }
+
       return {
         ...prev,
         inventory: nextInventory,
         currency: { ...prev.currency, gp, sp, cp, gold: gp },
-        localEconomy: { ...(prev.localEconomy || {}), relationships: rels }
+        localEconomy: {
+          ...(prev.localEconomy || {}),
+          relationships: rels,
+          merchantStock: nextStock
+        }
       };
     });
   };
@@ -3561,8 +3580,49 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     });
   };
 
+  const initializeMerchantStock = (merchantName, relation = 0) => {
+    updateCharacterStats((prev) => {
+      const currentStock = prev.localEconomy?.merchantStock || {};
+      if (currentStock[merchantName]) return prev;
+
+      let foundMerchant = null;
+      for (const key in ADVENTURE_ECONOMY_METADATA) {
+        const mList = ADVENTURE_ECONOMY_METADATA[key]?.merchants || [];
+        const match = mList.find(m => m.name === merchantName);
+        if (match) {
+          foundMerchant = match;
+          break;
+        }
+      }
+
+      if (!foundMerchant) {
+        for (const key in TAVERNS) {
+          const t = TAVERNS[key];
+          if (t.keeper === merchantName) {
+            foundMerchant = { name: merchantName, isTavern: true };
+            break;
+          }
+        }
+      }
+
+      if (!foundMerchant) return prev;
+
+      const generated = generateMerchantStock(foundMerchant, relation);
+      const nextStock = { ...currentStock, [merchantName]: generated };
+
+      return {
+        ...prev,
+        localEconomy: {
+          ...(prev.localEconomy || {}),
+          merchantStock: nextStock
+        }
+      };
+    });
+  };
+
   return {
     character,
+    initializeMerchantStock,
     triggerPriceRecovery,
     buyItemFromMerchant,
     sellItemToMerchant,
