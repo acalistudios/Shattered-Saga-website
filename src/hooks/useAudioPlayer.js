@@ -1,29 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
+import { ADVENTURE_MUSIC } from '../data/adventureMusic';
 
-export const TRACKS_PLAYLIST = [
-  { id: 'main_menu', name: 'Shattered Saga Theme (Main Menu)', file: '/audio/main_menu.mp3' },
-  { id: 'map_theme', name: '"Shattered Saga" Region 1 Map', file: '/audio/map_theme.mp3' },
-  { id: 'loading_theme', name: 'Through the Veil (Loading Theme)', file: '/audio/loading_theme.mp3' },
-  { id: 'free_roam', name: 'Eldoria Wilds (Free Roam)', file: '/audio/free_roam.mp3' },
-  { id: 'ashveil_keep', name: 'Ashveil Keep (Gothic Ambient)', file: '/audio/ashveil_keep.mp3' },
-  { id: 'saltblood_mines', name: 'Saltblood Mines (Tense Industrial)', file: '/audio/saltblood_mines.mp3' },
-  { id: 'obsidian_vault', name: 'Obsidian Vault (Volcanic Theme)', file: '/audio/obsidian_vault.mp3' },
-  { id: 'sunken_spire', name: 'Sunken Spire (Aquatic Ethereal)', file: '/audio/sunken_spire.mp3' }
+export const GLOBAL_THEMES = [
+  { id: 'main_menu', title: 'Shattered Saga Main Theme', file: '/audio/main_menu.mp3', durationSeconds: 60 },
+  { id: 'map_theme', title: 'Continent Map Theme', file: '/audio/map_theme.mp3', durationSeconds: 60 },
+  { id: 'loading_theme', title: 'Through the Veil (Loading)', file: '/audio/loading_theme.mp3', durationSeconds: 60 }
 ];
 
-export default function useAudioPlayer(screen, activeAdventureId, isLoading) {
+export default function useAudioPlayer(screen, activeAdventureId, isLoading, history = []) {
   // Load preferences from localStorage
   const [volume, setVolumeState] = useState(() => {
-    const saved = localStorage.getItem('shattered_saga_audio_volume');
+    const saved = localStorage.getItem('shattered_saga_volume');
     return saved !== null ? parseFloat(saved) : 0.5;
   });
 
   const [isMuted, setIsMuted] = useState(() => {
-    const saved = localStorage.getItem('shattered_saga_audio_muted');
+    const saved = localStorage.getItem('shattered_saga_muted');
     return saved !== null ? saved === 'true' : false;
   });
 
   const [isPlaying, setIsPlaying] = useState(false);
+  const [musicMood, setMusicMoodState] = useState('exploration'); // 'exploration' | 'tension' | 'climax'
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [manualOverride, setManualOverride] = useState(false);
 
@@ -38,7 +35,6 @@ export default function useAudioPlayer(screen, activeAdventureId, isLoading) {
     audio.volume = isMuted ? 0 : volume;
     audioRef.current = audio;
 
-    // Synchronize play state
     audio.onplay = () => setIsPlaying(true);
     audio.onpause = () => setIsPlaying(false);
 
@@ -53,7 +49,7 @@ export default function useAudioPlayer(screen, activeAdventureId, isLoading) {
     const parsed = Math.max(0, Math.min(1, newVal));
     setVolumeState(parsed);
     userVolumeRef.current = parsed;
-    localStorage.setItem('shattered_saga_audio_volume', parsed.toString());
+    localStorage.setItem('shattered_saga_volume', parsed.toString());
     if (audioRef.current && !isMuted) {
       audioRef.current.volume = parsed;
     }
@@ -63,7 +59,7 @@ export default function useAudioPlayer(screen, activeAdventureId, isLoading) {
   const toggleMute = () => {
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
-    localStorage.setItem('shattered_saga_audio_muted', nextMuted.toString());
+    localStorage.setItem('shattered_saga_muted', nextMuted.toString());
     if (audioRef.current) {
       audioRef.current.volume = nextMuted ? 0 : volume;
     }
@@ -82,29 +78,39 @@ export default function useAudioPlayer(screen, activeAdventureId, isLoading) {
     }
   };
 
-  // Skip to next track in playlist
+  // Skip to next track
   const skipForward = () => {
     setManualOverride(true);
-    const nextIndex = (currentTrackIndex + 1) % TRACKS_PLAYLIST.length;
-    changeTrack(nextIndex);
+    if (activeAdventureId && ADVENTURE_MUSIC[activeAdventureId]) {
+      const moods = ['exploration', 'tension', 'climax'];
+      const nextIdx = (moods.indexOf(musicMood) + 1) % moods.length;
+      setMusicMood(moods[nextIdx]);
+    } else {
+      const nextIndex = (currentTrackIndex + 1) % GLOBAL_THEMES.length;
+      changeTrack(nextIndex, GLOBAL_THEMES[nextIndex].file);
+    }
   };
 
-  // Skip to previous track in playlist
+  // Skip to previous track
   const skipBackward = () => {
     setManualOverride(true);
-    const prevIndex = (currentTrackIndex - 1 + TRACKS_PLAYLIST.length) % TRACKS_PLAYLIST.length;
-    changeTrack(prevIndex);
+    if (activeAdventureId && ADVENTURE_MUSIC[activeAdventureId]) {
+      const moods = ['exploration', 'tension', 'climax'];
+      const prevIdx = (moods.indexOf(musicMood) - 1 + moods.length) % moods.length;
+      setMusicMood(moods[prevIdx]);
+    } else {
+      const prevIndex = (currentTrackIndex - 1 + GLOBAL_THEMES.length) % GLOBAL_THEMES.length;
+      changeTrack(prevIndex, GLOBAL_THEMES[prevIndex].file);
+    }
   };
 
   // Track changer with a smooth cross-fade
-  const changeTrack = (index) => {
+  const changeTrack = (index, fileSrc) => {
     if (!audioRef.current) return;
-    const track = TRACKS_PLAYLIST[index];
-    if (!track) return;
 
     setCurrentTrackIndex(index);
 
-    const targetSrc = window.location.origin + track.file;
+    const targetSrc = window.location.origin + fileSrc;
     if (audioRef.current.src === targetSrc) return;
 
     if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
@@ -125,7 +131,7 @@ export default function useAudioPlayer(screen, activeAdventureId, isLoading) {
           clearInterval(fadeIntervalRef.current);
           if (audioRef.current) {
             audioRef.current.pause();
-            audioRef.current.src = track.file;
+            audioRef.current.src = fileSrc;
             audioRef.current.load();
             audioRef.current.volume = 0;
             audioRef.current.play()
@@ -151,51 +157,77 @@ export default function useAudioPlayer(screen, activeAdventureId, isLoading) {
         }
       }, 30);
     } else {
-      // Just swap the source if not playing
-      audioRef.current.src = track.file;
+      audioRef.current.src = fileSrc;
       audioRef.current.load();
       audioRef.current.volume = isMuted ? 0 : volume;
     }
   };
 
-  // Automatically determine track index based on game state if manualOverride is false
+  // Set music mood and transition tracks
+  const setMusicMood = (mood) => {
+    if (!activeAdventureId || !ADVENTURE_MUSIC[activeAdventureId]) return;
+    setMusicMoodState(mood);
+
+    const tracks = ADVENTURE_MUSIC[activeAdventureId].tracks;
+    const trackIndex = tracks.findIndex(t => t.id === mood);
+    if (trackIndex !== -1) {
+      changeTrack(trackIndex, tracks[trackIndex].src);
+    }
+  };
+
+  // Reactive mood selection from GM history tags
   useEffect(() => {
-    if (manualOverride) return;
+    if (!activeAdventureId || history.length === 0) return;
 
-    let targetTrackId = 'free_roam';
-
-    if (isLoading) {
-      targetTrackId = 'loading_theme';
-    } else if (screen === 'splash' || screen === 'gm_selection' || screen === 'character_creation') {
-      targetTrackId = 'main_menu';
-    } else if (screen === 'adventure_selection') {
-      targetTrackId = 'map_theme';
-    } else if (screen === 'play') {
-      if (activeAdventureId === 'ashveil_keep') {
-        targetTrackId = 'ashveil_keep';
-      } else if (activeAdventureId === 'saltblood_mines') {
-        targetTrackId = 'saltblood_mines';
-      } else if (activeAdventureId === 'obsidian_vault') {
-        targetTrackId = 'obsidian_vault';
-      } else if (activeAdventureId === 'sunken_spire') {
-        targetTrackId = 'sunken_spire';
-      } else {
-        targetTrackId = 'free_roam';
+    // Find the last model message in history
+    let lastModelMsg = '';
+    for (let i = history.length - 1; i >= 0; i--) {
+      if (history[i].role === 'model') {
+        lastModelMsg = history[i].content || '';
+        break;
       }
     }
 
-    const index = TRACKS_PLAYLIST.findIndex((t) => t.id === targetTrackId);
-    if (index !== -1 && index !== currentTrackIndex) {
-      changeTrack(index);
-    }
-  }, [screen, activeAdventureId, isLoading, manualOverride]);
+    if (!lastModelMsg) return;
 
-  // Reset manual override when screen transition occurs
+    if (lastModelMsg.includes('[combat_start]') || lastModelMsg.includes('[combat]') || lastModelMsg.includes('[battle_start]')) {
+      setMusicMood('climax');
+    } else if (lastModelMsg.includes('[combat_end]') || lastModelMsg.includes('[victory]') || lastModelMsg.includes('[rest]')) {
+      setMusicMood('exploration');
+    } else if (lastModelMsg.includes('[tension]') || lastModelMsg.includes('[hazard]') || lastModelMsg.includes('[stealth_start]')) {
+      setMusicMood('tension');
+    }
+  }, [history, activeAdventureId]);
+
+  // Determine current active track based on screen & adventureId
+  useEffect(() => {
+    if (manualOverride) return;
+
+    if (isLoading) {
+      changeTrack(2, GLOBAL_THEMES[2].file); // loading theme
+    } else if (screen === 'splash' || screen === 'gm_selection' || screen === 'character_creation') {
+      changeTrack(0, GLOBAL_THEMES[0].file); // main menu theme
+    } else if (screen === 'adventure_selection') {
+      changeTrack(1, GLOBAL_THEMES[1].file); // map theme
+    } else if (screen === 'play') {
+      // If we entered play mode, default to exploration track of active adventure
+      if (activeAdventureId && ADVENTURE_MUSIC[activeAdventureId]) {
+        const tracks = ADVENTURE_MUSIC[activeAdventureId].tracks;
+        const moodIdx = ['exploration', 'tension', 'climax'].indexOf(musicMood);
+        const idx = moodIdx !== -1 ? moodIdx : 0;
+        changeTrack(idx, tracks[idx].src);
+      } else {
+        changeTrack(0, GLOBAL_THEMES[0].file); // fallback free roam
+      }
+    }
+  }, [screen, activeAdventureId, isLoading, musicMood, manualOverride]);
+
+  // Reset override when transitioning screens
   useEffect(() => {
     setManualOverride(false);
   }, [screen, activeAdventureId]);
 
-  // Document listener to start playing after first user click
+  // Document listener helper to bypass autoplay blocking
   const forceStart = () => {
     if (audioRef.current && audioRef.current.paused) {
       audioRef.current.play()
@@ -204,16 +236,32 @@ export default function useAudioPlayer(screen, activeAdventureId, isLoading) {
     }
   };
 
-  const currentTrack = TRACKS_PLAYLIST[currentTrackIndex];
+  // Compile current track details
+  let currentTrack = null;
+  if (activeAdventureId && ADVENTURE_MUSIC[activeAdventureId]) {
+    const tracks = ADVENTURE_MUSIC[activeAdventureId].tracks;
+    const moodIdx = ['exploration', 'tension', 'climax'].indexOf(musicMood);
+    currentTrack = tracks[moodIdx !== -1 ? moodIdx : 0];
+  } else {
+    const idx = Math.min(GLOBAL_THEMES.length - 1, Math.max(0, currentTrackIndex));
+    currentTrack = {
+      id: GLOBAL_THEMES[idx].id,
+      title: GLOBAL_THEMES[idx].title,
+      src: GLOBAL_THEMES[idx].file,
+      durationSeconds: GLOBAL_THEMES[idx].durationSeconds
+    };
+  }
 
   return {
     isPlaying,
     volume,
     isMuted,
     currentTrack,
+    musicMood,
     setVolume,
     toggleMute,
     togglePlay,
+    setMusicMood,
     skipForward,
     skipBackward,
     forceStart

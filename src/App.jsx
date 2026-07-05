@@ -9,6 +9,7 @@ import AdventureSelection from './screens/AdventureSelection';
 import PlayScreen from './screens/PlayScreen';
 import SettingsModal from './components/SettingsModal';
 import DowntimeMarketModal from './components/DowntimeMarketModal';
+import GlobalMusicPlayer from './components/GlobalMusicPlayer';
 import { ADVENTURES_LIST } from './data/adventures';
 import { isGloballyBanned } from './utils/safety';
 import storage from './utils/storage';
@@ -83,7 +84,7 @@ function App() {
   } = useGameState();
 
   const [screen, setScreen] = useState('splash');
-  const audio = useAudioPlayer(screen, activeAdventureId, isLoading);
+  const audio = useAudioPlayer(screen, activeAdventureId, isLoading, history);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDowntimeMarketOpen, setIsDowntimeMarketOpen] = useState(false);
   const [username, setUsername] = useState(() => storage.get('shattered_username') || '');
@@ -657,6 +658,7 @@ function App() {
         ) : (
           renderContent()
         )}
+        <GlobalMusicPlayer audio={audio} activeAdventureId={activeAdventureId} />
       </div>
     </div>
   );

@@ -948,67 +948,7 @@ export default function PlayScreen({
               </span>
             </h2>
           </div>
-          
-          {/* Audio Controls Widget */}
-          {audio && (
-            <div className="flex items-center gap-2 md:gap-3 bg-slate-950/80 border border-slate-850 px-2 py-0.5 md:px-3 md:py-1 rounded-full text-3xs font-medium text-slate-300 max-w-[150px] md:max-w-xs xl:max-w-md overflow-hidden transition-all duration-300 select-none shadow-inner shadow-black/40">
-              {/* Skip Back */}
-              <button 
-                onClick={audio.skipBackward}
-                className="hidden sm:inline-block hover:text-amber-400 transition-colors cursor-pointer"
-                title="Previous Track"
-              >
-                ⏮️
-              </button>
-              
-              {/* Play / Pause */}
-              <button 
-                onClick={audio.togglePlay}
-                className="w-4 h-4 md:w-5 md:h-5 flex items-center justify-center bg-slate-900 rounded-full hover:bg-slate-850 text-3xs md:text-2xs hover:text-amber-400 transition-all cursor-pointer border border-slate-800"
-                title={audio.isPlaying ? "Pause Music" : "Play Music"}
-              >
-                {audio.isPlaying ? "⏸️" : "▶️"}
-              </button>
 
-              {/* Skip Forward */}
-              <button 
-                onClick={audio.skipForward}
-                className="hidden sm:inline-block hover:text-amber-400 transition-colors cursor-pointer"
-                title="Next Track"
-              >
-                ⏭️
-              </button>
-
-              {/* Now Playing text */}
-              <div className="hidden xs:block w-16 sm:w-28 lg:w-40 overflow-hidden relative whitespace-nowrap text-slate-400 border-l border-slate-850 pl-2 text-[9px] md:text-3xs">
-                <div className="inline-block animate-marquee select-none">
-                  {audio.currentTrack ? audio.currentTrack.name : 'Silence'}
-                </div>
-              </div>
-
-              {/* Volume Slider & Mute Button */}
-              <div className="flex items-center gap-1 border-l border-slate-850 pl-1 md:pl-2">
-                <button 
-                  onClick={audio.toggleMute}
-                  className="hover:text-amber-400 transition-colors cursor-pointer text-4xs md:text-3xs"
-                  title={audio.isMuted ? "Unmute" : "Mute"}
-                >
-                  {audio.isMuted ? "🔇" : "🔊"}
-                </button>
-                {!audio.isMuted && (
-                  <input 
-                    type="range" 
-                    min="0" 
-                    max="1" 
-                    step="0.05" 
-                    value={audio.volume} 
-                    onChange={(e) => audio.setVolume(parseFloat(e.target.value))}
-                    className="hidden lg:inline-block w-10 lg:w-14 h-1 bg-slate-850 rounded-lg appearance-none cursor-pointer accent-amber-500 hover:accent-amber-450 transition-all"
-                  />
-                )}
-              </div>
-            </div>
-          )}
 
           <div className="flex items-center gap-3">
             <button
