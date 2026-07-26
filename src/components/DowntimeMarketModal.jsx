@@ -545,10 +545,13 @@ export default function DowntimeMarketModal({
                                         </span>
                                       )}
                                     </div>
-                                    <div className="text-[10px] text-slate-400 mt-0.5">
-                                      Listed: {formatCoins(baseCost)}
-                                      {currentRelation > 0 && <span className="text-emerald-400 ml-1">({Math.round(currentRelation * 0.2)}% friendly discount)</span>}
-                                      {currentRelation < 0 && <span className="text-red-400 ml-1">({Math.round(Math.abs(currentRelation) * 0.2)}% hostile penalty)</span>}
+                                    <div className="text-[10px] text-slate-400 mt-0.5 space-y-0.5">
+                                      <div>Listed: {formatCoins(baseCost)}</div>
+                                      <div className="flex gap-2 text-[9px] text-slate-500 font-mono">
+                                        <span>Standing: {currentRelation > 0 ? '-' : currentRelation < 0 ? '+' : ''}{Math.round(Math.abs(currentRelation) * 0.2)}%</span>
+                                        {cost > baseCost && <span className="text-red-400/80">Penalty: +{Math.round(((cost / baseCost) - 1) * 100)}%</span>}
+                                        {cost < baseCost && <span className="text-emerald-400/80">Discount: -{Math.round((1 - (cost / baseCost)) * 100)}%</span>}
+                                      </div>
                                     </div>
                                   </div>
                                   
@@ -590,8 +593,34 @@ export default function DowntimeMarketModal({
                                 <div key={idx} className="flex justify-between items-center p-3 rounded-lg border border-slate-850 bg-slate-950/30">
                                   <div>
                                     <span className="text-3xs font-bold text-slate-200">{invItem}</span>
-                                    <div className="text-[10px] text-slate-400 mt-0.5">
-                                      Listed Value: {formatCoins(baseCost)}
+                                    <div className="text-[10px] text-slate-400 mt-0.5 space-y-0.5">
+                                      <div>Listed Value: {formatCoins(baseCost)}</div>
+                                      {(() => {
+                                        const relationFactor = 0.50 + (currentRelation * 0.0025);
+                                        const mercDecayMap = character.localEconomy?.decay?.[selectedMerchant?.name] || {};
+                                        const itemDecayCount = mercDecayMap[invItem] || 0;
+                                        const regDecayMap = character.localEconomy?.regionDecay?.[selectedHubId] || {};
+                                        const itemRegionDecayCount = regDecayMap[invItem] || 0;
+                                        const decayFactor = Math.pow(0.95, itemDecayCount) * Math.pow(0.97, itemRegionDecayCount);
+                                        const finalSellRate = Math.max(0.20, relationFactor * decayFactor);
+
+                                        return (
+                                          <div className="flex flex-wrap gap-x-2 text-[9px] text-slate-500 font-mono">
+                                            <span>Base: 50%</span>
+                                            {currentRelation !== 0 && (
+                                              <span className={currentRelation > 0 ? "text-emerald-500/80" : "text-red-500/80"}>
+                                                Rep: {currentRelation > 0 ? '+' : ''}{Math.round(currentRelation * 0.25)}%
+                                              </span>
+                                            )}
+                                            {(itemDecayCount > 0 || itemRegionDecayCount > 0) && (
+                                              <span className="text-amber-500/80">
+                                                Decay: -{Math.round((1 - decayFactor) * 100)}%
+                                              </span>
+                                            )}
+                                            <span className="text-slate-400">Rate: {Math.round(finalSellRate * 100)}%</span>
+                                          </div>
+                                        );
+                                      })()}
                                     </div>
                                   </div>
                                   

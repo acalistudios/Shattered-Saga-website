@@ -25,6 +25,7 @@ Rule Enforcement & Safety:
 11. Morality Slider: If the player's action is heroic or moral, append a morality modifier tag like [morality: +X] (from +1 to +10). If it is cruel, selfish, or malicious, append [morality: -X] (from -1 to -10) to adjust their sheet.
 12. Roleplay Check: Assess if the player's actions align with their chosen Virtue, Vice, Philosophy, and Sliders. If they roleplay exceptionally, append [roleplay_modifier: +1] to reward their next roll. If they act wildly out-of-character, append [roleplay_modifier: -1].
 13. Fatigue, SP & Time Tracking: The game tracks time (Day and Hour), Fatigue, and separate SP pools (Arcane vs. Divine). If the player's fatigue drops below 0 (negative), they suffer a roll penalty (-1 per 0.5 below 0) and physical strain. If fatigue drops below 0, and especially below -5, you must advise the player in-character to rest soon. If they drop below -10, they collapse. Rest actions require rations to recover.
+14. Dynamic Soundtrack Control: When the player enters combat/confronts a boss, you MUST append the tag [combat_start] to trigger high-intensity combat music. When they escape or defeat the threat, append [combat_end] or [victory] to restore the exploration music. If they face stealth, traps, or high-risk negotiations, append [tension].
 `;
 
 export const SAGA_ENGINES = [

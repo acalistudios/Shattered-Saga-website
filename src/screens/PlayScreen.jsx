@@ -72,6 +72,11 @@ export default function PlayScreen({
   enemyAttacksQueue = [],
   onResolveEnemyAttack,
   onUseInventoryItem,
+  activeEnemy,
+  counterOpportunities,
+  combatStance,
+  onExecuteCombatManeuver,
+  onExecuteCounterAttack,
   audio
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
@@ -109,6 +114,7 @@ export default function PlayScreen({
   const [isRelationshipsOpen, setIsRelationshipsOpen] = useState(false);
   const [isScarsOpen, setIsScarsOpen] = useState(false);
   const [isQuestLogOpen, setIsQuestLogOpen] = useState(true);
+  const [isChronicleOpen, setIsChronicleOpen] = useState(true);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -736,6 +742,97 @@ export default function PlayScreen({
               </div>
             )}
 
+            {/* Chronicle & Standing Accordion */}
+            <div className="rounded border border-amber-500/35 bg-slate-950/60 overflow-hidden shadow-sm shadow-amber-500/5">
+              <button
+                type="button"
+                onClick={() => setIsChronicleOpen(!isChronicleOpen)}
+                className="w-full px-4 py-2.5 bg-amber-955/20 hover:bg-amber-955/30 text-left flex justify-between items-center text-2xs uppercase tracking-widest text-amber-400 font-bold transition-all border-b border-amber-500/10"
+              >
+                <span className="flex items-center gap-1.5 font-serif">
+                  📖 Chronicle & Standings
+                </span>
+                <span>{isChronicleOpen ? '▼' : '▶'}</span>
+              </button>
+              {isChronicleOpen && (
+                <div className="p-3 space-y-4 bg-slate-950/40 text-2xs leading-normal">
+                  {/* Major Events */}
+                  <div className="space-y-1.5">
+                    <h5 className="text-3xs uppercase tracking-wider text-amber-500/80 font-bold font-serif">Major Chronicles</h5>
+                    {(!character.storyEvents || character.storyEvents.length === 0) ? (
+                      <p className="text-3xs text-slate-550 italic">No chronicles recorded yet.</p>
+                    ) : (
+                      <ul className="space-y-1 text-slate-355 font-medium list-disc list-inside">
+                        {character.storyEvents.map((evt, idx) => (
+                          <li key={idx} className="text-slate-350">{evt}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  {/* Critical Choices */}
+                  <div className="space-y-1.5 pt-3 border-t border-slate-900">
+                    <h5 className="text-3xs uppercase tracking-wider text-amber-500/80 font-bold font-serif">Decisive Choices</h5>
+                    {(!character.choicesMade || Object.keys(character.choicesMade).length === 0) ? (
+                      <p className="text-3xs text-slate-550 italic">No critical choices logged yet.</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {Object.entries(character.choicesMade).map(([key, val]) => (
+                          <div key={key} className="flex justify-between items-center bg-slate-900/40 p-1.5 rounded border border-slate-900/60">
+                            <span className="text-slate-400 capitalize">{key.replace(/_/g, ' ')}:</span>
+                            <strong className="text-amber-350 font-serif">{val.replace(/_/g, ' ')}</strong>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Local Reputation */}
+                  <div className="space-y-1.5 pt-3 border-t border-slate-900">
+                    <h5 className="text-3xs uppercase tracking-wider text-amber-500/80 font-bold font-serif">Local Standings</h5>
+                    {(!character.localEconomy?.relationships || Object.keys(character.localEconomy.relationships).length === 0) ? (
+                      <p className="text-3xs text-slate-550 italic">No merchant standing established.</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {Object.entries(character.localEconomy.relationships).map(([name, score]) => {
+                          let stand = 'Neutral';
+                          let colorClass = 'text-slate-400';
+                          if (score <= -30) { stand = 'Banned'; colorClass = 'text-red-500'; }
+                          else if (score <= -11) { stand = 'Disliked'; colorClass = 'text-red-400/80'; }
+                          else if (score >= 80) { stand = 'Allied'; colorClass = 'text-emerald-400'; }
+                          else if (score >= 50) { stand = 'Respected'; colorClass = 'text-emerald-500/80'; }
+                          else if (score >= 11) { stand = 'Friendly'; colorClass = 'text-emerald-500/60'; }
+                          return (
+                            <div key={name} className="flex justify-between items-center bg-slate-900/40 p-1.5 rounded border border-slate-900/60">
+                              <span className="text-slate-350">{name}:</span>
+                              <strong className={`${colorClass} font-bold`}>{score > 0 ? `+${score}` : score} ({stand})</strong>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* General Relationships */}
+                  <div className="space-y-1.5 pt-3 border-t border-slate-900">
+                    <h5 className="text-3xs uppercase tracking-wider text-amber-500/80 font-bold font-serif">Social Bonds</h5>
+                    {(!character.relationships || Object.keys(character.relationships).length === 0) ? (
+                      <p className="text-3xs text-slate-550 italic">No social bonds recorded yet.</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {Object.entries(character.relationships).map(([name, standing]) => (
+                          <div key={name} className="flex justify-between items-center bg-slate-900/40 p-1.5 rounded border border-slate-900/60">
+                            <span className="text-slate-350">{name}:</span>
+                            <strong className="text-emerald-500/70 font-bold capitalize">{standing}</strong>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Wealth & Currency Collapsible Accordion */}
             <div className="rounded border border-slate-800 bg-slate-950/45 overflow-hidden">
               <button
@@ -1199,6 +1296,58 @@ export default function PlayScreen({
         ) : (
           <form onSubmit={handleSubmit} className="border-t border-slate-900 p-4 bg-slate-950 flex flex-col gap-2">
             
+            {/* Active Enemy HP HUD */}
+            {activeEnemy && (
+              <div className="bg-rose-950/20 border border-rose-900/40 rounded-lg p-3 mb-1.5 flex justify-between items-center animate-fadeIn">
+                <div className="flex-1 mr-4">
+                  <div className="flex justify-between items-center mb-1 text-2xs">
+                    <span className="font-serif font-black text-rose-400 uppercase tracking-widest">⚔️ Combat: {activeEnemy.name}</span>
+                    <span className="font-mono font-bold text-rose-400">{activeEnemy.hp} / {activeEnemy.maxHp} HP</span>
+                  </div>
+                  <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800">
+                    <div 
+                      className="bg-rose-600 h-full transition-all duration-300" 
+                      style={{ width: `${Math.max(0, Math.min(100, (activeEnemy.hp / activeEnemy.maxHp) * 100))}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-500 font-mono text-right flex-shrink-0">
+                  <div>Armor Soak: {activeEnemy.armorSoak}</div>
+                  <div>Def: {activeEnemy.defenses?.dodge || activeEnemy.defenses?.block || '10'}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Counter-Attack Opportunities Banner */}
+            {counterOpportunities && counterOpportunities.length > 0 && (
+              <div className="bg-amber-950/30 border border-amber-500/30 rounded-lg p-3 mb-1.5 animate-pulse">
+                <div className="text-2xs font-serif font-black text-amber-400 uppercase tracking-wider mb-2">
+                  ⚡ Opportunity Counter-Attack Triggered!
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {counterOpportunities.map((type) => {
+                    let label = "";
+                    let btnClass = "";
+                    if (type === 'melee') { label = "Melee Counter"; btnClass = "bg-amber-600 hover:bg-amber-500 text-slate-950 border border-amber-400/40"; }
+                    else if (type === 'ranged') { label = "Ranged Counter"; btnClass = "bg-sky-700 hover:bg-sky-650 text-slate-100 border border-sky-500/40"; }
+                    else if (type === 'arcane') { label = "Arcane Counter"; btnClass = "bg-violet-700 hover:bg-violet-600 text-slate-100 border border-violet-500/40"; }
+                    else if (type === 'divine') { label = "Divine Counter"; btnClass = "bg-emerald-700 hover:bg-emerald-650 text-slate-100 border border-emerald-500/40"; }
+                    
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => onExecuteCounterAttack(type, settings.sandboxMode ? '' : settings.keys[activeGm.id], settings.sandboxMode)}
+                        className={`px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${btnClass}`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Ground Items and Current Location Status Header */}
             {(() => {
               const displayRoom = activeRoom || 'Unknown Room';
@@ -1341,6 +1490,150 @@ export default function PlayScreen({
               </div>
             )}
           </div>
+
+            {/* Tactical Combat Maneuvers Panel */}
+            {(() => {
+              const getArrowCount = (inv) => {
+                let count = 0;
+                (inv || []).forEach(item => {
+                  if (item.toLowerCase().includes('arrow') || item.toLowerCase().includes('bolt')) {
+                    const match = item.match(/\((\d+)\)/);
+                    if (match) {
+                      count += parseInt(match[1], 10);
+                    } else {
+                      count += 1;
+                    }
+                  }
+                });
+                return count;
+              };
+              const rightWep = character.equipment?.hand_right;
+              const leftWep = character.equipment?.hand_left;
+              const hasRangedWeapon = (rightWep && (rightWep.toLowerCase().includes('bow') || rightWep.toLowerCase().includes('crossbow'))) ||
+                                      (leftWep && (leftWep.toLowerCase().includes('bow') || leftWep.toLowerCase().includes('crossbow')));
+              const arrowCount = getArrowCount(character.inventory);
+              const hasArrows = arrowCount > 0;
+
+              return activeEnemy && enemyAttacksQueue.length === 0 ? (
+                <div className="bg-slate-900/80 border border-slate-800 rounded-lg p-3 mb-2">
+                  <div className="flex justify-between items-center mb-2.5 pb-1 border-b border-slate-800/60">
+                    <span className="text-3xs uppercase tracking-widest text-slate-400 font-bold font-serif">⚔️ Tactical Combat Maneuvers</span>
+                    {combatStance && (
+                      <span className="text-5xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-405 border border-amber-500/30 uppercase font-black tracking-wider animate-pulse">
+                        Active Stance: {combatStance.replace('_', ' ')}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-2.5">
+                    <button
+                      key="melee"
+                      type="button"
+                      onClick={() => onExecuteCombatManeuver('melee', settings.sandboxMode ? '' : settings.keys[activeGm.id], settings.sandboxMode)}
+                      disabled={isLoading}
+                      className="py-2 rounded bg-rose-955/20 hover:bg-rose-950/40 border border-rose-900/30 text-rose-400 hover:text-rose-300 text-2xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5"
+                    >
+                      <span>⚔️ Melee Strike</span>
+                      <span className="text-[8px] font-sans font-medium text-rose-500/70 capitalize">
+                        {character.equipment?.hand_right ? character.equipment.hand_right.substring(0, 15) : "Unarmed"}
+                      </span>
+                    </button>
+
+                    <button
+                      key="ranged"
+                      type="button"
+                      onClick={() => onExecuteCombatManeuver('ranged', settings.sandboxMode ? '' : settings.keys[activeGm.id], settings.sandboxMode)}
+                      disabled={isLoading || !hasRangedWeapon || !hasArrows}
+                      className={`py-2 rounded text-2xs font-extrabold uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-0.5 ${
+                        hasRangedWeapon && hasArrows
+                          ? 'bg-sky-955/20 hover:bg-sky-950/40 border border-sky-900/30 text-sky-400 hover:text-sky-300 cursor-pointer'
+                          : 'bg-slate-950 text-slate-650 border border-slate-900 cursor-not-allowed'
+                      }`}
+                      title={!hasRangedWeapon ? "No bow/crossbow equipped" : !hasArrows ? "No arrows or bolts in inventory" : ""}
+                    >
+                      <span>🏹 Ranged Shot</span>
+                      <span className="text-[8px] font-sans font-medium text-sky-500/70">
+                        {arrowCount} Projectiles
+                      </span>
+                    </button>
+
+                    <button
+                      key="arcane_attack"
+                      type="button"
+                      onClick={() => onExecuteCombatManeuver('arcane_attack', settings.sandboxMode ? '' : settings.keys[activeGm.id], settings.sandboxMode)}
+                      disabled={isLoading || (character.stats?.arcaneSP || 0) <= 0 || (character.skills?.arcane_shaping || 0) === 0}
+                      className={`py-2 rounded text-2xs font-extrabold uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-0.5 ${
+                        (character.stats?.arcaneSP || 0) > 0 && (character.skills?.arcane_shaping || 0) > 0
+                          ? 'bg-violet-955/20 hover:bg-violet-950/40 border border-violet-900/30 text-violet-400 hover:text-violet-300 cursor-pointer'
+                          : 'bg-slate-955 text-slate-650 border border-slate-900 cursor-not-allowed'
+                      }`}
+                    >
+                      <span>🔮 Arcane Attack</span>
+                      <span className="text-[8px] font-sans font-medium text-violet-500/70">
+                        {character.stats?.arcaneSP || 0} SP | 2d6
+                      </span>
+                    </button>
+
+                    <button
+                      key="divine_attack"
+                      type="button"
+                      onClick={() => onExecuteCombatManeuver('divine_attack', settings.sandboxMode ? '' : settings.keys[activeGm.id], settings.sandboxMode)}
+                      disabled={isLoading || (character.stats?.divineSP || 0) <= 0 || (character.skills?.divine_manifestation || 0) === 0}
+                      className={`py-2 rounded text-2xs font-extrabold uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-0.5 ${
+                        (character.stats?.divineSP || 0) > 0 && (character.skills?.divine_manifestation || 0) > 0
+                          ? 'bg-emerald-955/20 hover:bg-emerald-950/40 border border-emerald-900/30 text-emerald-405 hover:text-emerald-300 cursor-pointer'
+                          : 'bg-slate-955 text-slate-650 border border-slate-900 cursor-not-allowed'
+                      }`}
+                    >
+                      <span>☀️ Divine Attack</span>
+                      <span className="text-[8px] font-sans font-medium text-emerald-500/70">
+                        {character.stats?.divineSP || 0} SP | 2d6
+                      </span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      key="block"
+                      type="button"
+                      onClick={() => onExecuteCombatManeuver('block', settings.sandboxMode ? '' : settings.keys[activeGm.id], settings.sandboxMode)}
+                      disabled={isLoading}
+                      className="py-1.5 rounded bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-amber-500/20 text-slate-300 hover:text-white text-3xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1"
+                    >
+                      <span>🛡️ Block Stance</span>
+                    </button>
+
+                    <button
+                      key="arcane_block"
+                      type="button"
+                      onClick={() => onExecuteCombatManeuver('arcane_block', settings.sandboxMode ? '' : settings.keys[activeGm.id], settings.sandboxMode)}
+                      disabled={isLoading || (character.stats?.arcaneSP || 0) <= 0}
+                      className={`py-1.5 rounded text-3xs font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
+                        (character.stats?.arcaneSP || 0) > 0
+                          ? 'bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-violet-500/20 text-slate-350 hover:text-white cursor-pointer'
+                          : 'bg-slate-955 text-slate-650 border border-slate-900 cursor-not-allowed'
+                      }`}
+                    >
+                      <span>🔮 Arcane Block</span>
+                    </button>
+
+                    <button
+                      key="divine_block"
+                      type="button"
+                      onClick={() => onExecuteCombatManeuver('divine_block', settings.sandboxMode ? '' : settings.keys[activeGm.id], settings.sandboxMode)}
+                      disabled={isLoading || (character.stats?.divineSP || 0) <= 0}
+                      className={`py-1.5 rounded text-3xs font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
+                        (character.stats?.divineSP || 0) > 0
+                          ? 'bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-emerald-500/20 text-slate-350 hover:text-white cursor-pointer'
+                          : 'bg-slate-955 text-slate-650 border border-slate-900 cursor-not-allowed'
+                      }`}
+                    >
+                      <span>🕊️ Divine Block</span>
+                    </button>
+                  </div>
+                </div>
+              ) : null;
+            })()}
 
           <div className="flex gap-2">
             <input

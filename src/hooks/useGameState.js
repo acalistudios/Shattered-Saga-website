@@ -127,6 +127,21 @@ function getShieldSoakDie(shieldName) {
   return 6; // default to medium shield (d6)
 }
 
+function getWeaponProperties(weaponName) {
+  if (!weaponName) return { name: "Unarmed Strike", dice: "1d3", skill: "brawling" };
+  const nameLower = weaponName.toLowerCase();
+  if (nameLower.includes("greatsword") || nameLower.includes("warhammer") || nameLower.includes("greataxe") || nameLower.includes("heavy")) {
+    return { name: weaponName, dice: "2d6", skill: "heavy_weapons" };
+  }
+  if (nameLower.includes("longsword") || nameLower.includes("spear") || nameLower.includes("axe") || nameLower.includes("mace")) {
+    return { name: weaponName, dice: "1d8", skill: "martial_weapons" };
+  }
+  if (nameLower.includes("dagger") || nameLower.includes("knife") || nameLower.includes("shiv")) {
+    return { name: weaponName, dice: "1d4", skill: "light_weapons" };
+  }
+  return { name: weaponName, dice: "1d6", skill: "light_weapons" }; // default light weapon
+}
+
 
 
 
@@ -371,8 +386,59 @@ const DEFAULT_CHARACTER = {
     regionDecay: {},
     relationships: {},
     lastRecoveryTime: { day: 1, hour: 13.0 }
-  }
+  },
+  trainingSlots: 0,
+  storyEvents: [],
+  choicesMade: {}
 };
+
+export function validateCharacterSchema(raw) {
+  if (!raw) return DEFAULT_CHARACTER;
+  
+  const skills = { ...DEFAULT_CHARACTER.skills };
+  if (raw.skills) {
+    for (const key in raw.skills) {
+      skills[key] = Math.max(0, Math.min(5, Number(raw.skills[key]) || 0));
+    }
+  }
+
+  const gp = raw.currency?.gp ?? raw.currency?.gold ?? 100;
+  const sp = raw.currency?.sp ?? 0;
+  const cp = raw.currency?.cp ?? 0;
+
+  return {
+    ...DEFAULT_CHARACTER,
+    ...raw,
+    attributes: {
+      ...DEFAULT_CHARACTER.attributes,
+      ...(raw.attributes || {})
+    },
+    skills,
+    stats: {
+      ...DEFAULT_CHARACTER.stats,
+      ...(raw.stats || {})
+    },
+    currency: {
+      ...DEFAULT_CHARACTER.currency,
+      gp,
+      sp,
+      cp,
+      gold: gp,
+      fateCoins: raw.currency?.fateCoins ?? 0
+    },
+    equipment: {
+      ...DEFAULT_CHARACTER.equipment,
+      ...(raw.equipment || {})
+    },
+    localEconomy: {
+      ...DEFAULT_CHARACTER.localEconomy,
+      ...(raw.localEconomy || {})
+    },
+    storyEvents: Array.isArray(raw.storyEvents) ? raw.storyEvents : [],
+    choicesMade: typeof raw.choicesMade === 'object' && raw.choicesMade !== null ? raw.choicesMade : {},
+    trainingSlots: typeof raw.trainingSlots === 'number' ? raw.trainingSlots : 0
+  };
+}
 
 const DEFAULT_ENERGIES = {
   oracle: 100,
@@ -459,19 +525,7 @@ export default function useGameState() {
 
   const [character, setCharacter] = useState(() => {
     const raw = storage.get(`slot_${activeSlotIndex}_character`, DEFAULT_CHARACTER);
-    if (raw && raw.name) {
-      if (raw.currency && raw.currency.gold !== undefined && raw.currency.gp === undefined) {
-        raw.currency.gp = raw.currency.gold;
-        raw.currency.sp = 0;
-        raw.currency.cp = 0;
-      }
-      if (raw.stats) {
-        if (raw.stats.bleedingTier === undefined) raw.stats.bleedingTier = 0;
-        if (raw.stats.deathCountdown === undefined) raw.stats.deathCountdown = null;
-        if (raw.stats.defenseCount === undefined) raw.stats.defenseCount = 0;
-      }
-    }
-    return raw;
+    return validateCharacterSchema(raw);
   });
   const [activeGmId, setActiveGmId] = useState(() => storage.get(`slot_${activeSlotIndex}_active_gm_id`, null));
   const [gmEnergies, setGmEnergies] = useState(() => storage.get(`slot_${activeSlotIndex}_gm_energies`, DEFAULT_ENERGIES));
@@ -501,6 +555,11 @@ export default function useGameState() {
   const [currentLocation, setCurrentLocation] = useState(() => storage.get(`slot_${activeSlotIndex}_current_location`, ''));
   const [droppedItems, setDroppedItems] = useState(() => storage.get(`slot_${activeSlotIndex}_dropped_items`, {}));
   const [npcMemory, setNpcMemory] = useState(() => storage.get(`slot_${activeSlotIndex}_npc_memory`, {}));
+
+  // Deterministic Combat States
+  const [activeEnemy, setActiveEnemy] = useState(() => storage.get(`slot_${activeSlotIndex}_active_enemy`, null));
+  const [counterOpportunities, setCounterOpportunities] = useState(() => storage.get(`slot_${activeSlotIndex}_counter_opportunities`, null));
+  const [combatStance, setCombatStance] = useState(() => storage.get(`slot_${activeSlotIndex}_combat_stance`, null));
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
@@ -593,6 +652,24 @@ export default function useGameState() {
       storage.set(`slot_${activeSlotIndex}_npc_memory`, npcMemory);
     }
   }, [npcMemory, activeSlotIndex, character?.name]);
+
+  useEffect(() => {
+    if (character && character.name) {
+      storage.set(`slot_${activeSlotIndex}_active_enemy`, activeEnemy);
+    }
+  }, [activeEnemy, activeSlotIndex, character?.name]);
+
+  useEffect(() => {
+    if (character && character.name) {
+      storage.set(`slot_${activeSlotIndex}_counter_opportunities`, counterOpportunities);
+    }
+  }, [counterOpportunities, activeSlotIndex, character?.name]);
+
+  useEffect(() => {
+    if (character && character.name) {
+      storage.set(`slot_${activeSlotIndex}_combat_stance`, combatStance);
+    }
+  }, [combatStance, activeSlotIndex, character?.name]);
 
   useEffect(() => {
     if (character && character.name && character.stats) {
@@ -1989,7 +2066,21 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const questsToRemove = [...cleanedText.matchAll(removeQuestRegex)].map(m => m[1].trim());
       cleanedText = cleanedText.replace(removeQuestRegex, '').trim();
 
-      // 2. Enemy Attacks
+      // 2. Combat start / end tags
+      const combatStartRegex = /\[combat_start\]/gi;
+      const combatStartTriggered = combatStartRegex.test(cleanedText);
+      cleanedText = cleanedText.replace(combatStartRegex, '').trim();
+
+      const combatEndRegex = /\[(?:combat_end|victory)\]/gi;
+      const combatEndTriggered = combatEndRegex.test(cleanedText);
+      cleanedText = cleanedText.replace(combatEndRegex, '').trim();
+
+      if (combatEndTriggered) {
+        setActiveEnemy(null);
+        setCombatStance(null);
+        setCounterOpportunities(null);
+      }
+
       const enemyAttackRegex = /\[enemy_attack:\s*([^|\]]+)\|\s*([^|\]]+)\|\s*vs\s*([^|\]]+)\|\s*dmg\s*([^|\]]+)\|\s*([^|\]]+)\]/gi;
       const parsedEnemyAttacks = [...cleanedText.matchAll(enemyAttackRegex)].map(m => ({
         name: m[1].trim(),
@@ -2002,6 +2093,50 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
       if (parsedEnemyAttacks.length > 0) {
         setEnemyAttacksQueue(prev => [...prev, ...parsedEnemyAttacks]);
+      }
+
+      // Initialize activeEnemy if starting combat or attacks received
+      if ((combatStartTriggered || parsedEnemyAttacks.length > 0) && !activeEnemy) {
+        const activeAdv = ADVENTURES_LIST.find(a => a.id === activeAdventureId);
+        let targetName = parsedEnemyAttacks.length > 0 ? parsedEnemyAttacks[0].name.trim() : "";
+        let foundNpc = null;
+        
+        if (targetName) {
+          foundNpc = activeAdv?.npcs?.find(npc => npc.name.toLowerCase() === targetName.toLowerCase());
+        } else if (activeAdv?.npcs) {
+          // Look for npc mentioned in text
+          for (const npc of activeAdv.npcs) {
+            if (npc.HP && cleanedText.toLowerCase().includes(npc.name.toLowerCase())) {
+              foundNpc = npc;
+              break;
+            }
+          }
+        }
+        
+        if (foundNpc) {
+          let armorSoak = '1d3';
+          if (foundNpc.armor) {
+            const cleanArmor = foundNpc.armor.toLowerCase();
+            if (cleanArmor.includes('heavy') || cleanArmor.includes('1d6')) armorSoak = '1d6';
+            else if (cleanArmor.includes('medium') || cleanArmor.includes('1d4')) armorSoak = '1d4';
+            else if (cleanArmor.includes('light') || cleanArmor.includes('1d3')) armorSoak = '1d3';
+          }
+          setActiveEnemy({
+            name: foundNpc.name,
+            hp: foundNpc.HP || 20,
+            maxHp: foundNpc.HP || 20,
+            armorSoak: armorSoak,
+            defenses: foundNpc.defenses || { dodge: '10', block: '10' }
+          });
+        } else {
+          setActiveEnemy({
+            name: targetName || "Hostile Foe",
+            hp: 20,
+            maxHp: 20,
+            armorSoak: '1d3',
+            defenses: { dodge: '10', block: '10' }
+          });
+        }
       }
 
       // 3. HP damage/healing parsing
@@ -2084,6 +2219,15 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const elementalUsedRegex = /\[elemental_ability_used\]/gi;
       const elementalAbilityUsed = elementalUsedRegex.test(cleanedText);
       cleanedText = cleanedText.replace(elementalUsedRegex, '').trim();
+
+      // 13. Story events & choices
+      const eventRegex = /\[event:\s*([^\]]+)\]/gi;
+      const eventMatches = [...cleanedText.matchAll(eventRegex)].map(m => m[1].trim());
+      cleanedText = cleanedText.replace(eventRegex, '').trim();
+
+      const choiceRegex = /\[choice:\s*([^=]+)=([^\]]+)\]/gi;
+      const choiceMatches = [...cleanedText.matchAll(choiceRegex)];
+      cleanedText = cleanedText.replace(choiceRegex, '').trim();
 
       // Calculate HP damage mitigation details for feedback
       let combatNotice = '';
@@ -2541,6 +2685,19 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           divineSP: restHours > 0 && updated.daysWithoutFood === 0 ? maxDivineSP : Math.max(0, Math.min(maxDivineSP, (updated.stats.divineSP || 0) + divineSPAmt))
         };
 
+        const nextEvents = [...(updated.storyEvents || [])];
+        eventMatches.forEach(evt => {
+          if (!nextEvents.includes(evt)) nextEvents.push(evt);
+        });
+
+        const nextChoices = { ...(updated.choicesMade || {}) };
+        choiceMatches.forEach(m => {
+          nextChoices[m[1].trim()] = m[2].trim();
+        });
+
+        updated.storyEvents = nextEvents;
+        updated.choicesMade = nextChoices;
+
         return updated;
       });
 
@@ -2683,11 +2840,18 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const slotsAwarded = ADVENTURE_TRAINING_SLOTS[activeAdventureId] || 1;
       const nextTrainingSlots = (prev.trainingSlots || 0) + slotsAwarded;
 
+      const nextEvents = [...(prev.storyEvents || [])];
+      const completionEvent = `Completed Quest: ${activeAdventureId || 'Unknown'}`;
+      if (activeAdventureId && !nextEvents.includes(completionEvent)) {
+        nextEvents.push(completionEvent);
+      }
+
       return {
         ...prev,
         skills: updatedSkills,
         completed_adventures: nextCompletedAdventures,
         trainingSlots: nextTrainingSlots,
+        storyEvents: nextEvents,
         stats: {
           ...prev.stats,
           level: prev.stats.level + 1, // Increase level on milestone!
@@ -2705,7 +2869,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
   };
 
   const importCharacter = (importedChar) => {
-    setCharacter(importedChar);
+    setCharacter(validateCharacterSchema(importedChar));
     setHistory([]);
     setJournal({ storySoFar: 'A new adventure awaits this imported champion.', recentTurns: [] });
     setHandoffState(null);
@@ -2716,6 +2880,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     setIsUpgradeScreenVisible(false);
     setApiError(null);
     setActiveAdventureId(null); // Force selection of new adventure
+    setActiveEnemy(null);
+    setCounterOpportunities(null);
+    setCombatStance(null);
   };
 
   const updateCharacterPortrait = (url, seed = null) => {
@@ -2879,7 +3046,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     const keysToWipe = [
       'character', 'active_gm_id', 'gm_energies', 'history',
       'journal', 'handoff_state', 'skill_tally', 'active_adventure_id',
-      'safety_state', 'next_roll_modifier', 'pre_adventure_character', 'last_check'
+      'safety_state', 'next_roll_modifier', 'pre_adventure_character', 'last_check',
+      'active_enemy', 'counter_opportunities', 'combat_stance'
     ];
     keysToWipe.forEach(k => {
       storage.remove(`slot_${activeSlotIndex}_${k}`);
@@ -2897,6 +3065,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     setSafetyState(DEFAULT_SAFETY_STATE);
     setNextRollModifier(0);
     setLastActionParams(null);
+    setActiveEnemy(null);
+    setCounterOpportunities(null);
+    setCombatStance(null);
   };
 
   const eatRation = () => {
@@ -3247,7 +3418,16 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     const isExhausted = localFatigue < 0;
     const exhaustionPenalty = isExhausted ? Math.floor(Math.abs(localFatigue) * 2) : 0;
 
-    const totalDefModifier = defensePenalty - starvationPenalty - exhaustionPenalty + shieldMagicBonus + armorCheckPenalty;
+    let stanceBonus = 0;
+    if (combatStance === 'block') {
+      stanceBonus = (defenseSkillId === 'blocking') ? 4 : 2;
+    } else if (combatStance === 'arcane_block') {
+      stanceBonus = (defenseSkillId === 'blocking') ? 6 : 4;
+    } else if (combatStance === 'divine_block') {
+      stanceBonus = (defenseSkillId === 'blocking') ? 6 : 4;
+    }
+
+    const totalDefModifier = defensePenalty - starvationPenalty - exhaustionPenalty + shieldMagicBonus + armorCheckPenalty + stanceBonus;
 
     const playerRollTotal = primaryRoll + secondaryRoll + skillRoll + totalDefModifier;
     const enemyRollTotal = rollDiceExpression(enemyAttack.diceExpr);
@@ -3422,6 +3602,33 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     };
 
     setHistory(prev => [...prev, newLogMsg]);
+
+    setCombatStance(null);
+
+    // Roll 7% counter-attack opportunities if defense succeeded
+    if (defenseSuccess) {
+      const activeCounters = [];
+      const rightEquipped = character.equipment?.hand_right;
+      const leftEquipped = character.equipment?.hand_left;
+      const hasRanged = (rightEquipped && rightEquipped.toLowerCase().includes('bow')) ||
+                         (leftEquipped && leftEquipped.toLowerCase().includes('bow'));
+      const hasAmmo = getArrowCount(character.inventory) > 0;
+      
+      if (Math.random() < 0.07) activeCounters.push('melee');
+      if (hasRanged && hasAmmo && Math.random() < 0.07) activeCounters.push('ranged');
+      
+      const arcaneSp = character.stats?.arcaneSP || 0;
+      const hasArcane = (character.skills?.arcane_shaping || 0) > 0 || (character.skills?.arcane_drawing || 0) > 0;
+      if (arcaneSp > 0 && hasArcane && Math.random() < 0.07) activeCounters.push('arcane');
+      
+      const divineSp = character.stats?.divineSP || 0;
+      const hasDivine = (character.skills?.divine_manifestation || 0) > 0 || (character.skills?.divine_communion || 0) > 0;
+      if (divineSp > 0 && hasDivine && Math.random() < 0.07) activeCounters.push('divine');
+
+      if (activeCounters.length > 0) {
+        setCounterOpportunities(activeCounters);
+      }
+    }
 
     // Remove attack from queue
     const nextQueue = enemyAttacksQueue.filter((_, idx) => idx !== attackIndex);
@@ -3706,6 +3913,373 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     });
   };
 
+  const executeCombatManeuver = async (maneuverType, apiKey, sandbox) => {
+    if (!activeEnemy || isLoading) return;
+
+    const rollDie = (s) => Math.floor(Math.random() * s) + 1;
+    let actionDesc = "";
+    let systemNotice = "";
+    let consumesArrow = false;
+    let consumesArcaneSp = false;
+    let consumesDivineSp = false;
+
+    // Retrieve enemy defenses info
+    const enemyDodgeVal = activeEnemy.defenses?.dodge || activeEnemy.defenses?.block || "10";
+    const enemyDefenseRoll = rollDiceExpression(enemyDodgeVal);
+
+    if (maneuverType === 'melee') {
+      const rightItem = character.equipment?.hand_right;
+      const weaponProps = getWeaponProperties(rightItem);
+      
+      const attr1Roll = rollDie(getVigorDie(character.attributes.coordination || 1));
+      const attr2Roll = rollDie(getVigorDie(character.attributes.power || 1));
+      
+      let skillRoll = 0;
+      const skillRanks = character.skills[weaponProps.skill] || 0;
+      for (let i = 0; i < skillRanks; i++) {
+        skillRoll += rollDie(2);
+      }
+
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + (nextRollModifier || 0);
+      const isHit = totalRoll >= enemyDefenseRoll;
+      setNextRollModifier(0);
+
+      actionDesc = `I strike the ${activeEnemy.name} with my ${weaponProps.name}!`;
+
+      if (isHit) {
+        const rawDmg = rollDiceExpression(weaponProps.dice);
+        const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
+        const netDmg = Math.max(1, rawDmg - soak);
+        const nextHp = Math.max(0, activeEnemy.hp - netDmg);
+
+        systemNotice = `[Combat Action: Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg}, Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+
+        if (nextHp === 0) {
+          systemNotice += " [combat_end]";
+        }
+
+        setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
+      } else {
+        systemNotice = `[Combat Action: Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
+      }
+    } else if (maneuverType === 'ranged') {
+      const rightItem = character.equipment?.hand_right;
+      const leftItem = character.equipment?.hand_left;
+      const isCrossbow = (rightItem && rightItem.toLowerCase().includes('crossbow')) || (leftItem && leftItem.toLowerCase().includes('crossbow'));
+      const bowName = isCrossbow ? "Crossbow" : "Hunting Bow";
+      const bowDice = isCrossbow ? "1d8" : "1d6";
+
+      const attr1Roll = rollDie(getVigorDie(character.attributes.coordination || 1));
+      const attr2Roll = rollDie(getVigorDie(character.attributes.coordination || 1));
+      
+      let skillRoll = 0;
+      const skillRanks = character.skills.marksmanship || 0;
+      for (let i = 0; i < skillRanks; i++) {
+        skillRoll += rollDie(2);
+      }
+
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + (nextRollModifier || 0);
+      const isHit = totalRoll >= enemyDefenseRoll;
+      setNextRollModifier(0);
+
+      actionDesc = `I shoot a projectile at the ${activeEnemy.name} with my ${bowName}!`;
+      consumesArrow = true;
+
+      if (isHit) {
+        const rawDmg = rollDiceExpression(bowDice);
+        const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
+        const netDmg = Math.max(1, rawDmg - soak);
+        const nextHp = Math.max(0, activeEnemy.hp - netDmg);
+
+        systemNotice = `[Combat Action: Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg}, Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+
+        if (nextHp === 0) {
+          systemNotice += " [combat_end]";
+        }
+
+        setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
+      } else {
+        systemNotice = `[Combat Action: Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
+      }
+    } else if (maneuverType === 'arcane_attack') {
+      const attr1Roll = rollDie(getVigorDie(character.attributes.attunement || 1));
+      const attr2Roll = rollDie(getVigorDie(character.attributes.intellect || 1));
+      
+      let skillRoll = 0;
+      const skillRanks = character.skills.arcane_shaping || 0;
+      for (let i = 0; i < skillRanks; i++) {
+        skillRoll += rollDie(2);
+      }
+
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + (nextRollModifier || 0);
+      const isHit = totalRoll >= enemyDefenseRoll;
+      setNextRollModifier(0);
+
+      actionDesc = `I project raw magical energy at the ${activeEnemy.name}!`;
+      consumesArcaneSp = true;
+
+      if (isHit) {
+        const rawDmg = rollDiceExpression("2d6");
+        const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
+        const netDmg = Math.max(1, rawDmg - soak);
+        const nextHp = Math.max(0, activeEnemy.hp - netDmg);
+
+        systemNotice = `[Combat Action: Arcane Spell Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Attunement: ${attr1Roll}, Intellect: ${attr2Roll}, Arcane Shaping: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Radiant Arcane Damage: ${rawDmg}, Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+
+        if (nextHp === 0) {
+          systemNotice += " [combat_end]";
+        }
+
+        setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
+      } else {
+        systemNotice = `[Combat Action: Arcane Spell Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Attunement: ${attr1Roll}, Intellect: ${attr2Roll}, Arcane Shaping: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
+      }
+    } else if (maneuverType === 'divine_attack') {
+      const attr1Roll = rollDie(getVigorDie(character.attributes.empathy || 1));
+      const attr2Roll = rollDie(getVigorDie(character.attributes.willpower || 1));
+      
+      let skillRoll = 0;
+      const skillRanks = character.skills.divine_manifestation || 0;
+      for (let i = 0; i < skillRanks; i++) {
+        skillRoll += rollDie(2);
+      }
+
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + (nextRollModifier || 0);
+      const isHit = totalRoll >= enemyDefenseRoll;
+      setNextRollModifier(0);
+
+      actionDesc = `I channel holy light to smite the ${activeEnemy.name}!`;
+      consumesDivineSp = true;
+
+      if (isHit) {
+        const rawDmg = rollDiceExpression("2d6");
+        const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
+        const netDmg = Math.max(1, rawDmg - soak);
+        const nextHp = Math.max(0, activeEnemy.hp - netDmg);
+
+        systemNotice = `[Combat Action: Divine Smiting Spell vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Empathy: ${attr1Roll}, Willpower: ${attr2Roll}, Divine Manifestation: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Holy radiant damage: ${rawDmg}, Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+
+        if (nextHp === 0) {
+          systemNotice += " [combat_end]";
+        }
+
+        setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
+      } else {
+        systemNotice = `[Combat Action: Divine Smiting Spell vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Empathy: ${attr1Roll}, Willpower: ${attr2Roll}, Divine Manifestation: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
+      }
+    } else if (maneuverType === 'block') {
+      setCombatStance('block');
+      actionDesc = `I brace myself and raise my defenses to block incoming strikes!`;
+      systemNotice = `[Combat Action: Player takes Block Stance. Next defense rolls get +4 bonus (+2 if dodging).]`;
+    } else if (maneuverType === 'arcane_block') {
+      consumesArcaneSp = true;
+      setCombatStance('arcane_block');
+      actionDesc = `I cast an Arcane Barrier to shield myself from attacks!`;
+      systemNotice = `[Combat Action: Player takes Arcane Shield Stance. Spend 1 Arcane SP. Next defense rolls get +6 barrier bonus (+4 if dodging).]`;
+    } else if (maneuverType === 'divine_block') {
+      consumesDivineSp = true;
+      setCombatStance('divine_block');
+      actionDesc = `I conjure a Divine Aegis to shield myself from attacks!`;
+      systemNotice = `[Combat Action: Player takes Divine Aegis Stance. Spend 1 Divine SP. Next defense rolls get +6 holy barrier bonus (+4 if dodging).]`;
+    }
+
+    // Deduct SP/Ammunition
+    if (consumesArrow || consumesArcaneSp || consumesDivineSp) {
+      setCharacter(prev => {
+        const nextInv = [...prev.inventory];
+        const nextStats = { ...prev.stats };
+        
+        if (consumesArrow) {
+          const idx = nextInv.findIndex(item => item.toLowerCase().includes('arrow') || item.toLowerCase().includes('bolt'));
+          if (idx !== -1) {
+            const item = nextInv[idx];
+            const match = item.match(/\((\d+)\)/);
+            if (match) {
+              const qty = parseInt(match[1], 10);
+              if (qty > 1) {
+                nextInv[idx] = item.replace(/\(\d+\)/, `(${qty - 1})`);
+              } else {
+                nextInv.splice(idx, 1);
+              }
+            } else {
+              nextInv.splice(idx, 1);
+            }
+          }
+        }
+        if (consumesArcaneSp) {
+          nextStats.arcaneSP = Math.max(0, (nextStats.arcaneSP || 0) - 1);
+        }
+        if (consumesDivineSp) {
+          nextStats.divineSP = Math.max(0, (nextStats.divineSP || 0) - 1);
+        }
+        
+        return {
+          ...prev,
+          inventory: nextInv,
+          stats: nextStats
+        };
+      });
+    }
+
+    // Trigger AI GM prompt payload
+    const finalPayload = `${systemNotice} ${actionDesc}`;
+    await sendPlayerAction(finalPayload, apiKey, sandbox);
+  };
+
+  const executeCounterAttack = async (counterType, apiKey, sandbox) => {
+    if (!activeEnemy || isLoading) return;
+
+    const rollDie = (s) => Math.floor(Math.random() * s) + 1;
+    let actionDesc = "";
+    let systemNotice = "";
+    
+    // Clear the opportunity state immediately
+    setCounterOpportunities(null);
+
+    // Retrieve enemy defenses info
+    const enemyDodgeVal = activeEnemy.defenses?.dodge || activeEnemy.defenses?.block || "10";
+    const enemyDefenseRoll = rollDiceExpression(enemyDodgeVal);
+
+    if (counterType === 'melee') {
+      const rightItem = character.equipment?.hand_right;
+      const weaponProps = getWeaponProperties(rightItem);
+      
+      const attr1Roll = rollDie(getVigorDie(character.attributes.coordination || 1));
+      const attr2Roll = rollDie(getVigorDie(character.attributes.power || 1));
+      
+      let skillRoll = 0;
+      const skillRanks = character.skills[weaponProps.skill] || 0;
+      for (let i = 0; i < skillRanks; i++) {
+        skillRoll += rollDie(2);
+      }
+
+      const totalRoll = attr1Roll + attr2Roll + skillRoll;
+      const isHit = totalRoll >= enemyDefenseRoll;
+
+      actionDesc = `*Reacting instantly, I launch a Melee Counter-Strike at the ${activeEnemy.name} with my ${weaponProps.name}!*`;
+
+      if (isHit) {
+        const rawDmg = rollDiceExpression(weaponProps.dice);
+        const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
+        const netDmg = Math.max(1, rawDmg - soak);
+        const nextHp = Math.max(0, activeEnemy.hp - netDmg);
+
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg}, Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+
+        if (nextHp === 0) {
+          systemNotice += " [combat_end]";
+        }
+
+        setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
+      } else {
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
+      }
+    } else if (counterType === 'ranged') {
+      const rightItem = character.equipment?.hand_right;
+      const leftItem = character.equipment?.hand_left;
+      const isCrossbow = (rightItem && rightItem.toLowerCase().includes('crossbow')) || (leftItem && leftItem.toLowerCase().includes('crossbow'));
+      const bowName = isCrossbow ? "Crossbow" : "Hunting Bow";
+      const bowDice = isCrossbow ? "1d8" : "1d6";
+
+      const attr1Roll = rollDie(getVigorDie(character.attributes.coordination || 1));
+      const attr2Roll = rollDie(getVigorDie(character.attributes.coordination || 1));
+      
+      let skillRoll = 0;
+      const skillRanks = character.skills.marksmanship || 0;
+      for (let i = 0; i < skillRanks; i++) {
+        skillRoll += rollDie(2);
+      }
+
+      const totalRoll = attr1Roll + attr2Roll + skillRoll;
+      const isHit = totalRoll >= enemyDefenseRoll;
+
+      actionDesc = `*Seizing the opening, I launch a Ranged Counter-Strike at the ${activeEnemy.name} with my ${bowName}!*`;
+
+      if (isHit) {
+        const rawDmg = rollDiceExpression(bowDice);
+        const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
+        const netDmg = Math.max(1, rawDmg - soak);
+        const nextHp = Math.max(0, activeEnemy.hp - netDmg);
+
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg}, Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+
+        if (nextHp === 0) {
+          systemNotice += " [combat_end]";
+        }
+
+        setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
+      } else {
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
+      }
+    } else if (counterType === 'arcane') {
+      const attr1Roll = rollDie(getVigorDie(character.attributes.attunement || 1));
+      const attr2Roll = rollDie(getVigorDie(character.attributes.intellect || 1));
+      
+      let skillRoll = 0;
+      const skillRanks = character.skills.arcane_shaping || 0;
+      for (let i = 0; i < skillRanks; i++) {
+        skillRoll += rollDie(2);
+      }
+
+      const totalRoll = attr1Roll + attr2Roll + skillRoll;
+      const isHit = totalRoll >= enemyDefenseRoll;
+
+      actionDesc = `*In a flash of light, I unleash an Arcane Counter-Strike at the ${activeEnemy.name}!*`;
+
+      if (isHit) {
+        const rawDmg = rollDiceExpression("2d6");
+        const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
+        const netDmg = Math.max(1, rawDmg - soak);
+        const nextHp = Math.max(0, activeEnemy.hp - netDmg);
+
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Arcane Counter-Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Attunement: ${attr1Roll}, Intellect: ${attr2Roll}, Arcane Shaping: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Radiant Arcane Damage: ${rawDmg}, Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+
+        if (nextHp === 0) {
+          systemNotice += " [combat_end]";
+        }
+
+        setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
+      } else {
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Arcane Counter-Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Attunement: ${attr1Roll}, Intellect: ${attr2Roll}, Arcane Shaping: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
+      }
+    } else if (counterType === 'divine') {
+      const attr1Roll = rollDie(getVigorDie(character.attributes.empathy || 1));
+      const attr2Roll = rollDie(getVigorDie(character.attributes.willpower || 1));
+      
+      let skillRoll = 0;
+      const skillRanks = character.skills.divine_manifestation || 0;
+      for (let i = 0; i < skillRanks; i++) {
+        skillRoll += rollDie(2);
+      }
+
+      const totalRoll = attr1Roll + attr2Roll + skillRoll;
+      const isHit = totalRoll >= enemyDefenseRoll;
+
+      actionDesc = `*With holy wrath, I strike back with a Divine Counter-Strike at the ${activeEnemy.name}!*`;
+
+      if (isHit) {
+        const rawDmg = rollDiceExpression("2d6");
+        const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
+        const netDmg = Math.max(1, rawDmg - soak);
+        const nextHp = Math.max(0, activeEnemy.hp - netDmg);
+
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Divine Counter-Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Empathy: ${attr1Roll}, Willpower: ${attr2Roll}, Divine Manifestation: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Holy radiant damage: ${rawDmg}, Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+
+        if (nextHp === 0) {
+          systemNotice += " [combat_end]";
+        }
+
+        setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
+      } else {
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Divine Counter-Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Empathy: ${attr1Roll}, Willpower: ${attr2Roll}, Divine Manifestation: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
+      }
+    }
+
+    // Trigger AI GM prompt payload
+    const finalPayload = `${systemNotice} ${actionDesc}`;
+    await sendPlayerAction(finalPayload, apiKey, sandbox);
+  };
+
   return {
     character,
     initializeMerchantStock,
@@ -3763,6 +4337,14 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     calculateWeightAndVolume,
     enemyAttacksQueue,
     resolveEnemyAttack,
-    useInventoryItem
+    useInventoryItem,
+    activeEnemy,
+    setActiveEnemy,
+    counterOpportunities,
+    setCounterOpportunities,
+    combatStance,
+    setCombatStance,
+    executeCombatManeuver,
+    executeCounterAttack
   };
 }

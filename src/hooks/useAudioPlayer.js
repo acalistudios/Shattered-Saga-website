@@ -113,12 +113,14 @@ export default function useAudioPlayer(screen, activeAdventureId, isLoading, his
     const targetSrc = window.location.origin + fileSrc;
     if (audioRef.current.src === targetSrc) return;
 
-    if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+    if (fadeIntervalRef.current) {
+      clearInterval(fadeIntervalRef.current);
+      fadeIntervalRef.current = null;
+    }
 
     const isCurrentlyPlaying = !audioRef.current.paused;
 
     if (isCurrentlyPlaying) {
-      // Fade out
       const startVolume = audioRef.current.volume;
       let steps = 10;
       const fadeStep = startVolume / steps;
@@ -128,7 +130,9 @@ export default function useAudioPlayer(screen, activeAdventureId, isLoading, his
           audioRef.current.volume = Math.max(0, audioRef.current.volume - fadeStep);
           steps--;
         } else {
-          clearInterval(fadeIntervalRef.current);
+          if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+          fadeIntervalRef.current = null;
+
           if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.src = fileSrc;
@@ -136,16 +140,19 @@ export default function useAudioPlayer(screen, activeAdventureId, isLoading, his
             audioRef.current.volume = 0;
             audioRef.current.play()
               .then(() => {
-                // Fade in
                 let inSteps = 10;
                 const targetVolume = isMuted ? 0 : userVolumeRef.current;
                 const fadeInStep = targetVolume / inSteps;
+                
+                if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+
                 fadeIntervalRef.current = setInterval(() => {
                   if (inSteps > 0 && audioRef.current) {
                     audioRef.current.volume = Math.min(targetVolume, audioRef.current.volume + fadeInStep);
                     inSteps--;
                   } else {
-                    clearInterval(fadeIntervalRef.current);
+                    if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+                    fadeIntervalRef.current = null;
                     if (audioRef.current) audioRef.current.volume = targetVolume;
                   }
                 }, 30);

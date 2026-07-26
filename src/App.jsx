@@ -583,6 +583,11 @@ function App() {
             enemyAttacksQueue={enemyAttacksQueue}
             onResolveEnemyAttack={resolveEnemyAttack}
             onUseInventoryItem={useInventoryItem}
+            activeEnemy={activeEnemy}
+            counterOpportunities={counterOpportunities}
+            combatStance={combatStance}
+            onExecuteCombatManeuver={executeCombatManeuver}
+            onExecuteCounterAttack={executeCounterAttack}
             audio={audio}
           />
         )}
@@ -608,8 +613,8 @@ function App() {
           triggerPriceRecovery={triggerPriceRecovery}
           initializeMerchantStock={initializeMerchantStock}
           trainSkillWithMerchant={trainSkillWithMerchant}
-          strongholdChest={strongholdChest}
-          onUpdateStrongholdChest={onUpdateStrongholdChest}
+          strongholdChest={settings.strongholdChest || []}
+          onUpdateStrongholdChest={updateStrongholdChest}
           onUpdateCharacterStats={updateCharacterStats}
         />
       </>
