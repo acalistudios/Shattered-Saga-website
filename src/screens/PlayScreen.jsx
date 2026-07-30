@@ -587,7 +587,8 @@ export default function PlayScreen({
                 const isBandage = nameLower.includes('bandage');
                 const isHealerKit = nameLower.includes("healer's kit") || nameLower.includes("healer's satchel");
                 const isHerb = nameLower.includes('herb') || nameLower.includes('poultice');
-                const isUsable = isBandage || isHealerKit || isHerb;
+                const isPotion = nameLower.includes('potion') || nameLower.includes('elixir') || nameLower.includes('flask') || nameLower.includes('vial') || nameLower.includes('brew');
+                const isUsable = isBandage || isHealerKit || isHerb || isPotion;
                 return (
                   <li key={idx} className="flex items-center justify-between gap-2 capitalize border-b border-slate-900/40 py-1">
                     <span className="flex items-center gap-2 truncate pr-2" title={item}>
@@ -2150,7 +2151,8 @@ export default function PlayScreen({
                   const isBandage = nameLower.includes('bandage');
                   const isHealerKit = nameLower.includes("healer's kit") || nameLower.includes("healer's satchel");
                   const isHerb = nameLower.includes('herb') || nameLower.includes('poultice');
-                  const isUsable = isBandage || isHealerKit || isHerb;
+                  const isPotion = nameLower.includes('potion') || nameLower.includes('elixir') || nameLower.includes('flask') || nameLower.includes('vial') || nameLower.includes('brew');
+                  const isUsable = isBandage || isHealerKit || isHerb || isPotion;
 
                   const leftHipHasSheath = character.equipment?.hip_left === 'Weapon Sheath';
                   const rightHipHasSheath = character.equipment?.hip_right === 'Weapon Sheath';

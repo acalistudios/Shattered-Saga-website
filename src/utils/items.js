@@ -59,7 +59,8 @@ export const ITEMS_DATABASE = {
   'Holy Water': { weight: 1.0, volume: 1.0 },
   'Water-Breathing Elixir': { weight: 0.5, volume: 0.5 },
   'Freezing Venom Vial': { weight: 0.5, volume: 0.5 },
-  'Alchemical Acid Flask': { weight: 1.0, volume: 1.0 }
+  'Alchemical Acid Flask': { weight: 1.0, volume: 1.0 },
+  'Chronicle Hourglass': { weight: 1.0, volume: 1.0, desc: 'A magical hourglass that allows you to replay a completed quest. Consumed on use.' }
 };
 
 // Clean name helper (e.g. "Rations (5)" -> "Rations")

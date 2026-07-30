@@ -90,6 +90,7 @@ export const GENERIC_ITEM_VALUES = [
   priced('Major Potion or Elixir', 1500, 'alchemy', 'Rare single-use magical or alchemical aid.'),
   priced('Common Scroll', 300, 'lore', 'Readable text, map, or minor ritual reference.'),
   priced('Rare Scroll', 1000, 'lore', 'Valuable spell, secret, or historical record.'),
+  priced('Chronicle Hourglass', 500, 'lore', 'A magical hourglass used to replay completed quests.'),
   priced('Silver Ring', 200, 'jewelry', 'Simple silver band.'),
   priced('Gold Ring', 1000, 'jewelry', 'Valuable gold band.'),
   priced('Signet Ring', 1500, 'jewelry', 'Political value depends on its crest and owner.'),

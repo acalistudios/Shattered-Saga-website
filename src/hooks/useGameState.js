@@ -82,6 +82,21 @@ function getVigorDie(vigor) {
   return 12; // vigor 5
 }
 
+function rollAttribute(score) {
+  const rollDie = (s) => Math.floor(Math.random() * s) + 1;
+  if (score <= 1) return rollDie(4);
+  if (score === 2) return rollDie(6);
+  if (score === 3) return rollDie(8);
+  if (score === 4) return rollDie(10);
+  if (score === 5) return rollDie(12);
+  if (score === 6) return rollDie(20);
+  if (score === 7) return rollDie(20) + rollDie(4);
+  if (score === 8) return rollDie(20) + rollDie(6);
+  if (score === 9) return rollDie(20) + rollDie(8);
+  if (score === 10) return rollDie(20) + rollDie(10);
+  return rollDie(20) + rollDie(12); // score 11+
+}
+
 function rollDiceExpression(expr) {
   if (!expr) return 0;
   let clean = expr.replace(/\s+/g, '').toLowerCase();
@@ -430,6 +445,9 @@ export function validateCharacterSchema(raw) {
       ...DEFAULT_CHARACTER.equipment,
       ...(raw.equipment || {})
     },
+    inventory: Array.isArray(raw.inventory) ? raw.inventory : DEFAULT_CHARACTER.inventory,
+    active_quests: Array.isArray(raw.active_quests) ? raw.active_quests : DEFAULT_CHARACTER.active_quests,
+    completed_quests: Array.isArray(raw.completed_quests) ? raw.completed_quests : DEFAULT_CHARACTER.completed_quests,
     localEconomy: {
       ...DEFAULT_CHARACTER.localEconomy,
       ...(raw.localEconomy || {})
@@ -1312,47 +1330,101 @@ export default function useGameState() {
       let isBandage = nameLower.includes('bandage');
       let isHealerKit = nameLower.includes("healer's kit") || nameLower.includes("healer's satchel");
       let isHerb = nameLower.includes('herb') || nameLower.includes('poultice');
+      let isPotion = nameLower.includes('potion') || nameLower.includes('elixir') || nameLower.includes('flask') || nameLower.includes('vial') || nameLower.includes('brew');
 
-      if (isBandage || isHealerKit || isHerb) {
-        isHealingAction = true;
+      if (isBandage || isHealerKit || isHerb || isPotion) {
         let itemPattern = '';
         if (isBandage) itemPattern = 'bandage[s]?';
         else if (isHealerKit) itemPattern = "healer's (?:kit|satchel)";
         else if (nameLower.includes('herb')) itemPattern = 'healing herb[s]?';
         else if (nameLower.includes('poultice')) itemPattern = 'poultice[s]?';
+        else if (isPotion) {
+          // Escape regex characters for safe match of exact potion/elixir names
+          itemPattern = inventoryItemUsed.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        }
 
         const { consumed, nextInventory } = consumeInventoryItem(localInventory, itemPattern);
         if (consumed) {
           localInventory = nextInventory;
 
-          const vigor = character.attributes.vigor || 1;
-          const vigorDieSize = getVigorDie(vigor);
-          const vRoll = Math.floor(Math.random() * vigorDieSize) + 1;
-          const healingRank = character.skills.healing || 0;
-          let healRankRoll = 0;
-          for (let i = 0; i < healingRank; i++) {
-            healRankRoll += Math.floor(Math.random() * 2) + 1;
-          }
-
           let hpHealed = 0;
+          let spHealed = 0;
+          let spType = 'arcane';
           let stopBleed = false;
           let clearConditions = false;
           let logDetail = '';
+          
+          const rollDie = (s) => Math.floor(Math.random() * s) + 1;
 
           if (isBandage) {
+            isHealingAction = true;
             hpHealed = 1;
             stopBleed = true;
             logDetail = `applied a bandage (restored 1 HP, stopped bleeding).`;
           } else if (isHealerKit) {
-            const aidRoll = (Math.floor(Math.random() * 6) + 1) + (Math.floor(Math.random() * 6) + 1); // 2d6
+            isHealingAction = true;
+            const vigor = character.attributes.vigor || 1;
+            const vRoll = rollAttribute(vigor);
+            const healingRank = character.skills.healing || 0;
+            let healRankRoll = 0;
+            for (let i = 0; i < healingRank; i++) {
+              healRankRoll += rollDie(2);
+            }
+            const aidRoll = rollDie(6) + rollDie(6); // 2d6
             hpHealed = vRoll + healRankRoll + aidRoll;
             stopBleed = true;
             clearConditions = true;
-            logDetail = `used a Healer's Kit. Vigor Roll: ${vRoll} (d${vigorDieSize}) + Healing skill: ${healRankRoll} + Kit Aid: ${aidRoll} (2d6). Restored ${hpHealed} HP, stopped bleeding.`;
+            logDetail = `used a Healer's Kit. Vigor Roll: ${vRoll} + Healing skill: ${healRankRoll} + Kit Aid: ${aidRoll} (2d6). Restored ${hpHealed} HP, stopped bleeding.`;
           } else if (isHerb) {
-            const aidRoll = Math.floor(Math.random() * 6) + 1; // 1d6
+            isHealingAction = true;
+            const vigor = character.attributes.vigor || 1;
+            const vRoll = rollAttribute(vigor);
+            const healingRank = character.skills.healing || 0;
+            let healRankRoll = 0;
+            for (let i = 0; i < healingRank; i++) {
+              healRankRoll += rollDie(2);
+            }
+            const aidRoll = rollDie(6); // 1d6
             hpHealed = vRoll + healRankRoll + aidRoll;
-            logDetail = `consumed Healing Herbs/Poultice. Vigor Roll: ${vRoll} (d${vigorDieSize}) + Healing skill: ${healRankRoll} + Herb Aid: ${aidRoll} (1d6). Restored ${hpHealed} HP.`;
+            logDetail = `consumed Healing Herbs/Poultice. Vigor Roll: ${vRoll} + Healing skill: ${healRankRoll} + Herb Aid: ${aidRoll} (1d6). Restored ${hpHealed} HP.`;
+          } else if (isPotion) {
+            const isHealingPotion = nameLower.includes('healing') || nameLower.includes('health') || nameLower.includes('minor potion');
+            const isHolyWater = nameLower.includes('holy') || nameLower.includes('purifying');
+            const isManaPotion = nameLower.includes('mana') || nameLower.includes('attunement') || nameLower.includes('spell') || nameLower.includes('elixir');
+
+            if (isHealingPotion) {
+              isHealingAction = true;
+              hpHealed = rollDie(6) + rollDie(6) + 2; // 2d6 + 2
+              stopBleed = true;
+              logDetail = `drank a Healing Potion. Restored ${hpHealed} HP, stopped bleeding.`;
+            } else if (isHolyWater) {
+              isHealingAction = true;
+              hpHealed = rollDie(6); // 1d6
+              stopBleed = true;
+              clearConditions = true;
+              logDetail = `sprinkled/drank Holy Water. Restored ${hpHealed} HP, cured negative conditions and stopped bleeding.`;
+            } else if (isManaPotion) {
+              spHealed = 5;
+              const hasDivine = (character.skills.divine_manifestation || 0) > 0 || (character.skills.divine_communion || 0) > 0;
+              const hasArcane = (character.skills.arcane_shaping || 0) > 0 || (character.skills.arcane_drawing || 0) > 0;
+              
+              if (hasDivine && !hasArcane) {
+                spType = 'divine';
+              } else if (hasArcane && !hasDivine) {
+                spType = 'arcane';
+              } else {
+                const arcaneDep = (character.stats.maxArcaneSP || 0) - (character.stats.arcaneSP || 0);
+                const divineDep = (character.stats.maxDivineSP || 0) - (character.stats.divineSP || 0);
+                if (divineDep > arcaneDep) {
+                  spType = 'divine';
+                } else {
+                  spType = 'arcane';
+                }
+              }
+              logDetail = `drank a Mana Restorative Elixir. Restored 5 ${spType.toUpperCase()} SP.`;
+            } else {
+              logDetail = `drank ${inventoryItemUsed}. Narrative effect pending.`;
+            }
           }
 
           const maxHp = character.stats.maxHp || 10;
@@ -1371,7 +1443,15 @@ export default function useGameState() {
             character.stats.deathCountdown = null;
           }
 
-          healingDetailsMsg = `\n\n[Healing Treatment: Player ${logDetail} HP is now ${localHp}/${maxHp}. Bleeding Tier: ${bleedingTier}.]`;
+          if (spHealed > 0) {
+            if (spType === 'arcane') {
+              arcaneSP = Math.min(maxArcaneSP, arcaneSP + spHealed);
+            } else {
+              divineSP = Math.min(maxDivineSP, divineSP + spHealed);
+            }
+          }
+
+          healingDetailsMsg = `\n\n[Item Used: Player ${logDetail} HP is now ${localHp}/${maxHp}. Arcane SP: ${arcaneSP}/${maxArcaneSP || 0}. Divine SP: ${divineSP}/${maxDivineSP || 0}. Bleeding Tier: ${bleedingTier}.]`;
         }
       }
     }
@@ -1892,6 +1972,12 @@ ${activeAdventure.rewards ? `[ENDING REWARDS]\n${Object.entries(activeAdventure.
 ${activeAdventure.elementalAbilities ? `[ELEMENTAL AWAKENING REWARDS]\n${Object.entries(activeAdventure.elementalAbilities).map(([element, ability]) => `- ${element}: ${ability.name} - ${ability.properties}`).join('\n')}\n` : ''}
 
 ${relContext}
+[MORALITY & ALIGNMENT DIALOGUE REACTIVITY]
+- Player Morality Scale: ${character.morality || 0} (-100 Villainous to +100 Heroic)
+- Sincere / Good-aligned NPCs (healers, priests, innocent villagers, order guards) will treat the player with warmth, respect, and actively volunteer hidden hints, secrets, or tips if Morality >= 30. If Morality <= -30, they will act suspicious, fearful, cold, and withhold information.
+- Rogue / Shady / Outlaw NPCs (cutthroats, smugglers, cultists, corrupt guards, black market dealers) will be warm, cooperative, and offer secret paths or underhand tips if Morality <= -30. If Morality >= 30, they will act hostile, tight-lipped, mock, or refuse to talk honestly.
+- Sincere GMs should adjust NPC dialogue tone, helpfulness, and the disclosure of useful hints to match this reactivity profile dynamically.
+
 [CURRENT LOCATION & PERSISTENT WORLD GROUND STATE]
 Active Location: ${currentLocation || activeAdventure.settings[0] || 'Unknown'}
 Items lying on the ground in this room: ${(droppedItems[activeAdventureId]?.[currentLocation || activeAdventure.settings[0]] || []).join(', ') || 'None'}
@@ -2401,9 +2487,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           let hpGained = 0;
           if (hasRations) {
             const vigorScore = prev.attributes.vigor || 1;
-            const vigorDieSize = getVigorDie(vigorScore);
             const rollDie = (s) => Math.floor(Math.random() * s) + 1;
-            const vRoll = rollDie(vigorDieSize);
+            const vRoll = rollAttribute(vigorScore);
             const healingRank = prev.skills.healing || 0;
             let healRankRoll = 0;
             for (let i = 0; i < healingRank; i++) {
@@ -2575,9 +2660,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           if (hasRations) {
             restDaysWithoutFood = 0;
             const vigorScore = updated.attributes.vigor || 1;
-            const vigorDieSize = getVigorDie(vigorScore);
             const rollDie = (s) => Math.floor(Math.random() * s) + 1;
-            const vRoll = rollDie(vigorDieSize);
+            const vRoll = rollAttribute(vigorScore);
             const healingRank = updated.skills.healing || 0;
             let healRankRoll = 0;
             for (let i = 0; i < healingRank; i++) {
@@ -3645,13 +3729,18 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     let isBandage = nameLower.includes('bandage');
     let isHealerKit = nameLower.includes("healer's kit") || nameLower.includes("healer's satchel");
     let isHerb = nameLower.includes('herb') || nameLower.includes('poultice');
+    let isPotion = nameLower.includes('potion') || nameLower.includes('elixir') || nameLower.includes('flask') || nameLower.includes('vial') || nameLower.includes('brew');
 
-    if (!isBandage && !isHealerKit && !isHerb) {
-      setApiError("This item cannot be used directly to heal.");
+    if (!isBandage && !isHealerKit && !isHerb && !isPotion) {
+      setApiError("This item cannot be used directly.");
       return;
     }
 
-    sendPlayerAction(`I use my ${itemName} to treat myself.`, apiKey, sandbox, null, 'moderate', 0, itemName);
+    let actionMsg = `I use my ${itemName}.`;
+    if (isPotion) {
+      actionMsg = `I drink my ${itemName}.`;
+    }
+    sendPlayerAction(actionMsg, apiKey, sandbox, null, 'moderate', 0, itemName);
   };
 
   const updateCharacterStats = (updater) => {
@@ -3913,6 +4002,67 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     });
   };
 
+  const getMoralityCombatModifiers = (enemy, playerMorality) => {
+    let hitBonus = 0;
+    let dmgBonus = 0;
+    if (!enemy) return { hitBonus, dmgBonus };
+
+    const name = (enemy.name || '').toLowerCase();
+    const role = (enemy.role || '').toLowerCase();
+    const desc = (enemy.desc || '').toLowerCase();
+    const specs = (enemy.special || '').toLowerCase();
+
+    // Check if target is evil/monstrous
+    const isEvil = name.includes('demon') || name.includes('cultist') || name.includes('wraith') ||
+                   name.includes('shadow') || name.includes('horror') || name.includes('undead') ||
+                   name.includes('skeleton') || name.includes('zombie') || name.includes('bandit') ||
+                   name.includes('thug') || name.includes('slave') || name.includes('fiend') ||
+                   name.includes('monster') || name.includes('malachar') || name.includes('ghoul') ||
+                   role.includes('demon') || role.includes('wraith') || role.includes('shadow') ||
+                   role.includes('cultist') || role.includes('bandit') || role.includes('warlock') ||
+                   desc.includes('demon') || desc.includes('cult') || desc.includes('evil') ||
+                   desc.includes('hostile') || desc.includes('monster') || desc.includes('corrupted') ||
+                   specs.includes('monstrous') || specs.includes('demon');
+
+    // Check if target is good/innocent/holy
+    const isGood = !isEvil && (
+      name.includes('priest') || name.includes('healer') || name.includes('monk') ||
+      name.includes('paladin') || name.includes('villager') || name.includes('cleric') ||
+      name.includes('aldric') || name.includes('knight') ||
+      role.includes('priest') || role.includes('cleric') || role.includes('guard') ||
+      role.includes('knight') || role.includes('keeper') || role.includes('healer') ||
+      desc.includes('holy') || desc.includes('innocent') || desc.includes('guardian') ||
+      desc.includes('ghostly knight') || desc.includes('protect')
+    );
+
+    if (playerMorality >= 15 && isEvil) {
+      if (playerMorality >= 45) {
+        hitBonus = 3;
+        dmgBonus = 3;
+      } else if (playerMorality >= 30) {
+        hitBonus = 2;
+        dmgBonus = 2;
+      } else {
+        hitBonus = 1;
+        dmgBonus = 1;
+      }
+    } else if (playerMorality <= -15 && isGood) {
+      const absM = Math.abs(playerMorality);
+      if (absM >= 45) {
+        hitBonus = 3;
+        dmgBonus = 3;
+      } else if (absM >= 30) {
+        hitBonus = 2;
+        dmgBonus = 2;
+      } else {
+        hitBonus = 1;
+        dmgBonus = 1;
+      }
+    }
+
+    return { hitBonus, dmgBonus };
+  };
+
   const executeCombatManeuver = async (maneuverType, apiKey, sandbox) => {
     if (!activeEnemy || isLoading) return;
 
@@ -3927,12 +4077,15 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     const enemyDodgeVal = activeEnemy.defenses?.dodge || activeEnemy.defenses?.block || "10";
     const enemyDefenseRoll = rollDiceExpression(enemyDodgeVal);
 
+    // Calculate morality bonuses
+    const { hitBonus, dmgBonus } = getMoralityCombatModifiers(activeEnemy, character.morality || 0);
+
     if (maneuverType === 'melee') {
       const rightItem = character.equipment?.hand_right;
       const weaponProps = getWeaponProperties(rightItem);
       
-      const attr1Roll = rollDie(getVigorDie(character.attributes.coordination || 1));
-      const attr2Roll = rollDie(getVigorDie(character.attributes.power || 1));
+      const attr1Roll = rollAttribute(character.attributes.coordination || 1);
+      const attr2Roll = rollAttribute(character.attributes.power || 1);
       
       let skillRoll = 0;
       const skillRanks = character.skills[weaponProps.skill] || 0;
@@ -3940,19 +4093,20 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         skillRoll += rollDie(2);
       }
 
-      const totalRoll = attr1Roll + attr2Roll + skillRoll + (nextRollModifier || 0);
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + (nextRollModifier || 0);
       const isHit = totalRoll >= enemyDefenseRoll;
       setNextRollModifier(0);
 
       actionDesc = `I strike the ${activeEnemy.name} with my ${weaponProps.name}!`;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression(weaponProps.dice);
+        const rawDmg = rollDiceExpression(weaponProps.dice) + dmgBonus;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
 
-        systemNotice = `[Combat Action: Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg}, Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : '';
+        systemNotice = `[Combat Action: Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
           systemNotice += " [combat_end]";
@@ -3960,7 +4114,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
         setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
       } else {
-        systemNotice = `[Combat Action: Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
+        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : '';
+        systemNotice = `[Combat Action: Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
       }
     } else if (maneuverType === 'ranged') {
       const rightItem = character.equipment?.hand_right;
@@ -3969,8 +4124,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const bowName = isCrossbow ? "Crossbow" : "Hunting Bow";
       const bowDice = isCrossbow ? "1d8" : "1d6";
 
-      const attr1Roll = rollDie(getVigorDie(character.attributes.coordination || 1));
-      const attr2Roll = rollDie(getVigorDie(character.attributes.coordination || 1));
+      const attr1Roll = rollAttribute(character.attributes.coordination || 1);
+      const attr2Roll = rollAttribute(character.attributes.coordination || 1);
       
       let skillRoll = 0;
       const skillRanks = character.skills.marksmanship || 0;
@@ -3978,7 +4133,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         skillRoll += rollDie(2);
       }
 
-      const totalRoll = attr1Roll + attr2Roll + skillRoll + (nextRollModifier || 0);
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + (nextRollModifier || 0);
       const isHit = totalRoll >= enemyDefenseRoll;
       setNextRollModifier(0);
 
@@ -3986,12 +4141,13 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       consumesArrow = true;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression(bowDice);
+        const rawDmg = rollDiceExpression(bowDice) + dmgBonus;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
 
-        systemNotice = `[Combat Action: Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg}, Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : '';
+        systemNotice = `[Combat Action: Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
           systemNotice += " [combat_end]";
@@ -3999,11 +4155,12 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
         setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
       } else {
-        systemNotice = `[Combat Action: Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
+        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : '';
+        systemNotice = `[Combat Action: Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
       }
     } else if (maneuverType === 'arcane_attack') {
-      const attr1Roll = rollDie(getVigorDie(character.attributes.attunement || 1));
-      const attr2Roll = rollDie(getVigorDie(character.attributes.intellect || 1));
+      const attr1Roll = rollAttribute(character.attributes.attunement || 1);
+      const attr2Roll = rollAttribute(character.attributes.intellect || 1);
       
       let skillRoll = 0;
       const skillRanks = character.skills.arcane_shaping || 0;
@@ -4011,7 +4168,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         skillRoll += rollDie(2);
       }
 
-      const totalRoll = attr1Roll + attr2Roll + skillRoll + (nextRollModifier || 0);
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + (nextRollModifier || 0);
       const isHit = totalRoll >= enemyDefenseRoll;
       setNextRollModifier(0);
 
@@ -4019,12 +4176,13 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       consumesArcaneSp = true;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression("2d6");
+        const rawDmg = rollDiceExpression("2d6") + dmgBonus;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
 
-        systemNotice = `[Combat Action: Arcane Spell Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Attunement: ${attr1Roll}, Intellect: ${attr2Roll}, Arcane Shaping: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Radiant Arcane Damage: ${rawDmg}, Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : '';
+        systemNotice = `[Combat Action: Arcane Spell Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Attunement: ${attr1Roll}, Intellect: ${attr2Roll}, Arcane Shaping: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Radiant Arcane Damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
           systemNotice += " [combat_end]";
@@ -4032,11 +4190,12 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
         setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
       } else {
-        systemNotice = `[Combat Action: Arcane Spell Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Attunement: ${attr1Roll}, Intellect: ${attr2Roll}, Arcane Shaping: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
+        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : '';
+        systemNotice = `[Combat Action: Arcane Spell Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Attunement: ${attr1Roll}, Intellect: ${attr2Roll}, Arcane Shaping: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
       }
     } else if (maneuverType === 'divine_attack') {
-      const attr1Roll = rollDie(getVigorDie(character.attributes.empathy || 1));
-      const attr2Roll = rollDie(getVigorDie(character.attributes.willpower || 1));
+      const attr1Roll = rollAttribute(character.attributes.empathy || 1);
+      const attr2Roll = rollAttribute(character.attributes.willpower || 1);
       
       let skillRoll = 0;
       const skillRanks = character.skills.divine_manifestation || 0;
@@ -4044,7 +4203,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         skillRoll += rollDie(2);
       }
 
-      const totalRoll = attr1Roll + attr2Roll + skillRoll + (nextRollModifier || 0);
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + (nextRollModifier || 0);
       const isHit = totalRoll >= enemyDefenseRoll;
       setNextRollModifier(0);
 
@@ -4052,12 +4211,13 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       consumesDivineSp = true;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression("2d6");
+        const rawDmg = rollDiceExpression("2d6") + dmgBonus;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
 
-        systemNotice = `[Combat Action: Divine Smiting Spell vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Empathy: ${attr1Roll}, Willpower: ${attr2Roll}, Divine Manifestation: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Holy radiant damage: ${rawDmg}, Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : '';
+        systemNotice = `[Combat Action: Divine Smiting Spell vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Empathy: ${attr1Roll}, Willpower: ${attr2Roll}, Divine Manifestation: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Holy radiant damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
           systemNotice += " [combat_end]";
@@ -4140,12 +4300,15 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     const enemyDodgeVal = activeEnemy.defenses?.dodge || activeEnemy.defenses?.block || "10";
     const enemyDefenseRoll = rollDiceExpression(enemyDodgeVal);
 
+    // Calculate morality bonuses
+    const { hitBonus, dmgBonus } = getMoralityCombatModifiers(activeEnemy, character.morality || 0);
+
     if (counterType === 'melee') {
       const rightItem = character.equipment?.hand_right;
       const weaponProps = getWeaponProperties(rightItem);
       
-      const attr1Roll = rollDie(getVigorDie(character.attributes.coordination || 1));
-      const attr2Roll = rollDie(getVigorDie(character.attributes.power || 1));
+      const attr1Roll = rollAttribute(character.attributes.coordination || 1);
+      const attr2Roll = rollAttribute(character.attributes.power || 1);
       
       let skillRoll = 0;
       const skillRanks = character.skills[weaponProps.skill] || 0;
@@ -4153,18 +4316,19 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         skillRoll += rollDie(2);
       }
 
-      const totalRoll = attr1Roll + attr2Roll + skillRoll;
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus;
       const isHit = totalRoll >= enemyDefenseRoll;
 
       actionDesc = `*Reacting instantly, I launch a Melee Counter-Strike at the ${activeEnemy.name} with my ${weaponProps.name}!*`;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression(weaponProps.dice);
+        const rawDmg = rollDiceExpression(weaponProps.dice) + dmgBonus;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
 
-        systemNotice = `[Combat Action: Opportunity Counter-Attack! Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg}, Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : '';
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
           systemNotice += " [combat_end]";
@@ -4172,7 +4336,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
         setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
       } else {
-        systemNotice = `[Combat Action: Opportunity Counter-Attack! Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
+        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : '';
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
       }
     } else if (counterType === 'ranged') {
       const rightItem = character.equipment?.hand_right;
@@ -4181,8 +4346,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const bowName = isCrossbow ? "Crossbow" : "Hunting Bow";
       const bowDice = isCrossbow ? "1d8" : "1d6";
 
-      const attr1Roll = rollDie(getVigorDie(character.attributes.coordination || 1));
-      const attr2Roll = rollDie(getVigorDie(character.attributes.coordination || 1));
+      const attr1Roll = rollAttribute(character.attributes.coordination || 1);
+      const attr2Roll = rollAttribute(character.attributes.coordination || 1);
       
       let skillRoll = 0;
       const skillRanks = character.skills.marksmanship || 0;
@@ -4190,18 +4355,19 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         skillRoll += rollDie(2);
       }
 
-      const totalRoll = attr1Roll + attr2Roll + skillRoll;
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus;
       const isHit = totalRoll >= enemyDefenseRoll;
 
       actionDesc = `*Seizing the opening, I launch a Ranged Counter-Strike at the ${activeEnemy.name} with my ${bowName}!*`;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression(bowDice);
+        const rawDmg = rollDiceExpression(bowDice) + dmgBonus;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
 
-        systemNotice = `[Combat Action: Opportunity Counter-Attack! Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg}, Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : '';
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
           systemNotice += " [combat_end]";
@@ -4209,11 +4375,12 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
         setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
       } else {
-        systemNotice = `[Combat Action: Opportunity Counter-Attack! Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
+        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : '';
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
       }
     } else if (counterType === 'arcane') {
-      const attr1Roll = rollDie(getVigorDie(character.attributes.attunement || 1));
-      const attr2Roll = rollDie(getVigorDie(character.attributes.intellect || 1));
+      const attr1Roll = rollAttribute(character.attributes.attunement || 1);
+      const attr2Roll = rollAttribute(character.attributes.intellect || 1);
       
       let skillRoll = 0;
       const skillRanks = character.skills.arcane_shaping || 0;
@@ -4221,18 +4388,19 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         skillRoll += rollDie(2);
       }
 
-      const totalRoll = attr1Roll + attr2Roll + skillRoll;
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus;
       const isHit = totalRoll >= enemyDefenseRoll;
 
       actionDesc = `*In a flash of light, I unleash an Arcane Counter-Strike at the ${activeEnemy.name}!*`;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression("2d6");
+        const rawDmg = rollDiceExpression("2d6") + dmgBonus;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
 
-        systemNotice = `[Combat Action: Opportunity Counter-Attack! Arcane Counter-Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Attunement: ${attr1Roll}, Intellect: ${attr2Roll}, Arcane Shaping: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Radiant Arcane Damage: ${rawDmg}, Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : '';
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Arcane Counter-Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Attunement: ${attr1Roll}, Intellect: ${attr2Roll}, Arcane Shaping: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Radiant Arcane Damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
           systemNotice += " [combat_end]";
@@ -4240,11 +4408,12 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
         setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
       } else {
-        systemNotice = `[Combat Action: Opportunity Counter-Attack! Arcane Counter-Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Attunement: ${attr1Roll}, Intellect: ${attr2Roll}, Arcane Shaping: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
+        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : '';
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Arcane Counter-Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Attunement: ${attr1Roll}, Intellect: ${attr2Roll}, Arcane Shaping: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
       }
     } else if (counterType === 'divine') {
-      const attr1Roll = rollDie(getVigorDie(character.attributes.empathy || 1));
-      const attr2Roll = rollDie(getVigorDie(character.attributes.willpower || 1));
+      const attr1Roll = rollAttribute(character.attributes.empathy || 1);
+      const attr2Roll = rollAttribute(character.attributes.willpower || 1);
       
       let skillRoll = 0;
       const skillRanks = character.skills.divine_manifestation || 0;
@@ -4252,18 +4421,19 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         skillRoll += rollDie(2);
       }
 
-      const totalRoll = attr1Roll + attr2Roll + skillRoll;
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus;
       const isHit = totalRoll >= enemyDefenseRoll;
 
       actionDesc = `*With holy wrath, I strike back with a Divine Counter-Strike at the ${activeEnemy.name}!*`;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression("2d6");
+        const rawDmg = rollDiceExpression("2d6") + dmgBonus;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
 
-        systemNotice = `[Combat Action: Opportunity Counter-Attack! Divine Counter-Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Empathy: ${attr1Roll}, Willpower: ${attr2Roll}, Divine Manifestation: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Holy radiant damage: ${rawDmg}, Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : '';
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Divine Counter-Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Empathy: ${attr1Roll}, Willpower: ${attr2Roll}, Divine Manifestation: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Holy radiant damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
           systemNotice += " [combat_end]";
@@ -4271,7 +4441,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
         setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
       } else {
-        systemNotice = `[Combat Action: Opportunity Counter-Attack! Divine Counter-Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Empathy: ${attr1Roll}, Willpower: ${attr2Roll}, Divine Manifestation: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
+        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : '';
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Divine Counter-Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Empathy: ${attr1Roll}, Willpower: ${attr2Roll}, Divine Manifestation: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
       }
     }
 

@@ -80,7 +80,12 @@ function App() {
     adjustMerchantRelationship,
     buyTavernService,
     initializeMerchantStock,
-    trainSkillWithMerchant
+    trainSkillWithMerchant,
+    activeEnemy,
+    counterOpportunities,
+    combatStance,
+    executeCombatManeuver,
+    executeCounterAttack
   } = useGameState();
 
   const [screen, setScreen] = useState('splash');

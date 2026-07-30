@@ -671,8 +671,8 @@ export default function CharacterCreation({ onCreateCharacter, onBack, layoutMod
               </div>
             </div>
 
-            <p className="text-4xs text-slate-550 leading-relaxed mt-4 pt-4 border-t border-slate-850/60">
-              *You can select the same profession multiple times to stack and concentrate starting skill bonuses.
+            <p className="text-4xs text-slate-550 leading-relaxed mt-4 pt-4 border-t border-slate-850/60 italic">
+              You can select the same profession multiple times to stack and concentrate starting skill bonuses.
             </p>
           </div>
 
@@ -753,8 +753,8 @@ export default function CharacterCreation({ onCreateCharacter, onBack, layoutMod
               </div>
             </div>
 
-            <p className="text-4xs text-slate-550 leading-relaxed mt-4 pt-4 border-t border-slate-850/60">
-              *Hobby points are free-spend points. They can be added to any skill to increase it by `+1` (cannot exceed 5).
+            <p className="text-4xs text-slate-550 leading-relaxed mt-4 pt-4 border-t border-slate-850/60 italic">
+              Hobby points are free-spend points. They can be added to any skill to increase it by +1 (cannot exceed 5).
             </p>
           </div>
 

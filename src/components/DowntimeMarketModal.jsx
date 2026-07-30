@@ -147,8 +147,38 @@ export default function DowntimeMarketModal({
 
   // Dynamic calculations
   const calculateBuyPrice = (itemName, baseCp) => {
+    const isShady = selectedMerchant && (
+      (selectedMerchant.name || '').toLowerCase().includes('smuggler') ||
+      (selectedMerchant.name || '').toLowerCase().includes('slave') ||
+      (selectedMerchant.role || '').toLowerCase().includes('fence') ||
+      (selectedMerchant.role || '').toLowerCase().includes('smuggler') ||
+      (selectedMerchant.role || '').toLowerCase().includes('outlaw') ||
+      (selectedMerchant.role || '').toLowerCase().includes('black market') ||
+      (selectedMerchant.notes || '').toLowerCase().includes('shady') ||
+      (selectedMerchant.notes || '').toLowerCase().includes('stolen') ||
+      (selectedMerchant.name || '').toLowerCase().includes('horg') ||
+      (selectedMerchant.name || '').toLowerCase().includes('pete')
+    );
+
+    const morality = character.morality || 0;
+    let moralityFactor = 0; // positive is discount, negative is surcharge/penalty
+    if (isShady) {
+      if (morality <= -30) {
+        moralityFactor = Math.abs(morality) * 0.0015; // up to 15% discount for evil
+      } else if (morality >= 30) {
+        moralityFactor = -morality * 0.002; // up to 20% surcharge for good
+      }
+    } else {
+      if (morality >= 30) {
+        moralityFactor = morality * 0.0015; // up to 15% discount for good
+      } else if (morality <= -30) {
+        moralityFactor = -Math.abs(morality) * 0.002; // up to 20% surcharge for evil
+      }
+    }
+
     // Buy price modifier is -0.2% per relationship point
-    const discountFactor = 1 - (currentRelation * 0.002);
+    // Combine relations discount factor and morality factor
+    const discountFactor = (1 - (currentRelation * 0.002)) - moralityFactor;
     let finalPrice = Math.max(1, Math.round(baseCp * discountFactor));
     
     // Clamp to ensure it doesn't fall below sell price
@@ -160,9 +190,38 @@ export default function DowntimeMarketModal({
   };
 
   const calculateSellPrice = (itemName, baseCp) => {
+    const isShady = selectedMerchant && (
+      (selectedMerchant.name || '').toLowerCase().includes('smuggler') ||
+      (selectedMerchant.name || '').toLowerCase().includes('slave') ||
+      (selectedMerchant.role || '').toLowerCase().includes('fence') ||
+      (selectedMerchant.role || '').toLowerCase().includes('smuggler') ||
+      (selectedMerchant.role || '').toLowerCase().includes('outlaw') ||
+      (selectedMerchant.role || '').toLowerCase().includes('black market') ||
+      (selectedMerchant.notes || '').toLowerCase().includes('shady') ||
+      (selectedMerchant.notes || '').toLowerCase().includes('stolen') ||
+      (selectedMerchant.name || '').toLowerCase().includes('horg') ||
+      (selectedMerchant.name || '').toLowerCase().includes('pete')
+    );
+
+    const morality = character.morality || 0;
+    let moralityFactor = 0; // positive increases sell rate, negative decreases sell rate
+    if (isShady) {
+      if (morality <= -30) {
+        moralityFactor = Math.abs(morality) * 0.0015; // up to +15% sell price for evil
+      } else if (morality >= 30) {
+        moralityFactor = -morality * 0.002; // up to -20% sell price for good
+      }
+    } else {
+      if (morality >= 30) {
+        moralityFactor = morality * 0.0015; // up to +15% sell price for good
+      } else if (morality <= -30) {
+        moralityFactor = -Math.abs(morality) * 0.002; // up to -20% sell price for evil
+      }
+    }
+
     // Base sell rate is 50%
     // Relation modifier is +0.25% per relationship point
-    const relationFactor = 0.50 + (currentRelation * 0.0025);
+    const relationFactor = 0.50 + (currentRelation * 0.0025) + moralityFactor;
     
     // Decay factors
     const mercDecayMap = character.localEconomy?.decay?.[selectedMerchant?.name] || {};
@@ -596,7 +655,36 @@ export default function DowntimeMarketModal({
                                     <div className="text-[10px] text-slate-400 mt-0.5 space-y-0.5">
                                       <div>Listed Value: {formatCoins(baseCost)}</div>
                                       {(() => {
-                                        const relationFactor = 0.50 + (currentRelation * 0.0025);
+                                        const isShady = selectedMerchant && (
+                                          (selectedMerchant.name || '').toLowerCase().includes('smuggler') ||
+                                          (selectedMerchant.name || '').toLowerCase().includes('slave') ||
+                                          (selectedMerchant.role || '').toLowerCase().includes('fence') ||
+                                          (selectedMerchant.role || '').toLowerCase().includes('smuggler') ||
+                                          (selectedMerchant.role || '').toLowerCase().includes('outlaw') ||
+                                          (selectedMerchant.role || '').toLowerCase().includes('black market') ||
+                                          (selectedMerchant.notes || '').toLowerCase().includes('shady') ||
+                                          (selectedMerchant.notes || '').toLowerCase().includes('stolen') ||
+                                          (selectedMerchant.name || '').toLowerCase().includes('horg') ||
+                                          (selectedMerchant.name || '').toLowerCase().includes('pete')
+                                        );
+
+                                        const morality = character.morality || 0;
+                                        let moralityFactor = 0;
+                                        if (isShady) {
+                                          if (morality <= -30) {
+                                            moralityFactor = Math.abs(morality) * 0.0015;
+                                          } else if (morality >= 30) {
+                                            moralityFactor = -morality * 0.002;
+                                          }
+                                        } else {
+                                          if (morality >= 30) {
+                                            moralityFactor = morality * 0.0015;
+                                          } else if (morality <= -30) {
+                                            moralityFactor = -Math.abs(morality) * 0.002;
+                                          }
+                                        }
+
+                                        const relationFactor = 0.50 + (currentRelation * 0.0025) + moralityFactor;
                                         const mercDecayMap = character.localEconomy?.decay?.[selectedMerchant?.name] || {};
                                         const itemDecayCount = mercDecayMap[invItem] || 0;
                                         const regDecayMap = character.localEconomy?.regionDecay?.[selectedHubId] || {};
@@ -610,6 +698,11 @@ export default function DowntimeMarketModal({
                                             {currentRelation !== 0 && (
                                               <span className={currentRelation > 0 ? "text-emerald-500/80" : "text-red-500/80"}>
                                                 Rep: {currentRelation > 0 ? '+' : ''}{Math.round(currentRelation * 0.25)}%
+                                              </span>
+                                            )}
+                                            {moralityFactor !== 0 && (
+                                              <span className={moralityFactor > 0 ? "text-emerald-500/80" : "text-red-500/80"}>
+                                                Morality: {moralityFactor > 0 ? '+' : ''}{Math.round(moralityFactor * 100)}%
                                               </span>
                                             )}
                                             {(itemDecayCount > 0 || itemRegionDecayCount > 0) && (

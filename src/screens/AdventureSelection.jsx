@@ -637,13 +637,19 @@ export default function AdventureSelection({
 
                         <div>
                           <span className="text-4xs uppercase tracking-widest text-amber-500/80 font-bold block mb-1">Loot & Rewards</span>
-                          <div className="flex flex-wrap gap-1">
-                            {selectedAdventure.items.slice(0, 4).map((it, idx) => (
-                              <span key={idx} className="px-1.5 py-0.5 bg-slate-955 border border-slate-800 text-slate-300 rounded text-5xs">
-                                {it}
-                              </span>
-                            ))}
-                          </div>
+                          {isCompleted ? (
+                            <div className="flex flex-wrap gap-1">
+                              {selectedAdventure.items.slice(0, 4).map((it, idx) => (
+                                <span key={idx} className="px-1.5 py-0.5 bg-slate-955 border border-slate-800 text-slate-300 rounded text-5xs">
+                                  {it}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-5xs text-slate-500 italic block">
+                              🔒 Unlocked upon first quest completion.
+                            </span>
+                          )}
                         </div>
                       </div>
                     )}
@@ -668,11 +674,29 @@ export default function AdventureSelection({
                         </button>
                         <button
                           onClick={() => {
-                            if (window.confirm("Are you sure you want to replay the campaign? This will reset your story log for this area.")) {
+                            const isSandbox = sandboxMode;
+                            const hasHourglass = character?.inventory?.some(item => item.toLowerCase().includes("chronicle hourglass"));
+                            if (!isSandbox && !hasHourglass) {
+                              alert("You need a Chronicle Hourglass in your inventory to replay a completed quest. You can purchase one from any Lore Keeper in the Downtime Market.");
+                              return;
+                            }
+                            if (window.confirm("Are you sure you want to replay the campaign? This will reset your story log for this area." + (isSandbox ? "" : " This will consume 1 Chronicle Hourglass from your inventory."))) {
+                              if (!isSandbox) {
+                                if (onUpdateCharacterStats) {
+                                  onUpdateCharacterStats(prev => {
+                                    const updatedInv = [...(prev.inventory || [])];
+                                    const idx = updatedInv.findIndex(item => item.toLowerCase().includes("chronicle hourglass"));
+                                    if (idx !== -1) {
+                                      updatedInv.splice(idx, 1);
+                                    }
+                                    return { ...prev, inventory: updatedInv };
+                                  });
+                                }
+                              }
                               handleEmbarkWithWarning(selectedAdventure.id, false);
                             }
                           }}
-                          className="py-2.5 bg-slate-955 border border-slate-850 hover:border-amber-500/40 text-slate-350 hover:text-amber-400 rounded text-3xs font-bold uppercase tracking-wider cursor-pointer text-center transition-all"
+                          className="py-2.5 bg-slate-955 border border-slate-850 hover:border-amber-500/40 text-slate-355 hover:text-amber-400 rounded text-3xs font-bold uppercase tracking-wider cursor-pointer text-center transition-all"
                         >
                           🔁 Replay Quest
                         </button>

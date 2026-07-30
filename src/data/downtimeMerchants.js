@@ -296,7 +296,8 @@ export const MERCHANT_POOLS = {
   ],
   lore_keeper: [
     { item: "Common Scroll", baseChance: 0.7, maxStock: 3 },
-    { item: "Rare Scroll", baseChance: 0.3, maxStock: 1 }
+    { item: "Rare Scroll", baseChance: 0.3, maxStock: 1 },
+    { item: "Chronicle Hourglass", baseChance: 1.0, maxStock: 1 }
   ],
   jeweler: [
     { item: "Silver Ring", baseChance: 0.8, maxStock: 2 },
