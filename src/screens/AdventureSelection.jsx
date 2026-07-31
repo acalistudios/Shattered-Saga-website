@@ -102,6 +102,11 @@ export default function AdventureSelection({
   const isDesktopLayout = layoutMode === 'desktop';
   const completedAdventures = character?.completed_adventures || [];
   
+  const currentHp = character?.stats?.hp || 10;
+  const maxHp = character?.stats?.maxHp || 10;
+  const minTravelHp = Math.min(maxHp, Math.max(10, Math.floor(maxHp * 0.5)));
+  const isHealthSufficientForTravel = currentHp >= minTravelHp;
+
   const [viewMode, setViewMode] = useState('map'); // 'map' or 'list'
   const [mapLevel, setMapLevel] = useState('world'); // 'world' or 'region1'
   const [selectedRegionId, setSelectedRegionId] = useState('region1');
@@ -456,7 +461,7 @@ export default function AdventureSelection({
                       selectRegion(reg.id);
                     }}
                     onDoubleClick={() => {
-                      if (storyUnlocked && travelUnlocked) {
+                      if (storyUnlocked && travelUnlocked && isHealthSufficientForTravel) {
                         setMapLevel(reg.id);
                       }
                     }}
@@ -588,12 +593,19 @@ export default function AdventureSelection({
                             </div>
                           ) : (
                             <div className="space-y-3 mt-4">
+                              {!isHealthSufficientForTravel && (
+                                <div className="p-3 bg-red-955/20 border border-red-500/25 text-red-300 rounded-lg text-3xs leading-relaxed">
+                                  <span className="font-extrabold block mb-1">⚠️ WOUNDED / EXHAUSTED</span>
+                                  You are too weak to travel between regions. You must have at least <strong className="text-red-200">{minTravelHp} HP</strong> (current: {currentHp} HP). Stay at Dermot's Hearthstone Inn (or other taverns) or use healing herbs/poultices to recover.
+                                </div>
+                              )}
+
                               {/* Option A: Item Bypass */}
                               <button
                                 onClick={() => handleTransitItemBypass(challenge)}
-                                disabled={!hasItem && !sandboxMode}
+                                disabled={!isHealthSufficientForTravel || (!hasItem && !sandboxMode)}
                                 className={`w-full py-2 px-3 border rounded text-3xs font-bold flex flex-col items-center transition-all ${
-                                  (hasItem || sandboxMode) 
+                                  isHealthSufficientForTravel && (hasItem || sandboxMode) 
                                     ? 'border-emerald-600 bg-emerald-950/40 text-emerald-200 hover:bg-emerald-900/40 cursor-pointer' 
                                     : 'border-slate-850 bg-slate-950 text-slate-500 cursor-not-allowed'
                                 }`}
@@ -607,7 +619,12 @@ export default function AdventureSelection({
                               {/* Option B: Skill Roll Check */}
                               <button
                                 onClick={() => handleTransitSkillCheck(challenge)}
-                                className="w-full py-2 px-3 border border-amber-600 bg-amber-955/20 hover:bg-amber-900/30 text-amber-200 rounded text-3xs font-bold flex flex-col items-center cursor-pointer transition-all"
+                                disabled={!isHealthSufficientForTravel}
+                                className={`w-full py-2 px-3 border rounded text-3xs font-bold flex flex-col items-center transition-all ${
+                                  isHealthSufficientForTravel
+                                    ? 'border-amber-600 bg-amber-955/20 hover:bg-amber-900/30 text-amber-200 cursor-pointer'
+                                    : 'border-slate-850 bg-slate-950 text-slate-500 cursor-not-allowed'
+                                }`}
                               >
                                 <span className="uppercase tracking-widest font-extrabold">
                                   Attempt Attribute Check
@@ -699,7 +716,20 @@ export default function AdventureSelection({
 
                         {/* Actions Block */}
                         <div className="mt-4 pt-4 border-t border-slate-800/80">
-                          {storyUnlocked && travelUnlocked ? (
+                          {!isHealthSufficientForTravel && storyUnlocked ? (
+                            <>
+                              <div className="p-3 bg-red-955/20 border border-red-500/25 text-red-300 rounded-lg text-3xs mb-3 leading-relaxed">
+                                <span className="font-extrabold block mb-1">⚠️ WOUNDED / EXHAUSTED</span>
+                                You are too weak to travel between regions. You must have at least <strong className="text-red-200">{minTravelHp} HP</strong> (current: {currentHp} HP). Stay at Dermot's Hearthstone Inn (or other taverns) or use healing herbs/poultices to recover.
+                              </div>
+                              <button
+                                disabled
+                                className="w-full py-2 bg-slate-950 border border-slate-850 text-slate-500 rounded text-3xs font-extrabold uppercase tracking-widest cursor-not-allowed"
+                              >
+                                Rest Required
+                              </button>
+                            </>
+                          ) : storyUnlocked && travelUnlocked ? (
                             <button
                               onClick={() => setMapLevel(selectedRegion.id)}
                               className="w-full py-2.5 bg-gradient-to-r from-amber-600 to-amber-550 hover:from-amber-500 hover:to-amber-450 text-slate-950 rounded text-3xs font-extrabold uppercase tracking-widest cursor-pointer shadow-lg hover:shadow-amber-500/10 transition-all text-center"
