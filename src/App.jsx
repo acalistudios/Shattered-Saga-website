@@ -252,7 +252,7 @@ function App() {
       window.dispatchEvent(new Event('shattered_auth_update'));
     } else {
       // Real Supabase OAuth Redirect
-      const redirectTo = window.location.origin;
+      const redirectTo = window.location.origin + window.location.pathname;
       const authorizeUrl = `${supabaseUrl}/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(redirectTo)}&apikey=${supabaseAnonKey}`;
       window.location.href = authorizeUrl;
     }

@@ -88,7 +88,7 @@ export default function Splash({
     }
     
     try {
-      const redirectTo = window.location.origin;
+      const redirectTo = window.location.origin + window.location.pathname;
       const res = await fetch(`${supabaseUrl}/auth/v1/otp`, {
         method: 'POST',
         headers: {
