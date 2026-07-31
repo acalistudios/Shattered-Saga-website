@@ -88,3 +88,36 @@ export const MAP_IMAGES = {
   region3: '/images/maps/v2/region3_frostfire_glacier.png',
   region4: '/images/maps/v2/region4_sapphire_deep.png'
 };
+
+export const REGION_TRANSIT_CHALLENGES = {
+  region2: {
+    name: "The Boiling Sea Crossing",
+    peril: "To reach Ignis Ridge, you must cross the Boiling Sea—a volatile expanse of superheated steam and shifting tectonic currents. You can secure safe passage with a Boiling Sea Charter from the Lore Keeper, or test your Coordination and Willpower to navigate the planar heat vents.",
+    item: "Boiling Sea Charter",
+    attributes: ["coordination", "willpower"],
+    difficulty: 12,
+    failDamage: 4,
+    successDesc: "With masterful focus, you pilot your vessel through the roaring steam vents and lava flows. Ignis Ridge lies ahead!",
+    failDesc: "A burst of scalding steam overwhelms the deck. You take 4 burns (HP damage) and are forced to retreat."
+  },
+  region3: {
+    name: "The Frostfire Tundra Descent",
+    peril: "The approach to Frostfire Glacier is locked by absolute-zero blizzards that freeze skin in seconds. An Everwarm Elixir from the Apothecary will keep you warm, or you can test your Vigor and Willpower to withstand the biting frost winds.",
+    item: "Everwarm Elixir",
+    attributes: ["vigor", "willpower"],
+    difficulty: 12,
+    failDamage: 4,
+    successDesc: "You steel yourself against the absolute zero winds, pushing forward until the glacial wall rises before you. Frostfire Glacier is unlocked!",
+    failDesc: "The freezing cold penetrates your defenses, leaving you shivering and frostbitten. You take 4 frost damage and retreat."
+  },
+  region4: {
+    name: "The Siren Reef Depths",
+    peril: "The western waters of the Sapphire Deep are guarded by the hypnotic songs of ancient sirens. A Siren Glass Charm from the Jeweler will shatter their control, or you can test your Intellect and Willpower to resist their mental calling.",
+    item: "Siren Glass Charm",
+    attributes: ["intellect", "willpower"],
+    difficulty: 12,
+    failDamage: 4,
+    successDesc: "Your mental fortitude holds strong against the beautiful, haunting voices. The Siren Reef is crossed. The Sapphire Deep is yours to explore!",
+    failDesc: "The hypnotic song clouds your mind, drawing you toward the razor reefs. You take 4 psychic damage breaking the trance."
+  }
+};

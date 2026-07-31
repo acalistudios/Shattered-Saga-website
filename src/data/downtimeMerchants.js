@@ -292,17 +292,20 @@ export const MERCHANT_POOLS = {
     { item: "Poultice", baseChance: 0.7, maxStock: 2 },
     { item: "Holy Water", baseChance: 0.5, maxStock: 2 },
     { item: "Acid Flask", baseChance: 0.4, maxStock: 2 },
-    { item: "Minor Potion or Elixir", baseChance: 0.3, maxStock: 1 }
+    { item: "Minor Potion or Elixir", baseChance: 0.3, maxStock: 1 },
+    { item: "Everwarm Elixir", baseChance: 1.0, maxStock: 1 }
   ],
   lore_keeper: [
     { item: "Common Scroll", baseChance: 0.7, maxStock: 3 },
     { item: "Rare Scroll", baseChance: 0.3, maxStock: 1 },
-    { item: "Chronicle Hourglass", baseChance: 1.0, maxStock: 1 }
+    { item: "Chronicle Hourglass", baseChance: 1.0, maxStock: 1 },
+    { item: "Boiling Sea Charter", baseChance: 1.0, maxStock: 1 }
   ],
   jeweler: [
     { item: "Silver Ring", baseChance: 0.8, maxStock: 2 },
     { item: "Gold Ring", baseChance: 0.4, maxStock: 1 },
-    { item: "Signet Ring", baseChance: 0.2, maxStock: 1 }
+    { item: "Signet Ring", baseChance: 0.2, maxStock: 1 },
+    { item: "Siren Glass Charm", baseChance: 1.0, maxStock: 1 }
   ]
 };
 

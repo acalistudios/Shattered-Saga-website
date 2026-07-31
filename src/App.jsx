@@ -85,7 +85,9 @@ function App() {
     counterOpportunities,
     combatStance,
     executeCombatManeuver,
-    executeCounterAttack
+    executeCounterAttack,
+    unlockRegion,
+    consumeItem
   } = useGameState();
 
   const [screen, setScreen] = useState('splash');
@@ -542,6 +544,8 @@ function App() {
             onUpdateCharacterStats={updateCharacterStats}
             sandboxMode={settings.sandboxMode || false}
             onOpenDowntimeMarket={() => setIsDowntimeMarketOpen(true)}
+            unlockRegion={unlockRegion}
+            consumeItem={consumeItem}
           />
         )}
 

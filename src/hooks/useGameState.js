@@ -369,6 +369,7 @@ const DEFAULT_CHARACTER = {
   active_quests: ['Explore the High Fantasy Realm'],
   completed_quests: [],
   completed_adventures: [],
+  unlocked_regions: ['region1'],
   is_free_roaming: false,
   equipment: {
     head: null,
@@ -448,6 +449,7 @@ export function validateCharacterSchema(raw) {
     inventory: Array.isArray(raw.inventory) ? raw.inventory : DEFAULT_CHARACTER.inventory,
     active_quests: Array.isArray(raw.active_quests) ? raw.active_quests : DEFAULT_CHARACTER.active_quests,
     completed_quests: Array.isArray(raw.completed_quests) ? raw.completed_quests : DEFAULT_CHARACTER.completed_quests,
+    unlocked_regions: Array.isArray(raw.unlocked_regions) ? raw.unlocked_regions : DEFAULT_CHARACTER.unlocked_regions,
     localEconomy: {
       ...DEFAULT_CHARACTER.localEconomy,
       ...(raw.localEconomy || {})
@@ -3751,6 +3753,32 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     });
   };
 
+  const unlockRegion = (regionId) => {
+    updateCharacterStats((prev) => {
+      const nextRegions = [...(prev.unlocked_regions || ['region1'])];
+      if (!nextRegions.includes(regionId)) {
+        nextRegions.push(regionId);
+      }
+      return {
+        ...prev,
+        unlocked_regions: nextRegions
+      };
+    });
+  };
+
+  const consumeItem = (itemName) => {
+    updateCharacterStats((prev) => {
+      const idx = prev.inventory.indexOf(itemName);
+      if (idx === -1) return prev;
+      const nextInventory = [...prev.inventory];
+      nextInventory.splice(idx, 1);
+      return {
+        ...prev,
+        inventory: nextInventory
+      };
+    });
+  };
+
   const triggerPriceRecovery = () => {
     updateCharacterStats((prev) => {
       return applyPriceRecovery(prev);
@@ -4516,6 +4544,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     combatStance,
     setCombatStance,
     executeCombatManeuver,
-    executeCounterAttack
+    executeCounterAttack,
+    unlockRegion,
+    consumeItem
   };
 }

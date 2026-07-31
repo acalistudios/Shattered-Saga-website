@@ -60,7 +60,10 @@ export const ITEMS_DATABASE = {
   'Water-Breathing Elixir': { weight: 0.5, volume: 0.5 },
   'Freezing Venom Vial': { weight: 0.5, volume: 0.5 },
   'Alchemical Acid Flask': { weight: 1.0, volume: 1.0 },
-  'Chronicle Hourglass': { weight: 1.0, volume: 1.0, desc: 'A magical hourglass that allows you to replay a completed quest. Consumed on use.' }
+  'Chronicle Hourglass': { weight: 1.0, volume: 1.0, desc: 'A magical hourglass that allows you to replay a completed quest. Consumed on use.' },
+  'Boiling Sea Charter': { weight: 0.1, volume: 0.1, desc: 'A maritime chart containing navigation offsets to sail safely through the Boiling Sea planar storms. Consumed on use.' },
+  'Everwarm Elixir': { weight: 0.5, volume: 0.5, desc: 'An alchemical elixir that raises body temperature, shielding the drinker from absolute-zero freezing winds. Consumed on use.' },
+  'Siren Glass Charm': { weight: 0.2, volume: 0.2, desc: 'A protective elven charm that resonates to disrupt the hypnotic frequencies of Siren songs. Consumed on use.' }
 };
 
 // Clean name helper (e.g. "Rations (5)" -> "Rations")

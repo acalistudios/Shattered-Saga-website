@@ -4,10 +4,9 @@ import { GMS } from '../data/gms';
 import { printCharacterSheet } from '../utils/print';
 import { getItemDetails } from '../utils/items';
 import { coinValue } from '../data/economy';
-import { WORLD_REGIONS, MAP_NODES, MAP_CONNECTIONS, MAP_IMAGES } from '../data/cartography';
+import { WORLD_REGIONS, MAP_NODES, MAP_CONNECTIONS, MAP_IMAGES, REGION_TRANSIT_CHALLENGES } from '../data/cartography';
 
-
-const isRegionUnlocked = (regionId, completedAdventures = []) => {
+const isRegionStoryUnlocked = (regionId, completedAdventures = []) => {
   if (regionId === 'region1') return true;
   if (regionId === 'region2') {
     return completedAdventures.includes('saltblood_mines');
@@ -19,6 +18,12 @@ const isRegionUnlocked = (regionId, completedAdventures = []) => {
     return completedAdventures.includes('sunken_spire') || completedAdventures.includes('clockwork_conservatory');
   }
   return false;
+};
+
+const isRegionUnlocked = (regionId, completedAdventures = [], character = {}) => {
+  const storyUnlocked = isRegionStoryUnlocked(regionId, completedAdventures);
+  if (!storyUnlocked) return false;
+  return (character.unlocked_regions || ['region1']).includes(regionId) || regionId === 'region1';
 };
 
 // Helper to determine if a node is unlocked based on completed adventures
@@ -90,7 +95,9 @@ export default function AdventureSelection({
   onUpdateStrongholdChest,
   onUpdateCharacterStats,
   sandboxMode = false,
-  onOpenDowntimeMarket
+  onOpenDowntimeMarket,
+  unlockRegion,
+  consumeItem
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
   const completedAdventures = character?.completed_adventures || [];
@@ -99,6 +106,79 @@ export default function AdventureSelection({
   const [mapLevel, setMapLevel] = useState('world'); // 'world' or 'region1'
   const [selectedRegionId, setSelectedRegionId] = useState('region1');
   const [selectedNodeId, setSelectedNodeId] = useState('ashveil_keep');
+
+  const [activeTransitChallengeId, setActiveTransitChallengeId] = useState(null); // 'region2' | 'region3' | 'region4'
+  const [transitRollResult, setTransitRollResult] = useState(null);
+  const [transitMessage, setTransitMessage] = useState('');
+
+  const rollDie = (s) => Math.floor(Math.random() * s) + 1;
+  const rollAttribute = (score) => {
+    if (score <= 1) return rollDie(4);
+    if (score === 2) return rollDie(6);
+    if (score === 3) return rollDie(8);
+    if (score === 4) return rollDie(10);
+    if (score === 5) return rollDie(12);
+    if (score === 6) return rollDie(20);
+    if (score === 7) return rollDie(20) + rollDie(4);
+    if (score === 8) return rollDie(20) + rollDie(6);
+    if (score === 9) return rollDie(20) + rollDie(8);
+    return rollDie(20) + rollDie(10);
+  };
+
+  const handleTransitItemBypass = (challenge) => {
+    const itemName = challenge.item;
+    if (!character.inventory.includes(itemName) && !sandboxMode) return;
+    
+    if (!sandboxMode && consumeItem) {
+      consumeItem(itemName);
+    }
+    if (unlockRegion) {
+      unlockRegion(activeTransitChallengeId);
+    }
+    setTransitRollResult({ success: true, bypass: true });
+    setTransitMessage(`You present the ${itemName}. ${challenge.successDesc}`);
+  };
+
+  const handleTransitSkillCheck = (challenge) => {
+    const attr1 = challenge.attributes[0];
+    const attr2 = challenge.attributes[1];
+    const val1 = character.attributes[attr1] || 1;
+    const val2 = character.attributes[attr2] || 1;
+    const roll1 = rollAttribute(val1);
+    const roll2 = rollAttribute(val2);
+    const totalRoll = roll1 + roll2;
+    const isSuccess = totalRoll >= challenge.difficulty || sandboxMode;
+
+    if (isSuccess) {
+      if (unlockRegion) {
+        unlockRegion(activeTransitChallengeId);
+      }
+      setTransitRollResult({ success: true, totalRoll, roll1, roll2, attr1, attr2 });
+      setTransitMessage(`[Success! Roll: ${totalRoll} (${attr1}: ${roll1}, ${attr2}: ${roll2}) vs Diff ${challenge.difficulty}]. ${challenge.successDesc}`);
+    } else {
+      if (onUpdateCharacterStats) {
+        onUpdateCharacterStats(prev => {
+          const nextHp = Math.max(1, prev.stats.hp - challenge.failDamage);
+          return {
+            ...prev,
+            stats: {
+              ...prev.stats,
+              hp: nextHp
+            }
+          };
+        });
+      }
+      setTransitRollResult({ success: false, totalRoll, roll1, roll2, attr1, attr2 });
+      setTransitMessage(`[Failure! Roll: ${totalRoll} (${attr1}: ${roll1}, ${attr2}: ${roll2}) vs Diff ${challenge.difficulty}]. ${challenge.failDesc}`);
+    }
+  };
+
+  const selectRegion = (regionId) => {
+    setSelectedRegionId(regionId);
+    setActiveTransitChallengeId(null);
+    setTransitRollResult(null);
+    setTransitMessage('');
+  };
 
   const selectedRegion = WORLD_REGIONS.find(r => r.id === selectedRegionId);
   const selectedAdventure = ADVENTURES_LIST.find(a => a.id === selectedNodeId);
@@ -347,11 +427,20 @@ export default function AdventureSelection({
               {/* World Region Interactive Nodes */}
               {mapLevel === 'world' && WORLD_REGIONS.map((reg) => {
                 const isSelected = selectedRegionId === reg.id;
-                const unlocked = sandboxMode || isRegionUnlocked(reg.id, completedAdventures);
-                let markerStyle = "bg-slate-900 border-slate-700 text-slate-500 cursor-not-allowed";
+                const storyUnlocked = sandboxMode || isRegionStoryUnlocked(reg.id, completedAdventures);
+                const travelUnlocked = sandboxMode || isRegionUnlocked(reg.id, completedAdventures, character);
+                
+                let markerStyle = "bg-slate-900 border-slate-700 text-slate-500 cursor-not-allowed opacity-50";
+                let icon = "🔒";
 
-                if (unlocked) {
-                  markerStyle = "bg-slate-950 border-amber-500 text-amber-305 hover:scale-110 shadow-[0_0_15px_rgba(245,158,11,0.25)]";
+                if (storyUnlocked) {
+                  if (travelUnlocked) {
+                    markerStyle = "bg-slate-950 border-amber-500 text-amber-305 hover:scale-110 shadow-[0_0_15px_rgba(245,158,11,0.25)]";
+                    icon = "👁️";
+                  } else {
+                    markerStyle = "bg-slate-950 border-orange-500 text-orange-400 hover:scale-110 shadow-[0_0_15px_rgba(239,68,68,0.3)] animate-pulse";
+                    icon = "⚠️";
+                  }
                 }
 
                 if (isSelected) {
@@ -364,10 +453,10 @@ export default function AdventureSelection({
                     style={{ left: `${reg.x}%`, top: `${reg.y}%` }}
                     className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer"
                     onClick={() => {
-                      setSelectedRegionId(reg.id);
+                      selectRegion(reg.id);
                     }}
                     onDoubleClick={() => {
-                      if (unlocked) {
+                      if (storyUnlocked && travelUnlocked) {
                         setMapLevel(reg.id);
                       }
                     }}
@@ -375,13 +464,14 @@ export default function AdventureSelection({
 
                     {/* Region Core Orb */}
                     <div className={`w-10 h-10 rounded-full border-[2px] flex items-center justify-center font-bold text-sm transition-all duration-300 ${markerStyle}`}>
-                      {unlocked ? "👁️" : "🔒"}
+                      {icon}
                     </div>
 
                     {/* Region Label */}
                     <div className="absolute pointer-events-none select-none text-center transition-all bg-slate-950/80 px-2 py-0.5 rounded border border-slate-800 text-[10px] font-bold text-slate-355 mt-1 whitespace-nowrap group-hover:text-amber-305 group-hover:bg-slate-950 top-12">
                       {reg.name}
-                      {!unlocked && <span className="text-red-400 ml-1">🔒</span>}
+                      {!storyUnlocked && <span className="text-red-400 ml-1">🔒</span>}
+                      {storyUnlocked && !travelUnlocked && <span className="text-orange-400 ml-1">⚠️</span>}
                     </div>
                   </div>
                 );
@@ -454,64 +544,191 @@ export default function AdventureSelection({
             <div className={`flex flex-col justify-between bg-slate-900/35 border border-slate-850 rounded-xl p-5 shadow-lg ${isDesktopLayout ? 'col-span-4 h-[520px]' : ''}`}>
               {mapLevel === 'world' ? (
                 selectedRegion ? (
-                  <div className="flex-1 flex flex-col justify-between overflow-y-auto custom-scrollbar">
-                    <div>
-                      {/* Banner Image */}
-                      <div className="h-28 rounded-lg overflow-hidden border border-slate-800 bg-slate-950/60 mb-4 flex items-center justify-center text-slate-500 font-serif text-3xs select-none relative">
-                        <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
-                        <span className="text-amber-500/70 text-base mr-1.5">🗺️</span>
-                        <span className="uppercase tracking-widest font-bold">Region Cartography</span>
+                  activeTransitChallengeId ? (() => {
+                    const challenge = REGION_TRANSIT_CHALLENGES[activeTransitChallengeId];
+                    if (!challenge) return null;
+                    const hasItem = character.inventory.includes(challenge.item);
+
+                    return (
+                      <div className="flex-1 flex flex-col justify-between overflow-y-auto custom-scrollbar">
+                        <div>
+                          {/* Header */}
+                          <div className="h-28 rounded-lg overflow-hidden border border-red-500/20 bg-red-955/20 mb-4 flex flex-col items-center justify-center text-slate-350 font-serif text-3xs p-3 text-center relative">
+                            <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+                            <span className="text-red-400 text-lg mb-1 animate-pulse">⚠️ DANGEROUS TRANSIT</span>
+                            <span className="font-extrabold uppercase text-amber-205">{challenge.name}</span>
+                          </div>
+
+                          <h3 className="text-lg font-extrabold text-amber-205 font-serif mb-2">
+                            Crossing Hazard
+                          </h3>
+
+                          <p className="text-3xs text-slate-300 leading-relaxed mb-4">
+                            {challenge.peril}
+                          </p>
+
+                          {/* Current HP Status Indicator */}
+                          <div className="flex justify-between items-center bg-slate-950/60 border border-slate-850 p-2.5 rounded-lg mb-4 text-3xs">
+                            <span className="text-slate-400 font-bold">❤️ Your Health:</span>
+                            <span className="font-mono font-extrabold text-red-400">
+                              {character.stats.hp} / {character.stats.maxHp || 10} HP
+                            </span>
+                          </div>
+
+                          {transitRollResult ? (
+                            <div className={`p-3 rounded border text-3xs mb-4 leading-normal ${
+                              transitRollResult.success 
+                                ? 'bg-emerald-955/20 border-emerald-500/20 text-emerald-300' 
+                                : 'bg-red-955/20 border-red-500/20 text-red-300'
+                            }`}>
+                              <div className="font-extrabold mb-1">
+                                {transitRollResult.success ? '✦ SUCCESS' : '✕ FAILURE'}
+                              </div>
+                              <p>{transitMessage}</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-3 mt-4">
+                              {/* Option A: Item Bypass */}
+                              <button
+                                onClick={() => handleTransitItemBypass(challenge)}
+                                disabled={!hasItem && !sandboxMode}
+                                className={`w-full py-2 px-3 border rounded text-3xs font-bold flex flex-col items-center transition-all ${
+                                  (hasItem || sandboxMode) 
+                                    ? 'border-emerald-600 bg-emerald-950/40 text-emerald-200 hover:bg-emerald-900/40 cursor-pointer' 
+                                    : 'border-slate-850 bg-slate-950 text-slate-500 cursor-not-allowed'
+                                }`}
+                              >
+                                <span className="uppercase tracking-widest font-extrabold">Use {challenge.item}</span>
+                                <span className="text-4xs font-normal text-slate-400">
+                                  {hasItem ? '(Consumes 1 item from inventory)' : '(Requires item in inventory)'}
+                                </span>
+                              </button>
+
+                              {/* Option B: Skill Roll Check */}
+                              <button
+                                onClick={() => handleTransitSkillCheck(challenge)}
+                                className="w-full py-2 px-3 border border-amber-600 bg-amber-955/20 hover:bg-amber-900/30 text-amber-200 rounded text-3xs font-bold flex flex-col items-center cursor-pointer transition-all"
+                              >
+                                <span className="uppercase tracking-widest font-extrabold">
+                                  Attempt Attribute Check
+                                </span>
+                                <span className="text-4xs font-normal text-amber-400/85">
+                                  Roll: {challenge.attributes.map(a => a.charAt(0).toUpperCase() + a.slice(1)).join(' + ')} (Diff {challenge.difficulty})
+                                </span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="mt-4 pt-4 border-t border-slate-800/80 flex gap-2">
+                          {transitRollResult?.success ? (
+                            <button
+                              onClick={() => {
+                                setMapLevel(activeTransitChallengeId);
+                                setActiveTransitChallengeId(null);
+                                setTransitRollResult(null);
+                                setTransitMessage('');
+                              }}
+                              className="flex-1 py-2 bg-gradient-to-r from-emerald-600 to-emerald-550 hover:from-emerald-500 hover:to-emerald-450 text-slate-950 rounded text-3xs font-extrabold uppercase tracking-widest cursor-pointer shadow-lg transition-all text-center"
+                            >
+                              Enter Region Map
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setActiveTransitChallengeId(null);
+                                setTransitRollResult(null);
+                                setTransitMessage('');
+                              }}
+                              className="flex-1 py-2 bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-400 rounded text-3xs font-extrabold uppercase tracking-widest cursor-pointer transition-all text-center"
+                            >
+                              {transitRollResult?.success === false ? 'Return to Map' : 'Go Back'}
+                            </button>
+                          )}
+                        </div>
                       </div>
+                    );
+                  })() : (() => {
+                    const storyUnlocked = sandboxMode || isRegionStoryUnlocked(selectedRegion.id, completedAdventures);
+                    const travelUnlocked = sandboxMode || isRegionUnlocked(selectedRegion.id, completedAdventures, character);
 
-                      {/* Header */}
-                      <div className="flex justify-between items-start gap-2 mb-2">
-                        <h3 className="text-xl font-extrabold text-amber-205 font-serif leading-tight">
-                          {selectedRegion.name}
-                        </h3>
-                        <span className={`px-1.5 py-0.5 text-5xs uppercase tracking-wider rounded font-bold bg-slate-950 border border-slate-800 ${
-                          (sandboxMode || isRegionUnlocked(selectedRegion.id, completedAdventures)) ? 'text-emerald-455 border-emerald-500/30' : 'text-red-400 border-red-500/30'
-                        }`}>
-                          {(sandboxMode || isRegionUnlocked(selectedRegion.id, completedAdventures)) ? 'Active' : 'Locked'}
-                        </span>
+                    return (
+                      <div className="flex-1 flex flex-col justify-between overflow-y-auto custom-scrollbar">
+                        <div>
+                          {/* Banner Image */}
+                          <div className="h-28 rounded-lg overflow-hidden border border-slate-800 bg-slate-950/60 mb-4 flex items-center justify-center text-slate-500 font-serif text-3xs select-none relative">
+                            <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+                            <span className="text-amber-500/70 text-base mr-1.5">🗺️</span>
+                            <span className="uppercase tracking-widest font-bold">Region Cartography</span>
+                          </div>
+
+                          {/* Header */}
+                          <div className="flex justify-between items-start gap-2 mb-2">
+                            <h3 className="text-xl font-extrabold text-amber-205 font-serif leading-tight">
+                              {selectedRegion.name}
+                            </h3>
+                            <span className={`px-1.5 py-0.5 text-5xs uppercase tracking-wider rounded font-bold bg-slate-950 border border-slate-800 ${
+                              travelUnlocked ? 'text-emerald-455 border-emerald-500/30' : !storyUnlocked ? 'text-red-400 border-red-500/30' : 'text-orange-400 border-orange-500/30'
+                            }`}>
+                              {travelUnlocked ? 'Active' : !storyUnlocked ? 'Locked' : 'Blocked'}
+                            </span>
+                          </div>
+
+                          {/* Status Badge */}
+                          <div className="mb-3">
+                            {travelUnlocked ? (
+                              <span className="px-2 py-0.5 bg-emerald-955/60 text-emerald-400 border border-emerald-500/20 text-4xs uppercase tracking-wider font-extrabold rounded">
+                                ✦ Exploration Active
+                              </span>
+                            ) : !storyUnlocked ? (
+                              <span className="px-2 py-0.5 bg-red-955/60 text-red-400 border border-red-500/20 text-4xs uppercase tracking-wider font-extrabold rounded">
+                                🔒 Story Sealed
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 bg-orange-955/60 text-orange-400 border border-orange-500/20 text-4xs uppercase tracking-wider font-extrabold rounded animate-pulse">
+                                ⚠️ Hazard Crossing Required
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="text-3xs text-slate-355 leading-relaxed mb-4">
+                            {selectedRegion.desc}
+                          </p>
+                        </div>
+
+                        {/* Actions Block */}
+                        <div className="mt-4 pt-4 border-t border-slate-800/80">
+                          {storyUnlocked && travelUnlocked ? (
+                            <button
+                              onClick={() => setMapLevel(selectedRegion.id)}
+                              className="w-full py-2.5 bg-gradient-to-r from-amber-600 to-amber-550 hover:from-amber-500 hover:to-amber-450 text-slate-950 rounded text-3xs font-extrabold uppercase tracking-widest cursor-pointer shadow-lg hover:shadow-amber-500/10 transition-all text-center"
+                            >
+                              Enter Region Map
+                            </button>
+                          ) : storyUnlocked && !travelUnlocked ? (
+                            <button
+                              onClick={() => {
+                                setActiveTransitChallengeId(selectedRegion.id);
+                                setTransitRollResult(null);
+                                setTransitMessage('');
+                              }}
+                              className="w-full py-2.5 bg-gradient-to-r from-orange-600 to-orange-550 hover:from-orange-500 hover:to-orange-450 text-slate-955 rounded text-3xs font-extrabold uppercase tracking-widest cursor-pointer shadow-lg hover:shadow-orange-500/10 transition-all text-center"
+                            >
+                              Embark Transit Passage
+                            </button>
+                          ) : (
+                            <button
+                              disabled
+                              className="w-full py-2 bg-slate-950 border border-slate-850 text-slate-500 rounded text-3xs font-extrabold uppercase tracking-widest cursor-not-allowed"
+                            >
+                              Region Locked
+                            </button>
+                          )}
+                        </div>
                       </div>
-
-                      {/* Status Badge */}
-                      <div className="mb-3">
-                        {(sandboxMode || isRegionUnlocked(selectedRegion.id, completedAdventures)) ? (
-                          <span className="px-2 py-0.5 bg-emerald-955/60 text-emerald-400 border border-emerald-500/20 text-4xs uppercase tracking-wider font-extrabold rounded">
-                            ✦ Exploration Active
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 bg-red-955/60 text-red-400 border border-red-500/20 text-4xs uppercase tracking-wider font-extrabold rounded">
-                            🔒 Story Sealed
-                          </span>
-                        )}
-                      </div>
-
-                      <p className="text-3xs text-slate-355 leading-relaxed mb-4">
-                        {selectedRegion.desc}
-                      </p>
-                    </div>
-
-                    {/* Actions Block */}
-                    <div className="mt-4 pt-4 border-t border-slate-800/80">
-                      {(sandboxMode || isRegionUnlocked(selectedRegion.id, completedAdventures)) ? (
-                        <button
-                          onClick={() => setMapLevel(selectedRegion.id)}
-                          className="w-full py-2.5 bg-gradient-to-r from-amber-600 to-amber-550 hover:from-amber-500 hover:to-amber-450 text-slate-950 rounded text-3xs font-extrabold uppercase tracking-widest cursor-pointer shadow-lg hover:shadow-amber-500/10 transition-all text-center"
-                        >
-                          Enter Region Map
-                        </button>
-                      ) : (
-                        <button
-                          disabled
-                          className="w-full py-2 bg-slate-950 border border-slate-850 text-slate-500 rounded text-3xs font-extrabold uppercase tracking-widest cursor-not-allowed"
-                        >
-                          Region Locked
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                    );
+                  })()
                 ) : (
                   <div className="flex-1 flex flex-col justify-center items-center text-slate-500 text-3xs italic">
                     Select a region on the map to view details.
