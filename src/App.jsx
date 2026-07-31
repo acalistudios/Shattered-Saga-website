@@ -253,7 +253,7 @@ function App() {
     } else {
       // Real Supabase OAuth Redirect
       const redirectTo = window.location.origin;
-      const authorizeUrl = `${supabaseUrl}/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(redirectTo)}`;
+      const authorizeUrl = `${supabaseUrl}/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(redirectTo)}&apikey=${supabaseAnonKey}`;
       window.location.href = authorizeUrl;
     }
   };

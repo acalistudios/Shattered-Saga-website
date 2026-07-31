@@ -50,6 +50,81 @@ export default function Splash({
   const [isDecoding, setIsDecoding] = useState(false);
   const [importError, setImportError] = useState(null);
 
+  const [emailInput, setEmailInput] = useState('');
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [emailStatus, setEmailStatus] = useState(null);
+
+  const handleEmailLogin = async (e) => {
+    e.preventDefault();
+    if (!emailInput) return;
+    
+    setIsSendingEmail(true);
+    setEmailStatus(null);
+    
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      setTimeout(() => {
+        const usernamePrefix = emailInput.split('@')[0];
+        const displayName = usernamePrefix.charAt(0).toUpperCase() + usernamePrefix.slice(1) + '_Adventurer';
+        
+        storage.set('shattered_email', emailInput);
+        storage.set('shattered_username', displayName);
+        
+        const mockProfile = storage.get(`mock_supabase_profile_${emailInput}`, {
+          email: emailInput,
+          energy_balance: 100,
+          subscription_tier: 'free',
+          subscription_status: 'none'
+        });
+        storage.set(`mock_supabase_profile_${emailInput}`, mockProfile);
+        storage.set('supabase_session_token', `mock-email-token-for-${emailInput}`);
+        
+        setIsSendingEmail(false);
+        window.location.reload();
+      }, 800);
+      return;
+    }
+    
+    try {
+      const redirectTo = window.location.origin;
+      const res = await fetch(`${supabaseUrl}/auth/v1/otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseAnonKey
+        },
+        body: JSON.stringify({
+          email: emailInput,
+          create_user: true,
+          options: {
+            emailRedirectTo: redirectTo
+          }
+        })
+      });
+      
+      if (!res.ok) {
+        const errJson = await res.json();
+        throw new Error(errJson.msg || errJson.message || 'OTP delivery failed');
+      }
+      
+      setEmailStatus({
+        type: 'success',
+        message: '✨ Magic Link sent! Check your inbox to complete sign in.'
+      });
+      setEmailInput('');
+    } catch (err) {
+      console.error('Email Login Error:', err);
+      setEmailStatus({
+        type: 'error',
+        message: `✕ Error: ${err.message}`
+      });
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
   const handleSocialLogin = (profileName) => {
     onSocialLogin(profileName);
   };
@@ -624,6 +699,42 @@ export default function Splash({
 
 
                 </div>
+                
+                <div className="relative my-4 flex items-center justify-center">
+                  <hr className="w-full border-slate-900" />
+                  <span className="absolute bg-slate-950 px-3 text-5xs text-slate-500 font-bold uppercase tracking-widest">Or Use Email</span>
+                </div>
+
+                <form onSubmit={handleEmailLogin} className="space-y-3">
+                  <div className="flex flex-col gap-1">
+                    <input
+                      type="email"
+                      required
+                      placeholder="Enter your email address"
+                      value={emailInput}
+                      onChange={(e) => setEmailInput(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-850 hover:border-slate-750 focus:border-amber-500/50 rounded px-3 py-2 text-2xs text-slate-200 placeholder-slate-600 focus:outline-none transition-colors"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isSendingEmail}
+                    className="w-full py-2.5 rounded bg-amber-500 hover:bg-amber-600 disabled:bg-slate-900 disabled:text-slate-600 text-slate-950 text-3xs font-extrabold uppercase tracking-wider cursor-pointer transition-all active:scale-99 flex items-center justify-center gap-1.5"
+                  >
+                    {isSendingEmail ? (
+                      <>🌀 Sending...</>
+                    ) : (
+                      <>✉️ Send Magic Link</>
+                    )}
+                  </button>
+                  {emailStatus && (
+                    <p className={`text-4xs font-bold leading-normal mt-1 ${
+                      emailStatus.type === 'success' ? 'text-emerald-400' : 'text-rose-450'
+                    }`}>
+                      {emailStatus.message}
+                    </p>
+                  )}
+                </form>
 
                 <div className="border-t border-slate-850/60 pt-4 mt-2">
                   <button
