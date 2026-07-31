@@ -4,69 +4,8 @@ import { GMS } from '../data/gms';
 import { printCharacterSheet } from '../utils/print';
 import { getItemDetails } from '../utils/items';
 import { coinValue } from '../data/economy';
+import { WORLD_REGIONS, MAP_NODES, MAP_CONNECTIONS, MAP_IMAGES } from '../data/cartography';
 
-// Absolute coordinates of the adventure nodes on a 100% x 100% map canvas
-const MAP_NODES = {
-  // Region 1: Aethelgard
-  elemental_crucible: { region: 'region1', x: 50, y: 50, labelOffset: 'bottom' },
-  ashveil_keep: { region: 'region1', x: 25, y: 28, labelOffset: 'bottom' },
-  saltblood_mines: { region: 'region1', x: 15, y: 72, labelOffset: 'top' },
-  clockwork_conservatory: { region: 'region1', x: 75, y: 22, labelOffset: 'bottom' },
-  sunken_spire: { region: 'region1', x: 80, y: 68, labelOffset: 'left' },
-  greywash_bandit_crown: { region: 'region1', x: 38, y: 20, labelOffset: 'bottom' },
-  thorn_treaty: { region: 'region1', x: 58, y: 35, labelOffset: 'right' },
-  harvest_hill_hunger: { region: 'region1', x: 32, y: 58, labelOffset: 'bottom' },
-  mirror_war_saint_orra: { region: 'region1', x: 55, y: 78, labelOffset: 'top' },
-  
-  // Region 2: Ignis Ridge
-  obsidian_vault: { region: 'region2', x: 30, y: 40, labelOffset: 'bottom' },
-  iron_colosseum: { region: 'region2', x: 50, y: 65, labelOffset: 'top' },
-  brass_plague_tinkertown: { region: 'region2', x: 70, y: 30, labelOffset: 'bottom' },
-  
-  // Region 3: Frostfire Glacier
-  frostfire_crypt: { region: 'region3', x: 45, y: 35, labelOffset: 'bottom' },
-  blackroot_hollow: { region: 'region3', x: 25, y: 68, labelOffset: 'top' },
-  merrin_abbey_plague_bells: { region: 'region3', x: 75, y: 55, labelOffset: 'bottom' },
-  
-  // Region 4: Sapphire Deep
-  astral_sky: { region: 'region4', x: 50, y: 28, labelOffset: 'bottom' },
-  drowned_market: { region: 'region4', x: 25, y: 72, labelOffset: 'top' },
-  glass_orchard_masquerade: { region: 'region4', x: 75, y: 65, labelOffset: 'bottom' }
-};
-
-// Connections between nodes to render as SVG lines by region
-const MAP_CONNECTIONS = {
-  region1: [
-    { from: 'ashveil_keep', to: 'greywash_bandit_crown' },
-    { from: 'greywash_bandit_crown', to: 'clockwork_conservatory' },
-    { from: 'clockwork_conservatory', to: 'thorn_treaty' },
-    { from: 'thorn_treaty', to: 'elemental_crucible' },
-    { from: 'elemental_crucible', to: 'sunken_spire' },
-    { from: 'ashveil_keep', to: 'harvest_hill_hunger' },
-    { from: 'harvest_hill_hunger', to: 'saltblood_mines' },
-    { from: 'saltblood_mines', to: 'mirror_war_saint_orra' },
-    { from: 'mirror_war_saint_orra', to: 'elemental_crucible' }
-  ],
-  region2: [
-    { from: 'obsidian_vault', to: 'iron_colosseum' },
-    { from: 'iron_colosseum', to: 'brass_plague_tinkertown' }
-  ],
-  region3: [
-    { from: 'blackroot_hollow', to: 'frostfire_crypt' },
-    { from: 'frostfire_crypt', to: 'merrin_abbey_plague_bells' }
-  ],
-  region4: [
-    { from: 'drowned_market', to: 'astral_sky' },
-    { from: 'astral_sky', to: 'glass_orchard_masquerade' }
-  ]
-};
-
-const WORLD_REGIONS = [
-  { id: 'region1', name: 'Region 1: Aethelgard', x: 35, y: 45, desc: 'Central kingdom of grassy plains, whispering forests, and ancient ruins. Contains the gothic stronghold of Ashveil Keep, the Saltblood Mines, the Sunken Spire, and the clockwork spires of Baron von Rictor.' },
-  { id: 'region2', name: 'Region 2: Ignis Ridge', x: 65, y: 30, desc: 'A scorched volcanic wasteland separated from Aethelgard by the Boiling Sea. The magma rivers of Ignis Ridge are currently sealed by planar tempests.' },
-  { id: 'region3', name: 'Region 3: Frostfire Glacier', x: 55, y: 75, desc: 'A frozen northern wilderness where absolute-zero tempests freeze the land. Home to ancient cryo-vaults locked by elemental forces.' },
-  { id: 'region4', name: 'Region 4: The Sapphire Deep', x: 20, y: 70, desc: 'An abyssal ocean realm of submerged elven archives. Heavy siren song tides lock the portal gates from dry-landers.' }
-];
 
 const isRegionUnlocked = (regionId, completedAdventures = []) => {
   if (regionId === 'region1') return true;
@@ -380,7 +319,7 @@ export default function AdventureSelection({
               <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none z-0"></div>
               
               <img 
-                src={mapLevel === 'world' ? '/images/world_map_parchment.png' : `/images/${mapLevel}_map_parchment.png`} 
+                src={MAP_IMAGES[mapLevel] || MAP_IMAGES.world} 
                 alt="Saga Campaign Map" 
                 className="absolute inset-0 w-full h-full object-cover opacity-[0.92] select-none pointer-events-none filter sepia-[10%] brightness-[92%] contrast-[105%] z-0"
               />
