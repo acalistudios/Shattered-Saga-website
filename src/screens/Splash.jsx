@@ -31,6 +31,8 @@ const scanQrOnline = async (blobOrFile) => {
 
 export default function Splash({ 
   onImportCharacter,
+  onImportSaveFile,
+  onExportSaveFile,
   username,
   isLoggedIn,
   gems,
@@ -235,6 +237,15 @@ export default function Splash({
           reader.onerror = (err) => reject(err);
           reader.readAsText(file);
         });
+        
+        const parsed = JSON.parse(text.trim());
+        if (parsed.shatteredsaga_save_file === true) {
+          if (onImportSaveFile) {
+            onImportSaveFile(parsed.data, slotIdx);
+          }
+          return;
+        }
+
         processAndImportCharacter(text.trim());
         return;
       }
@@ -517,6 +528,16 @@ export default function Splash({
             >
               {isLocked ? 'Locked' : (isActive ? 'Play' : 'Load')}
             </button>
+            {!isLocked && onExportSaveFile && (
+              <button
+                type="button"
+                onClick={() => onExportSaveFile(slotIdx)}
+                className="p-1.5 rounded bg-slate-950 border border-slate-900 hover:border-amber-500/50 text-amber-500 hover:text-amber-450 cursor-pointer transition-all flex items-center justify-center"
+                title="Download JSON Save File"
+              >
+                📥
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {

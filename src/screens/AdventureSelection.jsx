@@ -97,7 +97,8 @@ export default function AdventureSelection({
   sandboxMode = false,
   onOpenDowntimeMarket,
   unlockRegion,
-  consumeItem
+  consumeItem,
+  onExportSaveFile
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
   const completedAdventures = character?.completed_adventures || [];
@@ -380,12 +381,24 @@ export default function AdventureSelection({
             <button
               type="button"
               onClick={onOpenDowntimeMarket}
-              className="px-3 py-2 rounded bg-slate-900 border border-slate-800 hover:border-amber-500/40 text-xs font-bold text-slate-350 hover:text-amber-400 cursor-pointer transition-all flex items-center gap-1.5 shadow-sm"
+              className="px-3 py-2 rounded bg-slate-900 border border-slate-800 hover:border-amber-500/40 text-xs font-bold text-slate-355 hover:text-amber-400 cursor-pointer transition-all flex items-center gap-1.5 shadow-sm"
               title="Visit Downtime Marketplace"
             >
               <span>🛒</span>
               <span>Market</span>
             </button>
+
+            {onExportSaveFile && (
+              <button
+                type="button"
+                onClick={onExportSaveFile}
+                className="px-3 py-2 rounded bg-slate-905 border border-slate-800 hover:border-amber-500/40 text-xs font-bold text-slate-355 hover:text-amber-400 cursor-pointer transition-all flex items-center gap-1.5 shadow-sm bg-gradient-to-b from-slate-900 to-slate-950"
+                title="Download JSON Game Save File"
+              >
+                <span>💾</span>
+                <span>Save File</span>
+              </button>
+            )}
           </div>
         )}
       </div>

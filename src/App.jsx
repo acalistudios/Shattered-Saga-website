@@ -388,6 +388,70 @@ function App() {
     setScreen('play');
   };
 
+  const downloadSaveFile = (slotIndex) => {
+    const keys = [
+      'character', 'active_gm_id', 'gm_energies', 'history',
+      'journal', 'handoff_state', 'skill_tally', 'active_adventure_id',
+      'safety_state', 'next_roll_modifier', 'current_location',
+      'dropped_items', 'npc_memory', 'active_enemy',
+      'counter_opportunities', 'combat_stance'
+    ];
+    
+    const saveData = {};
+    keys.forEach(k => {
+      saveData[k] = storage.get(`slot_${slotIndex}_${k}`);
+    });
+
+    const characterName = saveData.character?.name || `Slot_${slotIndex}`;
+    const payload = {
+      shatteredsaga_save_file: true,
+      saveVersion: "2.0",
+      slotIndex,
+      characterName,
+      data: saveData,
+      timestamp: new Date().toISOString()
+    };
+
+    const jsonString = JSON.stringify(payload, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `shattered_saga_save_slot_${slotIndex}_${characterName.toLowerCase().replace(/\s+/g, '_')}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportActiveSaveFile = () => {
+    const activeSlotIdx = storage.get('shatteredsaga_active_slot_index') || '1';
+    downloadSaveFile(parseInt(activeSlotIdx, 10));
+  };
+
+  const handleImportSaveFile = (saveData, slotIndex) => {
+    const keysToWipe = [
+      'character', 'active_gm_id', 'gm_energies', 'history',
+      'journal', 'handoff_state', 'skill_tally', 'active_adventure_id',
+      'safety_state', 'next_roll_modifier', 'current_location',
+      'dropped_items', 'npc_memory', 'active_enemy',
+      'counter_opportunities', 'combat_stance'
+    ];
+    keysToWipe.forEach(k => {
+      storage.remove(`shatteredsaga_slot_${slotIndex}_${k}`);
+    });
+
+    for (const key in saveData) {
+      if (saveData[key] !== null && saveData[key] !== undefined) {
+        storage.set(`shatteredsaga_slot_${slotIndex}_${key}`, saveData[key]);
+      }
+    }
+
+    storage.set('shatteredsaga_active_slot_index', slotIndex);
+    storage.set('shatteredsaga_auto_load_game', 'true');
+    window.location.reload();
+  };
+
   const handleImportCharacter = (importedChar, slotIndex) => {
     const keysToWipe = [
       'character', 'active_gm_id', 'gm_energies', 'history',
@@ -493,6 +557,8 @@ function App() {
         {screen === 'splash' && (
           <Splash
             onImportCharacter={handleImportCharacter}
+            onImportSaveFile={handleImportSaveFile}
+            onExportSaveFile={downloadSaveFile}
             username={username}
             isLoggedIn={isLoggedIn}
             gems={gems}
@@ -546,6 +612,7 @@ function App() {
             onOpenDowntimeMarket={() => setIsDowntimeMarketOpen(true)}
             unlockRegion={unlockRegion}
             consumeItem={consumeItem}
+            onExportSaveFile={handleExportActiveSaveFile}
           />
         )}
 
@@ -558,6 +625,7 @@ function App() {
             history={history}
             journal={journal}
             skillTally={skillTally}
+            onExportSaveFile={handleExportActiveSaveFile}
             isLoading={isLoading}
             apiError={apiError}
             warningMessage={warningMessage}

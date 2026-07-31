@@ -77,7 +77,8 @@ export default function PlayScreen({
   combatStance,
   onExecuteCombatManeuver,
   onExecuteCounterAttack,
-  audio
+  audio,
+  onExportSaveFile
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
   const [adIndex, setAdIndex] = useState(0);
@@ -988,6 +989,14 @@ export default function PlayScreen({
         </div>
 
         <div className="border-t border-slate-900 pt-4 flex flex-col gap-2">
+          {onExportSaveFile && (
+            <button
+              onClick={onExportSaveFile}
+              className="w-full py-1.5 px-3 rounded text-3xs uppercase tracking-wider font-bold border border-blue-900/30 text-blue-500 bg-blue-950/10 hover:bg-blue-950/30 hover:border-blue-700 hover:text-blue-450 cursor-pointer text-center transition-all duration-300 hover:shadow-md hover:shadow-blue-500/5"
+            >
+              📥 Download Save File (.json)
+            </button>
+          )}
           <button
             onClick={handleExitAdventure}
             className="w-full py-1.5 px-3 rounded text-3xs uppercase tracking-wider font-bold border border-emerald-900/30 text-emerald-500 bg-emerald-950/10 hover:bg-emerald-950/30 hover:border-emerald-700 hover:text-emerald-450 cursor-pointer text-center transition-all duration-300 hover:shadow-md hover:shadow-emerald-500/5"
@@ -996,7 +1005,7 @@ export default function PlayScreen({
           </button>
           <button
             onClick={handleQuitAdventure}
-            className="w-full py-1.5 px-3 rounded text-3xs uppercase tracking-wider font-bold border border-amber-900/30 text-amber-500 bg-amber-950/10 hover:bg-amber-950/30 hover:border-amber-700 hover:text-amber-450 cursor-pointer text-center"
+            className="w-full py-1.5 px-3 rounded text-3xs uppercase tracking-wider font-bold border border-amber-900/30 text-amber-500 bg-amber-955/10 hover:bg-amber-950/30 hover:border-amber-700 hover:text-amber-450 cursor-pointer text-center"
           >
             Forfeit Adventure (Lose Gold & Random Item)
           </button>
