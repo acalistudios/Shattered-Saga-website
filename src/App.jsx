@@ -452,6 +452,78 @@ function App() {
     window.location.reload();
   };
 
+  const handleEmailPasswordAuth = async (email, password, isSignUp) => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      // Sandbox Mode
+      const usernamePrefix = email.split('@')[0];
+      const displayName = usernamePrefix.charAt(0).toUpperCase() + usernamePrefix.slice(1) + '_Adventurer';
+      
+      storage.set('shattered_email', email);
+      storage.set('shattered_username', displayName);
+      
+      const mockProfile = storage.get(`mock_supabase_profile_${email}`, {
+        email: email,
+        energy_balance: 100,
+        subscription_tier: 'free',
+        subscription_status: 'none'
+      });
+      storage.set(`mock_supabase_profile_${email}`, mockProfile);
+      storage.set('supabase_session_token', `mock-password-token-for-${email}`);
+      
+      setUsername(displayName);
+      setIsLoggedIn(true);
+      window.dispatchEvent(new Event('shattered_auth_update'));
+      return { success: true, mode: 'sandbox' };
+    }
+    
+    // Real Supabase Email/Password Call
+    try {
+      const endpoint = isSignUp ? '/auth/v1/signup' : '/auth/v1/token?grant_type=password';
+      const res = await fetch(`${supabaseUrl}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseAnonKey
+        },
+        body: JSON.stringify({ email, password })
+      });
+      
+      if (!res.ok) {
+        const errJson = await res.json();
+        throw new Error(errJson.error_description || errJson.msg || errJson.message || 'Authentication failed');
+      }
+      
+      const data = await res.json();
+      
+      if (isSignUp && !data.access_token) {
+        return { 
+          success: true, 
+          message: '✨ Account registered! Please check your email to confirm your account before logging in.' 
+        };
+      }
+      
+      const token = data.access_token;
+      const userEmail = data.user?.email || email;
+      const usernameVal = userEmail.split('@')[0];
+      
+      storage.set('supabase_session_token', token);
+      storage.set('shattered_email', userEmail);
+      storage.set('shattered_username', usernameVal);
+      
+      setUsername(usernameVal);
+      setIsLoggedIn(true);
+      window.dispatchEvent(new Event('shattered_auth_update'));
+      
+      return { success: true };
+    } catch (err) {
+      console.error('Email/Password Auth Error:', err);
+      throw err;
+    }
+  };
+
   const handleImportCharacter = (importedChar, slotIndex) => {
     const keysToWipe = [
       'character', 'active_gm_id', 'gm_energies', 'history',
@@ -559,6 +631,7 @@ function App() {
             onImportCharacter={handleImportCharacter}
             onImportSaveFile={handleImportSaveFile}
             onExportSaveFile={downloadSaveFile}
+            onEmailPasswordAuth={handleEmailPasswordAuth}
             username={username}
             isLoggedIn={isLoggedIn}
             gems={gems}
