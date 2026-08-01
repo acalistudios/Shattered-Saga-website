@@ -13,7 +13,9 @@ export default function GMSelection({
   onBack,
   layoutMode = 'desktop',
   setEngineTier,
-  setUserApiKey
+  setUserApiKey,
+  userProfile,
+  onOpenAccount
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
   const [countdowns, setCountdowns] = useState({});
@@ -42,9 +44,21 @@ export default function GMSelection({
   };
 
   const handleSelectNarrator = (gmId) => {
-    if (settings.engineTier === 'byok' && !settings.userApiKey.trim()) {
-      alert("Please enter a valid Gemini API Key to use the Sandbox Engine.");
-      return;
+    if (settings.engineTier === 'byok') {
+      const isSandbox = settings.sandboxMode;
+      const tier = userProfile ? userProfile.subscription_tier : 'free';
+      const isSubscribed = ['supporter', 'adventurer', 'legend'].includes(tier);
+      
+      if (!isSandbox && !isSubscribed) {
+        alert("The BYOK Engine requires a Supporter Subscription ($1/mo) or higher. Please upgrade your account.");
+        onOpenAccount();
+        return;
+      }
+      
+      if (!settings.userApiKey.trim()) {
+        alert("Please enter a valid Gemini API Key to use the Sandbox Engine.");
+        return;
+      }
     }
     onSelectGm(gmId);
   };
@@ -119,7 +133,11 @@ export default function GMSelection({
 
                   <div className="mt-4 border-t border-slate-800/80 pt-3 flex justify-between items-center text-3xs font-semibold">
                     <span className="text-slate-500">Model Engine:</span>
-                    <span className={isActive ? 'text-amber-400' : 'text-slate-400'}>{engine.model}</span>
+                    <span className={isActive ? 'text-amber-400' : 'text-slate-400'}>
+                      {engine.id === 'byok'
+                        ? `${settings.byokProvider?.toUpperCase() || 'GEMINI'}: ${settings.byokModel || 'gemini-1.5-flash'}`
+                        : engine.model}
+                    </span>
                   </div>
                 </div>
               );
@@ -127,33 +145,60 @@ export default function GMSelection({
           </div>
 
           {/* BYOK Input Block */}
-          {settings.engineTier === 'byok' && (
-            <div className="w-full max-w-lg mx-auto mt-5 p-4 rounded bg-slate-950/60 border border-slate-900 text-left animate-fadeIn">
-              <label className="block text-3xs font-bold text-amber-400 uppercase tracking-wider mb-2">
-                Your Google AI Studio Gemini API Key
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  value={localKey}
-                  onChange={(e) => handleKeyChange(e.target.value)}
-                  placeholder="AIzaSy..."
-                  className="flex-1 px-3 py-1.5 rounded bg-slate-950 border border-slate-850 text-slate-100 placeholder-slate-700 focus:outline-none focus:border-amber-500/60 text-xs font-mono"
-                />
-                <a
-                  href="https://aistudio.google.com/app/apikey"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-1.5 bg-slate-900 border border-slate-800 hover:border-amber-500/40 text-slate-400 hover:text-amber-400 font-bold rounded text-3xs transition-colors flex items-center justify-center uppercase tracking-wider"
-                >
-                  Get Key ↗
-                </a>
-              </div>
-              <p className="text-4xs text-slate-500 mt-1.5 leading-relaxed">
-                Your key remains local in your browser storage and directly connects to Google's endpoints.
-              </p>
-            </div>
-          )}
+          {settings.engineTier === 'byok' && (() => {
+            const tier = userProfile ? userProfile.subscription_tier : 'free';
+            const isSubscribedForByok = ['supporter', 'adventurer', 'legend'].includes(tier);
+            const isSandbox = settings.sandboxMode;
+            
+            if (isSandbox || isSubscribedForByok) {
+              return (
+                <div className="w-full max-w-lg mx-auto mt-5 p-4 rounded bg-slate-950/60 border border-slate-900 text-left animate-fadeIn">
+                  <label className="block text-3xs font-bold text-amber-400 uppercase tracking-wider mb-2">
+                    Your Google AI Studio Gemini API Key
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      value={localKey}
+                      onChange={(e) => handleKeyChange(e.target.value)}
+                      placeholder="AIzaSy..."
+                      className="flex-1 px-3 py-1.5 rounded bg-slate-950 border border-slate-850 text-slate-100 placeholder-slate-700 focus:outline-none focus:border-amber-500/60 text-xs font-mono"
+                    />
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 bg-slate-900 border border-slate-800 hover:border-amber-500/40 text-slate-400 hover:text-amber-400 font-bold rounded text-3xs transition-colors flex items-center justify-center uppercase tracking-wider"
+                    >
+                      Get Key ↗
+                    </a>
+                  </div>
+                  <p className="text-4xs text-slate-500 mt-1.5 leading-relaxed">
+                    Your key remains local in your browser storage and directly connects to Google's endpoints.
+                  </p>
+                </div>
+              );
+            } else {
+              return (
+                <div className="w-full max-w-lg mx-auto mt-5 p-5 rounded-lg bg-amber-500/5 border border-amber-500/20 text-left animate-fadeIn space-y-3 shadow-lg shadow-black/35">
+                  <h4 className="text-xs font-bold text-amber-400 font-serif flex items-center gap-1.5">
+                    <span>🔑</span>
+                    <span>BYOK Supporter Subscription Required</span>
+                  </h4>
+                  <p className="text-4xs text-slate-450 leading-relaxed">
+                    Bring Your Own API Key (BYOK) lets you use your personal Google Gemini API credentials for unlimited campaign turns and custom models.
+                    A **BYOK Supporter Subscription ($1/mo)** or higher is required to unlock custom keys in standard campaigns.
+                  </p>
+                  <button
+                    onClick={onOpenAccount}
+                    className="px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-3xs uppercase tracking-wider transition-all cursor-pointer transform active:scale-98"
+                  >
+                    Upgrade in Account Settings
+                  </button>
+                </div>
+              );
+            }
+          })()}
         </div>
 
         {/* STEP 2: NARRATOR STYLE */}

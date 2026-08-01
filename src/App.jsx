@@ -7,6 +7,7 @@ import GMSelection from './screens/GMSelection';
 import CharacterCreation from './screens/CharacterCreation';
 import AdventureSelection from './screens/AdventureSelection';
 import PlayScreen from './screens/PlayScreen';
+import AccountScreen from './screens/AccountScreen';
 import SettingsModal from './components/SettingsModal';
 import DowntimeMarketModal from './components/DowntimeMarketModal';
 import GlobalMusicPlayer from './components/GlobalMusicPlayer';
@@ -21,6 +22,9 @@ function App() {
     setSandboxMode,
     setEngineTier,
     setUserApiKey,
+    setByokProvider,
+    setByokModel,
+    setByokKey,
     addToStrongholdChest,
     updateStrongholdChest
   } = useSettings();
@@ -91,6 +95,12 @@ function App() {
   } = useGameState();
 
   const [screen, setScreen] = useState('splash');
+  const [prevScreen, setPrevScreen] = useState('splash');
+
+  const handleOpenAccount = () => {
+    setPrevScreen(screen);
+    setScreen('account');
+  };
   const audio = useAudioPlayer(screen, activeAdventureId, isLoading, history);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDowntimeMarketOpen, setIsDowntimeMarketOpen] = useState(false);
@@ -642,6 +652,7 @@ function App() {
             onWipeSlot={handleWipeSlot}
             onUnlockSlot={handleUnlockSlot}
             layoutMode={activeLayout}
+            onOpenAccount={handleOpenAccount}
           />
         )}
 
@@ -659,6 +670,8 @@ function App() {
             layoutMode={activeLayout}
             setEngineTier={setEngineTier}
             setUserApiKey={setUserApiKey}
+            userProfile={userProfile}
+            onOpenAccount={handleOpenAccount}
           />
         )}
 
@@ -686,6 +699,22 @@ function App() {
             unlockRegion={unlockRegion}
             consumeItem={consumeItem}
             onExportSaveFile={handleExportActiveSaveFile}
+            onOpenAccount={handleOpenAccount}
+          />
+        )}
+
+        {screen === 'account' && (
+          <AccountScreen
+            onBack={() => setScreen(prevScreen)}
+            settings={settings}
+            setUserApiKey={setUserApiKey}
+            setByokProvider={setByokProvider}
+            setByokModel={setByokModel}
+            setByokKey={setByokKey}
+            userProfile={userProfile}
+            fetchUserProfile={fetchUserProfile}
+            gems={gems}
+            setGems={setGems}
           />
         )}
 
@@ -708,6 +737,7 @@ function App() {
             onTriggerVisualize={handleTriggerVisualize}
             onResetGame={handleResetGame}
             onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenAccount={handleOpenAccount}
             closeUpgradeScreen={closeUpgradeScreen}
             executeMilestoneUpgrades={executeMilestoneUpgrades}
             settings={settings}

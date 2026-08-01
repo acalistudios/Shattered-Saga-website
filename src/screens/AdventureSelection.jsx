@@ -98,7 +98,8 @@ export default function AdventureSelection({
   onOpenDowntimeMarket,
   unlockRegion,
   consumeItem,
-  onExportSaveFile
+  onExportSaveFile,
+  onOpenAccount
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
   const completedAdventures = character?.completed_adventures || [];
@@ -314,6 +315,12 @@ export default function AdventureSelection({
               ← Back
             </button>
           )}
+          <button
+            onClick={onOpenAccount}
+            className="px-2.5 py-1.5 rounded bg-slate-900 border border-slate-800 hover:border-amber-500/40 text-xs font-bold text-slate-400 hover:text-amber-400 cursor-pointer transition-colors"
+          >
+            Account
+          </button>
           <div>
             <h1 className="font-extrabold text-amber-405 text-2xl font-serif">
               {mapLevel === 'world' ? 'CONTINENT MAP' : (WORLD_REGIONS.find(r => r.id === mapLevel)?.name || 'REGION MAP').toUpperCase()}

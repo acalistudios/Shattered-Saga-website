@@ -575,6 +575,8 @@ export default function useGameState() {
   const [currentLocation, setCurrentLocation] = useState(() => storage.get(`slot_${activeSlotIndex}_current_location`, ''));
   const [droppedItems, setDroppedItems] = useState(() => storage.get(`slot_${activeSlotIndex}_dropped_items`, {}));
   const [npcMemory, setNpcMemory] = useState(() => storage.get(`slot_${activeSlotIndex}_npc_memory`, {}));
+  const [regionMemory, setRegionMemory] = useState(() => storage.get(`slot_${activeSlotIndex}_region_memory`, {}));
+  const [adventureSummaries, setAdventureSummaries] = useState(() => storage.get(`slot_${activeSlotIndex}_adventure_summaries`, {}));
 
   // Deterministic Combat States
   const [activeEnemy, setActiveEnemy] = useState(() => storage.get(`slot_${activeSlotIndex}_active_enemy`, null));
@@ -672,6 +674,18 @@ export default function useGameState() {
       storage.set(`slot_${activeSlotIndex}_npc_memory`, npcMemory);
     }
   }, [npcMemory, activeSlotIndex, character?.name]);
+
+  useEffect(() => {
+    if (character && character.name) {
+      storage.set(`slot_${activeSlotIndex}_region_memory`, regionMemory);
+    }
+  }, [regionMemory, activeSlotIndex, character?.name]);
+
+  useEffect(() => {
+    if (character && character.name) {
+      storage.set(`slot_${activeSlotIndex}_adventure_summaries`, adventureSummaries);
+    }
+  }, [adventureSummaries, activeSlotIndex, character?.name]);
 
   useEffect(() => {
     if (character && character.name) {
@@ -1131,10 +1145,16 @@ export default function useGameState() {
         
         const engine = SAGA_ENGINES.find(e => e.id === engineTier) || SAGA_ENGINES[1];
         const sessionToken = storage.get('supabase_session_token') || null;
+        
+        const storedSettings = storage.get('settings', {});
+        const activeProvider = engineTier === 'byok' ? (storedSettings.byokProvider || 'gemini') : engine.provider;
+        const activeModel = engineTier === 'byok' ? (storedSettings.byokModel || 'gemini-1.5-flash') : engine.model;
+        const activeKey = engineTier === 'byok' ? ((storedSettings.byokKeys || {})[activeProvider] || storedSettings.userApiKey || apiKey) : apiKey;
+
         const response = await generateCompletion({
-          provider: engine.provider,
-          model: engine.model,
-          apiKey,
+          provider: activeProvider,
+          model: activeModel,
+          apiKey: activeKey,
           systemPrompt: summaryPrompt,
           history: newHistory.slice(-10),
           sandboxMode: sandbox,
@@ -1192,6 +1212,24 @@ export default function useGameState() {
     const sessionToken = storage.get('supabase_session_token');
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
+    if (!sandbox && engineTier === 'byok') {
+      let subscriptionTier = 'free';
+      if (!supabaseUrl) {
+        const email = storage.get('shattered_email') || 'adventurer@saga.com';
+        const mockProfile = storage.get(`mock_supabase_profile_${email}`, null);
+        subscriptionTier = mockProfile ? mockProfile.subscription_tier : 'free';
+      } else {
+        subscriptionTier = userProfile ? userProfile.subscription_tier : 'free';
+      }
+      
+      const isSubscribed = ['supporter', 'adventurer', 'legend'].includes(subscriptionTier);
+      if (!isSubscribed) {
+        setIsLoading(false);
+        setApiError("The BYOK Engine requires a Supporter Subscription ($1/mo) or higher. Please visit the Account page to upgrade your account.");
+        return;
+      }
+    }
+
     if (sessionToken && engineTier === 'premium') {
       let currentEnergy;
       let subscriptionTier;
@@ -1208,10 +1246,8 @@ export default function useGameState() {
         subscriptionTier = userProfile ? userProfile.subscription_tier : 'free';
       }
 
-      const isUnlimited = subscriptionTier === 'adventurer' || subscriptionTier === 'legend';
-
-      if (!isUnlimited && currentEnergy <= 0) {
-        setApiError("Your energy balance is exhausted. Please purchase more energy turns or recharge your account in settings!");
+      if (currentEnergy <= 0) {
+        setApiError("Your priority Pro turns are exhausted. Please switch to the Free/Flash engine (ad-free for subscribers) or watch a sponsored video in settings for a refill!");
         return;
       }
     }
@@ -1986,7 +2022,7 @@ Items lying on the ground in this room: ${(droppedItems[activeAdventureId]?.[cur
 (Rules: Whenever the player successfully moves to a different area, you MUST output the exact tag: [location: Room Name], where 'Room Name' matches one of the settings defined above. If the player drops items here, narrate them on the ground.)
 `;
 
-      // Inject NPC memories if any are stored for NPCs in this adventure
+      // 1. Inject NPC memories if any are stored for NPCs in this adventure
       const adventureNpcNames = (activeAdventure.npcs || []).map(n => n.name.toLowerCase());
       const filteredMemories = Object.entries(npcMemory).filter(([npcId]) => adventureNpcNames.includes(npcId.toLowerCase()));
       if (filteredMemories.length > 0) {
@@ -1995,6 +2031,29 @@ Items lying on the ground in this room: ${(droppedItems[activeAdventureId]?.[cur
           systemPrompt += `- ${npcId}: Trust ${data.trust || 50}/100, Fear ${data.fear || 10}/100, Greed ${data.greed || 50}/100, Mood: ${data.mood || 'neutral'}. Known facts: ${(data.facts || []).join(', ') || 'None'}\n`;
         });
         systemPrompt += `(Instructions: You can propose modifications to NPC parameters by outputting [npc_trust: NPC_Name +5], [npc_fear: NPC_Name -10], or record facts using [npc_fact: NPC_Name Fact description].)\n`;
+      }
+
+      // 2. Inject Regional Memories
+      const currentRegionId = activeAdventure.region || activeAdventure.id || 'unknown';
+      const regionFacts = regionMemory[currentRegionId.toLowerCase()] || [];
+      if (regionFacts.length > 0) {
+        systemPrompt += `\n[REGIONAL MEMORIES - ${currentRegionId.toUpperCase()}]\n`;
+        regionFacts.forEach(fact => {
+          systemPrompt += `- ${fact}\n`;
+        });
+      }
+      systemPrompt += `(Instructions: You can record localized region changes by outputting [region_fact: region_id | fact description] (e.g. [region_fact: ashveil | Lord Aldric Voss's guards have fled, village safety is high]).)\n`;
+
+      // 3. Inject Completed Adventure Summaries (Legendary Deeds)
+      const completedList = character.completed_adventures || [];
+      const activeAdventureSummaries = Object.entries(adventureSummaries || {})
+        .filter(([advId]) => completedList.includes(advId));
+      if (activeAdventureSummaries.length > 0) {
+        systemPrompt += `\n[LEGENDARY DEEDS - COMPLETED CHRONICLES]\nThe player has previously accomplished these deeds in the world. NPCs may recognize them for these achievements:\n`;
+        activeAdventureSummaries.forEach(([advId, summary]) => {
+          const advTitle = ADVENTURES_LIST.find(a => a.id === advId)?.title || advId;
+          systemPrompt += `- ${advTitle}: ${summary}\n`;
+        });
       }
     }
 
@@ -2072,15 +2131,28 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     try {
       const engine = SAGA_ENGINES.find(e => e.id === engineTier) || SAGA_ENGINES[1];
       const sessionToken = storage.get('supabase_session_token') || null;
+
+      // BYOK Custom Provider/Model/Key Lookup
+      const storedSettings = storage.get('settings', {});
+      const activeProvider = engineTier === 'byok' ? (storedSettings.byokProvider || 'gemini') : engine.provider;
+      const activeModel = engineTier === 'byok' ? (storedSettings.byokModel || 'gemini-1.5-flash') : engine.model;
+      const activeKey = engineTier === 'byok' ? ((storedSettings.byokKeys || {})[activeProvider] || storedSettings.userApiKey || apiKey) : apiKey;
+
+      // Context History Capping (8 turns for Free, 25 turns for Paid/BYOK)
+      const isPaidOrByok = engineTier === 'premium' || engineTier === 'byok';
+      const capTurns = isPaidOrByok ? 25 : 8;
+      const historyToPass = updatedHistory.slice(-capTurns * 2);
+
       const response = await generateCompletion({
-        provider: engine.provider,
-        model: engine.model,
-        apiKey,
+        provider: activeProvider,
+        model: activeModel,
+        apiKey: activeKey,
         systemPrompt,
-        history: updatedHistory,
+        history: historyToPass,
         isHandoff: false,
         sandboxMode: sandbox,
         characterData: character,
+        currentSituation: currentLocation,
         sessionToken,
         onChunk: (chunkText) => {
           setHistory(prev => {
@@ -2125,6 +2197,11 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const npcFactRegex = /\[npc_fact:\s*([^\]\s]+)\s*([^\]]+)\]/gi;
       const npcFactMatches = [...cleanedText.matchAll(npcFactRegex)].map(m => ({ npcId: m[1].trim(), fact: m[2].trim() }));
       cleanedText = cleanedText.replace(npcFactRegex, '').trim();
+
+      // D. Region fact parsing
+      const regionFactRegex = /\[region_fact:\s*([^|\]]+)\|\s*([^\]]+)\]/gi;
+      const regionFactMatches = [...cleanedText.matchAll(regionFactRegex)].map(m => ({ regionId: m[1].toLowerCase().trim(), fact: m[2].trim() }));
+      cleanedText = cleanedText.replace(regionFactRegex, '').trim();
 
       // Parse tags out of the response text (morality, roleplay, and advance_day)
       const moralityRegex = /\[morality:\s*([+-]?\d+)\]/gi;
@@ -2446,6 +2523,20 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
             }
           });
 
+          return nextMemory;
+        });
+      }
+
+      if (regionFactMatches.length > 0) {
+        setRegionMemory(prev => {
+          const nextMemory = { ...prev };
+          regionFactMatches.forEach(({ regionId, fact }) => {
+            const key = regionId.toLowerCase().trim();
+            if (!nextMemory[key]) nextMemory[key] = [];
+            if (!nextMemory[key].includes(fact)) {
+              nextMemory[key] = [...nextMemory[key], fact];
+            }
+          });
           return nextMemory;
         });
       }
@@ -2831,11 +2922,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
             const email = storage.get('shattered_email') || 'adventurer@saga.com';
             const mockProfile = storage.get(`mock_supabase_profile_${email}`, null);
             if (mockProfile) {
-              const isUnlimitedMock = mockProfile.subscription_tier === 'adventurer' || mockProfile.subscription_tier === 'legend';
-              if (!isUnlimitedMock) {
-                mockProfile.energy_balance = Math.max(0, mockProfile.energy_balance - 1);
-                storage.set(`mock_supabase_profile_${email}`, mockProfile);
-              }
+              mockProfile.energy_balance = Math.max(0, (mockProfile.energy_balance || 0) - 1);
+              storage.set(`mock_supabase_profile_${email}`, mockProfile);
               setUserProfile(mockProfile);
             }
           } else {
@@ -2889,6 +2977,14 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
   // Execute Skill Upgrades on Adventure/Milestone Complete
   const executeMilestoneUpgrades = (chosenSkillId) => {
+    // Save final journal summary for cross-adventure reactivity
+    if (activeAdventureId) {
+      setAdventureSummaries(prev => ({
+        ...prev,
+        [activeAdventureId]: journal?.storySoFar || "Quest completed successfully."
+      }));
+    }
+
     // 1. Find most used skill in the tally
     let mostUsedSkillId = null;
     let maxUses = 0;
@@ -3133,7 +3229,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       'character', 'active_gm_id', 'gm_energies', 'history',
       'journal', 'handoff_state', 'skill_tally', 'active_adventure_id',
       'safety_state', 'next_roll_modifier', 'pre_adventure_character', 'last_check',
-      'active_enemy', 'counter_opportunities', 'combat_stance'
+      'active_enemy', 'counter_opportunities', 'combat_stance',
+      'npc_memory', 'region_memory', 'adventure_summaries'
     ];
     keysToWipe.forEach(k => {
       storage.remove(`slot_${activeSlotIndex}_${k}`);
@@ -3154,6 +3251,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     setActiveEnemy(null);
     setCounterOpportunities(null);
     setCombatStance(null);
+    setNpcMemory({});
+    setRegionMemory({});
+    setAdventureSummaries({});
   };
 
   const eatRation = () => {
@@ -4533,6 +4633,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     currentLocation,
     droppedItems,
     npcMemory,
+    regionMemory,
+    adventureSummaries,
     calculateWeightAndVolume,
     enemyAttacksQueue,
     resolveEnemyAttack,

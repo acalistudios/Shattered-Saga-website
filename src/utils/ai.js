@@ -130,7 +130,7 @@ function formatMessages(provider, systemPrompt, conversationHistory) {
     const contents = [];
     conversationHistory.forEach((msg) => {
       if (msg.role === 'system') return;
-      const role = msg.role === 'assistant' ? 'model' : 'user';
+      const role = (msg.role === 'assistant' || msg.role === 'model') ? 'model' : 'user';
       const lastMsg = contents[contents.length - 1];
       if (lastMsg && lastMsg.role === role) {
         lastMsg.parts[0].text += `\n\n${msg.content}`;
@@ -206,7 +206,12 @@ async function readStream(response, provider, onChunk) {
             if (dataStr === "[DONE]") continue;
             try {
               const parsed = JSON.parse(dataStr);
-              const content = parsed.choices?.[0]?.delta?.content || "";
+              let content = "";
+              if (provider === 'anthropic') {
+                content = parsed.delta?.text || "";
+              } else {
+                content = parsed.choices?.[0]?.delta?.content || "";
+              }
               if (content) {
                 accumulatedText += content;
                 onChunk(accumulatedText);
@@ -291,7 +296,7 @@ async function executeRawCompletion({
 
       const requestBody = {
         messages: messages,
-        model: isHandoff ? 'openai' : (provider === 'oracle' ? 'openai' : 'llama'),
+        model: 'openai-fast',
         jsonMode: isHandoff,
         seed: Math.floor(Math.random() * 1000000)
       };
@@ -461,14 +466,15 @@ async function executeRawCompletion({
 
       return { text, totalTokens, error: null };
 
-    } else if (provider === 'groq' || provider === 'cerebras') {
+    } else if (provider === 'openai' || provider === 'groq' || provider === 'cerebras') {
       const formatted = formatMessages(provider, systemPrompt, history);
-      const url = provider === 'groq' 
-        ? 'https://api.groq.com/openai/v1/chat/completions'
-        : 'https://api.cerebras.ai/v1/chat/completions';
+      let url = '';
+      if (provider === 'openai') url = 'https://api.openai.com/v1/chat/completions';
+      else if (provider === 'groq') url = 'https://api.groq.com/openai/v1/chat/completions';
+      else if (provider === 'cerebras') url = 'https://api.cerebras.ai/v1/chat/completions';
       
       const requestBody = {
-        model: model,
+        model: model || (provider === 'openai' ? 'gpt-4o-mini' : model),
         messages: formatted.messages,
         max_tokens: isHandoff ? 1000 : 400,
         temperature: isHandoff ? 0.2 : 0.7,
@@ -478,7 +484,7 @@ async function executeRawCompletion({
         requestBody.stream = true;
       }
 
-      if (isHandoff) {
+      if (isHandoff && provider === 'openai') {
         requestBody.response_format = { type: 'json_object' };
       }
 
@@ -504,6 +510,57 @@ async function executeRawCompletion({
       const data = await res.json();
       const text = data.choices?.[0]?.message?.content || '';
       const totalTokens = data.usage?.total_tokens || 200;
+
+      return { text, totalTokens, error: null };
+
+    } else if (provider === 'anthropic') {
+      // Build messages array (excluding system role since Anthropic has system top-level param)
+      const messages = [];
+      history.forEach((msg) => {
+        if (msg.role === 'system') return;
+        messages.push({
+          role: msg.role === 'model' || msg.role === 'assistant' ? 'assistant' : 'user',
+          content: msg.content
+        });
+      });
+
+      const url = 'https://api.anthropic.com/v1/messages';
+      const requestBody = {
+        model: model || 'claude-3-5-sonnet-20240620',
+        system: systemPrompt,
+        messages: messages,
+        max_tokens: isHandoff ? 1000 : 400,
+        temperature: isHandoff ? 0.2 : 0.7,
+      };
+
+      if (onChunk) {
+        requestBody.stream = true;
+      }
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error?.message || `Anthropic API returned status ${res.status}`);
+      }
+
+      if (onChunk && res.body) {
+        const text = await readStream(res, 'anthropic', onChunk);
+        return { text, totalTokens: text.split(' ').length + 100, error: null };
+      }
+
+      const data = await res.json();
+      const text = data.content?.[0]?.text || '';
+      const totalTokens = (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0) || 200;
 
       return { text, totalTokens, error: null };
     }
@@ -591,6 +648,10 @@ function runSandboxMock(provider, history, isHandoff, characterData, currentSitu
           actionResponse = wasSuccess
             ? 'You strike at the volcanic wardens! Your weapon connects with high force, shattering their stony armor and sending sparks of embers flying into the dark air.'
             : 'The warden parries your blow with its fiery shield, the shockwave of the impact vibrating up your arms and leaving you off-balance.';
+        } else if (cleanMsg.includes('search') || cleanMsg.includes('inspect') || cleanMsg.includes('look') || cleanMsg.includes('study')) {
+          actionResponse = wasSuccess
+            ? 'You search the volcanic room carefully. Behind a jagged basalt pillar, you discover a cache of heat-treated supplies and notice a pattern in the magma flows.'
+            : 'You attempt to search the area, but the dense sulfur smog and rising ash clouds sting your eyes, leaving you empty-handed and coughing.';
         } else {
           actionResponse = `You decide to ${lastUserMsg.replace(/\[Check:.*?\]/, '').trim()}. ${wasSuccess ? 'Your actions prove successful as you navigate the ash-strewn Basalt Ridge.' : 'The volcanic vents erupt suddenly, complicating your progress.'}`;
         }
@@ -622,15 +683,19 @@ function runSandboxMock(provider, history, isHandoff, characterData, currentSitu
           actionResponse = wasSuccess
             ? 'You realign the gravity anchor dial. A localized field of calm surrounds the bridge, stabilizing the sways.'
             : 'The gravity lock sparks violently, reversing its charge temporarily and making your steps feel twice as heavy.';
+        } else if (cleanMsg.includes('search') || cleanMsg.includes('inspect') || cleanMsg.includes('look') || cleanMsg.includes('study')) {
+          actionResponse = wasSuccess
+            ? 'You search the surrounding winds and structures, spotting subtle patterns in the clouds and highlighting a path of stable gravity anchors.'
+            : 'You search the area, but the howling gale-force winds and whipping dust obscure your line of sight, making it impossible to find anything useful.';
         } else {
           actionResponse = `You decide to ${lastUserMsg.replace(/\[Check:.*?\]/, '').trim()}. ${wasSuccess ? 'Your agility carries you forward across the floating islands.' : 'A gravity anomaly shifts, throwing off your sense of direction.'}`;
         }
       }
 
       let text = '';
-      const activeRoom = characterData?.setting || 'The Runic Vestibule';
+      const activeRoom = currentSituation || characterData?.setting || 'Fivefold Gate';
       const outputLocationTag = `[location: ${activeRoom}]`;
-      const outputChoices = `\n[choice: Search the room | perception | novice]\n[choice: Inspect the local layout | survival | moderate]\n[choice: Attempt to force your way | athletics | veteran]`;
+      const outputChoices = `\n[choice: Search the room = Search the room]\n[choice: Inspect the local layout = Inspect the local layout]\n[choice: Attempt to force your way = Attempt to force your way]`;
 
       if (provider === 'oracle' || provider === 'gemini') {
         text = `*The Oracle peers into the shimmering elemental green waters of her basin, her voice echoey and calm.* 

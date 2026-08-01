@@ -309,7 +309,7 @@ export default function SettingsModal({
                       onClick={() => handleSimulateUpgrade('adventurer')}
                       className="px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-3xs font-semibold cursor-pointer border border-amber-500/20"
                     >
-                      Subscribe Adventurer ($9.99/mo)
+                      Subscribe Adventurer ($4.99/mo)
                     </button>
                   </div>
                 </div>

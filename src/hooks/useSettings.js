@@ -29,7 +29,16 @@ export default function useSettings() {
     const userApiKey = stored.userApiKey || '';
     const strongholdChest = stored.strongholdChest || [];
     
-    return { keys, sandboxMode, engineTier, userApiKey, strongholdChest };
+    const byokProvider = stored.byokProvider || 'gemini';
+    const byokModel = stored.byokModel || 'gemini-1.5-flash';
+    const byokKeys = {
+      gemini: stored.byokKeys?.gemini || stored.userApiKey || '',
+      openai: stored.byokKeys?.openai || '',
+      anthropic: stored.byokKeys?.anthropic || '',
+      ...(stored.byokKeys || {})
+    };
+    
+    return { keys, sandboxMode, engineTier, userApiKey, strongholdChest, byokProvider, byokModel, byokKeys };
   });
 
   const updateSettings = (newSettings) => {
@@ -72,7 +81,45 @@ export default function useSettings() {
 
   const setUserApiKey = (key) => {
     setSettings((prev) => {
-      const updated = { ...prev, userApiKey: key };
+      const updated = { 
+        ...prev, 
+        userApiKey: key,
+        byokKeys: {
+          ...prev.byokKeys,
+          [prev.byokProvider || 'gemini']: key
+        }
+      };
+      storage.set('settings', updated);
+      return updated;
+    });
+  };
+
+  const setByokProvider = (provider) => {
+    setSettings((prev) => {
+      const updated = { ...prev, byokProvider: provider };
+      storage.set('settings', updated);
+      return updated;
+    });
+  };
+
+  const setByokModel = (model) => {
+    setSettings((prev) => {
+      const updated = { ...prev, byokModel: model };
+      storage.set('settings', updated);
+      return updated;
+    });
+  };
+
+  const setByokKey = (provider, key) => {
+    setSettings((prev) => {
+      const updated = {
+        ...prev,
+        byokKeys: {
+          ...prev.byokKeys,
+          [provider]: key
+        },
+        userApiKey: provider === prev.byokProvider ? key : prev.userApiKey
+      };
       storage.set('settings', updated);
       return updated;
     });
@@ -107,6 +154,9 @@ export default function useSettings() {
     setSandboxMode,
     setEngineTier,
     setUserApiKey,
+    setByokProvider,
+    setByokModel,
+    setByokKey,
     addToStrongholdChest,
     updateStrongholdChest,
   };

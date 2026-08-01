@@ -43,7 +43,8 @@ export default function Splash({
   onCreateInSlot,
   onWipeSlot,
   onUnlockSlot,
-  layoutMode = 'auto'
+  layoutMode = 'auto',
+  onOpenAccount
 }) {
   const fileInputRef = useRef(null);
   const [importingSlot, setImportingSlot] = useState(null);
@@ -723,7 +724,7 @@ export default function Splash({
                   </form>
                 </div>
                 
-                <div className="border-t border-slate-850/60 pt-4 mt-2">
+                <div className="border-t border-slate-850/60 pt-4 mt-2 space-y-2">
                   <button
                     type="button"
                     onClick={() => handleSocialLogin('Guest_Adventurer')}
@@ -731,6 +732,15 @@ export default function Splash({
                   >
                     Guest Play (Sandbox)
                   </button>
+                  <div className="text-center pt-2">
+                    <button
+                      type="button"
+                      onClick={onOpenAccount}
+                      className="text-4xs text-slate-500 hover:text-amber-450 uppercase tracking-widest font-extrabold transition-colors cursor-pointer"
+                    >
+                      🔑 API Key & Subscription Settings
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -741,10 +751,13 @@ export default function Splash({
                     <span className="text-4xs text-slate-500 uppercase tracking-widest block font-semibold">Active Session</span>
                     <span className="text-xs font-bold text-amber-400 font-serif">{username.replace('_', ' ')}</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-amber-450 text-3xs font-extrabold flex items-center gap-1 font-sans uppercase tracking-wider">
-                      💎 {gems} Gems
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={onOpenAccount}
+                      className="px-2 py-1 rounded bg-slate-900 border border-slate-850 hover:border-amber-500/45 text-4xs font-bold text-slate-400 hover:text-amber-400 transition-all cursor-pointer"
+                    >
+                      Account
+                    </button>
                     <button
                       onClick={handleLogout}
                       className="px-2 py-1 rounded bg-slate-900 border border-slate-850 hover:border-rose-900/40 text-4xs font-bold text-slate-400 hover:text-rose-400 transition-all cursor-pointer"
