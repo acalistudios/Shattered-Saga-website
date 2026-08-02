@@ -1,0 +1,19 @@
+# Cloudflare Worker config for the Shattered Saga API proxy.
+# Deploy from this directory with:  npx wrangler deploy
+#
+# This Worker verifies the Supabase session JWT, meters energy, and forwards
+# free/premium-tier completions to the AI provider using SERVER-side keys.
+# (BYOK calls do NOT use this Worker — they go browser-direct to the provider.)
+
+name = "shattered-saga-proxy"
+main = "src-worker/index.js"
+compatibility_date = "2024-09-01"
+
+# Secrets are NOT stored here. Set each one with `npx wrangler secret put <NAME>`:
+#   SUPABASE_URL              e.g. https://<project-ref>.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY the Supabase service_role key (server-only, never ship to client)
+#   DEV_GEMINI_KEY            shared Gemini API key for the free/premium engine
+#   DEV_GROQ_KEY              (optional) shared Groq key
+#   DEV_CEREBRAS_KEY          (optional) shared Cerebras key
+#
+# After deploy, copy the Worker URL into the frontend build env as VITE_PROXY_URL.

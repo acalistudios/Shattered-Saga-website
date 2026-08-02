@@ -1,7 +1,10 @@
 -- Database Schema: Shattered Saga Energy Economy & Subscriptions
 
 -- 1. Create Custom Types for Subscriptions
-create type subscription_tier_type as enum ('free', 'adventurer', 'legend');
+-- Tiers: free, supporter ($1 BYOK), adventurer ($4.99), legend ($15).
+-- NOTE: if this type already exists in a deployed database, add the missing value with:
+--   alter type subscription_tier_type add value if not exists 'supporter' before 'adventurer';
+create type subscription_tier_type as enum ('free', 'supporter', 'adventurer', 'legend');
 create type subscription_status_type as enum ('active', 'trialing', 'canceled', 'past_due', 'none');
 
 -- 2. Create User Profiles Table
