@@ -405,7 +405,8 @@ const DEFAULT_CHARACTER = {
   },
   trainingSlots: 0,
   storyEvents: [],
-  choicesMade: {}
+  choicesMade: {},
+  confiscatedGear: []
 };
 
 export function validateCharacterSchema(raw) {
@@ -456,14 +457,13 @@ export function validateCharacterSchema(raw) {
     },
     storyEvents: Array.isArray(raw.storyEvents) ? raw.storyEvents : [],
     choicesMade: typeof raw.choicesMade === 'object' && raw.choicesMade !== null ? raw.choicesMade : {},
-    trainingSlots: typeof raw.trainingSlots === 'number' ? raw.trainingSlots : 0
+    trainingSlots: typeof raw.trainingSlots === 'number' ? raw.trainingSlots : 0,
+    confiscatedGear: Array.isArray(raw.confiscatedGear) ? raw.confiscatedGear : []
   };
 }
 
 const DEFAULT_ENERGIES = {
-  oracle: 100,
-  titan: 100,
-  ancient: 100,
+  narrator: 100,
 };
 
 const DEFAULT_SAFETY_STATE = {
@@ -821,7 +821,9 @@ export default function useGameState() {
     }
   }, [character, activeSlotIndex]);
 
-  const activeGm = GMS.find(g => g.id === activeGmId);
+  // Single-narrator model: any legacy GM id (oracle/titan/ancient) or null resolves
+  // to the sole narrator entry so saved games and adventure suggestedGm values keep working.
+  const activeGm = GMS.find(g => g.id === activeGmId) || GMS[0];
 
   // Checks energy recharges periodically
   const checkEnergyResets = useCallback(() => {
@@ -1158,7 +1160,8 @@ export default function useGameState() {
           systemPrompt: summaryPrompt,
           history: newHistory.slice(-10),
           sandboxMode: sandbox,
-          sessionToken
+          // BYOK routes through the direct client path, not the serverless proxy.
+          sessionToken: engineTier === 'byok' ? null : sessionToken
         });
 
         if (response.text) {
@@ -1762,7 +1765,10 @@ export default function useGameState() {
           finalActionText += `\n\n[Notice: Player is Over-Fatigued! (Fatigue: ${localFatigue.toFixed(1)}/${maxFatigue.toFixed(1)}). A -${exhaustionPenalty} penalty has been applied to this check.]`;
         }
         if (encumbrancePenalty !== 0) {
-          finalActionText += `\n\n[Notice: Player is Encumbered (${encumbrance.weightRatio}% weight capacity)! A ${encumbrancePenalty} penalty has been applied to this physical check.]`;
+          const drivenByVolume = encumbrance.volumeRatio > encumbrance.weightRatio;
+          const loadPct = Math.max(encumbrance.weightRatio, encumbrance.volumeRatio);
+          const loadKind = drivenByVolume ? 'pack volume' : 'weight';
+          finalActionText += `\n\n[Notice: Player is Encumbered (${loadPct}% ${loadKind} capacity)! A ${encumbrancePenalty} penalty has been applied to this physical check.]`;
         }
 
         // Add to our skill tally for leveling up
@@ -1773,10 +1779,15 @@ export default function useGameState() {
       }
     }
 
-    if (encumbrance.isOverloaded) {
-      finalActionText += `\n\n[WARNING: Player is OVERLOADED (${encumbrance.weightRatio}% weight capacity)! Physical movement and actions risk physical collapse. Double fatigue is consumed.]`;
-    } else if (encumbrance.isSlowed) {
-      finalActionText += `\n\n[Notice: Player is SLOWED (${encumbrance.weightRatio}% weight capacity)! Physical actions suffer heavy fatigue and coordination penalties.]`;
+    if (encumbrance.isOverloaded || encumbrance.isSlowed) {
+      const drivenByVolume = encumbrance.volumeRatio > encumbrance.weightRatio;
+      const loadPct = Math.max(encumbrance.weightRatio, encumbrance.volumeRatio);
+      const loadKind = drivenByVolume ? 'pack volume' : 'weight';
+      if (encumbrance.isOverloaded) {
+        finalActionText += `\n\n[WARNING: Player is OVERLOADED (${loadPct}% ${loadKind} capacity)! Physical movement and actions risk physical collapse. Double fatigue is consumed.]`;
+      } else {
+        finalActionText += `\n\n[Notice: Player is SLOWED (${loadPct}% ${loadKind} capacity)! Physical actions suffer heavy fatigue and coordination penalties.]`;
+      }
     }
 
     // Calculate time and resource progression for this action
@@ -2033,16 +2044,19 @@ Items lying on the ground in this room: ${(droppedItems[activeAdventureId]?.[cur
         systemPrompt += `(Instructions: You can propose modifications to NPC parameters by outputting [npc_trust: NPC_Name +5], [npc_fear: NPC_Name -10], or record facts using [npc_fact: NPC_Name Fact description].)\n`;
       }
 
-      // 2. Inject Regional Memories
-      const currentRegionId = activeAdventure.region || activeAdventure.id || 'unknown';
-      const regionFacts = regionMemory[currentRegionId.toLowerCase()] || [];
+      // 2. Inject Regional Memories.
+      // The read key and the write key MUST be identical or saved facts never re-inject.
+      // We derive a single canonical key and instruct the GM to use that exact token,
+      // rather than letting it invent an arbitrary region_id.
+      const currentRegionId = (activeAdventure.region || activeAdventure.id || 'unknown').toLowerCase();
+      const regionFacts = regionMemory[currentRegionId] || [];
       if (regionFacts.length > 0) {
         systemPrompt += `\n[REGIONAL MEMORIES - ${currentRegionId.toUpperCase()}]\n`;
         regionFacts.forEach(fact => {
           systemPrompt += `- ${fact}\n`;
         });
       }
-      systemPrompt += `(Instructions: You can record localized region changes by outputting [region_fact: region_id | fact description] (e.g. [region_fact: ashveil | Lord Aldric Voss's guards have fled, village safety is high]).)\n`;
+      systemPrompt += `(Instructions: You can record a lasting local change to this region by outputting [region_fact: ${currentRegionId} | fact description]. Use the region_id "${currentRegionId}" exactly as written — do not substitute a different name. Example: [region_fact: ${currentRegionId} | Lord Aldric Voss's guards have fled; the village is now safe].)\n`;
 
       // 3. Inject Completed Adventure Summaries (Legendary Deeds)
       const completedList = character.completed_adventures || [];
@@ -2051,7 +2065,7 @@ Items lying on the ground in this room: ${(droppedItems[activeAdventureId]?.[cur
       if (activeAdventureSummaries.length > 0) {
         systemPrompt += `\n[LEGENDARY DEEDS - COMPLETED CHRONICLES]\nThe player has previously accomplished these deeds in the world. NPCs may recognize them for these achievements:\n`;
         activeAdventureSummaries.forEach(([advId, summary]) => {
-          const advTitle = ADVENTURES_LIST.find(a => a.id === advId)?.title || advId;
+          const advTitle = ADVENTURES_LIST.find(a => a.id === advId)?.name || advId;
           systemPrompt += `- ${advTitle}: ${summary}\n`;
         });
       }
@@ -2153,7 +2167,10 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         sandboxMode: sandbox,
         characterData: character,
         currentSituation: currentLocation,
-        sessionToken,
+        // BYOK uses the player's own key via the direct client path. The serverless proxy
+        // is only for server-metered free/premium tiers and does not support anthropic/openai,
+        // so we suppress the session token for BYOK to avoid being routed through it.
+        sessionToken: engineTier === 'byok' ? null : sessionToken,
         onChunk: (chunkText) => {
           setHistory(prev => {
             const nextHistoryList = [...prev];
@@ -3149,12 +3166,42 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const expectedMaxArcane = drawingRank * 3;
       const expectedMaxDivine = communionRank * 3;
 
-      const nextEquipment = {
+      const emptyEquipment = {
         head: null, neck: null, body: null, legs: null, feet: null, hands: null,
         hand_right: null, hand_left: null, ring_left: null, ring_right: null,
-        backpack: 'Small Backpack', hip_left: null, hip_right: null,
+        backpack: null, hip_left: null, hip_right: null,
         hip_left_sheathed: null, hip_right_sheathed: null
       };
+
+      // Captivity adventures (e.g. Saltblood Mines) strip the player of all gear on start.
+      // Everything is moved into `confiscatedGear` so it is never lost — it can be
+      // recovered later (Supply Depot) or returned by the GM via [add_item] tags.
+      if (adventure?.stripEquipment) {
+        const stashed = [
+          ...(prev.inventory || []),
+          ...Object.values(prev.equipment || {}).filter(Boolean)
+        ];
+        return {
+          ...prev,
+          inventory: [],
+          equipment: emptyEquipment,
+          confiscatedGear: [...(prev.confiscatedGear || []), ...stashed],
+          is_free_roaming: isFreeRoam,
+          stats: {
+            ...prev.stats,
+            day: startDay,
+            hour: startHour,
+            fatigue: expectedMaxFatigue,
+            maxFatigue: expectedMaxFatigue,
+            arcaneSP: expectedMaxArcane,
+            maxArcaneSP: expectedMaxArcane,
+            divineSP: expectedMaxDivine,
+            maxDivineSP: expectedMaxDivine
+          }
+        };
+      }
+
+      const nextEquipment = { ...emptyEquipment, backpack: 'Small Backpack' };
       (prev.inventory || []).forEach(item => {
         const details = getItemDetails(item);
         const slot = details.slot;

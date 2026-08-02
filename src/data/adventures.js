@@ -298,6 +298,9 @@ const BASE_ADVENTURES_LIST = [
     artwork: titanBanner,
     startingDay: 1,
     startingHour: 7.0, // 7:00 AM
+    // Captivity intro: the player is stripped of all gear on start. Confiscated items are
+    // stashed and recoverable at the Supply Depot (see objectives / settings below).
+    stripEquipment: true,
     startingPrompt: 'You wake in captivity in a cold holding cage at the surface level of the Saltblood Mines. Your head throbs, and the bitter taste of Kessroot still lingers in your mouth. Through the iron bars, you see the stone-walled guard room where two guards are playing cards, oblivious to your awakening. You have no weapons or equipment. You must find a way to escape this place alive.',
     objectives: [
       'Escape the intake cage and survive without starting equipment.',

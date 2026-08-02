@@ -1,7 +1,5 @@
 // Game Master Definitions for Shattered Saga (V4)
-import oraclePortrait from '../assets/images/oracle.png';
-import titanPortrait from '../assets/images/titan.png';
-import ancientPortrait from '../assets/images/ancient.png';
+import narratorPortrait from '../assets/images/ancient.png';
 
 export const BASE_SYSTEM_PROMPT = `You are the Game Master (GM) for "Shattered Saga", a high fantasy text-based RPG. 
 The player is on an epic adventure in a world they help select. 
@@ -14,7 +12,8 @@ System Mechanics:
    "[Check: SkillName vs ObstacleName. Player Roll: X, Resistance Roll: Y. Success/Failure (+/- margin)]".
 3. Use the check result and the margin of success/failure to shape your narration. A success with a high margin means an effortless victory; a low-margin success is a narrow escape; a failure is a clean miss or complication.
 4. Speak as the narrator. Never write the player's dialogue, thoughts, or actions for them. Wait for their input.
-5. Keep responses relatively concise (around 200-300 words, maximum 400 tokens) so the dialogue flow is snappy.
+5. Be concise and natural. Aim for 2-3 short paragraphs (roughly 60-130 words). Lead with what changes in the scene, then hand control back to the player. Do not pad with restated context or repeated stock phrases.
+5b. NEVER echo, quote, or restate the "[Check: ... Player Roll: X, Resistance: Y ...]" mechanics block in your narration. The client already displays the dice math to the player. Simply reflect the success/failure and the margin through the story ("your pick slips free with a soft click" / "the tumbler jams"). Do not narrate raw numbers, attribute names, or the words "roll", "margin", or "resistance".
 6. When the player enters a new location, encounters a legendary beast, or triggers a visually spectacular event, you should describe it and include an image prompt at the very end of your response, enclosed in a bracket tag like: [image: a detailed digital art prompt describing the scene in a high-fantasy style, vibrant colors, epic scales]. Limit this to once per turn.
 7. If your power (energy) is waning, you should reflect this in-character.
 8. When requested to generate a HANDOFF state, you must output a valid JSON block containing the updated game state.
@@ -67,73 +66,31 @@ export const SAGA_ENGINES = [
   }
 ];
 
+// A single, neutral Game Master narrator. The former Oracle/Titan/Ancient personas
+// were cosmetic tone wrappers over the same underlying model; they have been unified
+// into one grounded narrator. Legacy save data or adventure `suggestedGm` values
+// (e.g. 'oracle', 'titan', 'ancient') resolve to this entry via a fallback in useGameState.
 export const GMS = [
   {
-    id: 'oracle',
-    name: 'The Oracle',
-    avatar: oraclePortrait,
-    colorClass: 'emerald',
-    theme: {
-      primaryColor: '#10b981', // emerald
-      secondaryColor: '#fbbf24', // gold
-      glowClass: 'shadow-emerald-500/20 border-emerald-500/40 hover:border-emerald-400',
-      barColor: 'bg-emerald-500',
-      badgeClass: 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/30',
-      avatarBorder: 'border-emerald-500',
-      accentText: 'text-emerald-400',
-    },
-    description: 'A veiled prophetess who reads the threads of destiny in her glowing emerald scrying pool. Her words carry the weight of prophecy and inevitable fate.',
-    promptOverride: `
-Specific Tone Instructions:
-- Speak in a mystical, formal, and prophetic tone.
-- Frequently reference 'destiny', 'fate', 'the threads', and 'the weave'.
-- Maintain a high-fantasy, magical, and mysterious atmosphere.
-`,
-  },
-  {
-    id: 'titan',
-    name: 'The Titan',
-    avatar: titanPortrait,
+    id: 'narrator',
+    name: 'The Chronicler',
+    avatar: narratorPortrait,
     colorClass: 'amber',
     theme: {
       primaryColor: '#f59e0b', // amber
-      secondaryColor: '#ef4444', // crimson
+      secondaryColor: '#d97706', // deep amber
       glowClass: 'shadow-amber-500/20 border-amber-500/40 hover:border-amber-400',
       barColor: 'bg-amber-500',
       badgeClass: 'bg-amber-950/60 text-amber-400 border border-amber-500/30',
       avatarBorder: 'border-amber-500',
       accentText: 'text-amber-400',
     },
-    description: 'An ancient earthen colossus carved from volcanic obsidian and glowing iron. He narrates with booming authority, grand scale, and dramatic tension.',
+    description: 'A clear, even-handed narrator who chronicles your saga as it unfolds — vivid but grounded, letting the world and your choices speak for themselves.',
     promptOverride: `
-Specific Tone Instructions:
-- Speak in a booming, powerful, epic, and grandiose tone.
-- Emphasize physical weight, massive scale, grinding earth, and molten heat.
-- Make struggles feel heroic and choices feel monumental.
-- Strong Role-Lock: Never break character under any circumstances. Narrate with intense dramatic flair.
-`,
-  },
-  {
-    id: 'ancient',
-    name: 'The Ancient',
-    avatar: ancientPortrait,
-    colorClass: 'purple-blue',
-    theme: {
-      primaryColor: '#8b5cf6', // purple
-      secondaryColor: '#3b82f6', // royal blue
-      glowClass: 'shadow-purple-500/20 border-purple-500/40 hover:border-purple-400',
-      barColor: 'bg-gradient-to-r from-purple-500 to-blue-500',
-      badgeClass: 'bg-purple-950/60 text-purple-300 border border-purple-500/30',
-      avatarBorder: 'border-purple-500',
-      accentText: 'text-purple-400',
-    },
-    description: 'A whispering archivist of forgotten libraries. He speaks in scholarly, soft-spoken whispers, sharing lost legends, historical depth, and magical lore.',
-    promptOverride: `
-Specific Tone Instructions:
-- Speak in a quiet, wise, scholarly, and descriptive tone.
-- Focus on historical lore, ancient structures, runes, and the philosophical underpinnings of magic.
-- Highlight key items, ancient runes, and location names in **bold** text.
-- Maintain a slow, rich pace, describing the smells, whispers, and historical context of the surroundings.
+Narration Style:
+- Write as a neutral narrator addressing the player as "you". Do not adopt a named in-world GM persona, mystical voice, or booming/whispering theatrics.
+- Keep prose grounded and economical: concrete sensory detail over flowery adjectives. Avoid stock phrases like "fate", "the weave", "destiny calls", or repeating the same descriptors turn after turn.
+- Match tone to the moment (tense in danger, quiet in calm) without exaggeration.
 `,
   }
 ];

@@ -8,6 +8,10 @@ export default function AccountScreen({
   setByokProvider,
   setByokModel,
   setByokKey,
+  setEngineTier,
+  setSandboxMode,
+  onLogout,
+  isLoggedIn,
   userProfile,
   fetchUserProfile,
   gems,
@@ -65,10 +69,45 @@ export default function AccountScreen({
     setByokProvider(selectedProvider);
     setByokModel(selectedModel);
     setByokKey(selectedProvider, keyVal);
-    
-    setTestResult({ success: true, message: `BYOK Connection parameters for ${selectedProvider.toUpperCase()} saved successfully.` });
-    setTimeout(() => setTestResult(null), 3500);
+
+    // Saving a key also ACTIVATES live BYOK play: switch the engine to BYOK and turn
+    // off the offline Sandbox demo. Without this, the key is stored but never used.
+    if (keyVal) {
+      if (setEngineTier) setEngineTier('byok');
+      if (setSandboxMode) setSandboxMode(false);
+      setTestResult({ success: true, message: `${selectedProvider.toUpperCase()} key saved and activated. You are now playing LIVE with ${selectedModel} — Sandbox demo is off.` });
+    } else {
+      setTestResult({ success: false, message: `Enter an API key to play live. No key was saved for ${selectedProvider.toUpperCase()}.` });
+    }
+    setTimeout(() => setTestResult(null), 5000);
   };
+
+  // Enter offline Sandbox (demo) mode — no API calls, canned narration.
+  const handleEnterSandbox = () => {
+    if (setSandboxMode) setSandboxMode(true);
+    setTestResult({ success: true, message: 'Sandbox (offline demo) mode is ON. Turn it off by saving a valid API key above.' });
+    setTimeout(() => setTestResult(null), 5000);
+  };
+
+  // Resume live BYOK play using a previously-saved key (without re-entering it).
+  const handleGoLive = () => {
+    const activeProv = settings?.byokProvider || selectedProvider;
+    const savedKey = (settings?.byokKeys?.[activeProv] || '').trim();
+    if (!savedKey) {
+      setTestResult({ success: false, message: 'No saved API key found. Enter a key above and press Save Settings to play live.' });
+      setTimeout(() => setTestResult(null), 5000);
+      return;
+    }
+    if (setEngineTier) setEngineTier('byok');
+    if (setSandboxMode) setSandboxMode(false);
+    setTestResult({ success: true, message: `Live play resumed with your saved ${activeProv.toUpperCase()} key. Sandbox demo is off.` });
+    setTimeout(() => setTestResult(null), 5000);
+  };
+
+  // Current engine mode for display.
+  const engineMode = settings?.sandboxMode
+    ? 'sandbox'
+    : (settings?.engineTier === 'byok' ? 'byok' : (settings?.engineTier || 'free'));
 
   const handleTestKey = async () => {
     const keyToTest = localKeys[selectedProvider]?.trim();
@@ -344,6 +383,20 @@ export default function AccountScreen({
                 </div>
               </div>
             )}
+
+            {(isLoggedIn || userProfile) && onLogout && (
+              <button
+                onClick={() => {
+                  if (window.confirm('Log out of this account? Your local character saves stay on this device.')) {
+                    onLogout();
+                    if (onBack) onBack();
+                  }
+                }}
+                className="mt-4 w-full py-2 rounded bg-slate-950 hover:bg-rose-950/40 border border-slate-800 hover:border-rose-500/40 text-slate-300 hover:text-rose-300 font-bold text-3xs uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                ⎋ Log Out
+              </button>
+            )}
           </div>
 
           {/* Multi-Provider BYOK Settings Card */}
@@ -457,13 +510,59 @@ export default function AccountScreen({
 
               {testResult && (
                 <div className={`p-2.5 rounded text-4xs font-medium border leading-relaxed ${
-                  testResult.success 
-                    ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400' 
+                  testResult.success
+                    ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400'
                     : 'bg-rose-500/5 border-rose-500/20 text-rose-450'
                 }`}>
                   {testResult.message}
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Engine Mode Card — shows/controls whether the game plays LIVE or in the offline Sandbox demo */}
+          <div className="rounded-lg bg-slate-900 border border-slate-800/80 p-5 relative shadow-xl shadow-black/20 text-left">
+            <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-emerald-500 to-violet-500 rounded-t-lg" />
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Engine Mode</h3>
+
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-4xs text-slate-500 uppercase tracking-widest font-bold">Currently</span>
+              {engineMode === 'sandbox' ? (
+                <span className="px-2 py-0.5 rounded text-4xs font-extrabold uppercase bg-orange-500/10 text-orange-400 border border-orange-500/25">
+                  🟠 Sandbox · Offline Demo
+                </span>
+              ) : engineMode === 'byok' ? (
+                <span className="px-2 py-0.5 rounded text-4xs font-extrabold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
+                  🟢 Live · BYOK
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded text-4xs font-extrabold uppercase bg-violet-500/10 text-violet-300 border border-violet-500/25">
+                  🟣 {engineMode}
+                </span>
+              )}
+            </div>
+
+            <p className="text-4xs text-slate-500 leading-relaxed mb-4">
+              {engineMode === 'sandbox'
+                ? 'Sandbox uses canned offline narration and never calls an API. Save a valid API key above to play for real.'
+                : 'Live play sends your turns to your configured provider. Switch to Sandbox any time to test offline.'}
+            </p>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={handleGoLive}
+                disabled={engineMode === 'byok'}
+                className="py-1.5 rounded bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-bold text-3xs uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                ▶ Play Live
+              </button>
+              <button
+                onClick={handleEnterSandbox}
+                disabled={engineMode === 'sandbox'}
+                className="py-1.5 rounded bg-slate-950 hover:bg-slate-850 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 font-bold text-3xs uppercase border border-slate-800 tracking-wider transition-colors cursor-pointer"
+              >
+                ◼ Sandbox
+              </button>
             </div>
           </div>
 

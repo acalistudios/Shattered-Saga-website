@@ -942,7 +942,7 @@ export default function AdventureSelection({
           /* CLASSIC GRID LIST VIEW */
           <div className={`grid gap-6 w-full ${isDesktopLayout ? 'grid-cols-3' : 'grid-cols-1'}`}>
             {ADVENTURES_LIST.map((adv) => {
-              const gm = GMS.find(g => g.id === adv.suggestedGm);
+              const gm = GMS.find(g => g.id === adv.suggestedGm) || GMS[0];
               const { unlocked, requirements } = sandboxMode ? { unlocked: true, requirements: [] } : getUnlockStatus(adv.id, completedAdventures, character);
               const isLocCompleted = completedAdventures.includes(adv.id);
 

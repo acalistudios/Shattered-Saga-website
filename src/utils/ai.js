@@ -697,37 +697,11 @@ function runSandboxMock(provider, history, isHandoff, characterData, currentSitu
       const outputLocationTag = `[location: ${activeRoom}]`;
       const outputChoices = `\n[choice: Search the room = Search the room]\n[choice: Inspect the local layout = Inspect the local layout]\n[choice: Attempt to force your way = Attempt to force your way]`;
 
-      if (provider === 'oracle' || provider === 'gemini') {
-        text = `*The Oracle peers into the shimmering elemental green waters of her basin, her voice echoey and calm.* 
-        
-"Fate has taken notice of your actions, ${charName}. ${rollNotes ? `The spirits observe your roll outcome: ${rollNotes}.` : ''} 
-
-${actionResponse}
-
-What shall you attempt next under the weave?"
+      // Neutral narrator voice (single-narrator model). This is offline mock text used
+      // only when no real engine is configured; it does not echo the raw check math.
+      text = `${actionResponse}
 
 [image: ${imagePrompt}]`;
-      } else if (provider === 'titan' || provider === 'groq') {
-        text = `*The Obsidian Titan shifts, molten iron flowing in the seams of his rocky body as he raises a heavy arm.*
-
-"SO BE IT! ${rollNotes ? `THE BEDROCK RE-ALIGNS TO YOUR EFFORT: ${rollNotes}.` : ''}
-
-${actionResponse.toUpperCase()}
-
-DECREE YOUR PATH AND TAKE THE GLORY!"
-
-[image: ${imagePrompt}]`;
-      } else {
-        text = `*The Ancient archivist strokes his long silver beard, gesturing to the glowing text of a floating parchment.*
-
-"The ancient historical chronicles speak of moments like this, ${charName}. ${rollNotes ? `The archives record a check outcome of: ${rollNotes}.` : ''}
-
-${actionResponse}
-
-Do you wish to continue exploring this path, or take a different action?"
-
-[image: ${imagePrompt}]`;
-      }
 
       // Append mock tags for location and choices to trigger parser updates
       text += `\n\n${outputLocationTag}${outputChoices}`;

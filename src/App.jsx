@@ -3,10 +3,10 @@ import useSettings from './hooks/useSettings';
 import useGameState from './hooks/useGameState';
 import useAudioPlayer from './hooks/useAudioPlayer';
 import Splash from './screens/Splash';
-import GMSelection from './screens/GMSelection';
 import CharacterCreation from './screens/CharacterCreation';
 import AdventureSelection from './screens/AdventureSelection';
 import PlayScreen from './screens/PlayScreen';
+// GMSelection screen removed: the game now uses a single neutral narrator.
 import AccountScreen from './screens/AccountScreen';
 import SettingsModal from './components/SettingsModal';
 import DowntimeMarketModal from './components/DowntimeMarketModal';
@@ -372,16 +372,6 @@ function App() {
     }
   }, [character.name, activeAdventureId]);
 
-  const handleSelectGm = (gmId) => {
-    if (character.name) {
-      swapGmVoluntarily(gmId, settings.sandboxMode ? '' : settings.keys[gmId], settings.sandboxMode);
-      setScreen('play');
-    } else {
-      swapGmVoluntarily(gmId, settings.sandboxMode ? '' : settings.keys[gmId], settings.sandboxMode);
-      setScreen('character_creation');
-    }
-  };
-
   const handleCreateCharacter = (charDetails) => {
     createCharacter(charDetails);
     setScreen('adventure_selection');
@@ -394,7 +384,7 @@ function App() {
     if (isFreeRoam) {
       startingPrompt = `You travel back to the lands of ${adv.name}. The storm has passed and the direct threats are gone. Ethereal calm fills the air, and the locals welcome you back as their savior. You are here to rest, recover, converse with characters like ${adv.npcs.map(n => n.name).join(', ')}, or manage your resources. Tell the player what they see as they arrive back.`;
     }
-    startAdventure(adventureId, adv.suggestedGm, startingPrompt, isFreeRoam);
+    startAdventure(adventureId, 'narrator', startingPrompt, isFreeRoam);
     setScreen('play');
   };
 
@@ -656,25 +646,6 @@ function App() {
           />
         )}
 
-        {screen === 'gm_selection' && (
-          <GMSelection
-            gmEnergies={gmEnergies}
-            onSelectGm={handleSelectGm}
-            getResetCountdown={getResetCountdown}
-            settings={settings}
-            onOpenSettings={() => setIsSettingsOpen(true)}
-            isGmDepleted={(gmId) => isGmDepleted(gmId, settings.engineTier) || isGmLocked(gmId)}
-            isGmLocked={isGmLocked}
-            characterCreated={!!character.name}
-            onBack={() => setScreen('splash')}
-            layoutMode={activeLayout}
-            setEngineTier={setEngineTier}
-            setUserApiKey={setUserApiKey}
-            userProfile={userProfile}
-            onOpenAccount={handleOpenAccount}
-          />
-        )}
-
         {screen === 'character_creation' && (
           <CharacterCreation
             onCreateCharacter={handleCreateCharacter}
@@ -711,6 +682,10 @@ function App() {
             setByokProvider={setByokProvider}
             setByokModel={setByokModel}
             setByokKey={setByokKey}
+            setEngineTier={setEngineTier}
+            setSandboxMode={setSandboxMode}
+            onLogout={handleLogout}
+            isLoggedIn={isLoggedIn}
             userProfile={userProfile}
             fetchUserProfile={fetchUserProfile}
             gems={gems}
@@ -733,7 +708,6 @@ function App() {
             warningMessage={warningMessage}
             isUpgradeScreenVisible={isUpgradeScreenVisible}
             onSendAction={handleSendAction}
-            onSwapGm={() => setScreen('gm_selection')}
             onTriggerVisualize={handleTriggerVisualize}
             onResetGame={handleResetGame}
             onOpenSettings={() => setIsSettingsOpen(true)}
