@@ -27,7 +27,20 @@ const isRegionUnlocked = (regionId, completedAdventures = [], character = {}) =>
 };
 
 // Helper to determine if a node is unlocked based on completed adventures
-const getUnlockStatus = (advId, completedAdventures = []) => {
+const getUnlockStatus = (advId, completedAdventures = [], character = {}) => {
+  // First check if the region itself is unlocked
+  const regionId = MAP_NODES[advId]?.region;
+  if (regionId && regionId !== 'region1') {
+    const regionUnlocked = isRegionUnlocked(regionId, completedAdventures, character);
+    if (!regionUnlocked) {
+      const regionName = WORLD_REGIONS.find(r => r.id === regionId)?.name || regionId;
+      return { 
+        unlocked: false, 
+        requirements: [`Transit Crossing to ${regionName}`] 
+      };
+    }
+  }
+
   // Base starting adventures in Region 1
   if (advId === 'ashveil_keep' || advId === 'saltblood_mines' || advId === 'elemental_crucible') {
     return { unlocked: true, requirements: [] };
@@ -293,7 +306,7 @@ export default function AdventureSelection({
   };
 
   const unlockState = selectedAdventure 
-    ? (sandboxMode ? { unlocked: true, requirements: [] } : getUnlockStatus(selectedAdventure.id, completedAdventures)) 
+    ? (sandboxMode ? { unlocked: true, requirements: [] } : getUnlockStatus(selectedAdventure.id, completedAdventures, character)) 
     : { unlocked: false, requirements: [] };
   const isCompleted = completedAdventures.includes(selectedNodeId);
 
@@ -507,7 +520,7 @@ export default function AdventureSelection({
                 const coords = MAP_NODES[adv.id];
                 if (!coords || coords.region !== mapLevel) return null;
 
-                const { unlocked } = sandboxMode ? { unlocked: true } : getUnlockStatus(adv.id, completedAdventures);
+                const { unlocked } = sandboxMode ? { unlocked: true } : getUnlockStatus(adv.id, completedAdventures, character);
                 const isNodeCompleted = completedAdventures.includes(adv.id);
                 const isSelected = selectedNodeId === adv.id;
 
@@ -930,7 +943,7 @@ export default function AdventureSelection({
           <div className={`grid gap-6 w-full ${isDesktopLayout ? 'grid-cols-3' : 'grid-cols-1'}`}>
             {ADVENTURES_LIST.map((adv) => {
               const gm = GMS.find(g => g.id === adv.suggestedGm);
-              const { unlocked, requirements } = sandboxMode ? { unlocked: true, requirements: [] } : getUnlockStatus(adv.id, completedAdventures);
+              const { unlocked, requirements } = sandboxMode ? { unlocked: true, requirements: [] } : getUnlockStatus(adv.id, completedAdventures, character);
               const isLocCompleted = completedAdventures.includes(adv.id);
 
               let elementColorClass = 'text-amber-505';
