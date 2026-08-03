@@ -1,0 +1,29 @@
+{
+  "name": "shattered-saga-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shattered Saga auth + AI proxy Worker (Better Auth on Cloudflare Workers + D1).",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "auth:generate": "better-auth generate --config src/auth.ts --output src/db/auth.schema.ts -y",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply DATABASE --local",
+    "db:migrate:remote": "wrangler d1 migrations apply DATABASE --remote"
+  },
+  "dependencies": {
+    "better-auth": "^1.5.0",
+    "better-auth-cloudflare": "^0.2.0",
+    "@better-auth/drizzle-adapter": "^1.5.0",
+    "drizzle-orm": "^0.36.0",
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@better-auth/cli": "^1.5.0",
+    "@cloudflare/workers-types": "^4.20250101.0",
+    "drizzle-kit": "^0.28.0",
+    "typescript": "^5.6.0",
+    "wrangler": "^3.90.0"
+  }
+}

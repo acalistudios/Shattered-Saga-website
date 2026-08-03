@@ -1,0 +1,27 @@
+# Shattered Saga auth + AI proxy Worker.
+# Deploy:  npx wrangler deploy   (after `wrangler login`)
+
+name = "shattered-saga-api"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 database — create it once with:
+#   npx wrangler d1 create shattered-saga-db
+# then paste the printed database_id below.
+[[d1_databases]]
+binding = "DATABASE"
+database_name = "shattered-saga-db"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "drizzle"
+
+# Secrets (set with `npx wrangler secret put <NAME>`, NOT here):
+#   BETTER_AUTH_SECRET     openssl rand -base64 32
+#   RESEND_API_KEY         transactional email (verification + reset)
+#   DEV_GEMINI_KEY         shared server key for the metered Free/Premium engine (Phase 3)
+#   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET       (Phase 2)
+#   FACEBOOK_CLIENT_ID / FACEBOOK_CLIENT_SECRET   (Phase 2)
+
+[vars]
+# Public, non-secret config. FRONTEND_URL is the app origin (Cloudflare Pages domain).
+FRONTEND_URL = "http://localhost:5185"

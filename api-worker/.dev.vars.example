@@ -1,0 +1,14 @@
+# Local secrets for `wrangler dev`. Copy to `.dev.vars` (git-ignored) and fill in.
+# In production these are set with `wrangler secret put <NAME>` instead.
+
+BETTER_AUTH_SECRET=generate_with_openssl_rand_base64_32
+RESEND_API_KEY=
+
+# Phase 2 (social login)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+FACEBOOK_CLIENT_ID=
+FACEBOOK_CLIENT_SECRET=
+
+# Phase 3 (metered proxy)
+DEV_GEMINI_KEY=
