@@ -18,13 +18,17 @@ Create the database and paste its id into `wrangler.toml` (`database_id`):
 npx wrangler d1 create shattered-saga-db
 ```
 
-Generate the Better Auth schema, build the migration, and apply it:
+The Better Auth schema (`src/db/auth.schema.ts`) and the D1 migration
+(`drizzle/0000_*`) are **already generated and committed** — only re-run
+`npm run auth:generate && npm run db:generate` if you change `src/auth.ts`.
+
+Apply the migration to your remote D1:
 
 ```bash
-npm run auth:generate                   # writes src/db/auth.schema.ts from src/auth.ts
-npm run db:generate                     # writes SQL migration into ./drizzle
-npm run db:migrate:local                # apply to the local dev DB
+npm run db:migrate:remote               # apply schema to the remote D1
 ```
+
+(Local dev uses a local DB — `npm run db:migrate:local` — already verified working.)
 
 Set the local dev secret (min 32 chars):
 
