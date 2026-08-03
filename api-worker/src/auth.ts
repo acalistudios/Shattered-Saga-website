@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { bearer } from "better-auth/plugins";
 import { withCloudflare } from "better-auth-cloudflare";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { drizzle } from "drizzle-orm/d1";
@@ -76,6 +77,9 @@ export function createAuth(env?: Env, cf?: IncomingRequestCfProperties, baseURL?
           },
         },
         rateLimit: { enabled: true, window: 60, max: 100 },
+        // Bearer tokens let the static frontend authenticate cross-origin with
+        // Authorization: Bearer <session-token> (no cross-site cookie needed).
+        plugins: [bearer()],
       }
     ),
     // CLI-only fallback so `better-auth generate` can introspect the schema
