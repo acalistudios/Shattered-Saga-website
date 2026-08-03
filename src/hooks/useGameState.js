@@ -7,6 +7,7 @@ import { ADVENTURES_LIST } from '../data/adventures';
 import { checkSafetyViolation, getGMStrikeWarning, getGMSternWarning, calculateLockoutExpiry, isGloballyBanned } from '../utils/safety';
 import { generateMerchantStock, getMerchantType, ADVENTURE_TRAINING_SLOTS, TRAINING_EXPERTS } from '../data/downtimeMerchants';
 import { ADVENTURE_ECONOMY_METADATA } from '../data/adventureEconomy';
+import { isBackendConfigured, fetchMe, generateViaBackend } from '../utils/authApi';
 
 function consumeRationFromInventory(inventory) {
   let hasRations = false;
@@ -481,6 +482,22 @@ export default function useGameState() {
   const [userProfile, setUserProfile] = useState(null);
 
   const fetchUserProfile = useCallback(async () => {
+    // Better Auth backend: read tier + energy from the Worker's /api/me.
+    if (isBackendConfigured) {
+      const me = await fetchMe();
+      setUserProfile(
+        me
+          ? {
+              email: me.email,
+              energy_balance: me.energy_balance,
+              subscription_tier: me.subscription_tier,
+              subscription_status: 'active',
+            }
+          : null
+      );
+      return;
+    }
+
     const sessionToken = storage.get('supabase_session_token');
     if (!sessionToken) {
       setUserProfile(null);
@@ -2157,33 +2174,47 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const capTurns = isPaidOrByok ? 25 : 8;
       const historyToPass = updatedHistory.slice(-capTurns * 2);
 
-      const response = await generateCompletion({
-        provider: activeProvider,
-        model: activeModel,
-        apiKey: activeKey,
-        systemPrompt,
-        history: historyToPass,
-        isHandoff: false,
-        sandboxMode: sandbox,
-        characterData: character,
-        currentSituation: currentLocation,
-        // BYOK uses the player's own key via the direct client path. The serverless proxy
-        // is only for server-metered free/premium tiers and does not support anthropic/openai,
-        // so we suppress the session token for BYOK to avoid being routed through it.
-        sessionToken: engineTier === 'byok' ? null : sessionToken,
-        onChunk: (chunkText) => {
-          setHistory(prev => {
-            const nextHistoryList = [...prev];
-            if (nextHistoryList.length > 0 && nextHistoryList[nextHistoryList.length - 1].role === 'model') {
-              nextHistoryList[nextHistoryList.length - 1] = {
-                ...nextHistoryList[nextHistoryList.length - 1],
-                content: chunkText
-              };
-            }
-            return nextHistoryList;
+      const handleChunk = (chunkText) => {
+        setHistory(prev => {
+          const nextHistoryList = [...prev];
+          if (nextHistoryList.length > 0 && nextHistoryList[nextHistoryList.length - 1].role === 'model') {
+            nextHistoryList[nextHistoryList.length - 1] = {
+              ...nextHistoryList[nextHistoryList.length - 1],
+              content: chunkText
+            };
+          }
+          return nextHistoryList;
+        });
+      };
+
+      // Route Free/Premium tiers through the Better Auth Worker (/api/complete)
+      // when it's configured. BYOK and sandbox always use the local/direct path.
+      const useBackend = isBackendConfigured && !sandbox && engineTier !== 'byok';
+
+      const response = useBackend
+        ? await generateViaBackend({
+            systemPrompt,
+            history: historyToPass,
+            premiumTurn: engineTier === 'premium',
+            model: activeModel,
+            onChunk: handleChunk,
+          })
+        : await generateCompletion({
+            provider: activeProvider,
+            model: activeModel,
+            apiKey: activeKey,
+            systemPrompt,
+            history: historyToPass,
+            isHandoff: false,
+            sandboxMode: sandbox,
+            characterData: character,
+            currentSituation: currentLocation,
+            // BYOK uses the player's own key via the direct client path. The serverless proxy
+            // is only for server-metered free/premium tiers and does not support anthropic/openai,
+            // so we suppress the session token for BYOK to avoid being routed through it.
+            sessionToken: engineTier === 'byok' ? null : sessionToken,
+            onChunk: handleChunk,
           });
-        }
-      });
 
       setIsLoading(false);
 

@@ -14,6 +14,13 @@ import GlobalMusicPlayer from './components/GlobalMusicPlayer';
 import { ADVENTURES_LIST } from './data/adventures';
 import { isGloballyBanned } from './utils/safety';
 import storage from './utils/storage';
+import {
+  isBackendConfigured,
+  signUpEmail,
+  signInEmail,
+  signOut as apiSignOut,
+  socialLoginRedirect,
+} from './utils/authApi';
 
 function App() {
   const {
@@ -158,8 +165,9 @@ function App() {
     }
   }, [username]);
 
-  // Parse Supabase OAuth redirect URL hash on boot
+  // Parse Supabase OAuth redirect URL hash on boot (legacy path only).
   useEffect(() => {
+    if (isBackendConfigured) return; // Better Auth backend handles auth instead.
     const parseOAuthHash = async () => {
       const hash = window.location.hash;
       if (hash) {
@@ -213,10 +221,17 @@ function App() {
   }, []);
 
   const handleSocialLogin = (provider) => {
+    const isOAuthProvider = ['google', 'facebook'].includes(provider);
+
+    // Better Auth backend: OAuth is a full-page redirect handled by the Worker.
+    if (isBackendConfigured && isOAuthProvider) {
+      socialLoginRedirect(provider);
+      return;
+    }
+
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-    
-    const isOAuthProvider = ['google', 'facebook'].includes(provider);
+
     if (!isOAuthProvider) {
       // Guest / Sandbox Login
       const email = 'guest-adventurer@shatteredsaga.com';
@@ -269,6 +284,9 @@ function App() {
   };
 
   const handleLogout = () => {
+    if (isBackendConfigured) {
+      apiSignOut(); // clears the Better Auth bearer token (fire-and-forget)
+    }
     storage.remove('shattered_username');
     storage.remove('shattered_email');
     storage.remove('supabase_session_token');
@@ -453,9 +471,24 @@ function App() {
   };
 
   const handleEmailPasswordAuth = async (email, password, isSignUp) => {
+    // Better Auth backend (Cloudflare Worker) — primary path when configured.
+    if (isBackendConfigured) {
+      const data = isSignUp
+        ? await signUpEmail(email, password)
+        : await signInEmail(email, password);
+      const userEmail = data?.user?.email || email;
+      const usernameVal = userEmail.split('@')[0];
+      storage.set('shattered_email', userEmail);
+      storage.set('shattered_username', usernameVal);
+      setUsername(usernameVal);
+      setIsLoggedIn(true);
+      window.dispatchEvent(new Event('shattered_auth_update'));
+      return { success: true };
+    }
+
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-    
+
     if (!supabaseUrl || !supabaseAnonKey) {
       // Sandbox Mode
       const usernamePrefix = email.split('@')[0];
