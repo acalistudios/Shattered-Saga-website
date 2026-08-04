@@ -12,7 +12,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DATABASE"
 database_name = "shattered-saga-db"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "5c8b0354-0f3e-4a86-814f-4beb20607fd7"
 migrations_dir = "drizzle"
 
 # Secrets (set with `npx wrangler secret put <NAME>`, NOT here):
