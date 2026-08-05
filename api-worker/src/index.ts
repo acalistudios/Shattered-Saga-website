@@ -67,7 +67,9 @@ app.post("/api/complete", async (c) => {
   const history = Array.isArray(body.history) ? body.history : [];
   const systemPrompt = body.systemPrompt || "";
   const premiumTurn = body.premiumTurn === true;
-  const model = body.model || (premiumTurn ? "gemini-1.5-pro" : "gemini-1.5-flash");
+  // Model is chosen server-side (not trusted from the client) so we control cost and
+  // can update it centrally. Current Gemini models (1.5 is retired).
+  const model = premiumTurn ? "gemini-2.5-pro" : "gemini-2.5-flash";
 
   // Free tier pays energy on every turn; subscribers get unlimited standard (Flash)
   // play and only pay energy for premium (Pro) turns.
