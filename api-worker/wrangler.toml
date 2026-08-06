@@ -1,12 +1,13 @@
-# Shattered Saga auth + AI proxy Worker.
+﻿# Shattered Saga auth + AI proxy Worker.
 # Deploy:  npx wrangler deploy   (after `wrangler login`)
 
 name = "shattered-saga-api"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
+workers_dev = true
 
-# D1 database — create it once with:
+# D1 database â€” create it once with:
 #   npx wrangler d1 create shattered-saga-db
 # then paste the printed database_id below.
 [[d1_databases]]
@@ -27,3 +28,7 @@ migrations_dir = "drizzle"
 # Change if your live site is served somewhere other than https://shatteredsaga.com.
 # For local dev, override with:  wrangler dev --var FRONTEND_URL:http://localhost:5185
 FRONTEND_URL = "https://shatteredsaga.com"
+
+[[routes]]
+pattern = "api.shatteredsaga.com"
+custom_domain = true

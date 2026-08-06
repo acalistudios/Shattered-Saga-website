@@ -24,6 +24,7 @@ async function post(path, body, useAuth = false) {
   const res = await fetch(`${API_URL}${path}`, {
     method: 'POST',
     headers,
+    credentials: 'include',
     body: JSON.stringify(body || {}),
   });
   const data = await res.json().catch(() => ({}));
@@ -81,9 +82,11 @@ export async function generateViaBackend({ systemPrompt, history, premiumTurn = 
 // Current user's tier + energy (replaces the Supabase profile fetch).
 export async function fetchMe() {
   const t = getToken();
-  if (!t) return null;
+  const headers = {};
+  if (t) headers.Authorization = `Bearer ${t}`;
   const res = await fetch(`${API_URL}/api/me`, {
-    headers: { Authorization: `Bearer ${t}` },
+    headers,
+    credentials: 'include',
   });
   if (!res.ok) return null;
   return res.json();

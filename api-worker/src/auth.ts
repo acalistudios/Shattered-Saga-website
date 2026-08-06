@@ -38,7 +38,17 @@ export function createAuth(env?: Env, cf?: IncomingRequestCfProperties, baseURL?
     baseURL,
     secret: env?.BETTER_AUTH_SECRET,
     // Allow the static frontend origin to call this API and receive cookies.
-    trustedOrigins: [frontendUrl],
+    trustedOrigins: [
+      frontendUrl,
+      "https://shatteredsaga.com",
+      "https://www.shatteredsaga.com",
+    ],
+    advanced: {
+      crossSubDomainCookies: {
+        enabled: true,
+        domain: ".shatteredsaga.com",
+      },
+    },
     // App-specific columns stored on the user row (metering + billing).
     user: {
       additionalFields: {
@@ -76,6 +86,16 @@ export function createAuth(env?: Env, cf?: IncomingRequestCfProperties, baseURL?
               subject: "Verify your Shattered Saga account",
               text: `Welcome, adventurer. Confirm your email to begin:\n\n${url}`,
             });
+          },
+        },
+        socialProviders: {
+          google: {
+            clientId: env?.GOOGLE_CLIENT_ID as string,
+            clientSecret: env?.GOOGLE_CLIENT_SECRET as string,
+          },
+          facebook: {
+            clientId: env?.FACEBOOK_CLIENT_ID as string,
+            clientSecret: env?.FACEBOOK_CLIENT_SECRET as string,
           },
         },
         rateLimit: { enabled: true, window: 60, max: 100 },
