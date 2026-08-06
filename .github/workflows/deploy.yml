@@ -32,3 +32,7 @@ jobs:
         with:
           folder: dist
           branch: gh-pages
+          # The published site is ~464 MB. Without single-commit, every deploy
+          # appends another full copy to gh-pages history, which bloats the repo
+          # and makes the push time out. This keeps gh-pages at one commit.
+          single-commit: true
