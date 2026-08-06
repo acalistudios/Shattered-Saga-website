@@ -16,8 +16,10 @@ export interface Env {
   GOOGLE_CLIENT_SECRET?: string;
   FACEBOOK_CLIENT_ID?: string;
   FACEBOOK_CLIENT_SECRET?: string;
-  // Phase 3 (metered proxy):
-  DEV_GEMINI_KEY?: string;
+  // Phase 3 (metered proxy) — provider cascade keys:
+  OPENAI_API_KEY?: string;    // primary (gpt-5.6-luna free / gpt-5.6-terra premium)
+  ANTHROPIC_API_KEY?: string; // fallback (claude-haiku-4-5 / claude-sonnet-5)
+  DEV_GEMINI_KEY?: string;    // fallback (gemini-flash-latest / gemini-pro-latest)
 }
 
 /**

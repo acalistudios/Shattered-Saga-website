@@ -1,7 +1,20 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createAuth, type Env } from "./auth";
-import { callGemini, type HistoryMsg } from "./provider";
+import { generate, type Attempt, type HistoryMsg } from "./provider";
+
+// Provider cascade per tier: primary OpenAI, then Anthropic, then Google.
+// A tier survives any single provider outage (or an unset key) automatically.
+const FREE_CHAIN: Attempt[] = [
+  { provider: "openai", model: "gpt-5.6-luna" },
+  { provider: "anthropic", model: "claude-haiku-4-5" },
+  { provider: "gemini", model: "gemini-flash-latest" },
+];
+const PREMIUM_CHAIN: Attempt[] = [
+  { provider: "openai", model: "gpt-5.6-terra" },
+  { provider: "anthropic", model: "claude-sonnet-5" },
+  { provider: "gemini", model: "gemini-pro-latest" },
+];
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -67,9 +80,7 @@ app.post("/api/complete", async (c) => {
   const history = Array.isArray(body.history) ? body.history : [];
   const systemPrompt = body.systemPrompt || "";
   const premiumTurn = body.premiumTurn === true;
-  // Model is chosen server-side (not trusted from the client) so we control cost and
-  // can update it centrally. Current Gemini models (1.5 is retired).
-  const model = premiumTurn ? "gemini-2.5-pro" : "gemini-2.5-flash";
+  const chain = premiumTurn ? PREMIUM_CHAIN : FREE_CHAIN;
 
   // Free tier pays energy on every turn; subscribers get unlimited standard (Flash)
   // play and only pay energy for premium (Pro) turns.
@@ -90,11 +101,12 @@ app.post("/api/complete", async (c) => {
   }
 
   try {
-    const { text, totalTokens } = await callGemini(c.env, model, systemPrompt, history);
+    // Runs the whole provider cascade (OpenAI → Anthropic → Google); only throws
+    // if every provider fails, in which case we refund the speculative debit.
+    const { text, totalTokens, provider, model } = await generate(c.env, chain, systemPrompt, history);
     const remaining = await currentEnergy(c.env, userId);
-    return c.json({ text, totalTokens, energy_remaining: remaining, error: null });
+    return c.json({ text, totalTokens, provider, model, energy_remaining: remaining, error: null });
   } catch (e: any) {
-    // Refund the energy we speculatively debited if the provider call failed.
     if (consumesEnergy) {
       await c.env.DATABASE.prepare(
         "UPDATE users SET energy_balance = energy_balance + 1 WHERE id = ?"
@@ -102,10 +114,7 @@ app.post("/api/complete", async (c) => {
         .bind(userId)
         .run();
     }
-    const msg = e?.message === "server_key_missing"
-      ? "The server AI key is not configured."
-      : (e?.message || "Upstream provider error.");
-    return c.json({ error: "provider_error", message: msg }, 502);
+    return c.json({ error: "provider_error", message: e?.message || "All AI providers are unavailable." }, 502);
   }
 });
 
