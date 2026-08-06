@@ -18,6 +18,10 @@ export interface Completion {
 }
 
 const MAX_OUTPUT = 800;
+// Gemini models may spend hidden "thinking" tokens from the same budget, and the
+// newer pro models cannot have thinking disabled — so give Gemini extra headroom
+// to avoid truncated narration.
+const GEMINI_MAX_OUTPUT = 2000;
 
 // ---- role mappers -------------------------------------------------------
 
@@ -101,8 +105,11 @@ async function callGemini(env: Env, model: string, systemPrompt: string, history
     body: JSON.stringify({
       contents: toGeminiContents(history),
       systemInstruction: { parts: [{ text: systemPrompt }] },
-      // thinkingBudget 0 disables hidden reasoning tokens that were eating the output budget.
-      generationConfig: { maxOutputTokens: MAX_OUTPUT, temperature: 0.7, thinkingConfig: { thinkingBudget: 0 } },
+      // NOTE: do NOT send thinkingConfig/thinkingBudget here. `gemini-pro-latest`
+      // rejects a 0 budget outright ("This model only works in thinking mode"),
+      // which would break the premium fallback. Instead we give a generous output
+      // budget so hidden reasoning tokens can't starve the visible narration.
+      generationConfig: { maxOutputTokens: GEMINI_MAX_OUTPUT, temperature: 0.7 },
     }),
   });
   if (!res.ok) throw new Error(`gemini_${res.status}:${(await res.text().catch(() => "")).slice(0, 140)}`);
