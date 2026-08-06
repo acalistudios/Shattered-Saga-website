@@ -54,6 +54,16 @@ app.get("/api/me", async (c) => {
 });
 
 const UNLIMITED_FLASH_TIERS = ["supporter", "adventurer", "legend"];
+// Only these tiers may use the (roughly 10x more expensive) premium model chain.
+// Supporter is the BYOK tier — it brings its own key rather than using ours.
+const PREMIUM_ELIGIBLE_TIERS = ["adventurer", "legend"];
+
+// Hard input caps. Legitimate play is far below these (the client already caps
+// history to 8 turns free / 25 paid), but without a ceiling an authenticated user
+// could send arbitrarily large payloads and bill them to our provider accounts.
+const MAX_SYSTEM_PROMPT_CHARS = 60_000;
+const MAX_HISTORY_ENTRIES = 80;
+const MAX_HISTORY_CHARS = 80_000;
 
 // Metered AI proxy for Free/Premium tiers. BYOK is NOT handled here — it stays
 // browser-direct. Verifies the session, meters energy in D1, then calls Gemini
@@ -78,8 +88,28 @@ app.post("/api/complete", async (c) => {
   }
 
   const history = Array.isArray(body.history) ? body.history : [];
-  const systemPrompt = body.systemPrompt || "";
-  const premiumTurn = body.premiumTurn === true;
+  const systemPrompt = typeof body.systemPrompt === "string" ? body.systemPrompt : "";
+
+  // Reject oversized payloads before spending any energy or provider tokens.
+  const historyChars = history.reduce(
+    (n, m) => n + (typeof m?.content === "string" ? m.content.length : 0),
+    0
+  );
+  if (
+    systemPrompt.length > MAX_SYSTEM_PROMPT_CHARS ||
+    history.length > MAX_HISTORY_ENTRIES ||
+    historyChars > MAX_HISTORY_CHARS
+  ) {
+    return c.json(
+      { error: "payload_too_large", message: "This turn's context is too large. Start a new adventure or trim your history." },
+      413
+    );
+  }
+
+  // The premium model chain is chosen SERVER-SIDE from the user's tier. The client
+  // request is only a hint — trusting it would let any free account invoke the
+  // premium models for the price of one standard turn.
+  const premiumTurn = body.premiumTurn === true && PREMIUM_ELIGIBLE_TIERS.includes(tier);
   const chain = premiumTurn ? PREMIUM_CHAIN : FREE_CHAIN;
 
   // Free tier pays energy on every turn; subscribers get unlimited standard (Flash)
@@ -114,7 +144,13 @@ app.post("/api/complete", async (c) => {
         .bind(userId)
         .run();
     }
-    return c.json({ error: "provider_error", message: e?.message || "All AI providers are unavailable." }, 502);
+    // Log the real upstream error server-side; return a generic message so raw
+    // provider responses (which can carry internal detail) never reach the client.
+    console.error("[complete] all providers failed:", e?.message);
+    return c.json(
+      { error: "provider_error", message: "The Game Master is unreachable right now. Please try again in a moment." },
+      502
+    );
   }
 });
 
