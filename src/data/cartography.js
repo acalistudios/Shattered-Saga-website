@@ -82,11 +82,11 @@ export const MAP_CONNECTIONS = {
 };
 
 export const MAP_IMAGES = {
-  world: '/images/maps/v2/world_map_parchment.png',
-  region1: '/images/maps/v2/region1_aethelgard.png',
-  region2: '/images/maps/v2/region2_ignis_ridge.png',
-  region3: '/images/maps/v2/region3_frostfire_glacier.png',
-  region4: '/images/maps/v2/region4_sapphire_deep.png'
+  world: '/images/maps/v2/world_map_parchment.webp',
+  region1: '/images/maps/v2/region1_aethelgard.webp',
+  region2: '/images/maps/v2/region2_ignis_ridge.webp',
+  region3: '/images/maps/v2/region3_frostfire_glacier.webp',
+  region4: '/images/maps/v2/region4_sapphire_deep.webp'
 };
 
 export const REGION_TRANSIT_CHALLENGES = {
