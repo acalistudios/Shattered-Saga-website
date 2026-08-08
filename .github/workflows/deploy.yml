@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy to Cloudflare Pages
 
 on:
   push:
@@ -6,7 +6,8 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
+  deployments: write
 
 jobs:
   build-and-deploy:
@@ -16,23 +17,26 @@ jobs:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
       - name: Install and Build 🔧
         run: |
           npm ci
           npm run build
         env:
-          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          # Public build-time config. The shared AI keys live on the Worker as
+          # secrets — never here, since VITE_* values are embedded in the bundle.
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_PROXY_URL: ${{ secrets.VITE_PROXY_URL }}
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
-      - name: Deploy 🚀
-        uses: JamesIves/github-pages-deploy-action@v4
+      - name: Deploy to Cloudflare Pages 🚀
+        uses: cloudflare/wrangler-action@v3
         with:
-          folder: dist
-          branch: gh-pages
-          # The published site is ~464 MB. Without single-commit, every deploy
-          # appends another full copy to gh-pages history, which bloats the repo
-          # and makes the push time out. This keeps gh-pages at one commit.
-          single-commit: true
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=shattered-saga --branch=main

@@ -42,6 +42,8 @@ export function createAuth(env?: Env, cf?: IncomingRequestCfProperties, baseURL?
       frontendUrl,
       "https://shatteredsaga.com",
       "https://www.shatteredsaga.com",
+      // Cloudflare Pages staging alias, so deploys can be verified pre-cutover.
+      "https://shattered-saga.pages.dev",
     ],
     advanced: {
       crossSubDomainCookies: {

@@ -19,10 +19,18 @@ const PREMIUM_CHAIN: Attempt[] = [
 const app = new Hono<{ Bindings: Env }>();
 
 // Allow the static frontend to call the API with credentials (cookies + bearer).
+// The Cloudflare Pages *.pages.dev alias is included so staging deploys can be
+// verified before the custom domain is cut over.
 app.use("*", async (c, next) => {
-  const origin = c.env.FRONTEND_URL || "http://localhost:5185";
+  const allowed = [
+    c.env.FRONTEND_URL || "http://localhost:5185",
+    "https://shatteredsaga.com",
+    "https://www.shatteredsaga.com",
+    "https://shattered-saga.pages.dev",
+    "http://localhost:5185",
+  ];
   return cors({
-    origin,
+    origin: (o) => (allowed.includes(o) ? o : allowed[0]),
     credentials: true,
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "OPTIONS"],
