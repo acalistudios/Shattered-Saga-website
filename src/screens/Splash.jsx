@@ -706,18 +706,18 @@ export default function Splash({
                         {authStatus.message}
                       </p>
                     )}
-                    <div className="text-center pt-1.5">
+                    <div className="pt-1.5">
                       <button
                         type="button"
                         onClick={() => {
                           setIsSignUpMode(!isSignUpMode);
                           setAuthStatus(null);
                         }}
-                        className="text-[9px] text-amber-500/80 hover:text-amber-400 font-extrabold uppercase tracking-wider underline cursor-pointer transition-colors"
+                        className="w-full py-2.5 rounded bg-emerald-600 hover:bg-emerald-500 text-slate-950 text-3xs font-extrabold uppercase tracking-wider cursor-pointer transition-all active:scale-99 flex items-center justify-center gap-1.5"
                       >
-                        {isSignUpMode 
-                          ? 'Already have an account? Sign In' 
-                          : 'New to Shattered Saga? Create Account'
+                        {isSignUpMode
+                          ? <>🔑 Back to Sign In</>
+                          : <>✉️ Create Account (Email)</>
                         }
                       </button>
                     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import useSettings from './hooks/useSettings';
 import useGameState from './hooks/useGameState';
 import useAudioPlayer from './hooks/useAudioPlayer';
@@ -20,6 +20,7 @@ import {
   signInEmail,
   signOut as apiSignOut,
   socialLoginRedirect,
+  fetchMe,
 } from './utils/authApi';
 
 function App() {
@@ -127,10 +128,24 @@ function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Unlock audio engine on first user click/keypress (autoplay compliance)
+  // Unlock the audio engine on the FIRST user click/keypress (autoplay compliance).
+  //
+  // This must run exactly once for the lifetime of the app. `audio` is a fresh
+  // object on every render, so depending on it re-ran this effect constantly and
+  // re-attached the listener — which meant clicking Pause paused the track, the
+  // click then bubbled to this listener, and forceStart() saw a paused element and
+  // immediately resumed it. The pause never stuck. The ref guard makes the unlock
+  // genuinely one-shot; audioRef keeps the callback pointed at the current player
+  // without making the effect depend on it.
+  const audioRef = useRef(audio);
+  audioRef.current = audio;
+  const hasUnlockedAudioRef = useRef(false);
+
   useEffect(() => {
     const handleFirstInteraction = () => {
-      audio.forceStart();
+      if (hasUnlockedAudioRef.current) return;
+      hasUnlockedAudioRef.current = true;
+      audioRef.current?.forceStart();
       document.removeEventListener('click', handleFirstInteraction);
       document.removeEventListener('keydown', handleFirstInteraction);
     };
@@ -140,7 +155,7 @@ function App() {
       document.removeEventListener('click', handleFirstInteraction);
       document.removeEventListener('keydown', handleFirstInteraction);
     };
-  }, [audio]);
+  }, []);
 
   const activeLayout = viewportMode === 'mobile'
     ? 'mobile'
@@ -164,6 +179,29 @@ function App() {
       setGems(0);
     }
   }, [username]);
+
+  // After a social sign-in the Worker redirects back here with a session cookie
+  // scoped to .shatteredsaga.com — but nothing is in local storage yet, so the
+  // app would still look logged out. Ask the backend who we are and adopt it.
+  useEffect(() => {
+    if (!isBackendConfigured) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await fetchMe();
+        if (cancelled || !me?.email) return;
+        const nextUsername = me.email.split('@')[0];
+        storage.set('shattered_email', me.email);
+        storage.set('shattered_username', nextUsername);
+        setUsername(nextUsername);
+        setIsLoggedIn(true);
+        window.dispatchEvent(new Event('shattered_auth_update'));
+      } catch {
+        /* no active session — stay logged out */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Parse Supabase OAuth redirect URL hash on boot (legacy path only).
   useEffect(() => {
@@ -225,7 +263,10 @@ function App() {
 
     // Better Auth backend: OAuth is a full-page redirect handled by the Worker.
     if (isBackendConfigured && isOAuthProvider) {
-      socialLoginRedirect(provider);
+      socialLoginRedirect(provider).catch((err) => {
+        console.error('Social sign-in failed:', err);
+        alert(err.message || `Could not start ${provider} sign-in. Please try again.`);
+      });
       return;
     }
 
@@ -583,7 +624,9 @@ function App() {
   };
 
   const handleExitAdventure = () => {
-    exitAdventureSavingProgress(addToStrongholdChest);
+    // Suspends the adventure (state is preserved) and returns to the menu.
+    // Loading this slot again drops the player straight back into `play`.
+    exitAdventureSavingProgress();
     setScreen('splash');
   };
 

@@ -147,9 +147,9 @@ export default function AdventureSelection({
 
   const handleTransitItemBypass = (challenge) => {
     const itemName = challenge.item;
-    if (!character.inventory.includes(itemName) && !sandboxMode) return;
+    if (!character.inventory.includes(itemName)) return;
     
-    if (!sandboxMode && consumeItem) {
+    if (consumeItem) {
       consumeItem(itemName);
     }
     if (unlockRegion) {
@@ -167,7 +167,7 @@ export default function AdventureSelection({
     const roll1 = rollAttribute(val1);
     const roll2 = rollAttribute(val2);
     const totalRoll = roll1 + roll2;
-    const isSuccess = totalRoll >= challenge.difficulty || sandboxMode;
+    const isSuccess = totalRoll >= challenge.difficulty;
 
     if (isSuccess) {
       if (unlockRegion) {
@@ -306,7 +306,7 @@ export default function AdventureSelection({
   };
 
   const unlockState = selectedAdventure 
-    ? (sandboxMode ? { unlocked: true, requirements: [] } : getUnlockStatus(selectedAdventure.id, completedAdventures, character)) 
+    ? (getUnlockStatus(selectedAdventure.id, completedAdventures, character)) 
     : { unlocked: false, requirements: [] };
   const isCompleted = completedAdventures.includes(selectedNodeId);
 
@@ -465,8 +465,8 @@ export default function AdventureSelection({
               {/* World Region Interactive Nodes */}
               {mapLevel === 'world' && WORLD_REGIONS.map((reg) => {
                 const isSelected = selectedRegionId === reg.id;
-                const storyUnlocked = sandboxMode || isRegionStoryUnlocked(reg.id, completedAdventures);
-                const travelUnlocked = sandboxMode || isRegionUnlocked(reg.id, completedAdventures, character);
+                const storyUnlocked = isRegionStoryUnlocked(reg.id, completedAdventures);
+                const travelUnlocked = isRegionUnlocked(reg.id, completedAdventures, character);
                 
                 let markerStyle = "bg-slate-900 border-slate-700 text-slate-500 cursor-not-allowed opacity-50";
                 let icon = "🔒";
@@ -520,7 +520,7 @@ export default function AdventureSelection({
                 const coords = MAP_NODES[adv.id];
                 if (!coords || coords.region !== mapLevel) return null;
 
-                const { unlocked } = sandboxMode ? { unlocked: true } : getUnlockStatus(adv.id, completedAdventures, character);
+                const { unlocked } = getUnlockStatus(adv.id, completedAdventures, character);
                 const isNodeCompleted = completedAdventures.includes(adv.id);
                 const isSelected = selectedNodeId === adv.id;
 
@@ -636,9 +636,9 @@ export default function AdventureSelection({
                               {/* Option A: Item Bypass */}
                               <button
                                 onClick={() => handleTransitItemBypass(challenge)}
-                                disabled={!isHealthSufficientForTravel || (!hasItem && !sandboxMode)}
+                                disabled={!isHealthSufficientForTravel || !hasItem}
                                 className={`w-full py-2 px-3 border rounded text-3xs font-bold flex flex-col items-center transition-all ${
-                                  isHealthSufficientForTravel && (hasItem || sandboxMode) 
+                                  isHealthSufficientForTravel && hasItem 
                                     ? 'border-emerald-600 bg-emerald-950/40 text-emerald-200 hover:bg-emerald-900/40 cursor-pointer' 
                                     : 'border-slate-850 bg-slate-950 text-slate-500 cursor-not-allowed'
                                 }`}
@@ -700,8 +700,8 @@ export default function AdventureSelection({
                       </div>
                     );
                   })() : (() => {
-                    const storyUnlocked = sandboxMode || isRegionStoryUnlocked(selectedRegion.id, completedAdventures);
-                    const travelUnlocked = sandboxMode || isRegionUnlocked(selectedRegion.id, completedAdventures, character);
+                    const storyUnlocked = isRegionStoryUnlocked(selectedRegion.id, completedAdventures);
+                    const travelUnlocked = isRegionUnlocked(selectedRegion.id, completedAdventures, character);
 
                     return (
                       <div className="flex-1 flex flex-col justify-between overflow-y-auto custom-scrollbar">
@@ -943,7 +943,7 @@ export default function AdventureSelection({
           <div className={`grid gap-6 w-full ${isDesktopLayout ? 'grid-cols-3' : 'grid-cols-1'}`}>
             {ADVENTURES_LIST.map((adv) => {
               const gm = GMS.find(g => g.id === adv.suggestedGm) || GMS[0];
-              const { unlocked, requirements } = sandboxMode ? { unlocked: true, requirements: [] } : getUnlockStatus(adv.id, completedAdventures, character);
+              const { unlocked, requirements } = getUnlockStatus(adv.id, completedAdventures, character);
               const isLocCompleted = completedAdventures.includes(adv.id);
 
               let elementColorClass = 'text-amber-505';

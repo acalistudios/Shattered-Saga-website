@@ -3123,31 +3123,25 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     }));
   };
 
-  const exitAdventureSavingProgress = (onCollectGroundItems) => {
-    if (activeAdventureId && onCollectGroundItems) {
-      const advDrops = droppedItems[activeAdventureId] || {};
-      const allDroppedItems = Object.values(advDrops).flat();
-      if (allDroppedItems.length > 0) {
-        onCollectGroundItems(allDroppedItems);
-      }
-      
-      setDroppedItems(prev => {
-        const next = { ...prev };
-        delete next[activeAdventureId];
-        return next;
-      });
-    }
-
-    storage.remove(`slot_${activeSlotIndex}_pre_adventure_character`);
-    setActiveAdventureId(null);
-    setCurrentLocation('');
-    setHistory([]);
-    setJournal({ storySoFar: '', recentTurns: [] });
-    setHandoffState(null);
-    setSkillTally({});
+  /**
+   * "Save & Exit" — SUSPEND the adventure and return to the menu.
+   *
+   * This previously cleared activeAdventureId, history, journal, location and
+   * skillTally, which made it identical to quitting: on return the player could
+   * pick a brand new adventure and everything they'd played was gone. It now
+   * deliberately preserves the full session. Each of these values is already
+   * persisted per slot by the storage effects above, so leaving them intact is
+   * what allows the boot logic to drop the player straight back into `play`,
+   * exactly where they left off.
+   *
+   * Ground items are intentionally left on the ground rather than swept into the
+   * stronghold chest — the player is coming back to this room, and collecting
+   * them here would both change the world state and risk duplicating items.
+   */
+  const exitAdventureSavingProgress = () => {
+    // Only transient UI state is cleared; adventure state is kept.
     setWarningMessage(null);
     setApiError(null);
-    setCharacter(prev => ({ ...prev, is_free_roaming: false }));
   };
 
   const quitActiveAdventure = () => {

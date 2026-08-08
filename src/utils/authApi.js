@@ -59,12 +59,16 @@ export async function signOut() {
   clearToken();
 }
 
-// Social login is a full-page redirect handled by the worker (Phase 2).
-export function socialLoginRedirect(provider) {
+// Social login. Better Auth's sign-in/social is a POST endpoint that RETURNS the
+// provider authorization URL — navigating the browser straight at it produces a
+// 404. So: POST first, then redirect to the url it hands back.
+export async function socialLoginRedirect(provider) {
   const callbackURL = window.location.origin + window.location.pathname;
-  window.location.href =
-    `${API_URL}/api/auth/sign-in/social?provider=${encodeURIComponent(provider)}` +
-    `&callbackURL=${encodeURIComponent(callbackURL)}`;
+  const data = await post('/api/auth/sign-in/social', { provider, callbackURL });
+  if (!data?.url) {
+    throw new Error(`Could not start ${provider} sign-in. Please try again.`);
+  }
+  window.location.href = data.url;
 }
 
 // Metered completion via the Worker (Free/Premium tiers). BYOK does NOT use this.
