@@ -27,9 +27,7 @@ import {
   unlockSlot,
   queueSync,
   flushSync,
-  pullSlot,
-  pushSlot,
-  findNewerCloudSlots,
+  reconcileOnLogin,
 } from './utils/cloudSaves';
 
 function App() {
@@ -232,40 +230,35 @@ function App() {
   //    local-only saves without the player having to do anything.
   const cloudReconciledRef = useRef(false);
   useEffect(() => {
-    if (!isBackendConfigured || !isLoggedIn || cloudReconciledRef.current) return;
+    // Wait for the profile: gem balance and unlocked slots decide whether a
+    // displaced character can be given a slot or needs to be bought room.
+    if (!isBackendConfigured || !isLoggedIn || !userProfile || cloudReconciledRef.current) return;
     cloudReconciledRef.current = true;
 
     (async () => {
       try {
-        const newer = await findNewerCloudSlots();
-        for (const slot of newer) {
-          const localChar = storage.get(`slot_${slot.slot_index}_character`);
-          const label = slot.char_name || `Slot ${slot.slot_index}`;
-          // Nothing here locally — restore silently. Something here — ask, since
-          // restoring would overwrite whatever is on this device.
-          const shouldPull =
-            !localChar?.name ||
-            window.confirm(
-              `Your cloud save for "${label}" (slot ${slot.slot_index}) is newer than the copy on this device.\n\n` +
-              `Load the cloud version? Your local copy for that slot will be replaced.`
-            );
-          if (shouldPull) await pullSlot(slot.slot_index);
+        const res = await reconcileOnLogin({
+          confirm: async (message) => window.confirm(message),
+          unlockedSlots: userProfile?.unlocked_slots || [1, 2],
+          gems: userProfile?.gems ?? 0,
+          // Lets the player buy a slot mid-reconciliation rather than being told
+          // a character can't be saved. Nothing is ever deleted for them.
+          onBuySlot: (slotIndex) => unlockSlot(slotIndex),
+        });
+        if (res.unsaved.length) {
+          console.warn('Characters left local-only (no free slot):', res.unsaved);
         }
-
-        // Migrate any local-only characters up to the cloud.
-        const cloudSlots = new Set(newer.map((s) => s.slot_index));
-        for (let i = 1; i <= 8; i++) {
-          const ch = storage.get(`slot_${i}_character`);
-          const syncedAt = storage.get(`slot_${i}_cloud_synced_at`);
-          if (ch?.name && !syncedAt && !cloudSlots.has(i)) {
-            await pushSlot(i);
-          }
+        // If anything was restored or relocated, the in-memory game state is
+        // stale relative to storage — reload so the slot list and active slot
+        // reflect what was just written.
+        if (res.restored.length || res.relocated.length) {
+          window.location.reload();
         }
       } catch (err) {
         console.warn('Cloud save reconciliation failed:', err);
       }
     })();
-  }, [isLoggedIn]);
+  }, [isLoggedIn, userProfile]);
 
   // Mirror the active slot to the cloud as play progresses. Debounced inside
   // cloudSaves, so a burst of turns results in a single upload once play settles.

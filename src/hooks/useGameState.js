@@ -615,6 +615,10 @@ export default function useGameState() {
   useEffect(() => {
     if (character && character.name) {
       storage.set(`slot_${activeSlotIndex}_character`, character);
+      // Wall-clock stamp of the last local change to this slot. Cloud-save
+      // conflict prompts show this next to the cloud's timestamp so the player
+      // can tell which copy is which.
+      storage.set(`slot_${activeSlotIndex}_local_updated_at`, Date.now());
     }
   }, [character, activeSlotIndex]);
 
