@@ -635,7 +635,7 @@ export default function Splash({
                   <button
                     type="button"
                     onClick={() => handleSocialLogin('google')}
-                    className="w-full py-2.5 rounded border border-red-500/20 hover:border-red-400/50 bg-red-950/20 hover:bg-red-950/45 text-red-300 hover:text-red-200 text-3xs font-extrabold uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-99"
+                    className="w-full py-2.5 rounded border border-purple-500/30 hover:border-purple-400/60 bg-purple-950/30 hover:bg-purple-900/45 text-purple-200 hover:text-purple-100 text-3xs font-extrabold uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-99"
                   >
                     <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                       <path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-6.887 4.114-4.693 0-8.503-3.81-8.503-8.503 0-4.692 3.81-8.503 8.503-8.503 2.222 0 4.113.848 5.603 2.298l3.238-3.238C18.664 1.896 15.7 1 12.24 1 5.922 1 12.24s4.922 11.24 11.24 11.24c6.304 0 10.742-4.407 10.742-10.94 0-.665-.08-1.285-.24-1.755H12.24z"/>
