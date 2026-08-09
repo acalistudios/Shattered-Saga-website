@@ -492,6 +492,10 @@ export default function useGameState() {
               energy_balance: me.energy_balance,
               subscription_tier: me.subscription_tier,
               subscription_status: 'active',
+              // Server-authoritative — gems and slot unlocks are no longer
+              // trusted from localStorage.
+              gems: me.gems,
+              unlocked_slots: me.unlocked_slots,
             }
           : null
       );

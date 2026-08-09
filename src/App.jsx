@@ -22,6 +22,15 @@ import {
   socialLoginRedirect,
   fetchMe,
 } from './utils/authApi';
+import {
+  spendGems,
+  unlockSlot,
+  queueSync,
+  flushSync,
+  pullSlot,
+  pushSlot,
+  findNewerCloudSlots,
+} from './utils/cloudSaves';
 
 function App() {
   const {
@@ -163,13 +172,24 @@ function App() {
 
   const showMobileFrame = activeLayout === 'mobile' && isDesktop;
 
-  // Sync gems state when username changes
+  // Gem balance.
+  //
+  // With the backend configured, gems are SERVER-AUTHORITATIVE: they arrive via
+  // /api/me on the user profile and are only ever changed through the Worker.
+  // They used to live in localStorage, which meant anyone could grant themselves
+  // gems in devtools and a cache clear destroyed purchases.
+  //
+  // The localStorage path below is retained only for guests/sandbox players, who
+  // have no account to attach a balance to.
   useEffect(() => {
+    if (isBackendConfigured) {
+      setGems(typeof userProfile?.gems === 'number' ? userProfile.gems : 0);
+      return;
+    }
     if (username) {
       const gemKey = `shattered_gems_${username}`;
       const savedGems = storage.get(gemKey);
       if (savedGems === null) {
-        // Grant 10 starting gems with new logins
         storage.set(gemKey, '10');
         setGems(10);
       } else {
@@ -178,7 +198,7 @@ function App() {
     } else {
       setGems(0);
     }
-  }, [username]);
+  }, [username, userProfile?.gems]);
 
   // After a social sign-in the Worker redirects back here with a session cookie
   // scoped to .shatteredsaga.com — but nothing is in local storage yet, so the
@@ -202,6 +222,58 @@ function App() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // Reconcile local saves with the cloud once the user is signed in.
+  //
+  // Runs once per login. Two directions:
+  //  - Cloud newer (or this device has nothing): offer to restore, so a player
+  //    who cleared their cache or switched device gets their character back.
+  //  - Local character with no cloud copy: upload it, migrating pre-existing
+  //    local-only saves without the player having to do anything.
+  const cloudReconciledRef = useRef(false);
+  useEffect(() => {
+    if (!isBackendConfigured || !isLoggedIn || cloudReconciledRef.current) return;
+    cloudReconciledRef.current = true;
+
+    (async () => {
+      try {
+        const newer = await findNewerCloudSlots();
+        for (const slot of newer) {
+          const localChar = storage.get(`slot_${slot.slot_index}_character`);
+          const label = slot.char_name || `Slot ${slot.slot_index}`;
+          // Nothing here locally — restore silently. Something here — ask, since
+          // restoring would overwrite whatever is on this device.
+          const shouldPull =
+            !localChar?.name ||
+            window.confirm(
+              `Your cloud save for "${label}" (slot ${slot.slot_index}) is newer than the copy on this device.\n\n` +
+              `Load the cloud version? Your local copy for that slot will be replaced.`
+            );
+          if (shouldPull) await pullSlot(slot.slot_index);
+        }
+
+        // Migrate any local-only characters up to the cloud.
+        const cloudSlots = new Set(newer.map((s) => s.slot_index));
+        for (let i = 1; i <= 8; i++) {
+          const ch = storage.get(`slot_${i}_character`);
+          const syncedAt = storage.get(`slot_${i}_cloud_synced_at`);
+          if (ch?.name && !syncedAt && !cloudSlots.has(i)) {
+            await pushSlot(i);
+          }
+        }
+      } catch (err) {
+        console.warn('Cloud save reconciliation failed:', err);
+      }
+    })();
+  }, [isLoggedIn]);
+
+  // Mirror the active slot to the cloud as play progresses. Debounced inside
+  // cloudSaves, so a burst of turns results in a single upload once play settles.
+  useEffect(() => {
+    if (!isBackendConfigured || !isLoggedIn || !character?.name) return;
+    const slotIndex = parseInt(storage.get('shatteredsaga_active_slot_index') || '1', 10);
+    queueSync(slotIndex);
+  }, [isLoggedIn, character, history, journal]);
 
   // Parse Supabase OAuth redirect URL hash on boot (legacy path only).
   useEffect(() => {
@@ -324,9 +396,17 @@ function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (isBackendConfigured) {
-      apiSignOut(); // clears the Better Auth bearer token (fire-and-forget)
+      // Push any pending save BEFORE dropping the token, or the last stretch of
+      // play would only exist on this device.
+      const slotIndex = parseInt(storage.get('shatteredsaga_active_slot_index') || '1', 10);
+      try {
+        await flushSync(slotIndex);
+      } catch {
+        /* offline or rejected — local copy is still intact */
+      }
+      await apiSignOut(); // clears the Better Auth bearer token
     }
     storage.remove('shattered_username');
     storage.remove('shattered_email');
@@ -336,7 +416,15 @@ function App() {
     window.dispatchEvent(new Event('shattered_auth_update'));
   };
 
-  const handleSpendGem = () => {
+  // Spend a single gem. When the backend is configured the debit happens
+  // server-side (atomic, cannot be forged); the local branch is guests only.
+  const handleSpendGem = async () => {
+    if (isBackendConfigured) {
+      const remaining = await spendGems(1, 'in-game');
+      if (remaining === null) return false; // insufficient or offline
+      setGems(remaining);
+      return true;
+    }
     if (gems > 0) {
       const newGems = gems - 1;
       setGems(newGems);
@@ -380,7 +468,21 @@ function App() {
     window.location.reload();
   };
 
-  const handleUnlockSlot = (slotIndex, cost) => {
+  // Unlock a save slot. The server owns both the price and the balance check, so
+  // the cost argument is only used for the guest/local fallback path.
+  const handleUnlockSlot = async (slotIndex, cost) => {
+    if (isBackendConfigured) {
+      const res = await unlockSlot(slotIndex);
+      if (!res?.ok) return false;
+      if (typeof res.gems === 'number') setGems(res.gems);
+      if (Array.isArray(res.unlockedSlots)) {
+        // Mirror locally so the slot list renders immediately; the server copy
+        // remains the source of truth on next /api/me.
+        storage.set(`shattered_unlocked_slots_${username}`, res.unlockedSlots);
+      }
+      fetchUserProfile();
+      return true;
+    }
     if (gems >= cost) {
       const newGems = gems - cost;
       setGems(newGems);
@@ -628,6 +730,12 @@ function App() {
     // Loading this slot again drops the player straight back into `play`.
     exitAdventureSavingProgress();
     setScreen('splash');
+    // Exiting is a natural checkpoint — push immediately rather than waiting
+    // out the debounce, so the suspended adventure is safe in the cloud.
+    if (isBackendConfigured && isLoggedIn) {
+      const slotIndex = parseInt(storage.get('shatteredsaga_active_slot_index') || '1', 10);
+      flushSync(slotIndex);
+    }
   };
 
   const handleSendAction = (actionText, skillFocusId, difficulty, spSpend, inventoryItemUsed) => {
