@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createAuth, type Env } from "./auth";
 import { generate, type Attempt, type HistoryMsg } from "./provider";
+import { registerSaveRoutes, readGemState } from "./saves";
 
 // Provider cascade per tier: primary OpenAI, then Anthropic, then Google.
 // A tier survives any single provider outage (or an unset key) automatically.
@@ -48,17 +49,28 @@ app.get("/api/health", (c) => c.json({ ok: true, service: "shattered-saga-api" }
 // Better Auth — /api/auth/sign-up, /sign-in, /verify-email, /reset-password, etc.
 app.all("/api/auth/*", (c) => authFor(c).handler(c.req.raw));
 
-// Current user's tier + energy (replaces the old Supabase profile fetch).
+// Current user's tier, energy, gems and unlocked save slots.
 app.get("/api/me", async (c) => {
   const session = await authFor(c).api.getSession({ headers: c.req.raw.headers });
   if (!session) return c.json({ error: "unauthorized" }, 401);
   const { user } = session;
+  // gems/unlocked_slots are app columns Better Auth doesn't model, so read them
+  // straight from D1. They are server-authoritative — never trusted from the client.
+  const { gems, unlockedSlots } = await readGemState(c.env, user.id);
   return c.json({
     id: user.id,
     email: user.email,
     subscription_tier: (user as any).subscription_tier ?? "free",
     energy_balance: (user as any).energy_balance ?? 0,
+    gems,
+    unlocked_slots: unlockedSlots,
   });
+});
+
+// Cloud save slots + gem spending. Shares the same session check as everything else.
+registerSaveRoutes(app, async (c) => {
+  const session = await authFor(c).api.getSession({ headers: c.req.raw.headers });
+  return session ? { id: session.user.id } : null;
 });
 
 const UNLIMITED_FLASH_TIERS = ["supporter", "adventurer", "legend"];
