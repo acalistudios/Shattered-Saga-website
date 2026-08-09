@@ -777,16 +777,6 @@ export default function Splash({
             )}
           </div>
 
-          {/* Monetization Roadmap Banner */}
-          <div className="mt-6 p-4 rounded-lg border border-slate-900 bg-slate-950/40 w-full text-center">
-            <span className="text-4xs text-amber-500/90 font-extrabold uppercase tracking-widest block mb-1">
-              Marketplace Features (Future Roadmap)
-            </span>
-            <p className="text-5xs text-slate-500 leading-normal">
-              Chronal rewinds, character resurrection, special strongholds, exclusive items, and high-value custom adventures will be unlocked here.
-            </p>
-          </div>
-
           {/* Subtle Privacy Footer */}
           <div className="mt-8 text-5xs text-slate-600 flex justify-center gap-4 select-none">
             <span>© {new Date().getFullYear()} ACALI Studios</span>
