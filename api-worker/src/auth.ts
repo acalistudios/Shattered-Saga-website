@@ -45,12 +45,11 @@ export function createAuth(env?: Env, cf?: IncomingRequestCfProperties, baseURL?
       // Cloudflare Pages staging alias, so deploys can be verified pre-cutover.
       "https://shattered-saga.pages.dev",
     ],
-    advanced: {
-      crossSubDomainCookies: {
-        enabled: true,
-        domain: ".shatteredsaga.com",
-      },
-    },
+    // NOTE: `advanced` must NOT be set here. withCloudflare() is spread below and
+    // returns its own `advanced` (for IP detection), which would overwrite this
+    // key entirely — that silently dropped crossSubDomainCookies, so cookies were
+    // issued host-only for api.shatteredsaga.com and never shared with the site.
+    // It now lives inside the withCloudflare options object instead.
     // App-specific columns stored on the user row (metering + billing).
     user: {
       additionalFields: {
@@ -98,6 +97,15 @@ export function createAuth(env?: Env, cf?: IncomingRequestCfProperties, baseURL?
           facebook: {
             clientId: env?.FACEBOOK_CLIENT_ID as string,
             clientSecret: env?.FACEBOOK_CLIENT_SECRET as string,
+          },
+        },
+        // Inside withCloudflare's options so it survives the spread above.
+        // Scopes auth cookies to .shatteredsaga.com, letting the site read the
+        // session set by api.shatteredsaga.com after an OAuth redirect.
+        advanced: {
+          crossSubDomainCookies: {
+            enabled: true,
+            domain: ".shatteredsaga.com",
           },
         },
         rateLimit: { enabled: true, window: 60, max: 100 },
