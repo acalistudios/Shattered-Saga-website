@@ -177,28 +177,31 @@ function b64urlToBytes(s: string): Uint8Array {
 }
 
 async function verifySignedRequest(signed: string, appSecret: string): Promise<any | null> {
-  const [sigPart, payloadPart] = signed.split(".");
-  if (!sigPart || !payloadPart) return null;
-
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(appSecret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  const expected = new Uint8Array(
-    await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payloadPart))
-  );
-  const actual = b64urlToBytes(sigPart);
-
-  // Constant-time comparison.
-  if (expected.length !== actual.length) return null;
-  let diff = 0;
-  for (let i = 0; i < expected.length; i++) diff |= expected[i] ^ actual[i];
-  if (diff !== 0) return null;
-
+  // Everything here runs on attacker-controllable input: atob() throws on
+  // malformed base64, so the whole routine is guarded and any failure is simply
+  // treated as "not verified" rather than surfacing as a 500.
   try {
+    const [sigPart, payloadPart] = signed.split(".");
+    if (!sigPart || !payloadPart) return null;
+
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(appSecret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    const expected = new Uint8Array(
+      await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payloadPart))
+    );
+    const actual = b64urlToBytes(sigPart);
+
+    // Constant-time comparison.
+    if (expected.length !== actual.length) return null;
+    let diff = 0;
+    for (let i = 0; i < expected.length; i++) diff |= expected[i] ^ actual[i];
+    if (diff !== 0) return null;
+
     return JSON.parse(new TextDecoder().decode(b64urlToBytes(payloadPart)));
   } catch {
     return null;
