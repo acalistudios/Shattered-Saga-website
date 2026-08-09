@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Data Deletion — Shattered Saga</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0; padding: 2.5rem 1.25rem;
+      background: #020617; color: #cbd5e1;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      line-height: 1.65;
+    }
+    main { max-width: 640px; margin: 0 auto; }
+    h1 { color: #fbbf24; font-size: 1.6rem; margin-bottom: 0.25rem; }
+    h2 { color: #e2e8f0; font-size: 1.05rem; margin-top: 2rem; }
+    a { color: #c4b5fd; }
+    code {
+      background: #0f172a; border: 1px solid #1e293b;
+      padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.9em;
+    }
+    .status {
+      margin-top: 1.5rem; padding: 1rem 1.25rem;
+      background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3);
+      border-radius: 8px; color: #6ee7b7;
+    }
+    .muted { color: #64748b; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Data Deletion</h1>
+    <p class="muted">Shattered Saga</p>
+
+    <div class="status" id="status">
+      <strong>Request received.</strong>
+      Your Shattered Saga account and its associated data have been deleted.
+    </div>
+
+    <h2>What gets deleted</h2>
+    <p>
+      When you remove Shattered Saga from your Facebook or Google account, or ask us
+      directly, we delete your account record and everything linked to it: your email
+      address, sign-in identities, active sessions, subscription tier and turn balance.
+    </p>
+    <p>
+      Character saves and adventure progress are stored locally in your own browser,
+      not on our servers. Clearing your browser data removes those.
+    </p>
+
+    <h2>Requesting deletion yourself</h2>
+    <p>
+      You can request deletion at any time by emailing
+      <a href="mailto:acalistudios@gmail.com?subject=Shattered%20Saga%20data%20deletion">acalistudios@gmail.com</a>
+      from the address associated with your account. We action requests within 30 days.
+    </p>
+
+    <h2>Via Facebook</h2>
+    <p>
+      Go to <em>Settings &amp; Privacy → Settings → Apps and Websites</em>, select
+      Shattered Saga, and choose <em>Remove</em>. Facebook notifies us automatically
+      and your data is deleted.
+    </p>
+
+    <p class="muted" id="code"></p>
+    <p class="muted"><a href="/">← Back to Shattered Saga</a></p>
+  </main>
+
+  <script>
+    // Meta appends ?code=... so a user can reference their request.
+    var c = new URLSearchParams(location.search).get('code');
+    if (c) {
+      document.getElementById('code').textContent = 'Confirmation code: ' + c;
+    }
+  </script>
+</body>
+</html>

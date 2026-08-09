@@ -162,6 +162,88 @@ app.post("/api/complete", async (c) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Facebook Data Deletion Callback (required by Meta before an app can go Live).
+//
+// Meta POSTs a `signed_request` when a user removes the app. We verify its HMAC
+// with the app secret, delete that user's account, and reply with a status URL
+// plus a confirmation code, as Meta's contract requires.
+// ---------------------------------------------------------------------------
+
+function b64urlToBytes(s: string): Uint8Array {
+  const b64 = s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (s.length % 4)) % 4);
+  const bin = atob(b64);
+  return Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
+}
+
+async function verifySignedRequest(signed: string, appSecret: string): Promise<any | null> {
+  const [sigPart, payloadPart] = signed.split(".");
+  if (!sigPart || !payloadPart) return null;
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(appSecret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const expected = new Uint8Array(
+    await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payloadPart))
+  );
+  const actual = b64urlToBytes(sigPart);
+
+  // Constant-time comparison.
+  if (expected.length !== actual.length) return null;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= expected[i] ^ actual[i];
+  if (diff !== 0) return null;
+
+  try {
+    return JSON.parse(new TextDecoder().decode(b64urlToBytes(payloadPart)));
+  } catch {
+    return null;
+  }
+}
+
+// NOTE: deliberately NOT under /api/auth/* — that path is claimed by the
+// Better Auth catch-all above, which would swallow this route and 404.
+app.post("/api/facebook/data-deletion", async (c) => {
+  const secret = c.env.FACEBOOK_CLIENT_SECRET;
+  if (!secret) return c.json({ error: "not_configured" }, 500);
+
+  let signed = "";
+  try {
+    const body = await c.req.parseBody();
+    signed = String(body["signed_request"] || "");
+  } catch {
+    /* fall through */
+  }
+  if (!signed) return c.json({ error: "bad_request" }, 400);
+
+  const payload = await verifySignedRequest(signed, secret);
+  if (!payload?.user_id) return c.json({ error: "invalid_signature" }, 400);
+
+  // Map the Facebook user id to our user via the accounts table, then delete.
+  // sessions/accounts cascade on user delete.
+  const row = await c.env.DATABASE.prepare(
+    "SELECT user_id FROM accounts WHERE provider_id = 'facebook' AND account_id = ?"
+  )
+    .bind(String(payload.user_id))
+    .first<{ user_id: string }>();
+
+  if (row?.user_id) {
+    await c.env.DATABASE.prepare("DELETE FROM users WHERE id = ?").bind(row.user_id).run();
+  }
+
+  // Confirmation code is for the user to track the request; the fb user id is
+  // sufficient and non-secret here.
+  const confirmationCode = `del_${payload.user_id}`;
+  return c.json({
+    url: `https://shatteredsaga.com/data-deletion.html?code=${confirmationCode}`,
+    confirmation_code: confirmationCode,
+  });
+});
+
 async function currentEnergy(env: Env, userId: string): Promise<number> {
   const row = await env.DATABASE.prepare("SELECT energy_balance FROM users WHERE id = ?")
     .bind(userId)
