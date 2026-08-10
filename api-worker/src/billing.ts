@@ -289,7 +289,13 @@ export function registerBillingRoutes(
         case "customer.subscription.updated":
         case "customer.subscription.deleted": {
           const active = obj.status === "active" || obj.status === "trialing";
-          const periodEnd = obj.current_period_end ? obj.current_period_end * 1000 : null;
+          // Stripe moved current_period_end off the subscription and onto its
+          // items in the 2025-03-31 (basil) API version. The webhook's payload
+          // shape follows the endpoint's configured API version, so read both
+          // locations rather than assuming either.
+          const periodEndSec =
+            obj.current_period_end ?? obj.items?.data?.[0]?.current_period_end ?? null;
+          const periodEnd = periodEndSec ? periodEndSec * 1000 : null;
 
           // Match on the subscription id we stored at checkout. Matching on
           // customer alone would let a cancellation on another ACALI product
