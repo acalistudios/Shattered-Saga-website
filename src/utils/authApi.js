@@ -83,6 +83,31 @@ export async function generateViaBackend({ systemPrompt, history, premiumTurn = 
   }
 }
 
+// --- billing ---------------------------------------------------------------
+
+/** Whether real payments are configured server-side (so the UI can hide buttons). */
+export async function fetchBillingStatus() {
+  if (!isBackendConfigured) return { enabled: false };
+  try {
+    const res = await fetch(`${API_URL}/api/billing/status`);
+    if (!res.ok) return { enabled: false };
+    return await res.json();
+  } catch {
+    return { enabled: false };
+  }
+}
+
+/**
+ * Start a Stripe Checkout session and send the browser to it. We pass the plan
+ * or pack NAME only — the server resolves the actual price, so the amount can't
+ * be tampered with here.
+ */
+export async function startCheckout({ plan, cycle, pack }) {
+  const data = await post('/api/billing/checkout', { plan, cycle, pack }, true);
+  if (!data?.url) throw new Error('Could not start checkout. Please try again.');
+  window.location.href = data.url;
+}
+
 // Current user's tier + energy (replaces the Supabase profile fetch).
 export async function fetchMe() {
   const t = getToken();

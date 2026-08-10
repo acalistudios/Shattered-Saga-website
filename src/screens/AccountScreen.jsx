@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import storage from '../utils/storage';
+import { startCheckout, fetchBillingStatus } from '../utils/authApi';
 
 export default function AccountScreen({
   onBack,
@@ -33,6 +34,44 @@ export default function AccountScreen({
   
   const [purchaseLoading, setPurchaseLoading] = useState(null);
   const [purchaseSuccess, setPurchaseSuccess] = useState(null);
+  // Whether Stripe is configured server-side. Purchase buttons stay visible but
+  // explain themselves rather than silently doing nothing when it's off.
+  const [billingEnabled, setBillingEnabled] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchBillingStatus().then((s) => {
+      if (!cancelled) setBillingEnabled(!!s.enabled);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Stripe redirects back with ?billing=success|cancelled. The entitlement is
+  // granted by the webhook, not here — this only refreshes the displayed profile
+  // (with a short retry, since the webhook may land a moment after the redirect).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const outcome = params.get('billing');
+    if (!outcome) return;
+    window.history.replaceState(null, '', window.location.pathname);
+    if (outcome === 'success') {
+      setPurchaseSuccess('Payment received — applying it to your account…');
+      let tries = 0;
+      const poll = setInterval(() => {
+        tries += 1;
+        fetchUserProfile();
+        if (tries >= 5) {
+          clearInterval(poll);
+          setPurchaseSuccess('Purchase complete. If your balance looks unchanged, refresh in a moment.');
+          setTimeout(() => setPurchaseSuccess(null), 6000);
+        }
+      }, 2000);
+      return () => clearInterval(poll);
+    }
+    if (outcome === 'cancelled') {
+      setPurchaseSuccess(null);
+    }
+  }, []);
   
   // Sponsored Video Ad States
   const [videoAdOpen, setVideoAdOpen] = useState(false);
@@ -182,103 +221,48 @@ export default function AccountScreen({
     }
   };
 
-  const handleBuyGems = (amount, price) => {
+  // Real Stripe Checkout. This used to be a setTimeout writing a localStorage
+  // mock profile — which since the Better Auth migration granted nothing at all,
+  // because the tier is read from D1. Entitlements are now applied server-side
+  // from Stripe's signed webhook after payment actually succeeds.
+  const handleUpgradeSubscription = async (tier) => {
     if (!userProfile) {
-      alert("Please register or sign in to buy gems.");
+      alert('Please register or sign in to upgrade your subscription.');
       return;
     }
-    setPurchaseLoading(`gems_${amount}`);
-    setPurchaseSuccess(null);
-
-    setTimeout(() => {
-      const email = storage.get('shattered_email') || 'adventurer@saga.com';
-      const username = storage.get('shattered_username') || '';
-      
-      const newGems = gems + amount;
-      setGems(newGems);
-      if (username) {
-        storage.set(`shattered_gems_${username}`, newGems.toString());
-      }
-
-      if (isSimulationMode) {
-        const profile = storage.get(`mock_supabase_profile_${email}`, null);
-        if (profile) {
-          profile.energy_balance = (profile.energy_balance || 0) + (amount * 20); // Extra energy bonus
-          storage.set(`mock_supabase_profile_${email}`, profile);
-        }
-      }
-
-      setPurchaseLoading(null);
-      setPurchaseSuccess(`Successfully purchased ${amount} Gems!`);
-      fetchUserProfile();
-      setTimeout(() => setPurchaseSuccess(null), 4000);
-    }, 1000);
-  };
-
-  const handleSimulatePurchase = (turns, price) => {
-    if (!userProfile) {
-      alert("Please register or sign in to purchase turns.");
-      return;
-    }
-    setPurchaseLoading(`turns_${turns}`);
-    setPurchaseSuccess(null);
-
-    setTimeout(() => {
-      const email = storage.get('shattered_email') || 'adventurer@saga.com';
-      if (isSimulationMode) {
-        const profile = storage.get(`mock_supabase_profile_${email}`, null);
-        if (profile) {
-          profile.energy_balance = (profile.energy_balance || 0) + turns;
-          storage.set(`mock_supabase_profile_${email}`, profile);
-        }
-      }
-
-      setPurchaseLoading(null);
-      setPurchaseSuccess(`Successfully added ${turns} Turn Energies!`);
-      fetchUserProfile();
-      setTimeout(() => setPurchaseSuccess(null), 4000);
-    }, 1000);
-  };
-
-  const handleUpgradeSubscription = (tier, price) => {
-    if (!userProfile) {
-      alert("Please register or sign in to upgrade subscriptions.");
+    if (!billingEnabled) {
+      alert('Payments are not available yet. Please check back soon.');
       return;
     }
     setPurchaseLoading(`sub_${tier}`);
     setPurchaseSuccess(null);
-
-    setTimeout(() => {
-      const email = storage.get('shattered_email') || 'adventurer@saga.com';
-      if (isSimulationMode) {
-        const profile = storage.get(`mock_supabase_profile_${email}`, null);
-        if (profile) {
-          profile.subscription_tier = tier;
-          profile.subscription_status = 'active';
-          if (tier === 'supporter') {
-            const username = storage.get('shattered_username') || '';
-            const newGems = gems + 5;
-            setGems(newGems);
-            if (username) storage.set(`shattered_gems_${username}`, newGems.toString());
-          }
-          
-          let turnsToAdd = 0;
-          if (tier === 'adventurer') {
-            turnsToAdd = billingCycle === 'yearly' ? 2400 : 200;
-          } else if (tier === 'legend') {
-            turnsToAdd = billingCycle === 'yearly' ? 7800 : 650;
-          }
-          profile.energy_balance = (profile.energy_balance || 0) + turnsToAdd;
-          
-          storage.set(`mock_supabase_profile_${email}`, profile);
-        }
-      }
-
+    try {
+      // Redirects to Stripe; nothing after this runs on success.
+      await startCheckout({ plan: tier, cycle: billingCycle });
+    } catch (err) {
       setPurchaseLoading(null);
-      setPurchaseSuccess(`Chronicle upgraded to ${tier.toUpperCase()} tier!`);
-      fetchUserProfile();
-      setTimeout(() => setPurchaseSuccess(null), 4000);
-    }, 1000);
+      alert(err.message || 'Could not start checkout. Please try again.');
+    }
+  };
+
+  // One-off packs (turn refills, gem bundles).
+  const handleBuyPack = async (pack) => {
+    if (!userProfile) {
+      alert('Please register or sign in to make a purchase.');
+      return;
+    }
+    if (!billingEnabled) {
+      alert('Payments are not available yet. Please check back soon.');
+      return;
+    }
+    setPurchaseLoading(pack);
+    setPurchaseSuccess(null);
+    try {
+      await startCheckout({ pack });
+    } catch (err) {
+      setPurchaseLoading(null);
+      alert(err.message || 'Could not start checkout. Please try again.');
+    }
   };
 
   // Video Ad Timer Effect
@@ -802,7 +786,7 @@ export default function AccountScreen({
                   <p className="text-5xs text-slate-500 mt-1 mb-3">Instantly inject 200 premium priority turns to play without any cooldowns.</p>
                 </div>
                 <button
-                  onClick={() => handleSimulatePurchase(200, 1.00)}
+                  onClick={() => handleBuyPack('turns_200')}
                   disabled={purchaseLoading !== null}
                   className="w-full py-1.5 rounded bg-slate-950 hover:bg-slate-850 text-amber-450 border border-slate-800 font-bold text-4xs uppercase tracking-wider cursor-pointer transition-colors"
                 >
@@ -818,7 +802,7 @@ export default function AccountScreen({
                   <p className="text-5xs text-slate-500 mt-1 mb-3">High capacity refill for long epic stories. Yields a 30% discount.</p>
                 </div>
                 <button
-                  onClick={() => handleSimulatePurchase(1500, 5.00)}
+                  onClick={() => handleBuyPack('turns_1500')}
                   disabled={purchaseLoading !== null}
                   className="w-full py-1.5 rounded bg-slate-950 hover:bg-slate-850 text-amber-450 border border-slate-800 font-bold text-4xs uppercase tracking-wider cursor-pointer transition-colors"
                 >
@@ -834,7 +818,7 @@ export default function AccountScreen({
                   <p className="text-5xs text-slate-500 mt-1 mb-3">Add 15 gems to buy character customization slots or unlock special achievements.</p>
                 </div>
                 <button
-                  onClick={() => handleBuyGems(15, 3.00)}
+                  onClick={() => handleBuyPack('gems_15')}
                   disabled={purchaseLoading !== null}
                   className="w-full py-1.5 rounded bg-slate-950 hover:bg-slate-850 text-amber-450 border border-slate-800 font-bold text-4xs uppercase tracking-wider cursor-pointer transition-colors"
                 >
