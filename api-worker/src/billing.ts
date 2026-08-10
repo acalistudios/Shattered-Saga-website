@@ -28,13 +28,45 @@ const PACK_GRANTS: Record<PackKey, { energy?: number; gems?: number }> = {
 };
 
 /**
- * Price IDs come from Worker secrets so they can differ between test and live
- * mode without a code change. Naming: STRIPE_PRICE_<PLAN>_<CYCLE> / _<PACK>.
+ * Canonical lookup key for a purchasable item. Stripe lets you attach a stable
+ * `lookup_key` to a price, so the Worker resolves prices by name at runtime
+ * instead of storing nine price-id secrets that have to be re-copied by hand
+ * whenever prices are rebuilt (and which are easy to mis-paste).
  */
-function priceIdFor(env: Env, kind: string, cycle?: string): string | undefined {
-  const key = cycle ? `STRIPE_PRICE_${kind}_${cycle}` : `STRIPE_PRICE_${kind}`;
-  return (env as any)[key.toUpperCase()];
+function lookupKeyFor(kind: string, cycle?: string): string {
+  return cycle ? `ss_${kind}_${cycle}`.toLowerCase() : `ss_${kind}`.toLowerCase();
 }
+
+/**
+ * Resolve a price id. An explicit STRIPE_PRICE_* secret still wins if present
+ * (useful for pinning a specific price), otherwise we look it up by lookup_key.
+ */
+async function resolvePriceId(env: Env, kind: string, cycle?: string): Promise<string | undefined> {
+  const envKey = (cycle ? `STRIPE_PRICE_${kind}_${cycle}` : `STRIPE_PRICE_${kind}`).toUpperCase();
+  const pinned = (env as any)[envKey];
+  if (pinned) return pinned;
+
+  const lk = lookupKeyFor(kind, cycle);
+  try {
+    const res = await stripe(env, `/prices?lookup_keys[]=${encodeURIComponent(lk)}&active=true&limit=1`);
+    return res.data?.[0]?.id;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The full catalogue, used both for price sync and for verification. */
+export const CATALOG = [
+  { kind: "supporter", cycle: "MONTHLY", product: "BYOK Supporter", amount: 100, interval: "month" },
+  { kind: "supporter", cycle: "YEARLY", product: "BYOK Supporter", amount: 999, interval: "year" },
+  { kind: "adventurer", cycle: "MONTHLY", product: "Heroic Adventurer", amount: 499, interval: "month" },
+  { kind: "adventurer", cycle: "YEARLY", product: "Heroic Adventurer", amount: 3999, interval: "year" },
+  { kind: "legend", cycle: "MONTHLY", product: "Legendary Hero", amount: 1500, interval: "month" },
+  { kind: "legend", cycle: "YEARLY", product: "Legendary Hero", amount: 11999, interval: "year" },
+  { kind: "turns_200", cycle: undefined, product: "200 Priority Turns", amount: 100, interval: null },
+  { kind: "turns_1500", cycle: undefined, product: "1,500 Priority Turns", amount: 500, interval: null },
+  { kind: "gems_15", cycle: undefined, product: "15 Chronicle Gems", amount: 300, interval: null },
+] as const;
 
 /** Stripe wants form-encoded bodies, including for nested params. */
 function formEncode(obj: Record<string, any>, prefix = ""): string {
@@ -144,8 +176,8 @@ export function registerBillingRoutes(
     // The client names the INTENT; the server resolves the actual price. A
     // client-supplied price id would let anyone buy Legend for a penny.
     const priceId = isSub
-      ? priceIdFor(c.env, body.plan!, body.cycle === "yearly" ? "YEARLY" : "MONTHLY")
-      : priceIdFor(c.env, body.pack!);
+      ? await resolvePriceId(c.env, body.plan!, body.cycle === "yearly" ? "YEARLY" : "MONTHLY")
+      : await resolvePriceId(c.env, body.pack!);
 
     if (!priceId) {
       return c.json({ error: "unknown_item", message: "That item isn't available." }, 400);
@@ -293,4 +325,79 @@ export function registerBillingRoutes(
   app.get("/api/billing/status", (c) =>
     c.json({ enabled: !!c.env.STRIPE_SECRET_KEY })
   );
+
+  /**
+   * One-time setup + audit: attach canonical lookup_keys to the prices already
+   * created in Stripe, and report every price's amount and interval so a
+   * mis-configured plan (e.g. a "yearly" price actually billing monthly) is
+   * caught before anyone is charged.
+   *
+   * Read-mostly and idempotent — it only ever sets lookup_key on prices under
+   * our own products. Gated behind BILLING_ADMIN_TOKEN so it isn't publicly
+   * callable; without that secret set, it is disabled entirely.
+   */
+  app.post("/api/billing/admin/sync-prices", async (c) => {
+    const adminToken = c.env.BILLING_ADMIN_TOKEN;
+    if (!adminToken) return c.json({ error: "disabled" }, 404);
+    if (c.req.header("x-admin-token") !== adminToken) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
+    if (!c.env.STRIPE_SECRET_KEY) return c.json({ error: "not_configured" }, 503);
+
+    const report: any[] = [];
+    try {
+      const products = await stripe(c.env, "/products?limit=100&active=true");
+
+      for (const item of CATALOG) {
+        const product = products.data.find((p: any) => p.name === item.product);
+        if (!product) {
+          report.push({ item: lookupKeyFor(item.kind, item.cycle), status: "PRODUCT_MISSING", expected: item.product });
+          continue;
+        }
+
+        const prices = await stripe(c.env, `/prices?product=${product.id}&limit=100&active=true`);
+        const match = prices.data.find(
+          (p: any) =>
+            p.unit_amount === item.amount &&
+            ((item.interval && p.recurring?.interval === item.interval) ||
+              (!item.interval && !p.recurring))
+        );
+
+        const lk = lookupKeyFor(item.kind, item.cycle);
+        if (!match) {
+          report.push({
+            item: lk,
+            status: "PRICE_MISSING",
+            expected: `${(item.amount / 100).toFixed(2)} ${item.interval ?? "one-time"}`,
+            found: prices.data.map((p: any) => ({
+              id: p.id,
+              amount: (p.unit_amount / 100).toFixed(2),
+              interval: p.recurring?.interval ?? "one-time",
+            })),
+          });
+          continue;
+        }
+
+        // Idempotent: only write when the key isn't already correct.
+        if (match.lookup_key !== lk) {
+          await stripe(c.env, `/prices/${match.id}`, { lookup_key: lk, transfer_lookup_key: "true" });
+        }
+
+        report.push({
+          item: lk,
+          status: "OK",
+          priceId: match.id,
+          product: product.name,
+          amount: `$${(match.unit_amount / 100).toFixed(2)}`,
+          interval: match.recurring?.interval ?? "one-time",
+          currency: match.currency,
+        });
+      }
+    } catch (e: any) {
+      return c.json({ error: "sync_failed", message: e?.message }, 502);
+    }
+
+    const problems = report.filter((r) => r.status !== "OK");
+    return c.json({ ok: problems.length === 0, count: report.length, problems: problems.length, report });
+  });
 }

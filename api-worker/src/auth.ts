@@ -25,6 +25,8 @@ export interface Env {
   // code change; the server resolves them from the plan name the client sends.
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
+  // Gates the one-time price sync/audit endpoint. Unset = endpoint disabled.
+  BILLING_ADMIN_TOKEN?: string;
   STRIPE_PRICE_SUPPORTER_MONTHLY?: string;
   STRIPE_PRICE_SUPPORTER_YEARLY?: string;
   STRIPE_PRICE_ADVENTURER_MONTHLY?: string;
