@@ -216,7 +216,7 @@ async function readStream(response, provider, onChunk) {
                 accumulatedText += content;
                 onChunk(accumulatedText);
               }
-            } catch (e) {
+            } catch {
               // Ignore partial JSON parse errors
             }
           }
@@ -631,8 +631,8 @@ function runSandboxMock(provider, history, isHandoff, characterData, currentSitu
       const setting = characterData?.element || 'fire';
 
       // Let's create dynamic narratives based on user action keywords
-      let actionResponse = '';
-      let imagePrompt = '';
+      let actionResponse;
+      let imagePrompt;
 
       if (setting === 'fire') {
         imagePrompt = 'a volcanic canyon with rivers of lava and massive basalt columns, dark fantasy art, epic scales';
@@ -692,14 +692,13 @@ function runSandboxMock(provider, history, isHandoff, characterData, currentSitu
         }
       }
 
-      let text = '';
       const activeRoom = currentSituation || characterData?.setting || 'Fivefold Gate';
       const outputLocationTag = `[location: ${activeRoom}]`;
       const outputChoices = `\n[choice: Search the room = Search the room]\n[choice: Inspect the local layout = Inspect the local layout]\n[choice: Attempt to force your way = Attempt to force your way]`;
 
       // Neutral narrator voice (single-narrator model). This is offline mock text used
       // only when no real engine is configured; it does not echo the raw check math.
-      text = `${actionResponse}
+      let text = `${actionResponse}
 
 [image: ${imagePrompt}]`;
 

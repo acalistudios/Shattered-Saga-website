@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SKILLS_LIST, PROFESSIONS_LIST, ELEMENTS_LIST, VIRTUES, VICES, ALLEGIANCES, ATTRIBUTE_LIST } from '../data/gms';
 import { PRESET_METADATA } from '../data/portraits';
 

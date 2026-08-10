@@ -117,15 +117,18 @@ const storage = {
       val = memoryCache[fullKey];
     } else {
       // Fallback in case sync read is hit before init finishes
+      let raw = null;
       try {
-        let raw = localStorage.getItem(fullKey);
+        raw = localStorage.getItem(fullKey);
         if (raw === null) {
           raw = localStorage.getItem(`_cap_${fullKey}`);
         }
         if (raw !== null) {
           val = JSON.parse(raw);
         }
-      } catch {}
+      } catch {
+        val = raw;
+      }
     }
     if (val !== null) {
       return normalizePortraitData(val);

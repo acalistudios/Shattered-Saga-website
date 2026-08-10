@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ADVENTURES_LIST } from '../data/adventures';
 import { GMS } from '../data/gms';
-import { printCharacterSheet } from '../utils/print';
 import { getItemDetails } from '../utils/items';
 import { coinValue } from '../data/economy';
-import { WORLD_REGIONS, MAP_NODES, MAP_CONNECTIONS, MAP_IMAGES, REGION_TRANSIT_CHALLENGES } from '../data/cartography';
+import { WORLD_REGIONS, MAP_NODES, MAP_IMAGES, REGION_TRANSIT_CHALLENGES } from '../data/cartography';
 
 const isRegionStoryUnlocked = (regionId, completedAdventures = []) => {
   if (regionId === 'region1') return true;
@@ -101,8 +100,6 @@ export default function AdventureSelection({
   character,
   onSelectAdventure,
   onBack,
-  gems,
-  onSpendGem,
   layoutMode = 'desktop',
   strongholdChest = [],
   onUpdateStrongholdChest,
@@ -309,10 +306,6 @@ export default function AdventureSelection({
     ? (getUnlockStatus(selectedAdventure.id, completedAdventures, character)) 
     : { unlocked: false, requirements: [] };
   const isCompleted = completedAdventures.includes(selectedNodeId);
-
-  const handlePrintCharacter = () => {
-    printCharacterSheet(character);
-  };
 
   return (
     <div className="flex-1 flex flex-col justify-between p-6 max-w-6xl mx-auto w-full overflow-y-auto custom-scrollbar">

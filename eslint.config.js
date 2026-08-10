@@ -17,5 +17,13 @@ export default defineConfig([
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
+    rules: {
+      // This app has not yet been refactored for the stricter React Compiler
+      // rules bundled with eslint-plugin-react-hooks v7. Keep Rules of Hooks
+      // and exhaustive-deps active, but disable compiler purity policies here.
+      'react-hooks/purity': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+    },
   },
 ])

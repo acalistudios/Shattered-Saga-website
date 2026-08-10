@@ -2,7 +2,7 @@
 // Securely verifies Supabase Auth JWT, decrements energy, and calls AI APIs.
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env) {
     // 1. Handle CORS Preflight request
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",

@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import storage from '../utils/storage';
 import { GMS, SAGA_ENGINES, BASE_SYSTEM_PROMPT, SKILLS_LIST, PROFESSIONS_LIST, ELEMENTS_LIST } from '../data/gms';
-import { calculateWeightAndVolume, getItemDetails, getItemSlot } from '../utils/items';
+import { calculateWeightAndVolume, getItemDetails } from '../utils/items';
 import { generateCompletion, executeOpposedCheck, rollDie, rollAttributePrimary, rollAttributeSecondary, rollSkillRanks } from '../utils/ai';
 import { ADVENTURES_LIST } from '../data/adventures';
 import { checkSafetyViolation, getGMStrikeWarning, getGMSternWarning, calculateLockoutExpiry, isGloballyBanned } from '../utils/safety';
-import { generateMerchantStock, getMerchantType, ADVENTURE_TRAINING_SLOTS, TRAINING_EXPERTS } from '../data/downtimeMerchants';
+import { generateMerchantStock, ADVENTURE_TRAINING_SLOTS, TAVERNS } from '../data/downtimeMerchants';
 import { ADVENTURE_ECONOMY_METADATA } from '../data/adventureEconomy';
 import { isBackendConfigured, fetchMe, generateViaBackend } from '../utils/authApi';
 
@@ -73,14 +73,6 @@ function getArmorType(armorName) {
     return 'medium';
   }
   return 'light';
-}
-
-function getVigorDie(vigor) {
-  if (vigor <= 1) return 4;
-  if (vigor === 2) return 6;
-  if (vigor === 3) return 8;
-  if (vigor === 4) return 10;
-  return 12; // vigor 5
 }
 
 function rollAttribute(score) {
@@ -589,8 +581,8 @@ export default function useGameState() {
   const [nextRollModifier, setNextRollModifier] = useState(() => storage.get(`slot_${activeSlotIndex}_next_roll_modifier`, 0));
   const [lastActionParams, setLastActionParams] = useState(null);
   const [handoffState, setHandoffState] = useState(() => storage.get(`slot_${activeSlotIndex}_handoff_state`, null));
-  const [lastHandoffJson, setLastHandoffJson] = useState(null);
-  const [isHandoffScreenVisible, setIsHandoffScreenVisible] = useState(false);
+  const [, setLastHandoffJson] = useState(null);
+  const [, setIsHandoffScreenVisible] = useState(false);
 
   // Codex Architecture: NPC Memory, Location, and Ground Items state
   const [currentLocation, setCurrentLocation] = useState(() => storage.get(`slot_${activeSlotIndex}_current_location`, ''));
@@ -889,7 +881,7 @@ export default function useGameState() {
     return gmEnergies[gmId] <= 0;
   }, [gmEnergies]);
 
-  const isGmLocked = useCallback((gmId) => {
+  const isGmLocked = useCallback(() => {
     return false;
   }, []);
 
@@ -1241,7 +1233,7 @@ export default function useGameState() {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
     if (!sandbox && engineTier === 'byok') {
-      let subscriptionTier = 'free';
+      let subscriptionTier;
       if (!supabaseUrl) {
         const email = storage.get('shattered_email') || 'adventurer@saga.com';
         const mockProfile = storage.get(`mock_supabase_profile_${email}`, null);
@@ -1260,18 +1252,14 @@ export default function useGameState() {
 
     if (sessionToken && engineTier === 'premium') {
       let currentEnergy;
-      let subscriptionTier;
-      
       if (!supabaseUrl) {
         // Simulation mode
         const email = storage.get('shattered_email') || 'adventurer@saga.com';
         const mockProfile = storage.get(`mock_supabase_profile_${email}`, null);
         currentEnergy = mockProfile ? mockProfile.energy_balance : 0;
-        subscriptionTier = mockProfile ? mockProfile.subscription_tier : 'free';
       } else {
         // Production mode
         currentEnergy = userProfile ? userProfile.energy_balance : 0;
-        subscriptionTier = userProfile ? userProfile.subscription_tier : 'free';
       }
 
       if (currentEnergy <= 0) {
@@ -1406,7 +1394,7 @@ export default function useGameState() {
         else if (nameLower.includes('poultice')) itemPattern = 'poultice[s]?';
         else if (isPotion) {
           // Escape regex characters for safe match of exact potion/elixir names
-          itemPattern = inventoryItemUsed.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+          itemPattern = inventoryItemUsed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         }
 
         const { consumed, nextInventory } = consumeInventoryItem(localInventory, itemPattern);
@@ -1684,12 +1672,9 @@ export default function useGameState() {
     // Auto-detect if player says they are eating a ration in their action
     const eatRegex = /\b(eat|consume|eating)\b.*\b(ration|rations|food)\b/i;
     const isEatingRation = eatRegex.test(actionText);
-    let consumedRationNarratively = false;
-
     if (isEatingRation) {
       const { hasRations, updatedInventory } = consumeRationFromInventory(character.inventory);
       if (hasRations) {
-        consumedRationNarratively = true;
         localDaysWithoutFood = 0;
         localInventory = updatedInventory;
         localFatigue = Math.min(character.stats.maxFatigue || 15, localFatigue + 4);
@@ -2453,7 +2438,6 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       // Calculate HP damage mitigation details for feedback
       let combatNotice = '';
       let totalNetDamage = 0;
-      let bleedTriggered = false;
       let newBleedingTier = null;
 
       bleedMatches.forEach(m => {
@@ -2796,10 +2780,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         updated.completed_quests = nextCompletedQuests;
 
         // Rest tag execution
-        let restHpGained = 0;
-        let restTimeResult = null;
-        let restDaysWithoutFood = updated.daysWithoutFood || 0;
-        let restInventory = [...updated.inventory];
+        let restTimeResult;
+        let restDaysWithoutFood;
+        let restInventory;
 
         if (restHours > 0) {
           const { hasRations, updatedInventory } = consumeRationFromInventory(updated.inventory);
@@ -2816,7 +2799,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
             for (let i = 0; i < healingRank; i++) {
               healRankRoll += rollDie(2);
             }
-            restHpGained = vRoll + healRankRoll;
+            const restHpGained = vRoll + healRankRoll;
             nextHp = Math.min(updated.stats.maxHp || 10, nextHp + restHpGained);
 
             updated.stats = {
@@ -3005,7 +2988,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
   };
 
   // Perform voluntary manual GM Swapping
-  const swapGmVoluntarily = async (newGmId, apiKey, sandbox) => {
+  const swapGmVoluntarily = async (newGmId) => {
     setActiveGmId(newGmId);
     setWarningMessage(null);
     setApiError(null);
@@ -3369,7 +3352,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       stats.hour = timeResult.nextHour;
 
       let nextInv = prev.inventory;
-      let nextDaysWithoutFood = prev.daysWithoutFood;
+      let nextDaysWithoutFood;
 
       if (hasRations) {
         nextInv = updatedInventory;
@@ -3522,7 +3505,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
       if (countEquipped > countInInventory) {
         // Unequip one copy of the item
-        const slotToClear = Object.entries(nextEquipment).find(([s, name]) => name === itemName)?.[0];
+        const slotToClear = Object.entries(nextEquipment).find(([, name]) => name === itemName)?.[0];
         if (slotToClear) {
           nextEquipment[slotToClear] = null;
           if (slotToClear === 'hip_left') nextEquipment.hip_left_sheathed = null;
@@ -3594,7 +3577,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     setCharacter(prev => {
       const nextEquipment = { ...prev.equipment };
       // Find if this item is currently equipped in ANY slot
-      const equippedSlot = Object.entries(nextEquipment).find(([s, name]) => name === itemName)?.[0];
+      const equippedSlot = Object.entries(nextEquipment).find(([, name]) => name === itemName)?.[0];
       
       if (equippedSlot) {
         // Unequip it
@@ -3603,7 +3586,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         if (equippedSlot === 'hip_right') nextEquipment.hip_right_sheathed = null;
       } else {
         // Try to auto-equip it to a valid slot
-        let slotName = null;
+        let slotName;
         if (slot === 'hand') {
           slotName = !nextEquipment.hand_right ? 'hand_right' : (!nextEquipment.hand_left ? 'hand_left' : 'hand_right');
         } else if (slot === 'ring') {
@@ -3758,7 +3741,6 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       shieldRollStr = `1d${shieldSoakDie} (${r})${shieldMagicBonus ? ` + ${shieldMagicBonus}` : ''} shield`;
     }
 
-    const totalSoak = finalArmorSoak + shieldSoak;
     let netDamage = 0;
     if (!defenseSuccess) {
       netDamage = Math.max(0, rawDamage - finalArmorSoak);
@@ -3845,7 +3827,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     const defSkillName = defenseSkillId === 'acrobatics' ? 'Dodge (Acrobatics)' : 'Block (Blocking)';
     const rollText = `[Defense Check: ${defSkillName} vs ${enemyAttack.name}. Player Roll: ${playerRollTotal} (Base ${primaryRoll} + ${secondaryRoll} + Skill ${skillRoll} + Modifiers ${totalDefModifier}), Enemy Roll: ${enemyRollTotal}. ${defenseSuccess ? 'Success' : 'Failure'} (${margin >= 0 ? '+' : ''}${margin} margin)]`;
 
-    let combatResultText = '';
+    let combatResultText;
     if (defenseSuccess) {
       if (defenseSkillId === 'acrobatics') {
         combatResultText = `Successfully dodged! Negated all incoming damage.`;
@@ -4124,6 +4106,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       }
 
       if (!foundMerchant) {
+        // Taverns are configured separately from adventure merchants but share
+        // the same generated stock cache once the player opens a keeper's shop.
         for (const key in TAVERNS) {
           const t = TAVERNS[key];
           if (t.keeper === merchantName) {

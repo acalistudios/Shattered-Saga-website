@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import useSettings from './hooks/useSettings';
 import useGameState from './hooks/useGameState';
 import useAudioPlayer from './hooks/useAudioPlayer';
@@ -40,14 +40,12 @@ function App() {
     setByokProvider,
     setByokModel,
     setByokKey,
-    addToStrongholdChest,
     updateStrongholdChest
   } = useSettings();
 
   const {
     updateCharacterStats,
     character,
-    activeGmId,
     activeGm,
     gmEnergies,
     history,
@@ -59,23 +57,16 @@ function App() {
     isUpgradeScreenVisible,
     activeAdventureId,
     safetyState,
-    nextRollModifier,
     createCharacter,
     sendPlayerAction,
-    swapGmVoluntarily,
     triggerManualVisualization,
     executeMilestoneUpgrades,
-    isGmDepleted,
-    isGmLocked,
-    getResetCountdown,
     closeUpgradeScreen,
     resetGame,
-    importCharacter,
     updateCharacterPortrait,
     quitActiveAdventure,
     exitAdventureSavingProgress,
     retryLastAction,
-    setActiveAdventureId,
     startAdventure,
     userProfile,
     fetchUserProfile,

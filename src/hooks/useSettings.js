@@ -1,25 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import storage from '../utils/storage';
-
-const DEFAULT_SETTINGS = {
-  keys: {
-    oracle: import.meta.env.VITE_GEMINI_API_KEY || '',
-    titan: import.meta.env.VITE_GROQ_API_KEY || '',
-    ancient: import.meta.env.VITE_CEREBRAS_API_KEY || '',
-  },
-  // Sandbox (offline mock) is only the default when there is NO real engine available:
-  // no backend Worker (VITE_API_URL) and no local provider key. Note VITE_* values are
-  // public in the built bundle, so the shared Gemini key lives on the Worker, not here.
-  sandboxMode: !(
-    import.meta.env.VITE_API_URL ||
-    import.meta.env.VITE_GEMINI_API_KEY ||
-    import.meta.env.VITE_GROQ_API_KEY ||
-    import.meta.env.VITE_CEREBRAS_API_KEY
-  ),
-  engineTier: 'free',
-  userApiKey: '',
-  strongholdChest: [],
-};
 
 export default function useSettings() {
   const [settings, setSettings] = useState(() => {

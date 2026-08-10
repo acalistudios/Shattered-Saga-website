@@ -244,7 +244,7 @@ export default function useAudioPlayer(screen, activeAdventureId, isLoading, his
   };
 
   // Compile current track details
-  let currentTrack = null;
+  let currentTrack;
   if (activeAdventureId && ADVENTURE_MUSIC[activeAdventureId]) {
     const tracks = ADVENTURE_MUSIC[activeAdventureId].tracks;
     const moodIdx = ['exploration', 'tension', 'climax'].indexOf(musicMood);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SKILLS_LIST, ATTRIBUTE_LIST } from '../data/gms';
 import { printCharacterSheet, printAdventureLog } from '../utils/print';
 import { signCharacter } from '../utils/secureHash';
@@ -69,7 +69,6 @@ export default function PlayScreen({
   combatStance,
   onExecuteCombatManeuver,
   onExecuteCounterAttack,
-  audio,
   onExportSaveFile,
   onOpenAccount
 }) {

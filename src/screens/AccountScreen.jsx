@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import storage from '../utils/storage';
 import { startCheckout, fetchBillingStatus } from '../utils/authApi';
 
 export default function AccountScreen({
   onBack,
   settings,
-  setUserApiKey,
   setByokProvider,
   setByokModel,
   setByokKey,
@@ -16,7 +15,6 @@ export default function AccountScreen({
   userProfile,
   fetchUserProfile,
   gems,
-  setGems
 }) {
   const [billingCycle, setBillingCycle] = useState('monthly');
   
@@ -214,7 +212,7 @@ export default function AccountScreen({
           message: err.error?.message || `Failed with status code ${response ? response.status : 'unknown'}`
         });
       }
-    } catch (e) {
+    } catch {
       setTestResult({ success: false, message: `Network error connecting to ${selectedProvider.toUpperCase()} API.` });
     } finally {
       setTestingKey(false);

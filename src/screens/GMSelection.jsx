@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { GMS, SAGA_ENGINES } from '../data/gms';
 
 export default function GMSelection({
@@ -6,10 +6,8 @@ export default function GMSelection({
   onSelectGm,
   getResetCountdown,
   settings,
-  onOpenSettings,
   isGmDepleted,
   isGmLocked,
-  characterCreated,
   onBack,
   layoutMode = 'desktop',
   setEngineTier,
@@ -18,7 +16,7 @@ export default function GMSelection({
   onOpenAccount
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
-  const [countdowns, setCountdowns] = useState({});
+  const [, setCountdowns] = useState({});
   const [localKey, setLocalKey] = useState(settings.userApiKey || '');
 
   // Ticking clock for countdowns (used if Premium engine has daily limits or GMs deplete)
