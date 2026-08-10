@@ -12,6 +12,11 @@ import type { Env } from "./auth";
 
 const STRIPE_API = "https://api.stripe.com/v1";
 
+// Stamped on every object we create in Stripe. The account is shared with other
+// ACALI products and webhooks are account-wide, so this is how we tell our
+// events apart from theirs.
+const APP_TAG = "shattered-saga";
+
 /** What each purchasable thing grants. Prices live in Stripe; this maps intent. */
 type PlanKey = "supporter" | "adventurer" | "legend";
 type PackKey = "turns_200" | "turns_1500" | "gems_15";
@@ -156,10 +161,18 @@ export function registerBillingRoutes(
         success_url: `${site}/?billing=success`,
         cancel_url: `${site}/?billing=cancelled`,
         metadata: {
+          // The Stripe account is shared with other ACALI products, and webhooks
+          // are delivered account-wide. This marker lets our handler ignore
+          // events that belong to a different app.
+          app: APP_TAG,
           user_id: user.id,
           kind: isSub ? "subscription" : "pack",
           item: isSub ? body.plan : body.pack,
         },
+        // Propagate the marker onto the subscription itself, so subscription
+        // lifecycle events (which don't carry the session's metadata) are
+        // identifiable too.
+        ...(isSub ? { subscription_data: { metadata: { app: APP_TAG, user_id: user.id } } } : {}),
       });
       return c.json({ url: session.url });
     } catch (e: any) {
@@ -195,6 +208,17 @@ export function registerBillingRoutes(
     const obj = event.data?.object ?? {};
     const userId = obj.client_reference_id || obj.metadata?.user_id || null;
 
+    // This Stripe account serves several ACALI products and delivers events
+    // account-wide. Anything not stamped as ours belongs to another app —
+    // record it as seen and do nothing, rather than acting on someone else's
+    // purchase or cancellation.
+    if (obj.metadata?.app && obj.metadata.app !== APP_TAG) {
+      await c.env.DATABASE.prepare(
+        "INSERT OR IGNORE INTO billing_events (event_id, type, user_id, processed_at) VALUES (?, ?, ?, ?)"
+      ).bind(event.id, `${event.type}:foreign`, null, Date.now()).run();
+      return c.json({ received: true, ignored: "other_app" });
+    }
+
     try {
       switch (event.type) {
         case "checkout.session.completed": {
@@ -214,9 +238,15 @@ export function registerBillingRoutes(
                 .bind(grant.gems, userId).run();
             }
           } else if (kind === "subscription") {
+            // Record the subscription id so lifecycle events can be matched to
+            // exactly this subscription rather than to the customer, who may
+            // also hold subscriptions to other products on this Stripe account.
             await c.env.DATABASE.prepare(
-              "UPDATE users SET subscription_tier = ?, subscription_status = 'active', stripe_customer_id = ? WHERE id = ?"
-            ).bind(item, obj.customer ?? null, userId).run();
+              `UPDATE users
+               SET subscription_tier = ?, subscription_status = 'active',
+                   stripe_customer_id = ?, stripe_subscription_id = ?
+               WHERE id = ?`
+            ).bind(item, obj.customer ?? null, obj.subscription ?? null, userId).run();
           }
           break;
         }
@@ -224,17 +254,23 @@ export function registerBillingRoutes(
         // Renewal, plan change, cancellation, payment failure.
         case "customer.subscription.updated":
         case "customer.subscription.deleted": {
-          const customer = obj.customer;
-          if (!customer) break;
           const active = obj.status === "active" || obj.status === "trialing";
           const periodEnd = obj.current_period_end ? obj.current_period_end * 1000 : null;
-          await c.env.DATABASE.prepare(
+
+          // Match on the subscription id we stored at checkout. Matching on
+          // customer alone would let a cancellation on another ACALI product
+          // downgrade this user's Shattered Saga tier.
+          const res = await c.env.DATABASE.prepare(
             `UPDATE users
              SET subscription_status = ?,
                  subscription_period_end = ?,
                  subscription_tier = CASE WHEN ? THEN subscription_tier ELSE 'free' END
-             WHERE stripe_customer_id = ?`
-          ).bind(obj.status ?? "none", periodEnd, active ? 1 : 0, customer).run();
+             WHERE stripe_subscription_id = ?`
+          ).bind(obj.status ?? "none", periodEnd, active ? 1 : 0, obj.id).run();
+
+          if (res.meta.changes === 0) {
+            console.log(`[billing] ${event.type} for unknown subscription ${obj.id} — ignored`);
+          }
           break;
         }
       }
