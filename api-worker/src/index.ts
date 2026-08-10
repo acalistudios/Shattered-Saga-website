@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { createAuth, type Env } from "./auth";
 import { generate, type Attempt, type HistoryMsg } from "./provider";
 import { registerSaveRoutes, readGemState } from "./saves";
+import { registerBillingRoutes } from "./billing";
 
 // Provider cascade per tier: primary OpenAI, then Anthropic, then Google.
 // A tier survives any single provider outage (or an unset key) automatically.
@@ -71,6 +72,12 @@ app.get("/api/me", async (c) => {
 registerSaveRoutes(app, async (c) => {
   const session = await authFor(c).api.getSession({ headers: c.req.raw.headers });
   return session ? { id: session.user.id } : null;
+});
+
+// Stripe checkout + webhook. Entitlements are granted only by the webhook.
+registerBillingRoutes(app, async (c) => {
+  const session = await authFor(c).api.getSession({ headers: c.req.raw.headers });
+  return session ? { id: session.user.id, email: session.user.email } : null;
 });
 
 const UNLIMITED_FLASH_TIERS = ["supporter", "adventurer", "legend"];

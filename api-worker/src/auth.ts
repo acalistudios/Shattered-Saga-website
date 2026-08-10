@@ -20,6 +20,20 @@ export interface Env {
   OPENAI_API_KEY?: string;    // primary (gpt-5.6-luna free / gpt-5.6-terra premium)
   ANTHROPIC_API_KEY?: string; // fallback (claude-haiku-4-5 / claude-sonnet-5)
   DEV_GEMINI_KEY?: string;    // fallback (gemini-flash-latest / gemini-pro-latest)
+
+  // Stripe billing. Price ids are secrets so test/live modes differ without a
+  // code change; the server resolves them from the plan name the client sends.
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
+  STRIPE_PRICE_SUPPORTER_MONTHLY?: string;
+  STRIPE_PRICE_SUPPORTER_YEARLY?: string;
+  STRIPE_PRICE_ADVENTURER_MONTHLY?: string;
+  STRIPE_PRICE_ADVENTURER_YEARLY?: string;
+  STRIPE_PRICE_LEGEND_MONTHLY?: string;
+  STRIPE_PRICE_LEGEND_YEARLY?: string;
+  STRIPE_PRICE_TURNS_200?: string;
+  STRIPE_PRICE_TURNS_1500?: string;
+  STRIPE_PRICE_GEMS_15?: string;
 }
 
 /**
