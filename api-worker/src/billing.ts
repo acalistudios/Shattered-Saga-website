@@ -209,10 +209,12 @@ export function registerBillingRoutes(
     const userId = obj.client_reference_id || obj.metadata?.user_id || null;
 
     // This Stripe account serves several ACALI products and delivers events
-    // account-wide. Anything not stamped as ours belongs to another app —
-    // record it as seen and do nothing, rather than acting on someone else's
-    // purchase or cancellation.
-    if (obj.metadata?.app && obj.metadata.app !== APP_TAG) {
+    // account-wide. We require our own tag rather than merely rejecting other
+    // apps' tags: an untagged event is, by definition, not one we created, and
+    // acting on it could credit or downgrade the wrong person. Safe to be strict
+    // because every session and subscription we create is stamped at creation
+    // and there are no pre-existing Shattered Saga subscriptions to grandfather.
+    if (obj.metadata?.app !== APP_TAG) {
       await c.env.DATABASE.prepare(
         "INSERT OR IGNORE INTO billing_events (event_id, type, user_id, processed_at) VALUES (?, ?, ?, ?)"
       ).bind(event.id, `${event.type}:foreign`, null, Date.now()).run();
