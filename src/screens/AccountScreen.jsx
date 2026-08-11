@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
 import storage from '../utils/storage';
-import { startCheckout, fetchBillingStatus } from '../utils/authApi';
+import { startCheckout, fetchBillingStatus, isBackendConfigured } from '../utils/authApi';
 
 export default function AccountScreen({
   onBack,
+  initialSection = 'overview',
+  notice = null,
+  onClearNotice,
   settings,
   setByokProvider,
   setByokModel,
   setByokKey,
+  clearByokKeys,
   setEngineTier,
   setSandboxMode,
   onLogout,
@@ -35,6 +39,11 @@ export default function AccountScreen({
   // Whether Stripe is configured server-side. Purchase buttons stay visible but
   // explain themselves rather than silently doing nothing when it's off.
   const [billingEnabled, setBillingEnabled] = useState(false);
+  const [activeSection, setActiveSection] = useState(initialSection || 'overview');
+
+  useEffect(() => {
+    setActiveSection(initialSection || 'overview');
+  }, [initialSection]);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,16 +78,14 @@ export default function AccountScreen({
     if (outcome === 'cancelled') {
       setPurchaseSuccess(null);
     }
-  }, []);
+  }, [fetchUserProfile]);
   
   // Sponsored Video Ad States
   const [videoAdOpen, setVideoAdOpen] = useState(false);
   const [videoAdSeconds, setVideoAdSeconds] = useState(15);
   const [videoAdMuted, setVideoAdMuted] = useState(false);
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-  const isSimulationMode = !supabaseUrl || !supabaseAnonKey;
+  const isSimulationMode = !isBackendConfigured;
 
   // Track key values in state when settings update
   useEffect(() => {
@@ -116,6 +123,16 @@ export default function AccountScreen({
     } else {
       setTestResult({ success: false, message: `Enter an API key to play live. No key was saved for ${selectedProvider.toUpperCase()}.` });
     }
+    setTimeout(() => setTestResult(null), 5000);
+  };
+
+  const handleClearByokKeys = () => {
+    if (!window.confirm('Clear all BYOK API keys saved in this browser? This does not affect your Shattered Saga account.')) {
+      return;
+    }
+    setLocalKeys({ gemini: '', openai: '', anthropic: '' });
+    if (clearByokKeys) clearByokKeys();
+    setTestResult({ success: true, message: 'Saved BYOK keys cleared from this browser.' });
     setTimeout(() => setTestResult(null), 5000);
   };
 
@@ -295,6 +312,24 @@ export default function AccountScreen({
   };
 
   const currentTier = userProfile?.subscription_tier || 'free';
+  const currentTurns = userProfile?.energy_balance || 0;
+  const showOverview = activeSection === 'overview';
+  const showStore = activeSection === 'store';
+  const showSubscriptions = activeSection === 'subscriptions';
+  const showByok = activeSection === 'byok';
+
+  const switchSection = (section) => {
+    setActiveSection(section);
+    if (onClearNotice) onClearNotice();
+  };
+
+  const sectionButtonClass = (section) => (
+    `px-3 py-2 rounded border text-4xs font-extrabold uppercase tracking-wider transition-colors cursor-pointer ${
+      activeSection === section
+        ? 'bg-amber-500 text-slate-950 border-amber-400'
+        : 'bg-slate-950 text-slate-400 border-slate-850 hover:text-slate-200 hover:border-amber-500/30'
+    }`
+  );
 
   return (
     <div className="flex-1 flex flex-col justify-start p-6 max-w-5xl mx-auto w-full overflow-y-auto custom-scrollbar">
@@ -329,6 +364,34 @@ export default function AccountScreen({
         </div>
       </div>
 
+      {notice && (
+        <div className="mb-4 p-3 rounded bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-semibold flex items-start justify-between gap-3">
+          <span>{notice}</span>
+          <button
+            type="button"
+            onClick={onClearNotice}
+            className="text-amber-200/70 hover:text-amber-100 text-4xs font-black uppercase tracking-wider cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-2">
+        <button type="button" onClick={() => switchSection('overview')} className={sectionButtonClass('overview')}>
+          Overview
+        </button>
+        <button type="button" onClick={() => switchSection('store')} className={sectionButtonClass('store')}>
+          Store
+        </button>
+        <button type="button" onClick={() => switchSection('subscriptions')} className={sectionButtonClass('subscriptions')}>
+          Subscriptions
+        </button>
+        <button type="button" onClick={() => switchSection('byok')} className={sectionButtonClass('byok')}>
+          BYOK
+        </button>
+      </div>
+
       {/* Main Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
@@ -349,7 +412,7 @@ export default function AccountScreen({
                 <div>
                   <span className="text-4xs text-slate-500 uppercase tracking-widest font-bold block">Sync Status</span>
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-4xs font-extrabold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mt-1">
-                    🟢 {isSimulationMode ? 'Local Simulation' : 'Supabase Sync'}
+                    🟢 {isSimulationMode ? 'Local Simulation' : 'Cloud Sync'}
                   </span>
                 </div>
                 <div>
@@ -381,12 +444,14 @@ export default function AccountScreen({
             )}
           </div>
 
+          {showByok && (
+          <>
           {/* Multi-Provider BYOK Settings Card */}
           <div className="rounded-lg bg-slate-900 border border-slate-800/80 p-5 relative shadow-xl shadow-black/20 text-left">
             <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-amber-500 to-emerald-500 rounded-t-lg" />
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">BYOK Connection</h3>
             <p className="text-4xs text-slate-500 leading-relaxed mb-4">
-              Bring your own API keys. Configure providers and models to direct narrative completion.
+              Bring your own API keys. Keys are saved only in this browser, never synced to your Shattered Saga account.
             </p>
 
             <div className="space-y-4">
@@ -477,6 +542,18 @@ export default function AccountScreen({
                 </button>
               </div>
 
+              <button
+                type="button"
+                onClick={handleClearByokKeys}
+                className="w-full py-1.5 rounded bg-slate-950 hover:bg-rose-950/35 text-slate-400 hover:text-rose-300 font-bold text-3xs uppercase border border-slate-800 hover:border-rose-500/35 tracking-wider transition-colors cursor-pointer"
+              >
+                Clear saved BYOK keys on this device
+              </button>
+
+              <div className="p-2.5 rounded bg-slate-950 border border-slate-850 text-5xs text-slate-450 leading-relaxed">
+                Local-only storage protects other account users and avoids server-side retention of provider secrets. Enter the key again on each new device.
+              </div>
+
               {selectedProvider === 'gemini' && (
                 <div className="pt-0.5">
                   <a
@@ -547,11 +624,32 @@ export default function AccountScreen({
               </button>
             </div>
           </div>
+          </>
+          )}
 
         </div>
 
         {/* Right Columns: Subscription Tiers & Store */}
         <div className="md:col-span-2 space-y-6 text-left">
+          {(showOverview || showStore) && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-lg bg-slate-900 border border-amber-500/25 p-4">
+                <span className="block text-5xs text-slate-500 uppercase tracking-widest font-bold">Chronicle Gems</span>
+                <span className="block mt-1 text-2xl text-amber-400 font-black">{gems || 0}</span>
+                <span className="block mt-1 text-5xs text-slate-450 uppercase tracking-wider">Character slots and special unlocks</span>
+              </div>
+              <div className="rounded-lg bg-slate-900 border border-emerald-500/20 p-4">
+                <span className="block text-5xs text-slate-500 uppercase tracking-widest font-bold">Priority Turns</span>
+                <span className="block mt-1 text-2xl text-emerald-400 font-black">{currentTurns}</span>
+                <span className="block mt-1 text-5xs text-slate-450 uppercase tracking-wider">Metered premium narration</span>
+              </div>
+              <div className="rounded-lg bg-slate-900 border border-violet-500/20 p-4">
+                <span className="block text-5xs text-slate-500 uppercase tracking-widest font-bold">Current Covenant</span>
+                <span className="block mt-2 text-sm text-violet-300 font-black capitalize">{currentTier}</span>
+                <span className="block mt-2 text-5xs text-slate-450 uppercase tracking-wider">Subscription entitlement</span>
+              </div>
+            </div>
+          )}
           
           {purchaseSuccess && (
             <div className="p-3 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold animate-pulse">
@@ -559,7 +657,18 @@ export default function AccountScreen({
             </div>
           )}
 
+          {showOverview && (
+            <div className="rounded-lg bg-slate-900 border border-slate-800/80 p-5 text-left">
+              <h2 className="text-sm font-bold text-slate-300 uppercase tracking-widest mb-2">Account summary</h2>
+              <p className="text-xs text-slate-450 leading-relaxed">
+                Gems are stored on your account and are used for persistent unlocks like extra character slots.
+                Priority Turns are the metered pool for premium AI narration. Use the Store tab when you need more of either balance.
+              </p>
+            </div>
+          )}
+
           {/* Subscriptions section */}
+          {showSubscriptions && (
           <div>
             <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Subscription covenants</h2>
             
@@ -623,11 +732,11 @@ export default function AccountScreen({
                   </div>
                 ) : (
                   <button 
-                    onClick={() => handleUpgradeSubscription('free', 0)}
+                    onClick={() => alert('Subscription cancellation and plan management will be handled by the billing portal.')}
                     disabled={purchaseLoading !== null}
                     className="w-full py-1 rounded bg-slate-900 hover:bg-slate-850 text-slate-350 border border-slate-800 font-bold text-4xs uppercase tracking-wider cursor-pointer transition-colors"
                   >
-                    Downgrade
+                    Manage Plan
                   </button>
                 )}
               </div>
@@ -748,8 +857,10 @@ export default function AccountScreen({
 
             </div>
           </div>
+          )}
 
           {/* Credits Store */}
+          {showStore && (
           <div>
             <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Energy, Gems & Ad-Refills</h2>
             
@@ -826,6 +937,7 @@ export default function AccountScreen({
 
             </div>
           </div>
+          )}
 
         </div>
 

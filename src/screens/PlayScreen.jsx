@@ -6,6 +6,7 @@ import { ADVENTURES_LIST } from '../data/adventures';
 import { PRESET_METADATA } from '../data/portraits';
 import storage from '../utils/storage';
 import { calculateWeightAndVolume, getItemDetails, getItemSlot } from '../utils/items';
+import AccountStatusPills from '../components/AccountStatusPills';
 
 
 
@@ -1035,7 +1036,8 @@ export default function PlayScreen({
                   ⚠️ Sandbox Mode
                 </span>
               )}
-              <span className="px-2.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-amber-450 text-5xs font-extrabold uppercase tracking-wider flex items-center gap-1 select-none font-sans">
+              <AccountStatusPills gems={gems} userProfile={userProfile} onOpenAccount={onOpenAccount} compact />
+              <span className="hidden">
                 💎 {gems} Gems
               </span>
             </h2>

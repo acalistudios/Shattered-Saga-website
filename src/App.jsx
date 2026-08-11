@@ -21,6 +21,7 @@ import {
   signOut as apiSignOut,
   socialLoginRedirect,
   fetchMe,
+  getToken,
 } from './utils/authApi';
 import {
   spendGems,
@@ -40,6 +41,7 @@ function App() {
     setByokProvider,
     setByokModel,
     setByokKey,
+    clearByokKeys,
     updateStrongholdChest
   } = useSettings();
 
@@ -102,9 +104,16 @@ function App() {
 
   const [screen, setScreen] = useState('splash');
   const [prevScreen, setPrevScreen] = useState('splash');
+  const [accountInitialSection, setAccountInitialSection] = useState('overview');
+  const [accountNotice, setAccountNotice] = useState(null);
 
-  const handleOpenAccount = () => {
+  const handleOpenAccount = (options = {}) => {
+    const section = typeof options === 'string' ? options : options.section;
     setPrevScreen(screen);
+    setAccountInitialSection(section || 'overview');
+    if (options.reason === 'insufficient_gems') {
+      setAccountNotice(options.message || 'You need more gems for that purchase. Buy a gem pack here, then return to continue.');
+    }
     setScreen('account');
   };
   const audio = useAudioPlayer(screen, activeAdventureId, isLoading, history);
@@ -113,6 +122,11 @@ function App() {
   const [username, setUsername] = useState(() => storage.get('shattered_username') || '');
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!storage.get('shattered_username'));
   const [gems, setGems] = useState(0);
+
+  const setActiveSlotIndex = (slotIndex) => {
+    storage.set('active_slot_index', slotIndex);
+    storage.set('shatteredsaga_active_slot_index', slotIndex);
+  };
 
   // Viewport simulation states
   const [viewportMode, setViewportMode] = useState('auto');
@@ -189,6 +203,37 @@ function App() {
     }
   }, [username, userProfile?.gems]);
 
+  // Stripe returns to the app root after Checkout. Handle that at the app level
+  // so balances refresh even when the player lands on Splash instead of Account.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const outcome = params.get('billing');
+    if (!outcome) return;
+
+    window.history.replaceState(null, '', window.location.pathname);
+    setPrevScreen('splash');
+    setAccountInitialSection('store');
+    setScreen('account');
+
+    if (outcome === 'success') {
+      setAccountNotice('Payment received. Refreshing your account balance while Stripe delivers the webhook.');
+      let tries = 0;
+      const poll = setInterval(() => {
+        tries += 1;
+        fetchUserProfile();
+        if (tries >= 6) {
+          clearInterval(poll);
+          setAccountNotice('Purchase complete. If the balance still looks unchanged, refresh again in a moment.');
+        }
+      }, 2000);
+      return () => clearInterval(poll);
+    }
+
+    if (outcome === 'cancelled') {
+      setAccountNotice('Checkout was cancelled. No payment was made.');
+    }
+  }, [fetchUserProfile]);
+
   // After a social sign-in the Worker redirects back here with a session cookie
   // scoped to .shatteredsaga.com — but nothing is in local storage yet, so the
   // app would still look logged out. Ask the backend who we are and adopt it.
@@ -255,7 +300,7 @@ function App() {
   // cloudSaves, so a burst of turns results in a single upload once play settles.
   useEffect(() => {
     if (!isBackendConfigured || !isLoggedIn || !character?.name) return;
-    const slotIndex = parseInt(storage.get('shatteredsaga_active_slot_index') || '1', 10);
+    const slotIndex = parseInt(storage.get('active_slot_index') || storage.get('shatteredsaga_active_slot_index') || '1', 10);
     queueSync(slotIndex);
   }, [isLoggedIn, character, history, journal]);
 
@@ -384,7 +429,7 @@ function App() {
     if (isBackendConfigured) {
       // Push any pending save BEFORE dropping the token, or the last stretch of
       // play would only exist on this device.
-      const slotIndex = parseInt(storage.get('shatteredsaga_active_slot_index') || '1', 10);
+      const slotIndex = parseInt(storage.get('active_slot_index') || storage.get('shatteredsaga_active_slot_index') || '1', 10);
       try {
         await flushSync(slotIndex);
       } catch {
@@ -402,26 +447,30 @@ function App() {
 
   // Spend a single gem. When the backend is configured the debit happens
   // server-side (atomic, cannot be forged); the local branch is guests only.
-  const handleSpendGem = async () => {
-    if (isBackendConfigured) {
-      const remaining = await spendGems(1, 'in-game');
-      if (remaining === null) return false; // insufficient or offline
+  const handleSpendGem = async (amount = 1, reason = 'in-game') => {
+    if (isBackendConfigured && getToken()) {
+      const remaining = await spendGems(amount, reason);
+      if (remaining === null) {
+        handleOpenAccount({ section: 'store', reason: 'insufficient_gems' });
+        return false; // insufficient, offline, or rejected
+      }
       setGems(remaining);
       return true;
     }
-    if (gems > 0) {
-      const newGems = gems - 1;
+    if (gems >= amount) {
+      const newGems = gems - amount;
       setGems(newGems);
       if (username) {
         storage.set(`shattered_gems_${username}`, newGems.toString());
       }
       return true;
     }
+    handleOpenAccount({ section: 'store', reason: 'insufficient_gems' });
     return false;
   };
 
   const handleLoadSlot = (slotIndex) => {
-    storage.set('shatteredsaga_active_slot_index', slotIndex);
+    setActiveSlotIndex(slotIndex);
     storage.set('shatteredsaga_auto_load_game', 'true');
     window.location.reload();
   };
@@ -433,9 +482,10 @@ function App() {
       'safety_state', 'next_roll_modifier'
     ];
     keysToWipe.forEach(k => {
+      storage.remove(`slot_${slotIndex}_${k}`);
       storage.remove(`shatteredsaga_slot_${slotIndex}_${k}`);
     });
-    storage.set('shatteredsaga_active_slot_index', slotIndex);
+    setActiveSlotIndex(slotIndex);
     storage.set('shatteredsaga_auto_start_creation', 'true');
     window.location.reload();
   };
@@ -447,6 +497,7 @@ function App() {
       'safety_state', 'next_roll_modifier'
     ];
     keysToWipe.forEach(k => {
+      storage.remove(`slot_${slotIndex}_${k}`);
       storage.remove(`shatteredsaga_slot_${slotIndex}_${k}`);
     });
     window.location.reload();
@@ -455,15 +506,19 @@ function App() {
   // Unlock a save slot. The server owns both the price and the balance check, so
   // the cost argument is only used for the guest/local fallback path.
   const handleUnlockSlot = async (slotIndex, cost) => {
-    if (isBackendConfigured) {
+    if (isBackendConfigured && getToken()) {
       const res = await unlockSlot(slotIndex);
-      if (!res?.ok) return false;
+      if (!res?.ok) {
+        handleOpenAccount({ section: 'store', reason: 'insufficient_gems' });
+        return false;
+      }
       if (typeof res.gems === 'number') setGems(res.gems);
       if (Array.isArray(res.unlockedSlots)) {
         // Mirror locally so the slot list renders immediately; the server copy
         // remains the source of truth on next /api/me.
         storage.set(`shattered_unlocked_slots_${username}`, res.unlockedSlots);
       }
+      window.dispatchEvent(new Event('shattered_slot_unlock'));
       fetchUserProfile();
       return true;
     }
@@ -479,6 +534,7 @@ function App() {
         unlocked.push(slotIndex);
         storage.set(gemKey, unlocked);
       }
+      window.dispatchEvent(new Event('shattered_slot_unlock'));
       return true;
     }
     return false;
@@ -487,8 +543,8 @@ function App() {
   // Sync route on boot if an active adventure is detected or auto start creation is queued
   useEffect(() => {
     // Check if the current slot is locked out
-    const activeSlotIdx = storage.get('shatteredsaga_active_slot_index') || '1';
-    const safety = storage.get(`shatteredsaga_slot_${activeSlotIdx}_safety_state`);
+    const activeSlotIdx = storage.get('active_slot_index') || storage.get('shatteredsaga_active_slot_index') || '1';
+    const safety = storage.get(`slot_${activeSlotIdx}_safety_state`) || storage.get(`shatteredsaga_slot_${activeSlotIdx}_safety_state`);
     let isSlotLocked = false;
     if (safety) {
       isSlotLocked = safety.lockoutExpiryTimestamp && 
@@ -570,7 +626,7 @@ function App() {
   };
 
   const handleExportActiveSaveFile = () => {
-    const activeSlotIdx = storage.get('shatteredsaga_active_slot_index') || '1';
+    const activeSlotIdx = storage.get('active_slot_index') || storage.get('shatteredsaga_active_slot_index') || '1';
     downloadSaveFile(parseInt(activeSlotIdx, 10));
   };
 
@@ -583,16 +639,18 @@ function App() {
       'counter_opportunities', 'combat_stance'
     ];
     keysToWipe.forEach(k => {
+      storage.remove(`slot_${slotIndex}_${k}`);
       storage.remove(`shatteredsaga_slot_${slotIndex}_${k}`);
     });
 
     for (const key in saveData) {
       if (saveData[key] !== null && saveData[key] !== undefined) {
+        storage.set(`slot_${slotIndex}_${key}`, saveData[key]);
         storage.set(`shatteredsaga_slot_${slotIndex}_${key}`, saveData[key]);
       }
     }
 
-    storage.set('shatteredsaga_active_slot_index', slotIndex);
+    setActiveSlotIndex(slotIndex);
     storage.set('shatteredsaga_auto_load_game', 'true');
     window.location.reload();
   };
@@ -691,15 +749,21 @@ function App() {
       'safety_state', 'next_roll_modifier'
     ];
     keysToWipe.forEach(k => {
+      storage.remove(`slot_${slotIndex}_${k}`);
       storage.remove(`shatteredsaga_slot_${slotIndex}_${k}`);
     });
 
+    storage.set(`slot_${slotIndex}_character`, importedChar);
+    storage.set(`slot_${slotIndex}_journal`, {
+      storySoFar: 'A new adventure awaits this imported champion.',
+      recentTurns: []
+    });
     storage.set(`shatteredsaga_slot_${slotIndex}_character`, importedChar);
     storage.set(`shatteredsaga_slot_${slotIndex}_journal`, { 
       storySoFar: 'A new adventure awaits this imported champion.', 
       recentTurns: [] 
     });
-    storage.set('shatteredsaga_active_slot_index', slotIndex);
+    setActiveSlotIndex(slotIndex);
     storage.set('shatteredsaga_auto_load_game', 'true');
     window.location.reload();
   };
@@ -717,7 +781,7 @@ function App() {
     // Exiting is a natural checkpoint — push immediately rather than waiting
     // out the debounce, so the suspended adventure is safe in the cloud.
     if (isBackendConfigured && isLoggedIn) {
-      const slotIndex = parseInt(storage.get('shatteredsaga_active_slot_index') || '1', 10);
+      const slotIndex = parseInt(storage.get('active_slot_index') || storage.get('shatteredsaga_active_slot_index') || '1', 10);
       flushSync(slotIndex);
     }
   };
@@ -803,6 +867,7 @@ function App() {
             username={username}
             isLoggedIn={isLoggedIn}
             gems={gems}
+            userProfile={userProfile}
             onSocialLogin={handleSocialLogin}
             onLogout={handleLogout}
             onLoadSlot={handleLoadSlot}
@@ -818,6 +883,9 @@ function App() {
           <CharacterCreation
             onCreateCharacter={handleCreateCharacter}
             onBack={() => setScreen('splash')}
+            gems={gems}
+            userProfile={userProfile}
+            onOpenAccount={handleOpenAccount}
             layoutMode={activeLayout}
           />
         )}
@@ -825,6 +893,7 @@ function App() {
         {screen === 'adventure_selection' && (
           <AdventureSelection
             character={character}
+            userProfile={userProfile}
             onSelectAdventure={handleSelectAdventure}
             onBack={() => setScreen('splash')}
             gems={gems}
@@ -845,11 +914,15 @@ function App() {
         {screen === 'account' && (
           <AccountScreen
             onBack={() => setScreen(prevScreen)}
+            initialSection={accountInitialSection}
+            notice={accountNotice}
+            onClearNotice={() => setAccountNotice(null)}
             settings={settings}
             setUserApiKey={setUserApiKey}
             setByokProvider={setByokProvider}
             setByokModel={setByokModel}
             setByokKey={setByokKey}
+            clearByokKeys={clearByokKeys}
             setEngineTier={setEngineTier}
             setSandboxMode={setSandboxMode}
             onLogout={handleLogout}

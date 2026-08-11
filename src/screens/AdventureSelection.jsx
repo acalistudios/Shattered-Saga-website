@@ -4,6 +4,7 @@ import { GMS } from '../data/gms';
 import { getItemDetails } from '../utils/items';
 import { coinValue } from '../data/economy';
 import { WORLD_REGIONS, MAP_NODES, MAP_IMAGES, REGION_TRANSIT_CHALLENGES } from '../data/cartography';
+import AccountStatusPills from '../components/AccountStatusPills';
 
 const isRegionStoryUnlocked = (regionId, completedAdventures = []) => {
   if (regionId === 'region1') return true;
@@ -98,8 +99,10 @@ const getUnlockStatus = (advId, completedAdventures = [], character = {}) => {
 
 export default function AdventureSelection({
   character,
+  userProfile,
   onSelectAdventure,
   onBack,
+  gems = 0,
   layoutMode = 'desktop',
   strongholdChest = [],
   onUpdateStrongholdChest,
@@ -356,6 +359,8 @@ export default function AdventureSelection({
             📜 List View
           </button>
         </div>
+
+        <AccountStatusPills gems={gems} userProfile={userProfile} onOpenAccount={onOpenAccount} compact />
         
         {/* Character Summary Badge & Stash Button */}
         {character && (

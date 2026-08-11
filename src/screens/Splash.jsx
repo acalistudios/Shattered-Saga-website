@@ -1,7 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import banner from '../assets/images/banner.png';
 import { validateCharacter, decompressCharacter } from '../utils/secureHash';
 import storage from '../utils/storage';
+import AccountStatusPills from '../components/AccountStatusPills';
 
 const scanQrOnline = async (blobOrFile) => {
   const formData = new FormData();
@@ -37,6 +38,7 @@ export default function Splash({
   username,
   isLoggedIn,
   gems,
+  userProfile,
   onSocialLogin,
   onLogout,
   onLoadSlot,
@@ -57,6 +59,13 @@ export default function Splash({
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [authStatus, setAuthStatus] = useState(null);
+  const [slotRevision, setSlotRevision] = useState(0);
+
+  useEffect(() => {
+    const refreshSlots = () => setSlotRevision((rev) => rev + 1);
+    window.addEventListener('shattered_slot_unlock', refreshSlots);
+    return () => window.removeEventListener('shattered_slot_unlock', refreshSlots);
+  }, []);
 
   const handleEmailPasswordSubmit = async (e) => {
     e.preventDefault();
@@ -391,14 +400,16 @@ export default function Splash({
   };
 
   const renderSlotsList = () => {
+    void slotRevision;
     return [1, 2, 3].map((slotIdx) => {
-      const activeSlotIndex = storage.get('active_slot_index', 1);
+      const activeSlotIndex = Number(storage.get('active_slot_index') || storage.get('shatteredsaga_active_slot_index') || 1);
       const unlockedSlots = storage.get(`shattered_unlocked_slots_${username}`) || [1, 2];
-      const isUnlocked = unlockedSlots.includes(slotIdx);
+      const numericUnlockedSlots = unlockedSlots.map((slot) => Number(slot));
+      const isUnlocked = numericUnlockedSlots.includes(slotIdx);
       const isActive = activeSlotIndex === slotIdx;
       
       // Read character details for this slot
-      const char = storage.get(`slot_${slotIdx}_character`, null);
+      const char = storage.get(`slot_${slotIdx}_character`, null) || storage.get(`shatteredsaga_slot_${slotIdx}_character`, null);
       const hasCharacter = char && char.name;
 
       if (!isUnlocked) {
@@ -416,13 +427,21 @@ export default function Splash({
             </div>
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 if (gems < 5) {
-                  alert("You need at least 5 Gems to unlock this slot. Complete quests or log in with another profile.");
+                  const shouldOpenStore = window.confirm(
+                    `Character Slot ${slotIdx} costs 5 Gems to unlock. You have ${gems || 0}.\n\nOpen the Store to buy Chronicle Gems?`
+                  );
+                  if (shouldOpenStore && onOpenAccount) {
+                    onOpenAccount({ section: 'store', reason: 'insufficient_gems' });
+                  }
                   return;
                 }
                 if (window.confirm(`Unlock Character Slot ${slotIdx} for 5 Gems?`)) {
-                  onUnlockSlot(slotIdx, 5);
+                  const ok = await onUnlockSlot(slotIdx, 5);
+                  if (!ok && onOpenAccount) {
+                    onOpenAccount({ section: 'store', reason: 'insufficient_gems' });
+                  }
                 }
               }}
               className="px-2.5 py-1.5 rounded bg-amber-500 hover:bg-amber-600 text-slate-950 text-4xs font-extrabold uppercase tracking-wider cursor-pointer transition-colors"
@@ -498,7 +517,7 @@ export default function Splash({
         );
       }
 
-      const safety = storage.get(`slot_${slotIdx}_safety_state`, null);
+      const safety = storage.get(`slot_${slotIdx}_safety_state`, null) || storage.get(`shatteredsaga_slot_${slotIdx}_safety_state`, null);
       const isLocked = safety && safety.lockoutExpiryTimestamp && 
                        new Date(safety.lockoutExpiryTimestamp).getTime() > Date.now();
 
@@ -751,7 +770,13 @@ export default function Splash({
                     <span className="text-4xs text-slate-500 uppercase tracking-widest block font-semibold">Active Session</span>
                     <span className="text-xs font-bold text-amber-400 font-serif">{username.replace('_', ' ')}</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <AccountStatusPills
+                      gems={gems}
+                      userProfile={userProfile}
+                      onOpenAccount={onOpenAccount}
+                      compact
+                    />
                     <button
                       onClick={onOpenAccount}
                       className="px-2 py-1 rounded bg-slate-900 border border-slate-850 hover:border-amber-500/45 text-4xs font-bold text-slate-400 hover:text-amber-400 transition-all cursor-pointer"

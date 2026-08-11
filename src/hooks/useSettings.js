@@ -118,6 +118,22 @@ export default function useSettings() {
     });
   };
 
+  const clearByokKeys = () => {
+    setSettings((prev) => {
+      const updated = {
+        ...prev,
+        userApiKey: '',
+        byokKeys: {
+          gemini: '',
+          openai: '',
+          anthropic: '',
+        },
+      };
+      storage.set('settings', updated);
+      return updated;
+    });
+  };
+
   const addToStrongholdChest = (items) => {
     setSettings((prev) => {
       const updated = {
@@ -150,6 +166,7 @@ export default function useSettings() {
     setByokProvider,
     setByokModel,
     setByokKey,
+    clearByokKeys,
     addToStrongholdChest,
     updateStrongholdChest,
   };

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { SKILLS_LIST, PROFESSIONS_LIST, ELEMENTS_LIST, VIRTUES, VICES, ALLEGIANCES, ATTRIBUTE_LIST } from '../data/gms';
 import { PRESET_METADATA } from '../data/portraits';
+import AccountStatusPills from '../components/AccountStatusPills';
 
 const HELP_TEXTS = {
   philosophy: {
@@ -100,7 +101,14 @@ const HELP_TEXTS = {
   }
 };
 
-export default function CharacterCreation({ onCreateCharacter, onBack, layoutMode = 'desktop' }) {
+export default function CharacterCreation({
+  onCreateCharacter,
+  onBack,
+  gems = 0,
+  userProfile = null,
+  onOpenAccount,
+  layoutMode = 'desktop',
+}) {
   const isDesktopLayout = layoutMode === 'desktop';
   // Identity states
   const [name, setName] = useState('');
@@ -361,7 +369,8 @@ export default function CharacterCreation({ onCreateCharacter, onBack, layoutMod
     <div className="flex-1 flex flex-col justify-between p-6 max-w-5xl mx-auto w-full overflow-y-auto custom-scrollbar">
       
       {/* Header */}
-      <div className="flex items-center gap-4 border-b border-amber-500/20 pb-4 mb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-amber-500/20 pb-4 mb-6">
+        <div className="flex items-center gap-4">
         <button
           onClick={onBack}
           className="px-3 py-1.5 rounded bg-slate-900 border border-slate-800 hover:border-amber-500/40 text-xs font-semibold text-slate-350 hover:text-amber-400 cursor-pointer transition-colors"
@@ -374,6 +383,8 @@ export default function CharacterCreation({ onCreateCharacter, onBack, layoutMod
             Sculpt your character stats, skills, and alignments
           </p>
         </div>
+        </div>
+        <AccountStatusPills gems={gems} userProfile={userProfile} onOpenAccount={onOpenAccount} />
       </div>
 
       <form onSubmit={handleSubmit} className="flex-1 space-y-8 py-2">
