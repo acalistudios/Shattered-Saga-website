@@ -47,6 +47,16 @@ function authFor(c: any) {
 // Health check.
 app.get("/api/health", (c) => c.json({ ok: true, service: "shattered-saga-api" }));
 
+// Send auth failures back to the app so ordinary users see recovery guidance
+// instead of a raw API-domain error page.
+app.get("/api/auth/error", (c) => {
+  const frontend = c.env.FRONTEND_URL || "https://shatteredsaga.com";
+  const error = c.req.query("error") || "unknown";
+  const redirect = new URL(frontend);
+  redirect.searchParams.set("auth_error", error);
+  return c.redirect(redirect.toString(), 302);
+});
+
 // Better Auth — /api/auth/sign-up, /sign-in, /verify-email, /reset-password, etc.
 app.all("/api/auth/*", (c) => authFor(c).handler(c.req.raw));
 

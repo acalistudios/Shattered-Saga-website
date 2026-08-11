@@ -234,6 +234,24 @@ function App() {
     }
   }, [fetchUserProfile]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authError = params.get('auth_error');
+    if (!authError) return;
+
+    window.history.replaceState(null, '', window.location.pathname);
+    setPrevScreen('splash');
+    setAccountInitialSection('overview');
+    setScreen('account');
+
+    if (authError === 'account_not_linked') {
+      setAccountNotice('That social login was not linked to your existing account. Try signing in with your original method, then use the same email for Google or Facebook. If it still fails, contact support with error: account_not_linked.');
+      return;
+    }
+
+    setAccountNotice(`Sign-in failed. Please try again or contact support with error: ${authError}.`);
+  }, []);
+
   // After a social sign-in the Worker redirects back here with a session cookie
   // scoped to .shatteredsaga.com — but nothing is in local storage yet, so the
   // app would still look logged out. Ask the backend who we are and adopt it.

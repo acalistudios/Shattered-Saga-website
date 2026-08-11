@@ -73,6 +73,15 @@ export function createAuth(env?: Env, cf?: IncomingRequestCfProperties, baseURL?
         energy_balance: { type: "number", defaultValue: 100, input: false },
       },
     },
+    account: {
+      accountLinking: {
+        enabled: true,
+        // Google/Facebook accounts can be linked to an existing same-email user.
+        // Without this, email/password users hit `account_not_linked` when they
+        // later try social login with the same address.
+        trustedProviders: ["google", "facebook"],
+      },
+    },
     ...withCloudflare(
       {
         autoDetectIpAddress: true,
