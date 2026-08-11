@@ -488,6 +488,7 @@ export default function useGameState() {
               // trusted from localStorage.
               gems: me.gems,
               unlocked_slots: me.unlocked_slots,
+              linked_providers: me.linked_providers || [],
             }
           : null
       );
