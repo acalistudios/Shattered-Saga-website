@@ -76,7 +76,7 @@ export async function socialLoginRedirect(provider, { clearExistingSession = tru
     await signOut();
   }
   const callbackURL = currentAppUrl({ auth_success: provider });
-  const errorCallbackURL = currentAppUrl({ auth_error: `${provider}_failed` });
+  const errorCallbackURL = currentAppUrl({ auth_provider: provider });
   const data = await post('/api/auth/sign-in/social', { provider, callbackURL, errorCallbackURL });
   if (!data?.url) {
     throw new Error(`Could not start ${provider} sign-in. Please try again.`);
@@ -87,7 +87,7 @@ export async function socialLoginRedirect(provider, { clearExistingSession = tru
 // Explicitly link a provider to the current signed-in account.
 export async function linkSocialRedirect(provider) {
   const callbackURL = currentAppUrl({ auth_linked: provider });
-  const errorCallbackURL = currentAppUrl({ auth_error: `${provider}_link_failed` });
+  const errorCallbackURL = currentAppUrl({ auth_provider: provider, auth_flow: 'link' });
   const data = await post('/api/auth/link-social', { provider, callbackURL, errorCallbackURL }, true);
   if (!data?.url) {
     throw new Error(`Could not start ${provider} linking. Please try again.`);

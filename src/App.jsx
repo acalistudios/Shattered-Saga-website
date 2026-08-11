@@ -237,7 +237,9 @@ function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const authError = params.get('auth_error');
+    const authError = params.get('error') || params.get('auth_error');
+    const authProvider = params.get('auth_provider');
+    const authFlow = params.get('auth_flow');
     const authLinked = params.get('auth_linked');
     const authSuccess = params.get('auth_success');
     if (!authError && !authLinked && !authSuccess) return;
@@ -249,13 +251,14 @@ function App() {
 
     if (authError === 'account_not_linked') {
       setAccountAuthError(authError);
-      setAccountNotice('That social login is not linked yet. If you are switching players on a shared computer, log out first and sign in again with the correct Google/Facebook account. If you are trying to attach this provider to your current account, sign in with your original method and use Login Help to link it.');
+      setAccountNotice('That social login is not linked yet. If you are switching players on a shared computer, use Switch / Logout first and sign in again with the correct Google/Facebook account. If you are trying to attach this provider to your current account, sign in with your original method and use Login Help to link it.');
       return;
     }
 
     if (authError) {
       setAccountAuthError(authError);
-      setAccountNotice(`Sign-in failed. Use Login Help to report this if retrying does not work. Error: ${authError}.`);
+      const source = authProvider ? `${authProvider} ${authFlow === 'link' ? 'linking' : 'sign-in'}` : 'Sign-in';
+      setAccountNotice(`${source} failed. Use Login Help to report this if retrying does not work. Error: ${authError}.`);
       return;
     }
 
