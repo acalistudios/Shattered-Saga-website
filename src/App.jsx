@@ -106,6 +106,7 @@ function App() {
   const [prevScreen, setPrevScreen] = useState('splash');
   const [accountInitialSection, setAccountInitialSection] = useState('overview');
   const [accountNotice, setAccountNotice] = useState(null);
+  const [accountAuthError, setAccountAuthError] = useState('');
 
   const handleOpenAccount = (options = {}) => {
     const section = typeof options === 'string' ? options : options.section;
@@ -237,20 +238,37 @@ function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const authError = params.get('auth_error');
-    if (!authError) return;
+    const authLinked = params.get('auth_linked');
+    const authSuccess = params.get('auth_success');
+    if (!authError && !authLinked && !authSuccess) return;
 
     window.history.replaceState(null, '', window.location.pathname);
     setPrevScreen('splash');
-    setAccountInitialSection('overview');
+    setAccountInitialSection(authError ? 'support' : 'overview');
     setScreen('account');
 
     if (authError === 'account_not_linked') {
-      setAccountNotice('That social login was not linked to your existing account. Try signing in with your original method, then use the same email for Google or Facebook. If it still fails, contact support with error: account_not_linked.');
+      setAccountAuthError(authError);
+      setAccountNotice('That social login is not linked yet. If you are switching players on a shared computer, log out first and sign in again with the correct Google/Facebook account. If you are trying to attach this provider to your current account, sign in with your original method and use Login Help to link it.');
       return;
     }
 
-    setAccountNotice(`Sign-in failed. Please try again or contact support with error: ${authError}.`);
-  }, []);
+    if (authError) {
+      setAccountAuthError(authError);
+      setAccountNotice(`Sign-in failed. Use Login Help to report this if retrying does not work. Error: ${authError}.`);
+      return;
+    }
+
+    setAccountAuthError('');
+    if (authLinked) {
+      setAccountNotice(`${authLinked} has been linked to this account.`);
+      fetchUserProfile();
+      return;
+    }
+
+    setAccountNotice(`${authSuccess} sign-in completed.`);
+    fetchUserProfile();
+  }, [fetchUserProfile]);
 
   // After a social sign-in the Worker redirects back here with a session cookie
   // scoped to .shatteredsaga.com — but nothing is in local storage yet, so the
@@ -949,6 +967,7 @@ function App() {
             fetchUserProfile={fetchUserProfile}
             gems={gems}
             setGems={setGems}
+            initialAuthError={accountAuthError}
           />
         )}
 

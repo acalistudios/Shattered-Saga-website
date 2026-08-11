@@ -60,6 +60,83 @@ app.get("/api/auth/error", (c) => {
 // Better Auth — /api/auth/sign-up, /sign-in, /verify-email, /reset-password, etc.
 app.all("/api/auth/*", (c) => authFor(c).handler(c.req.raw));
 
+function safeText(value: unknown, maxLength: number): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, maxLength) : null;
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Privacy-safe login support report. Do not store passwords, OAuth tokens,
+// provider access tokens, BYOK keys, or provider secrets here.
+app.post("/api/support/auth-issue", async (c) => {
+  const session = await authFor(c).api.getSession({ headers: c.req.raw.headers }).catch(() => null);
+  let body: Record<string, unknown> = {};
+  try {
+    body = await c.req.json();
+  } catch {
+    // Body is optional so users can report from a generic error state.
+  }
+
+  const errorCode = safeText(body.error, 80) || "unknown";
+  const contactEmail = safeText(body.email, 254);
+  const message = safeText(body.message, 1000);
+  const path = safeText(body.path, 200);
+  const userAgent = safeText(body.userAgent, 500) || safeText(c.req.header("User-Agent"), 500);
+  const ip = c.req.header("CF-Connecting-IP") || "";
+  const id = crypto.randomUUID();
+  const createdAt = Date.now();
+  const ipHash = ip ? await sha256Hex(`${ip}:${createdAt.toString().slice(0, 8)}`) : null;
+
+  await c.env.DATABASE.prepare(
+    `INSERT INTO auth_issues
+      (id, user_id, contact_email, error_code, message, path, user_agent, ip_hash, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  )
+    .bind(id, session?.user?.id || null, contactEmail, errorCode, message, path, userAgent, ipHash, createdAt)
+    .run();
+
+  return c.json({ ok: true, issueId: id });
+});
+
+// Owner-only support lookup. It returns account ids, emails, and provider ids,
+// but never OAuth tokens, password hashes, BYOK keys, or provider secrets.
+app.get("/api/admin/auth-issues", async (c) => {
+  const token = c.req.header("x-admin-token") || c.req.query("token");
+  if (!c.env.BILLING_ADMIN_TOKEN || token !== c.env.BILLING_ADMIN_TOKEN) {
+    return c.json({ error: "unauthorized" }, 401);
+  }
+
+  const limit = Math.min(Math.max(Number(c.req.query("limit") || 25), 1), 100);
+  const rows = await c.env.DATABASE.prepare(
+    `SELECT
+       ai.id,
+       ai.created_at,
+       ai.error_code,
+       ai.contact_email,
+       ai.message,
+       ai.path,
+       ai.user_agent,
+       ai.user_id,
+       u.email AS account_email,
+       GROUP_CONCAT(a.provider_id) AS linked_providers
+     FROM auth_issues ai
+     LEFT JOIN users u ON u.id = ai.user_id
+     LEFT JOIN accounts a ON a.user_id = ai.user_id
+     GROUP BY ai.id
+     ORDER BY ai.created_at DESC
+     LIMIT ?`
+  )
+    .bind(limit)
+    .all();
+
+  return c.json({ issues: rows.results || [] });
+});
+
 // Current user's tier, energy, gems and unlocked save slots.
 app.get("/api/me", async (c) => {
   const session = await authFor(c).api.getSession({ headers: c.req.raw.headers });
@@ -68,6 +145,11 @@ app.get("/api/me", async (c) => {
   // gems/unlocked_slots are app columns Better Auth doesn't model, so read them
   // straight from D1. They are server-authoritative — never trusted from the client.
   const { gems, unlockedSlots } = await readGemState(c.env, user.id);
+  const linked = await c.env.DATABASE.prepare(
+    "SELECT provider_id FROM accounts WHERE user_id = ? ORDER BY provider_id"
+  )
+    .bind(user.id)
+    .all<{ provider_id: string }>();
   return c.json({
     id: user.id,
     email: user.email,
@@ -75,6 +157,7 @@ app.get("/api/me", async (c) => {
     energy_balance: (user as any).energy_balance ?? 0,
     gems,
     unlocked_slots: unlockedSlots,
+    linked_providers: (linked.results || []).map((row) => row.provider_id),
   });
 });
 

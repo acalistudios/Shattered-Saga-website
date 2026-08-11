@@ -15,6 +15,15 @@ export const getToken = () => storage.get(TOKEN_KEY) || null;
 export const setToken = (t) => (t ? storage.set(TOKEN_KEY, t) : storage.remove(TOKEN_KEY));
 export const clearToken = () => storage.remove(TOKEN_KEY);
 
+function currentAppUrl(params = {}) {
+  const url = new URL(window.location.href);
+  url.search = '';
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) url.searchParams.set(key, value);
+  });
+  return url.toString();
+}
+
 async function post(path, body, useAuth = false) {
   const headers = { 'Content-Type': 'application/json' };
   if (useAuth) {
@@ -62,13 +71,38 @@ export async function signOut() {
 // Social login. Better Auth's sign-in/social is a POST endpoint that RETURNS the
 // provider authorization URL — navigating the browser straight at it produces a
 // 404. So: POST first, then redirect to the url it hands back.
-export async function socialLoginRedirect(provider) {
-  const callbackURL = window.location.origin + window.location.pathname;
-  const data = await post('/api/auth/sign-in/social', { provider, callbackURL });
+export async function socialLoginRedirect(provider, { clearExistingSession = true } = {}) {
+  if (clearExistingSession) {
+    await signOut();
+  }
+  const callbackURL = currentAppUrl({ auth_success: provider });
+  const errorCallbackURL = currentAppUrl({ auth_error: `${provider}_failed` });
+  const data = await post('/api/auth/sign-in/social', { provider, callbackURL, errorCallbackURL });
   if (!data?.url) {
     throw new Error(`Could not start ${provider} sign-in. Please try again.`);
   }
   window.location.href = data.url;
+}
+
+// Explicitly link a provider to the current signed-in account.
+export async function linkSocialRedirect(provider) {
+  const callbackURL = currentAppUrl({ auth_linked: provider });
+  const errorCallbackURL = currentAppUrl({ auth_error: `${provider}_link_failed` });
+  const data = await post('/api/auth/link-social', { provider, callbackURL, errorCallbackURL }, true);
+  if (!data?.url) {
+    throw new Error(`Could not start ${provider} linking. Please try again.`);
+  }
+  window.location.href = data.url;
+}
+
+export async function reportAuthIssue({ error, email, message }) {
+  return post('/api/support/auth-issue', {
+    error,
+    email,
+    message,
+    path: window.location.pathname,
+    userAgent: navigator.userAgent,
+  }, true);
 }
 
 // Metered completion via the Worker (Free/Premium tiers). BYOK does NOT use this.

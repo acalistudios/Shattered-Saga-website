@@ -785,9 +785,10 @@ export default function Splash({
                     </button>
                     <button
                       onClick={handleLogout}
-                      className="px-2 py-1 rounded bg-slate-900 border border-slate-850 hover:border-rose-900/40 text-4xs font-bold text-slate-400 hover:text-rose-400 transition-all cursor-pointer"
+                      className="px-2 py-1 rounded bg-slate-900 border border-slate-850 hover:border-sky-500/45 text-4xs font-bold text-slate-400 hover:text-sky-300 transition-all cursor-pointer"
+                      title="Log out so another player can sign in on this computer."
                     >
-                      Logout
+                      Switch / Logout
                     </button>
                   </div>
                 </div>

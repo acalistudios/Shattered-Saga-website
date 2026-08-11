@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import storage from '../utils/storage';
-import { startCheckout, fetchBillingStatus, isBackendConfigured } from '../utils/authApi';
+import {
+  startCheckout,
+  fetchBillingStatus,
+  isBackendConfigured,
+  linkSocialRedirect,
+  reportAuthIssue,
+} from '../utils/authApi';
 
 export default function AccountScreen({
   onBack,
@@ -19,6 +25,7 @@ export default function AccountScreen({
   userProfile,
   fetchUserProfile,
   gems,
+  initialAuthError = '',
 }) {
   const [billingCycle, setBillingCycle] = useState('monthly');
   
@@ -40,10 +47,19 @@ export default function AccountScreen({
   // explain themselves rather than silently doing nothing when it's off.
   const [billingEnabled, setBillingEnabled] = useState(false);
   const [activeSection, setActiveSection] = useState(initialSection || 'overview');
+  const [authReportEmail, setAuthReportEmail] = useState(userProfile?.email || '');
+  const [authReportMessage, setAuthReportMessage] = useState('');
+  const [authReportError, setAuthReportError] = useState('');
+  const [authReportStatus, setAuthReportStatus] = useState(null);
+  const [linkingProvider, setLinkingProvider] = useState(null);
 
   useEffect(() => {
     setActiveSection(initialSection || 'overview');
   }, [initialSection]);
+
+  useEffect(() => {
+    if (initialAuthError) setAuthReportError(initialAuthError);
+  }, [initialAuthError]);
 
   useEffect(() => {
     let cancelled = false;
@@ -317,6 +333,8 @@ export default function AccountScreen({
   const showStore = activeSection === 'store';
   const showSubscriptions = activeSection === 'subscriptions';
   const showByok = activeSection === 'byok';
+  const showSupport = activeSection === 'support';
+  const linkedProviders = new Set(userProfile?.linked_providers || []);
 
   const switchSection = (section) => {
     setActiveSection(section);
@@ -330,6 +348,43 @@ export default function AccountScreen({
         : 'bg-slate-950 text-slate-400 border-slate-850 hover:text-slate-200 hover:border-amber-500/30'
     }`
   );
+
+  const handleLinkProvider = async (provider) => {
+    if (!userProfile) {
+      setAuthReportStatus({ success: false, message: 'Sign in before linking Google or Facebook to this account.' });
+      setActiveSection('support');
+      return;
+    }
+    setLinkingProvider(provider);
+    try {
+      await linkSocialRedirect(provider);
+    } catch (err) {
+      setLinkingProvider(null);
+      setAuthReportStatus({ success: false, message: err.message || `Could not link ${provider}.` });
+    }
+  };
+
+  const handleSubmitAuthIssue = async (event) => {
+    event.preventDefault();
+    setAuthReportStatus(null);
+    try {
+      const data = await reportAuthIssue({
+        error: authReportError || 'user_reported_login_issue',
+        email: authReportEmail || userProfile?.email || '',
+        message: authReportMessage,
+      });
+      setAuthReportStatus({
+        success: true,
+        message: `Login issue submitted. Reference ID: ${data.issueId}`,
+      });
+      setAuthReportMessage('');
+    } catch (err) {
+      setAuthReportStatus({
+        success: false,
+        message: err.message || 'Could not submit the login issue. Please try again.',
+      });
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col justify-start p-6 max-w-5xl mx-auto w-full overflow-y-auto custom-scrollbar">
@@ -377,7 +432,7 @@ export default function AccountScreen({
         </div>
       )}
 
-      <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-2">
+      <div className="mb-6 grid grid-cols-2 md:grid-cols-5 gap-2">
         <button type="button" onClick={() => switchSection('overview')} className={sectionButtonClass('overview')}>
           Overview
         </button>
@@ -389,6 +444,9 @@ export default function AccountScreen({
         </button>
         <button type="button" onClick={() => switchSection('byok')} className={sectionButtonClass('byok')}>
           BYOK
+        </button>
+        <button type="button" onClick={() => switchSection('support')} className={sectionButtonClass('support')}>
+          Login Help
         </button>
       </div>
 
@@ -419,6 +477,12 @@ export default function AccountScreen({
                   <span className="text-4xs text-slate-500 uppercase tracking-widest font-bold block">Account Status</span>
                   <span className="text-xs text-slate-350 capitalize font-medium">{currentTier} Tier</span>
                 </div>
+                <div>
+                  <span className="text-4xs text-slate-500 uppercase tracking-widest font-bold block">Linked Sign-Ins</span>
+                  <span className="text-xs text-slate-350 font-medium">
+                    {(userProfile.linked_providers || []).join(', ') || 'None linked'}
+                  </span>
+                </div>
               </div>
             ) : (
               <div className="text-center py-6">
@@ -443,6 +507,37 @@ export default function AccountScreen({
               </button>
             )}
           </div>
+
+          {showSupport && (
+          <div className="rounded-lg bg-slate-900 border border-slate-800/80 p-5 relative shadow-xl shadow-black/20 text-left">
+            <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-sky-500 to-amber-500 rounded-t-lg" />
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Sign-In Recovery</h3>
+            <p className="text-4xs text-slate-500 leading-relaxed mb-4">
+              Shared computers are supported. Use Log Out before another player signs in. Use the buttons below only when you want to attach Google or Facebook to the current account.
+            </p>
+
+            <div className="space-y-2">
+              {['google', 'facebook'].map((provider) => {
+                const linked = linkedProviders.has(provider);
+                return (
+                  <button
+                    key={provider}
+                    type="button"
+                    onClick={() => handleLinkProvider(provider)}
+                    disabled={!userProfile || linked || linkingProvider !== null}
+                    className={`w-full py-2 rounded border text-4xs font-extrabold uppercase tracking-wider transition-colors ${
+                      linked
+                        ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-350 cursor-default'
+                        : 'bg-slate-950 border-slate-800 text-slate-300 hover:text-amber-300 hover:border-amber-500/35 cursor-pointer'
+                    }`}
+                  >
+                    {linked ? `${provider} linked` : linkingProvider === provider ? `Linking ${provider}...` : `Link ${provider}`}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          )}
 
           {showByok && (
           <>
@@ -664,6 +759,61 @@ export default function AccountScreen({
                 Gems are stored on your account and are used for persistent unlocks like extra character slots.
                 Priority Turns are the metered pool for premium AI narration. Use the Store tab when you need more of either balance.
               </p>
+            </div>
+          )}
+
+          {showSupport && (
+            <div className="rounded-lg bg-slate-900 border border-slate-800/80 p-5 text-left">
+              <h2 className="text-sm font-bold text-slate-300 uppercase tracking-widest mb-2">Report a login issue</h2>
+              <p className="text-xs text-slate-450 leading-relaxed mb-4">
+                Submit the error code and a short description. This creates a support record with account-safe diagnostics only.
+              </p>
+              <form onSubmit={handleSubmitAuthIssue} className="space-y-3">
+                <div>
+                  <label className="block text-5xs font-bold text-slate-400 uppercase tracking-wider mb-1">Contact email</label>
+                  <input
+                    type="email"
+                    value={authReportEmail}
+                    onChange={(e) => setAuthReportEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full px-3 py-2 rounded bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-amber-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-5xs font-bold text-slate-400 uppercase tracking-wider mb-1">Error code</label>
+                  <input
+                    value={authReportError}
+                    onChange={(e) => setAuthReportError(e.target.value)}
+                    placeholder="account_not_linked"
+                    className="w-full px-3 py-2 rounded bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-amber-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-5xs font-bold text-slate-400 uppercase tracking-wider mb-1">What happened?</label>
+                  <textarea
+                    value={authReportMessage}
+                    onChange={(e) => setAuthReportMessage(e.target.value)}
+                    placeholder="Example: I tried Google sign-in on a shared computer and expected to switch accounts."
+                    rows={4}
+                    className="w-full px-3 py-2 rounded bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-amber-500/50 resize-none"
+                  />
+                </div>
+                {authReportStatus && (
+                  <div className={`p-3 rounded border text-xs font-semibold ${
+                    authReportStatus.success
+                      ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-350'
+                      : 'bg-rose-500/10 border-rose-500/25 text-rose-300'
+                  }`}>
+                    {authReportStatus.message}
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-4xs uppercase tracking-widest cursor-pointer"
+                >
+                  Submit Issue
+                </button>
+              </form>
             </div>
           )}
 
