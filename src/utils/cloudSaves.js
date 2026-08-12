@@ -236,6 +236,32 @@ export async function flushSync(slotIndex) {
   return pushSlot(slotIndex);
 }
 
+const forceTimers = new Map();
+const forceInFlight = new Set();
+
+/**
+ * Persist a gameplay checkpoint as soon as possible. If several state slices
+ * change in the same turn, collapse them into one upload; if an upload is
+ * already running, schedule one more pass so the latest local state wins.
+ */
+export function queueImmediateSync(slotIndex, delayMs = 250) {
+  if (!canSync()) return;
+  clearTimeout(forceTimers.get(slotIndex));
+  forceTimers.set(slotIndex, setTimeout(async () => {
+    forceTimers.delete(slotIndex);
+    if (forceInFlight.has(slotIndex)) {
+      queueImmediateSync(slotIndex, delayMs);
+      return;
+    }
+    forceInFlight.add(slotIndex);
+    try {
+      await flushSync(slotIndex);
+    } finally {
+      forceInFlight.delete(slotIndex);
+    }
+  }, delayMs));
+}
+
 // --- login reconciliation -------------------------------------------------
 
 const localCharName = (i) => storage.get(`slot_${i}_character`)?.name || null;

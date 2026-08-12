@@ -27,6 +27,7 @@ import {
   spendGems,
   unlockSlot,
   queueSync,
+  queueImmediateSync,
   flushSync,
   reconcileOnLogin,
   clearLocalSlots,
@@ -347,6 +348,30 @@ function App() {
     const slotIndex = parseInt(storage.get('active_slot_index') || storage.get('shatteredsaga_active_slot_index') || '1', 10);
     queueSync(slotIndex);
   }, [isLoggedIn, character, history, journal]);
+
+  // Account saves are authoritative for logged-in play. Flush shortly after
+  // meaningful gameplay state changes so closing the browser cannot usually
+  // roll back a bad outcome, while still collapsing the many React state writes
+  // that make up a single completed turn into one upload.
+  useEffect(() => {
+    if (!isBackendConfigured || !isLoggedIn || !character?.name) return;
+    const slotIndex = parseInt(storage.get('active_slot_index') || storage.get('shatteredsaga_active_slot_index') || '1', 10);
+    queueImmediateSync(slotIndex);
+  }, [
+    isLoggedIn,
+    character,
+    history,
+    journal,
+    skillTally,
+    activeAdventureId,
+    safetyState,
+    currentLocation,
+    droppedItems,
+    activeEnemy,
+    counterOpportunities,
+    combatStance,
+    enemyAttacksQueue,
+  ]);
 
   // Parse Supabase OAuth redirect URL hash on boot (legacy path only).
   useEffect(() => {
