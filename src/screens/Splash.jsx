@@ -403,7 +403,9 @@ export default function Splash({
     void slotRevision;
     return [1, 2, 3].map((slotIdx) => {
       const activeSlotIndex = Number(storage.get('active_slot_index') || storage.get('shatteredsaga_active_slot_index') || 1);
-      const unlockedSlots = storage.get(`shattered_unlocked_slots_${username}`) || [1, 2];
+      const unlockedSlots = isLoggedIn && Array.isArray(userProfile?.unlocked_slots)
+        ? userProfile.unlocked_slots
+        : (storage.get(`shattered_unlocked_slots_${username}`) || [1, 2]);
       const numericUnlockedSlots = unlockedSlots.map((slot) => Number(slot));
       const isUnlocked = numericUnlockedSlots.includes(slotIdx);
       const isActive = activeSlotIndex === slotIdx;

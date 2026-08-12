@@ -29,6 +29,9 @@ import {
   queueSync,
   flushSync,
   reconcileOnLogin,
+  clearLocalSlots,
+  prepareLocalSlotsForAccount,
+  prepareLocalSlotsForGuest,
 } from './utils/cloudSaves';
 
 function App() {
@@ -283,6 +286,7 @@ function App() {
       try {
         const me = await fetchMe();
         if (cancelled || !me?.email) return;
+        prepareLocalSlotsForAccount(me.id || me.email);
         const nextUsername = me.email.split('@')[0];
         storage.set('shattered_email', me.email);
         storage.set('shattered_username', nextUsername);
@@ -303,12 +307,13 @@ function App() {
   //    who cleared their cache or switched device gets their character back.
   //  - Local character with no cloud copy: upload it, migrating pre-existing
   //    local-only saves without the player having to do anything.
-  const cloudReconciledRef = useRef(false);
+  const cloudReconciledRef = useRef(null);
   useEffect(() => {
     // Wait for the profile: gem balance and unlocked slots decide whether a
     // displaced character can be given a slot or needs to be bought room.
-    if (!isBackendConfigured || !isLoggedIn || !userProfile || cloudReconciledRef.current) return;
-    cloudReconciledRef.current = true;
+    const accountKey = userProfile?.id || userProfile?.email;
+    if (!isBackendConfigured || !isLoggedIn || !userProfile || !accountKey || cloudReconciledRef.current === accountKey) return;
+    cloudReconciledRef.current = accountKey;
 
     (async () => {
       try {
@@ -418,6 +423,7 @@ function App() {
       const email = 'guest-adventurer@shatteredsaga.com';
       const displayName = provider; // e.g., 'Guest_Adventurer'
       
+      prepareLocalSlotsForGuest();
       storage.set('shattered_email', email);
       storage.set('shattered_username', displayName);
       
@@ -475,12 +481,15 @@ function App() {
         /* offline or rejected — local copy is still intact */
       }
       await apiSignOut(); // clears the Better Auth bearer token
+      clearLocalSlots();
+      prepareLocalSlotsForGuest();
     }
     storage.remove('shattered_username');
     storage.remove('shattered_email');
     storage.remove('supabase_session_token');
     setIsLoggedIn(false);
     setUsername('');
+    cloudReconciledRef.current = null;
     window.dispatchEvent(new Event('shattered_auth_update'));
   };
 
@@ -701,6 +710,7 @@ function App() {
         ? await signUpEmail(email, password)
         : await signInEmail(email, password);
       const userEmail = data?.user?.email || email;
+      prepareLocalSlotsForAccount(data?.user?.id || userEmail);
       const usernameVal = userEmail.split('@')[0];
       storage.set('shattered_email', userEmail);
       storage.set('shattered_username', usernameVal);

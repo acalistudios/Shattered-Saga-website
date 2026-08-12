@@ -12,6 +12,25 @@ const DEFAULT_SLOTS = [1, 2];
 
 type SessionUser = { id: string };
 
+function parseUnlockedSlots(raw?: string | null): number[] {
+  try {
+    const parsed = JSON.parse(raw ?? "");
+    if (Array.isArray(parsed)) {
+      return parsed.map(Number).filter((slot) => Number.isInteger(slot));
+    }
+  } catch {
+    /* fall back to defaults */
+  }
+  return DEFAULT_SLOTS;
+}
+
+async function isSlotUnlocked(env: Env, userId: string, slot: number): Promise<boolean> {
+  const row = await env.DATABASE.prepare("SELECT unlocked_slots FROM users WHERE id = ?")
+    .bind(userId)
+    .first<{ unlocked_slots: string }>();
+  return parseUnlockedSlots(row?.unlocked_slots).includes(slot);
+}
+
 export function registerSaveRoutes(
   app: Hono<{ Bindings: Env }>,
   getUser: (c: any) => Promise<SessionUser | null>
@@ -20,14 +39,18 @@ export function registerSaveRoutes(
   app.get("/api/saves", async (c) => {
     const user = await getUser(c);
     if (!user) return c.json({ error: "unauthorized" }, 401);
+    const account = await c.env.DATABASE.prepare("SELECT unlocked_slots FROM users WHERE id = ?")
+      .bind(user.id)
+      .first<{ unlocked_slots: string }>();
+    const unlocked = new Set(parseUnlockedSlots(account?.unlocked_slots));
 
     const { results } = await c.env.DATABASE.prepare(
       "SELECT slot_index, char_name, updated_at, length(data) AS size FROM save_slots WHERE user_id = ? ORDER BY slot_index"
     )
       .bind(user.id)
-      .all();
+      .all<{ slot_index: number; char_name: string | null; updated_at: number; size: number }>();
 
-    return c.json({ slots: results ?? [] });
+    return c.json({ slots: (results ?? []).filter((slot) => unlocked.has(Number(slot.slot_index))) });
   });
 
   /** Fetch one slot's full payload. */
@@ -38,6 +61,9 @@ export function registerSaveRoutes(
     const slot = Number(c.req.param("slot"));
     if (!Number.isInteger(slot) || slot < 1 || slot > MAX_SLOT_INDEX) {
       return c.json({ error: "bad_slot" }, 400);
+    }
+    if (!(await isSlotUnlocked(c.env, user.id, slot))) {
+      return c.json({ error: "slot_locked" }, 403);
     }
 
     const row = await c.env.DATABASE.prepare(
@@ -65,6 +91,9 @@ export function registerSaveRoutes(
     const slot = Number(c.req.param("slot"));
     if (!Number.isInteger(slot) || slot < 1 || slot > MAX_SLOT_INDEX) {
       return c.json({ error: "bad_slot" }, 400);
+    }
+    if (!(await isSlotUnlocked(c.env, user.id, slot))) {
+      return c.json({ error: "slot_locked" }, 403);
     }
 
     let body: { data?: unknown; charName?: string };
@@ -138,13 +167,7 @@ export function registerSaveRoutes(
       .first<{ gems: number; unlocked_slots: string }>();
     if (!row) return c.json({ error: "not_found" }, 404);
 
-    let unlocked: number[] = DEFAULT_SLOTS;
-    try {
-      const parsed = JSON.parse(row.unlocked_slots);
-      if (Array.isArray(parsed)) unlocked = parsed;
-    } catch {
-      /* fall back to defaults */
-    }
+    let unlocked = parseUnlockedSlots(row.unlocked_slots);
 
     if (unlocked.includes(slot)) {
       return c.json({ ok: true, alreadyUnlocked: true, gems: row.gems, unlockedSlots: unlocked });
@@ -204,12 +227,6 @@ export async function readGemState(env: Env, userId: string) {
     .bind(userId)
     .first<{ gems: number; unlocked_slots: string }>();
 
-  let unlocked: number[] = DEFAULT_SLOTS;
-  try {
-    const parsed = JSON.parse(row?.unlocked_slots ?? "");
-    if (Array.isArray(parsed)) unlocked = parsed;
-  } catch {
-    /* defaults */
-  }
+  let unlocked = parseUnlockedSlots(row?.unlocked_slots);
   return { gems: row?.gems ?? 0, unlockedSlots: unlocked };
 }

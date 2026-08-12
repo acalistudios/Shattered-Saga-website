@@ -480,6 +480,7 @@ export default function useGameState() {
       setUserProfile(
         me
           ? {
+              id: me.id,
               email: me.email,
               energy_balance: me.energy_balance,
               subscription_tier: me.subscription_tier,

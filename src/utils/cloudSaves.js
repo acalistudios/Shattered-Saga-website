@@ -35,6 +35,8 @@ const MAX_SLOTS = 8;
 // Gem cost of unlocking an extra character slot. Must match the server, which
 // is authoritative — this copy is only used for wording the prompt.
 const SLOT_COST = 5;
+const SAVE_OWNER_KEY = 'local_save_owner_id';
+const GUEST_OWNER = 'guest';
 
 const authHeaders = () => {
   const h = { 'Content-Type': 'application/json' };
@@ -43,7 +45,9 @@ const authHeaders = () => {
   return h;
 };
 
-const canSync = () => isBackendConfigured && !!getToken();
+// Session-bearing requests work with either Better Auth's bearer token
+// (email/password) or the cross-subdomain session cookie (Google/Facebook).
+const canSync = () => isBackendConfigured;
 
 /** Read a slot out of local storage into a plain object. */
 export function collectSlot(slotIndex) {
@@ -65,6 +69,45 @@ export function applySlot(slotIndex, data) {
     if (key in data) storage.set(`slot_${slotIndex}_${key}`, data[key]);
   }
   return true;
+}
+
+function clearLocalSlot(slotIndex) {
+  for (const key of SLOT_KEYS) {
+    storage.remove(`slot_${slotIndex}_${key}`);
+    storage.remove(`shatteredsaga_slot_${slotIndex}_${key}`);
+  }
+  storage.remove(`slot_${slotIndex}_local_updated_at`);
+  storage.remove(`slot_${slotIndex}_cloud_synced_at`);
+}
+
+export function clearLocalSlots() {
+  for (let i = 1; i <= MAX_SLOTS; i++) clearLocalSlot(i);
+  storage.remove('active_slot_index');
+  storage.remove('shatteredsaga_active_slot_index');
+  storage.remove('shatteredsaga_auto_load_game');
+  storage.remove('shatteredsaga_auto_start_creation');
+}
+
+export function setLocalSaveOwner(ownerId) {
+  storage.set(SAVE_OWNER_KEY, ownerId || GUEST_OWNER);
+}
+
+export function prepareLocalSlotsForAccount(accountId) {
+  if (!accountId) return;
+  const currentOwner = storage.get(SAVE_OWNER_KEY);
+
+  // Once a device has been used by a real account, another account must start
+  // from its own cloud copy. Unmarked legacy/guest saves are left in place so
+  // the login reconciliation can offer to claim them instead of deleting them.
+  if (currentOwner && currentOwner !== GUEST_OWNER && currentOwner !== accountId) {
+    clearLocalSlots();
+  }
+
+  setLocalSaveOwner(accountId);
+}
+
+export function prepareLocalSlotsForGuest() {
+  setLocalSaveOwner(GUEST_OWNER);
 }
 
 /** Slot metadata for every cloud save (small response). */
