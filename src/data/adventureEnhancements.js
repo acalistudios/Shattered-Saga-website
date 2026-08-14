@@ -1,7 +1,28 @@
 // Generated adventure room choices and deterministic image paths.
 // Edit source adventure settings first, then regenerate this file if rooms change.
+import { ADVENTURE_CHOICE_DIFFICULTY_CURVES, ADVENTURE_PROGRESSION_METADATA } from './adventureProgression';
 
-export const ADVENTURE_SETTING_METADATA = {
+const applyChoiceDifficultyCurve = (metadata) => Object.fromEntries(
+  Object.entries(metadata).map(([adventureId, adventureMetadata]) => {
+    const tier = ADVENTURE_PROGRESSION_METADATA[adventureId]?.tier || 1;
+    const curve = ADVENTURE_CHOICE_DIFFICULTY_CURVES[tier] || ADVENTURE_CHOICE_DIFFICULTY_CURVES[1];
+
+    const settingChoices = Object.fromEntries(
+      Object.entries(adventureMetadata.settingChoices || {}).map(([settingName, choices]) => [
+        settingName,
+        choices.map((choice, index) => ({
+          ...choice,
+          difficulty: curve[index] || curve[curve.length - 1],
+        })),
+      ]),
+    );
+
+    return [adventureId, { ...adventureMetadata, settingChoices }];
+  }),
+);
+
+
+const BASE_ADVENTURE_SETTING_METADATA = {
   "elemental_crucible": {
     settingChoices: {
       "Fivefold Gate": [
@@ -669,3 +690,5 @@ export const ADVENTURE_SETTING_METADATA = {
     },
   },
 };
+
+export const ADVENTURE_SETTING_METADATA = applyChoiceDifficultyCurve(BASE_ADVENTURE_SETTING_METADATA);

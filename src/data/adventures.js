@@ -4,6 +4,7 @@ import ancientBanner from '../assets/images/ancient.png';
 import { ADVENTURE_SETTING_METADATA } from './adventureEnhancements';
 import { ADVENTURE_ECONOMY_METADATA } from './adventureEconomy';
 import { ADVENTURE_MUSIC } from './adventureMusic';
+import { ADVENTURE_PROGRESSION_METADATA } from './adventureProgression';
 
 const BASE_ADVENTURES_LIST = [
   {
@@ -2020,7 +2021,8 @@ const BASE_ADVENTURES_LIST = [
 
 export const ADVENTURES_LIST = BASE_ADVENTURES_LIST.map((adventure) => ({
   ...adventure,
+  progression: ADVENTURE_PROGRESSION_METADATA[adventure.id] || null,
   ...(ADVENTURE_SETTING_METADATA[adventure.id] || {}),
   ...(ADVENTURE_ECONOMY_METADATA[adventure.id] || {}),
   music: ADVENTURE_MUSIC[adventure.id] || null,
-}));
+})).sort((a, b) => (a.progression?.campaignOrder || 999) - (b.progression?.campaignOrder || 999));

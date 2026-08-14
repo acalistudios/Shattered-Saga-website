@@ -2026,6 +2026,12 @@ Merchants:
 ${(activeAdventure.merchants || []).map(merchant => `- ${merchant.name} (${merchant.role}) at ${merchant.location}: sells ${(merchant.sells || []).map(sale => `${sale.item} for ${sale.price?.gp || 0} gp, ${sale.price?.sp || 0} sp, ${sale.price?.cp || 0} cp; stock ${sale.stock}`).join('; ') || 'nothing listed'}; buys ${(merchant.buys || []).join(', ') || 'nothing listed'} at ${Math.round((merchant.buyRate || 0.5) * 100)}% listed value before Negotiation. ${merchant.notes || ''}`).join('\n') || '- No fixed merchants listed in this adventure.'}
 Trade Rules: Merchants sell at listed value and buy relevant categories at 50% of listed value. A successful Negotiation check can improve the player's purchase price or sale payout by up to 25%. Best purchase price is 75% of list; best sale payout is 75% of list. Use [currency: +/-N cp|sp|gp] plus [add_item] or [remove_item] tags for completed transactions.
 
+${activeAdventure.progression ? `[PROGRESSION & BALANCE]
+Campaign Order: ${activeAdventure.progression.campaignOrder}. Tier ${activeAdventure.progression.tier}. Recommended Level: ${activeAdventure.progression.recommendedLevel?.join('-') || 'Unlisted'}. Threat Profile: ${activeAdventure.progression.threatProfile}. Combat Expectation: ${activeAdventure.progression.combatExpectation}.
+Difficulty Notes: ${activeAdventure.progression.difficultyNotes}
+Reward Budget: ${activeAdventure.progression.rewardBudget?.skillRanks || 2} skill ranks, ${activeAdventure.progression.rewardBudget?.trainingSlots || 1} training slots, max gear ${activeAdventure.progression.rewardBudget?.maxGearTier || 'story appropriate'}, currency ${activeAdventure.progression.rewardBudget?.currencyBandCp?.join('-') || 'story appropriate'} cp, permanent unlock: ${activeAdventure.progression.rewardBudget?.permanentUnlock || 'none'}. Stay within this budget unless the player earns an exceptional ending.
+` : ''}
+
 ${activeAdventure.playabilityGuidance ? `[PLAYABILITY GUIDANCE]\n${activeAdventure.playabilityGuidance}\n` : `[PLAYABILITY GUIDANCE]\nRun this adventure as a branching scenario, not a checklist. Surface at least two viable approaches to major obstacles, let NPC motives complicate simple combat, foreshadow the ending choices before the finale, and award the listed rewards only when the player's actions justify them.\n`}
 
 ${activeAdventure.rewards ? `[ENDING REWARDS]\n${Object.entries(activeAdventure.rewards).map(([ending, rewards]) => `- ${ending}: ${(Array.isArray(rewards) ? rewards : [rewards]).join(' ')}`).join('\n')}\n` : ''}

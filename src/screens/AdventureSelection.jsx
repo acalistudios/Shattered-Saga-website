@@ -819,6 +819,20 @@ export default function AdventureSelection({
                       </span>
                     </div>
 
+                    {selectedAdventure.progression && (
+                      <div className="flex flex-wrap gap-1.5 mb-3 text-5xs uppercase tracking-wider font-bold">
+                        <span className="px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-amber-300">
+                          Tier {selectedAdventure.progression.tier}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-300">
+                          Level {selectedAdventure.progression.recommendedLevel?.join('-')}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-400">
+                          {selectedAdventure.progression.combatExpectation}
+                        </span>
+                      </div>
+                    )}
+
                     {/* Status Badge */}
                     <div className="mb-3">
                       {isCompleted ? (
