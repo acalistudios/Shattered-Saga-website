@@ -5,6 +5,8 @@ import { getItemDetails } from '../utils/items';
 import { coinValue } from '../data/economy';
 import { WORLD_REGIONS, MAP_NODES, MAP_IMAGES, REGION_TRANSIT_CHALLENGES } from '../data/cartography';
 import AccountStatusPills from '../components/AccountStatusPills';
+import { ADVENTURE_PROGRESSION_METADATA } from '../data/adventureProgression';
+import { getAdventurePowerBand } from '../data/difficultyScaling';
 
 const isRegionStoryUnlocked = (regionId, completedAdventures = []) => {
   if (regionId === 'region1') return true;
@@ -41,60 +43,39 @@ const getUnlockStatus = (advId, completedAdventures = [], character = {}) => {
     }
   }
 
-  // Base starting adventures in Region 1
-  if (advId === 'ashveil_keep' || advId === 'saltblood_mines' || advId === 'elemental_crucible') {
+  const meta = ADVENTURE_PROGRESSION_METADATA[advId];
+  if (!meta) {
     return { unlocked: true, requirements: [] };
   }
-  
-  // Unlocked by completing Ashveil Keep
-  if (advId === 'clockwork_conservatory' || advId === 'sunken_spire' || advId === 'greywash_bandit_crown') {
-    const isUnlocked = completedAdventures.includes('ashveil_keep');
-    return { unlocked: isUnlocked, requirements: ['Ashveil Keep'] };
+
+  const prerequisites = meta.prerequisites || [];
+  if (prerequisites.length === 0) {
+    return { unlocked: true, requirements: [] };
   }
-  
-  // Unlocked by completing Saltblood Mines
-  if (advId === 'harvest_hill_hunger' || advId === 'thorn_treaty') {
-    const isUnlocked = completedAdventures.includes('saltblood_mines');
-    return { unlocked: isUnlocked, requirements: ['The Saltblood Mines'] };
+
+  const missingPrereqs = [];
+  prerequisites.forEach(prereq => {
+    if (Array.isArray(prereq)) {
+      // OR group: at least one must be completed
+      const metOne = prereq.some(p => completedAdventures.includes(p));
+      if (!metOne) {
+        const names = prereq.map(p => ADVENTURES_LIST.find(a => a.id === p)?.name || p);
+        missingPrereqs.push(names.join(' or '));
+      }
+    } else {
+      // AND requirement
+      if (!completedAdventures.includes(prereq)) {
+        const name = ADVENTURES_LIST.find(a => a.id === prereq)?.name || prereq;
+        missingPrereqs.push(name);
+      }
+    }
+  });
+
+  if (missingPrereqs.length > 0) {
+    return { unlocked: false, requirements: missingPrereqs };
   }
-  
-  // Unlocked by completing Elemental Crucible
-  if (advId === 'mirror_war_saint_orra') {
-    const isUnlocked = completedAdventures.includes('elemental_crucible');
-    return { unlocked: isUnlocked, requirements: ['The Elemental Crucible'] };
-  }
-  
-  // Region 2: Ignis Ridge (requires entering the region / completing Saltblood Mines)
-  if (advId === 'obsidian_vault') {
-    const isUnlocked = completedAdventures.includes('saltblood_mines');
-    return { unlocked: isUnlocked, requirements: ['The Saltblood Mines'] };
-  }
-  if (advId === 'iron_colosseum' || advId === 'brass_plague_tinkertown') {
-    const isUnlocked = completedAdventures.includes('obsidian_vault');
-    return { unlocked: isUnlocked, requirements: ['The Obsidian Vault'] };
-  }
-  
-  // Region 3: Frostfire Glacier (requires entering the region / completing Ashveil Keep)
-  if (advId === 'frostfire_crypt') {
-    const isUnlocked = completedAdventures.includes('ashveil_keep');
-    return { unlocked: isUnlocked, requirements: ['Ashveil Keep'] };
-  }
-  if (advId === 'blackroot_hollow' || advId === 'merrin_abbey_plague_bells') {
-    const isUnlocked = completedAdventures.includes('frostfire_crypt');
-    return { unlocked: isUnlocked, requirements: ['The Frostfire Crypt'] };
-  }
-  
-  // Region 4: Sapphire Deep (requires entering the region / completing Sunken Spire or Clockwork Conservatory)
-  if (advId === 'astral_sky') {
-    const isUnlocked = completedAdventures.includes('sunken_spire') || completedAdventures.includes('clockwork_conservatory');
-    return { unlocked: isUnlocked, requirements: ['Whispers of the Sunken Spire or The Clockwork Conservatory'] };
-  }
-  if (advId === 'drowned_market' || advId === 'glass_orchard_masquerade') {
-    const isUnlocked = completedAdventures.includes('astral_sky');
-    return { unlocked: isUnlocked, requirements: ['Threads of the Astral Sky'] };
-  }
-  
-  return { unlocked: false, requirements: [] };
+
+  return { unlocked: true, requirements: [] };
 };
 
 export default function AdventureSelection({
@@ -306,9 +287,12 @@ export default function AdventureSelection({
   };
 
   const unlockState = selectedAdventure 
-    ? (getUnlockStatus(selectedAdventure.id, completedAdventures, character)) 
+    ? (sandboxMode ? { unlocked: true, requirements: [] } : getUnlockStatus(selectedAdventure.id, completedAdventures, character)) 
     : { unlocked: false, requirements: [] };
   const isCompleted = completedAdventures.includes(selectedNodeId);
+  const powerBand = selectedAdventure ? getAdventurePowerBand(character, selectedAdventure) : null;
+  const isDangerouslyUnderpowered = powerBand === 'dangerously_underpowered';
+  const isUnderpowered = powerBand === 'underpowered';
 
   return (
     <div className="flex-1 flex flex-col justify-between p-6 max-w-6xl mx-auto w-full overflow-y-auto custom-scrollbar">
@@ -834,19 +818,31 @@ export default function AdventureSelection({
                     )}
 
                     {/* Status Badge */}
-                    <div className="mb-3">
+                    <div className="mb-3 space-y-2">
                       {isCompleted ? (
                         <span className="px-2 py-0.5 bg-emerald-955/60 text-emerald-400 border border-emerald-500/20 text-4xs uppercase tracking-wider font-extrabold rounded">
                           ✓ Completed Campaign
                         </span>
                       ) : !unlockState.unlocked ? (
-                        <div className="px-2 py-1 bg-red-955/40 text-red-300 border border-red-500/20 text-4xs rounded font-medium">
+                        <div className="px-2 py-1 bg-red-955/40 text-red-300 border border-red-500/20 text-4xs rounded font-medium text-left">
                           🔒 **Locked**. Requires completion of: <strong className="text-red-200">{unlockState.requirements.join(', ')}</strong>
                         </div>
                       ) : (
-                        <span className="px-2 py-0.5 bg-amber-955/60 text-amber-300 border border-amber-500/20 text-4xs uppercase tracking-wider font-extrabold rounded">
+                        <span className="px-2 py-0.5 bg-amber-955/60 text-amber-305 border border-amber-500/20 text-4xs uppercase tracking-wider font-extrabold rounded">
                           ✦ Available Quest
                         </span>
+                      )}
+
+                      {unlockState.unlocked && !isCompleted && isUnderpowered && (
+                        <div className="px-2 py-1 bg-amber-950/40 text-amber-305 border border-amber-500/20 text-4xs rounded font-medium text-left">
+                          ⚠️ **Warning**: You are under-leveled for this quest. It will be challenging.
+                        </div>
+                      )}
+
+                      {unlockState.unlocked && !isCompleted && isDangerouslyUnderpowered && (
+                        <div className="px-2 py-1 bg-red-955/40 text-red-350 border border-red-500/20 text-4xs rounded font-medium text-left animate-pulse">
+                          ⚠️ **Danger**: This quest is above your current recommended power. You can attempt it, but enemies and hazards may be severe!
+                        </div>
                       )}
                     </div>
 

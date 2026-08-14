@@ -7,6 +7,7 @@ import { ADVENTURES_LIST } from '../data/adventures';
 import { checkSafetyViolation, getGMStrikeWarning, getGMSternWarning, calculateLockoutExpiry, isGloballyBanned } from '../utils/safety';
 import { generateMerchantStock, ADVENTURE_TRAINING_SLOTS, TAVERNS } from '../data/downtimeMerchants';
 import { ADVENTURE_ECONOMY_METADATA } from '../data/adventureEconomy';
+import { getDifficultyScaling } from '../data/difficultyScaling';
 import { isBackendConfigured, fetchMe, generateViaBackend } from '../utils/authApi';
 
 function consumeRationFromInventory(inventory) {
@@ -2032,6 +2033,15 @@ Difficulty Notes: ${activeAdventure.progression.difficultyNotes}
 Reward Budget: ${activeAdventure.progression.rewardBudget?.skillRanks || 2} skill ranks, ${activeAdventure.progression.rewardBudget?.trainingSlots || 1} training slots, max gear ${activeAdventure.progression.rewardBudget?.maxGearTier || 'story appropriate'}, currency ${activeAdventure.progression.rewardBudget?.currencyBandCp?.join('-') || 'story appropriate'} cp, permanent unlock: ${activeAdventure.progression.rewardBudget?.permanentUnlock || 'none'}. Stay within this budget unless the player earns an exceptional ending.
 ` : ''}
 
+${(() => {
+  const scaling = activeAdventure ? getDifficultyScaling(character, activeAdventure) : null;
+  const level = character?.stats?.level || 1;
+  return scaling ? `[PLAYER POWER & DIFFICULTY SCALING]
+Player Level: ${level}. Player Power Score: ${scaling.playerPower.toFixed(1)}. Scaling Band: ${scaling.band}. Warning: ${scaling.warning ? 'true' : 'false'}. HP Multiplier: ${scaling.hpMultiplier}. Attack Modifier: ${scaling.attackModifier}. Defense Modifier: ${scaling.defenseModifier}.
+Apply bounded scaling only to normal combat threats. Do not scale civilians, allies, ritual threats, social threats, mythic entities, or hazards. If the player is overpowered, prefer smarter tactics, reinforcements, morale shifts, time pressure, or optional complications over large HP increases. If dangerously underpowered, foreshadow the danger clearly rather than silently making the adventure easy. Do not erase the feeling that the player has grown stronger.
+` : '';
+})()}
+
 ${activeAdventure.playabilityGuidance ? `[PLAYABILITY GUIDANCE]\n${activeAdventure.playabilityGuidance}\n` : `[PLAYABILITY GUIDANCE]\nRun this adventure as a branching scenario, not a checklist. Surface at least two viable approaches to major obstacles, let NPC motives complicate simple combat, foreshadow the ending choices before the finale, and award the listed rewards only when the player's actions justify them.\n`}
 
 ${activeAdventure.rewards ? `[ENDING REWARDS]\n${Object.entries(activeAdventure.rewards).map(([ending, rewards]) => `- ${ending}: ${(Array.isArray(rewards) ? rewards : [rewards]).join(' ')}`).join('\n')}\n` : ''}
@@ -2320,35 +2330,61 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         } else if (activeAdv?.npcs) {
           // Look for npc mentioned in text
           for (const npc of activeAdv.npcs) {
-            if (npc.HP && cleanedText.toLowerCase().includes(npc.name.toLowerCase())) {
+            if ((npc.stats?.HP || npc.HP) && cleanedText.toLowerCase().includes(npc.name.toLowerCase())) {
               foundNpc = npc;
               break;
             }
           }
         }
         
+        const scaling = activeAdv ? getDifficultyScaling(character, activeAdv, foundNpc) : { hpMultiplier: 1.0, attackModifier: 0, defenseModifier: 0, band: 'expected' };
+
         if (foundNpc) {
           let armorSoak = '1d3';
-          if (foundNpc.armor) {
-            const cleanArmor = foundNpc.armor.toLowerCase();
+          const foundNpcStats = foundNpc.stats || {};
+          const foundNpcArmor = foundNpcStats.armor || foundNpc.armor;
+          if (foundNpcArmor) {
+            const cleanArmor = foundNpcArmor.toLowerCase();
             if (cleanArmor.includes('heavy') || cleanArmor.includes('1d6')) armorSoak = '1d6';
             else if (cleanArmor.includes('medium') || cleanArmor.includes('1d4')) armorSoak = '1d4';
             else if (cleanArmor.includes('light') || cleanArmor.includes('1d3')) armorSoak = '1d3';
           }
+
+          const baseHp = foundNpcStats.HP || foundNpc.HP || 20;
+          const scaledHp = Math.round(baseHp * scaling.hpMultiplier);
+
           setActiveEnemy({
             name: foundNpc.name,
-            hp: foundNpc.HP || 20,
-            maxHp: foundNpc.HP || 20,
+            hp: scaledHp,
+            maxHp: scaledHp,
             armorSoak: armorSoak,
-            defenses: foundNpc.defenses || { dodge: '10', block: '10' }
+            defenses: foundNpcStats.defenses || foundNpc.defenses || { dodge: '10', block: '10' },
+            scaling: {
+              band: scaling.band,
+              hpMultiplier: scaling.hpMultiplier,
+              attackModifier: scaling.attackModifier,
+              defenseModifier: scaling.defenseModifier
+            }
           });
         } else {
+          const baseHp = 20;
+          const scaledHp = Math.round(baseHp * scaling.hpMultiplier);
+
           setActiveEnemy({
             name: targetName || "Hostile Foe",
-            hp: 20,
-            maxHp: 20,
+            hp: scaledHp,
+            maxHp: scaledHp,
             armorSoak: '1d3',
-            defenses: { dodge: '10', block: '10' }
+            defenses: {
+              dodge: '10',
+              block: '10'
+            },
+            scaling: {
+              band: scaling.band,
+              hpMultiplier: scaling.hpMultiplier,
+              attackModifier: scaling.attackModifier,
+              defenseModifier: scaling.defenseModifier
+            }
           });
         }
       }

@@ -3,6 +3,7 @@ import { SKILLS_LIST, ATTRIBUTE_LIST } from '../data/gms';
 import { printCharacterSheet, printAdventureLog } from '../utils/print';
 import { signCharacter } from '../utils/secureHash';
 import { ADVENTURES_LIST } from '../data/adventures';
+import { getDifficultyScaling, applyChoiceDifficultyScaling } from '../data/difficultyScaling';
 import { PRESET_METADATA } from '../data/portraits';
 import storage from '../utils/storage';
 import { calculateWeightAndVolume, getItemDetails, getItemSlot } from '../utils/items';
@@ -226,7 +227,16 @@ export default function PlayScreen({
   const energyIsCritical = sessionToken ? (energyBalance !== null && energyBalance <= 10) : (gmEnergies[activeGm.id] <= 20);
   const activeAdventure = ADVENTURES_LIST.find((a) => a.id === activeAdventureId);
   const activeRoom = currentLocation || activeAdventure?.settings?.[0] || null;
-  const activeRoomChoices = activeRoom ? (activeAdventure?.settingChoices?.[activeRoom] || []) : [];
+  const activeRoomChoices = activeRoom
+    ? (activeAdventure?.settingChoices?.[activeRoom] || []).map(choice => {
+        const scaling = activeAdventure ? getDifficultyScaling(character, activeAdventure) : null;
+        const scaledDifficulty = applyChoiceDifficultyScaling(choice.difficulty, scaling);
+        return {
+          ...choice,
+          difficulty: scaledDifficulty
+        };
+      })
+    : [];
   const activeRoomImage = activeRoom ? activeAdventure?.settingImages?.[activeRoom] : null;
   const getSkillLabel = (skillId) => (
     SKILLS_LIST.find((skill) => skill.id === skillId)?.name || skillId.replace(/_/g, ' ')
