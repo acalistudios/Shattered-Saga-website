@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import storage from '../utils/storage';
+import { isBackendConfigured, signOut } from '../utils/authApi';
 
 export default function SettingsModal({
   isOpen,
@@ -22,7 +23,7 @@ export default function SettingsModal({
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-  const isSimulationMode = !supabaseUrl || !supabaseAnonKey;
+  const isSimulationMode = (!supabaseUrl || !supabaseAnonKey) && !isBackendConfigured;
 
   const handleDeleteAccount = async () => {
     if (!window.confirm("WARNING: This will permanently delete your account, your gem balance, slot progress, and adventure logs. This action CANNOT be undone. Are you absolutely sure?")) {
@@ -200,7 +201,10 @@ export default function SettingsModal({
     }
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    if (isBackendConfigured) {
+      await signOut().catch(() => {});
+    }
     storage.remove('supabase_session_token');
     storage.remove('shattered_email');
     storage.remove('shattered_username');
@@ -314,13 +318,15 @@ export default function SettingsModal({
               )}
 
               <div className="flex justify-between items-center pt-2 gap-4">
-                <button
-                  type="button"
-                  onClick={handleDeleteAccount}
-                  className="px-3 py-1.5 rounded bg-red-950/25 border border-red-500/20 hover:bg-red-950/60 hover:border-red-500 text-red-400 text-3xs font-extrabold uppercase tracking-wider cursor-pointer transition-all"
-                >
-                  Delete Account
-                </button>
+                {!isBackendConfigured && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteAccount}
+                    className="px-3 py-1.5 rounded bg-red-950/25 border border-red-500/20 hover:bg-red-950/60 hover:border-red-500 text-red-400 text-3xs font-extrabold uppercase tracking-wider cursor-pointer transition-all"
+                  >
+                    Delete Account
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleSignOut}
@@ -329,6 +335,20 @@ export default function SettingsModal({
                   Sign Out
                 </button>
               </div>
+            </div>
+          ) : isBackendConfigured ? (
+            /* Cloud Sync Help Notice */
+            <div className="p-4 rounded-lg bg-slate-950 border border-slate-850/80 space-y-3 text-center animate-fadeIn">
+              <p className="text-xs text-slate-350 leading-relaxed">
+                Cloud Sync is active. To register or sign in, please return to the main splash screen and use the account controls.
+              </p>
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full py-1.5 rounded bg-slate-900 border border-slate-850/80 text-slate-300 font-bold text-3xs uppercase tracking-wider hover:text-white hover:border-slate-700 transition-colors cursor-pointer"
+              >
+                Return to Splash
+              </button>
             </div>
           ) : (
             /* Auth Forms */

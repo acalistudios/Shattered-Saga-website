@@ -9,7 +9,8 @@ import { sendEmail } from "./email";
 export interface Env {
   DATABASE: D1Database;
   BETTER_AUTH_SECRET: string;
-  RESEND_API_KEY?: string;
+  MAILGUN_API_KEY?: string;
+  MAILGUN_DOMAIN?: string;
   FRONTEND_URL?: string;
   // Phase 2 (social):
   GOOGLE_CLIENT_ID?: string;

@@ -6,6 +6,7 @@ import {
   isBackendConfigured,
   linkSocialRedirect,
   reportAuthIssue,
+  claimAdReward,
 } from '../utils/authApi';
 
 export default function AccountScreen({
@@ -312,7 +313,7 @@ export default function AccountScreen({
     setVideoAdOpen(true);
   };
 
-  const handleClaimAdReward = () => {
+  const handleClaimAdReward = async () => {
     const email = storage.get('shattered_email') || 'adventurer@saga.com';
     if (isSimulationMode) {
       const profile = storage.get(`mock_supabase_profile_${email}`, null);
@@ -320,11 +321,21 @@ export default function AccountScreen({
         profile.energy_balance = (profile.energy_balance || 0) + 10;
         storage.set(`mock_supabase_profile_${email}`, profile);
       }
+      setPurchaseSuccess("Sponsored ad viewed successfully! Added +10 priority Turns.");
+      fetchUserProfile();
+      setVideoAdOpen(false);
+      setTimeout(() => setPurchaseSuccess(null), 4000);
+    } else {
+      try {
+        await claimAdReward();
+        setPurchaseSuccess("Sponsored ad viewed successfully! Added +10 priority Turns.");
+        fetchUserProfile();
+        setVideoAdOpen(false);
+        setTimeout(() => setPurchaseSuccess(null), 4000);
+      } catch (err) {
+        alert(err.message || 'Could not claim ad reward. Please try again.');
+      }
     }
-    setPurchaseSuccess("Sponsored ad viewed successfully! Added +10 priority Turns.");
-    fetchUserProfile();
-    setVideoAdOpen(false);
-    setTimeout(() => setPurchaseSuccess(null), 4000);
   };
 
   const currentTier = userProfile?.subscription_tier || 'free';

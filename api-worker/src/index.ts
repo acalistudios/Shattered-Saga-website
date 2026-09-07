@@ -161,6 +161,22 @@ app.get("/api/me", async (c) => {
   });
 });
 
+// Sponsored video ad reward endpoint: awards +10 energy_balance turns.
+app.post("/api/ads/claim", async (c) => {
+  const session = await authFor(c).api.getSession({ headers: c.req.raw.headers });
+  if (!session) return c.json({ error: "unauthorized" }, 401);
+
+  const userId = session.user.id;
+  await c.env.DATABASE.prepare(
+    "UPDATE users SET energy_balance = energy_balance + 10 WHERE id = ?"
+  )
+    .bind(userId)
+    .run();
+
+  const remaining = await currentEnergy(c.env, userId);
+  return c.json({ ok: true, energy_remaining: remaining });
+});
+
 // Cloud save slots + gem spending. Shares the same session check as everything else.
 registerSaveRoutes(app, async (c) => {
   const session = await authFor(c).api.getSession({ headers: c.req.raw.headers });

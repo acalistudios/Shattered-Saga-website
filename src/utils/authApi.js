@@ -154,3 +154,8 @@ export async function fetchMe() {
   if (!res.ok) return null;
   return res.json();
 }
+
+// Claim sponsored video ad reward (+10 turns).
+export async function claimAdReward() {
+  return post('/api/ads/claim', {}, true);
+}
