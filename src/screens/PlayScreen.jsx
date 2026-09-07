@@ -8,6 +8,8 @@ import { PRESET_METADATA } from '../data/portraits';
 import storage from '../utils/storage';
 import { calculateWeightAndVolume, getItemDetails, getItemSlot } from '../utils/items';
 import AccountStatusPills from '../components/AccountStatusPills';
+import { getToken } from '../utils/authApi';
+import { skillRankCost } from '../data/progressionRewards';
 
 
 
@@ -45,6 +47,8 @@ export default function PlayScreen({
   onResetGame,
   onOpenSettings,
   executeMilestoneUpgrades,
+  spendSkillPoints,
+  claimPendingRewardChoice,
   settings,
   onRetryLastAction,
   onQuitAdventure,
@@ -112,6 +116,8 @@ export default function PlayScreen({
   const levelUpFileRef = useRef(null);
   const [galleryGenderFilter, setGalleryGenderFilter] = useState('All');
   const [galleryAgeFilter, setGalleryAgeFilter] = useState('All');
+  const [skillSpendMessage, setSkillSpendMessage] = useState('');
+  const [rewardChoiceMessage, setRewardChoiceMessage] = useState('');
 
   // Sync filters when opening gallery
   useEffect(() => {
@@ -136,9 +142,6 @@ export default function PlayScreen({
     };
     reader.readAsDataURL(file);
   };
-
-  // States for the Level Up Upgrade Modal
-  const [selectedUpgradeSkill, setSelectedUpgradeSkill] = useState('');
 
   // Auto-scroll chat to bottom
   useEffect(() => {
@@ -217,15 +220,15 @@ export default function PlayScreen({
   });
   const mostUsedSkillName = SKILLS_LIST.find((s) => s.id === mostUsedSkillId)?.name || 'None';
 
-  // Find other skills used for upgrade select (cannot be the most used skill, must have > 0 uses)
-  const otherUsedSkills = SKILLS_LIST.filter(
-    (sk) => skillTally[sk.id] > 0 && sk.id !== mostUsedSkillId
-  );
-
-  const sessionToken = storage.get('supabase_session_token');
+  const sessionToken = getToken() || storage.get('supabase_session_token');
   const energyBalance = userProfile ? userProfile.energy_balance : null;
   const energyIsCritical = sessionToken ? (energyBalance !== null && energyBalance <= 10) : (gmEnergies[activeGm.id] <= 20);
   const activeAdventure = ADVENTURES_LIST.find((a) => a.id === activeAdventureId);
+  const milestoneRewards = activeAdventure?.rewardModel?.guaranteedRewards || {
+    skillPoints: 2,
+    trainingSlots: activeAdventure?.progression?.rewardBudget?.trainingSlots || 1,
+    baseCurrencyCp: 0
+  };
   const activeRoom = currentLocation || activeAdventure?.settings?.[0] || null;
   const activeRoomChoices = activeRoom
     ? (activeAdventure?.settingChoices?.[activeRoom] || []).map(choice => {
@@ -514,17 +517,51 @@ export default function PlayScreen({
 
           {/* Active Skills Card */}
           <div className="rounded border border-slate-800 bg-slate-950/45 p-4">
-            <h3 className="text-2xs uppercase tracking-widest text-slate-500 font-bold mb-3">Trained Skills</h3>
-            <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <h3 className="text-2xs uppercase tracking-widest text-slate-500 font-bold">Skills</h3>
+              <span className="px-2 py-1 rounded bg-emerald-950/40 border border-emerald-700/30 text-emerald-300 text-4xs font-extrabold uppercase">
+                {character.skillPoints || 0} Skill Pts
+              </span>
+            </div>
+            {skillSpendMessage && (
+              <p className="mb-2 text-4xs text-amber-300 bg-slate-950/70 border border-amber-800/30 rounded px-2 py-1">
+                {skillSpendMessage}
+              </p>
+            )}
+            <div className="space-y-1.5 max-h-56 overflow-y-auto custom-scrollbar pr-1">
               {SKILLS_LIST.map((sk) => {
                 const rank = character.skills[sk.id] || 0;
-                if (rank <= 0) return null; // Only show trained skills to save space
+                const cost = skillRankCost(rank);
+                const canSpend = spendSkillPoints && rank < 5 && (character.skillPoints || 0) >= cost;
+                if (rank <= 0 && (character.skillPoints || 0) <= 0) return null; // Only show trained skills unless points can be spent.
                 return (
-                  <div key={sk.id} className="flex justify-between items-center text-2xs border-b border-slate-900 pb-1">
-                    <span className="text-slate-350 capitalize">{sk.name}</span>
-                    <span className="px-1.5 py-0.5 rounded bg-slate-900 text-amber-450 font-extrabold text-3xs">
-                      {rank} Ranks
-                    </span>
+                  <div key={sk.id} className="flex justify-between items-center gap-2 text-2xs border-b border-slate-900 pb-1">
+                    <span className="text-slate-350 capitalize truncate">{sk.name}</span>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <span className="px-1.5 py-0.5 rounded bg-slate-900 text-amber-450 font-extrabold text-3xs">
+                        {rank}/5
+                      </span>
+                      {spendSkillPoints && rank < 5 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const result = spendSkillPoints(sk.id);
+                            if (result.ok) {
+                              setSkillSpendMessage(`${sk.name} increased to rank ${result.newRank}. Spent ${result.cost} skill point${result.cost === 1 ? '' : 's'}.`);
+                            } else if (result.reason === 'not_enough_points') {
+                              setSkillSpendMessage(`${sk.name} needs ${result.cost} skill points. You have ${result.available}.`);
+                            } else {
+                              setSkillSpendMessage(`${sk.name} is already at maximum rank.`);
+                            }
+                          }}
+                          disabled={!canSpend}
+                          title={rank >= 5 ? 'Maximum rank' : `Spend ${cost} skill point${cost === 1 ? '' : 's'} to increase ${sk.name}`}
+                          className="px-1.5 py-0.5 rounded bg-emerald-700 text-slate-950 text-4xs font-extrabold uppercase disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed hover:brightness-110"
+                        >
+                          +{cost}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -533,6 +570,52 @@ export default function PlayScreen({
               )}
             </div>
           </div>
+
+          {(character.progression?.pendingRewardChoices || []).length > 0 && (
+            <div className="rounded border border-emerald-700/35 bg-emerald-950/10 p-4">
+              <h3 className="text-2xs uppercase tracking-widest text-emerald-300 font-bold mb-2">Pending Story Rewards</h3>
+              {rewardChoiceMessage && (
+                <p className="mb-2 text-4xs text-amber-300 bg-slate-950/70 border border-amber-800/30 rounded px-2 py-1">
+                  {rewardChoiceMessage}
+                </p>
+              )}
+              <div className="space-y-2">
+                {character.progression.pendingRewardChoices.map(choice => (
+                  <div key={`${choice.adventureId}:${choice.rewardId}`} className="rounded bg-slate-950/60 border border-slate-800 p-2">
+                    <div className="text-3xs font-bold text-slate-200">{choice.name}</div>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {(choice.attributeOptions || []).map(attributeId => (
+                        <button
+                          key={attributeId}
+                          type="button"
+                          onClick={() => {
+                            const result = claimPendingRewardChoice?.(choice.rewardId, 'attribute', attributeId);
+                            setRewardChoiceMessage(result?.ok ? `${choice.name}: ${attributeId} increased.` : `Could not claim ${choice.name}.`);
+                          }}
+                          className="px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-slate-950 text-4xs font-extrabold uppercase"
+                        >
+                          +1 {attributeId}
+                        </button>
+                      ))}
+                      {(choice.itemOptions || []).map(itemName => (
+                        <button
+                          key={itemName}
+                          type="button"
+                          onClick={() => {
+                            const result = claimPendingRewardChoice?.(choice.rewardId, 'item', itemName);
+                            setRewardChoiceMessage(result?.ok ? `${choice.name}: ${itemName} added.` : `Could not claim ${choice.name}.`);
+                          }}
+                          className="px-2 py-1 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 text-4xs font-extrabold uppercase"
+                        >
+                          Claim {itemName}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Equipped Items Card */}
           <div className="rounded border border-amber-500/20 bg-slate-950/45 p-4">
@@ -1805,53 +1888,30 @@ export default function PlayScreen({
               Chronicle Milestone Achieved!
             </h2>
             <p className="text-slate-350 text-xs font-semibold text-center mb-6">
-              You have completed a significant step in the adventure. Your skills strengthen.
+              You completed the adventure. Your growth is now awarded as engine-tracked points and rewards.
             </p>
 
             <div className="space-y-4">
-              {/* Most Used Skill (Auto-Upgraded) */}
+              {/* Milestone Rewards */}
               <div className="p-4 rounded bg-slate-950 border border-slate-800 space-y-1">
-                <h4 className="text-3xs uppercase font-bold text-slate-500">Automatic Rank Up (Most Used)</h4>
-                <div className="flex justify-between items-center mt-1">
-                  <span className="text-sm font-bold text-emerald-400 capitalize">{mostUsedSkillName}</span>
-                  <span className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 text-3xs font-extrabold uppercase">
-                    +1 Rank
-                  </span>
+                <h4 className="text-3xs uppercase font-bold text-slate-500">Guaranteed Rewards</h4>
+                <div className="grid grid-cols-3 gap-2 mt-2">
+                  <div className="rounded bg-emerald-950/40 border border-emerald-700/30 p-2 text-center">
+                    <div className="text-lg font-black text-emerald-300">+{milestoneRewards.skillPoints}</div>
+                    <div className="text-4xs uppercase text-slate-400 font-bold">Skill Points</div>
+                  </div>
+                  <div className="rounded bg-amber-950/35 border border-amber-700/30 p-2 text-center">
+                    <div className="text-lg font-black text-amber-300">+{milestoneRewards.trainingSlots}</div>
+                    <div className="text-4xs uppercase text-slate-400 font-bold">Training</div>
+                  </div>
+                  <div className="rounded bg-slate-900 border border-slate-800 p-2 text-center">
+                    <div className="text-lg font-black text-slate-200">+{milestoneRewards.baseCurrencyCp}</div>
+                    <div className="text-4xs uppercase text-slate-400 font-bold">Copper</div>
+                  </div>
                 </div>
-                <p className="text-3xs text-slate-500 mt-1">
-                  This skill was tested the most during this adventure block.
+                <p className="text-3xs text-slate-500 mt-2">
+                  Most tested skill: <span className="text-emerald-400 font-bold">{mostUsedSkillName}</span>. Skill ranks now use spendable points; raising a rank costs current rank + 1.
                 </p>
-              </div>
-
-              {/* Player choice of other used skills */}
-              <div className="p-4 rounded bg-slate-950 border border-slate-800 space-y-3">
-                <h4 className="text-3xs uppercase font-bold text-slate-500">Choice Rank Up (Hobby/Secondary)</h4>
-                
-                {otherUsedSkills.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic">
-                    No other skills were used. You may select any other skill to upgrade.
-                  </p>
-                ) : (
-                  <p className="text-3xs text-slate-450 leading-relaxed">
-                    Select one other skill checked during this adventure step to receive `+1 Rank`.
-                  </p>
-                )}
-
-                <select
-                  value={selectedUpgradeSkill}
-                  onChange={(e) => setSelectedUpgradeSkill(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-850 rounded text-slate-200 text-xs font-semibold focus:outline-none"
-                >
-                  <option value="" className="bg-slate-900 text-slate-200">-- Choose Skill to Upgrade --</option>
-                  {(otherUsedSkills.length === 0 ? SKILLS_LIST : otherUsedSkills).map((sk) => {
-                    const currentRank = character.skills[sk.id] || 0;
-                    return (
-                      <option key={sk.id} value={sk.id} disabled={currentRank >= 5} className="bg-slate-900 text-slate-200">
-                        {sk.name} (Current Ranks: {currentRank})
-                      </option>
-                    );
-                  })}
-                </select>
               </div>
 
               {/* Optional Portrait Refinement */}
@@ -1903,8 +1963,7 @@ export default function PlayScreen({
               <button
                 type="button"
                 onClick={() => {
-                  executeMilestoneUpgrades(selectedUpgradeSkill || null);
-                  setSelectedUpgradeSkill('');
+                  executeMilestoneUpgrades();
                 }}
                 className="px-6 py-3 rounded text-xs font-bold bg-emerald-500 text-slate-950 uppercase tracking-widest hover:brightness-110 active:scale-95 cursor-pointer shadow-lg hover:shadow-emerald-500/10 transition-all"
               >

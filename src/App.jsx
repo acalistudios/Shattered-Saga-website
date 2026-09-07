@@ -97,6 +97,8 @@ function App() {
     buyTavernService,
     initializeMerchantStock,
     trainSkillWithMerchant,
+    spendSkillPoints,
+    claimPendingRewardChoice,
     activeEnemy,
     counterOpportunities,
     combatStance,
@@ -1030,6 +1032,8 @@ function App() {
             onOpenAccount={handleOpenAccount}
             closeUpgradeScreen={closeUpgradeScreen}
             executeMilestoneUpgrades={executeMilestoneUpgrades}
+            spendSkillPoints={spendSkillPoints}
+            claimPendingRewardChoice={claimPendingRewardChoice}
             settings={settings}
             onRetryLastAction={retryLastAction}
             onQuitAdventure={handleQuitAdventure}

@@ -25,6 +25,7 @@ Rule Enforcement & Safety:
 12. Roleplay Check: Assess if the player's actions align with their chosen Virtue, Vice, Philosophy, and Sliders. If they roleplay exceptionally, append [roleplay_modifier: +1] to reward their next roll. If they act wildly out-of-character, append [roleplay_modifier: -1].
 13. Fatigue, SP & Time Tracking: The game tracks time (Day and Hour), Fatigue, and separate SP pools (Arcane vs. Divine). If the player's fatigue drops below 0 (negative), they suffer a roll penalty (-1 per 0.5 below 0) and physical strain. If fatigue drops below 0, and especially below -5, you must advise the player in-character to rest soon. If they drop below -10, they collapse. Rest actions require rations to recover.
 14. Dynamic Soundtrack Control: When the player enters combat/confronts a boss, you MUST append the tag [combat_start] to trigger high-intensity combat music. When they escape or defeat the threat, append [combat_end] or [victory] to restore the exploration music. If they face stealth, traps, or high-risk negotiations, append [tension].
+15. Scene Boundaries: When the player leaves a location, finishes an encounter, or the narrative clearly moves to a new scene, append [scene_end]. The engine uses this to expire scene-length item effects such as stances, kindled flames, and underwater breathing. Do not append it for small movements within the same location, and do not use it to grant or remove anything else.
 `;
 
 export const SAGA_ENGINES = [

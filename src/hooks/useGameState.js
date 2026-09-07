@@ -8,7 +8,9 @@ import { checkSafetyViolation, getGMStrikeWarning, getGMSternWarning, calculateL
 import { generateMerchantStock, ADVENTURE_TRAINING_SLOTS, TAVERNS } from '../data/downtimeMerchants';
 import { ADVENTURE_ECONOMY_METADATA } from '../data/adventureEconomy';
 import { getDifficultyScaling } from '../data/difficultyScaling';
-import { isBackendConfigured, fetchMe, generateViaBackend } from '../utils/authApi';
+import { getAdventureRewardModel, levelHpGain, skillRankCost, SKILL_RANK_CAP } from '../data/progressionRewards';
+import { getRewardItemByName } from '../data/rewardItems';
+import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../utils/authApi';
 
 function consumeRationFromInventory(inventory) {
   let hasRations = false;
@@ -31,6 +33,22 @@ function consumeRationFromInventory(inventory) {
   }).filter(Boolean);
 
   return { hasRations, updatedInventory };
+}
+
+function addCopperToCurrency(currency = {}, amountCp = 0) {
+  const currentCp = (currency.gp || currency.gold || 0) * 100 + (currency.sp || 0) * 10 + (currency.cp || 0);
+  const totalCp = Math.max(0, currentCp + Math.round(amountCp || 0));
+  const gp = Math.floor(totalCp / 100);
+  const sp = Math.floor((totalCp % 100) / 10);
+  const cp = totalCp % 10;
+
+  return {
+    ...currency,
+    gp,
+    sp,
+    cp,
+    gold: gp
+  };
 }
 
 function consumeInventoryItem(inventory, namePattern) {
@@ -62,6 +80,247 @@ function getMagicBonus(itemName) {
   if (!itemName) return 0;
   const match = itemName.match(/\+(\d+)\b/);
   return match ? parseInt(match[1], 10) : 0;
+}
+
+function getGameHourStamp(day, hour) {
+  return ((day || 1) - 1) * 24 + (hour || 0);
+}
+
+function getCharacterHourStamp(character) {
+  return getGameHourStamp(character?.stats?.day || 1, character?.stats?.hour ?? 13.0);
+}
+
+function getItemCooldownKey(itemName, effectId = 'primary') {
+  const rewardItem = getRewardItemByName(itemName);
+  return `${rewardItem?.id || itemName}:${effectId}`;
+}
+
+function getCooldownReady(character, itemName, effectId = 'primary') {
+  const key = getItemCooldownKey(itemName, effectId);
+  const cooldown = character?.progression?.itemCooldowns?.[key];
+  if (!cooldown) return true;
+  if (cooldown.reset === 'rest') return false;
+  return getCharacterHourStamp(character) >= (cooldown.readyAtHours || 0);
+}
+
+function setItemCooldownOnCharacter(character, itemName, effectId = 'primary', reset = 'rest', hours = 0) {
+  const key = getItemCooldownKey(itemName, effectId);
+  const readyAtHours = reset === '8_hours' ? getCharacterHourStamp(character) + (hours || 8) : null;
+  return {
+    ...character,
+    progression: {
+      ...DEFAULT_CHARACTER.progression,
+      ...(character.progression || {}),
+      itemCooldowns: {
+        ...(character.progression?.itemCooldowns || {}),
+        [key]: { reset, readyAtHours }
+      }
+    }
+  };
+}
+
+function addActiveItemEffectToCharacter(character, effect) {
+  const effects = character.progression?.activeItemEffects || [];
+  return {
+    ...character,
+    progression: {
+      ...DEFAULT_CHARACTER.progression,
+      ...(character.progression || {}),
+      activeItemEffects: [
+        ...effects.filter(active => active.id !== effect.id),
+        effect
+      ]
+    }
+  };
+}
+
+function removeActiveItemEffectsFromCharacter(character, effectIds) {
+  const blockedIds = new Set(effectIds);
+  return {
+    ...character,
+    progression: {
+      ...DEFAULT_CHARACTER.progression,
+      ...(character.progression || {}),
+      activeItemEffects: (character.progression?.activeItemEffects || []).filter(effect => !blockedIds.has(effect.id))
+    }
+  };
+}
+
+// Scene-scoped item effects (stances, underwater breathing, kindled flame) last
+// until the scene turns over, not until the next rest. Without this they would
+// keep applying for the rest of the day; rest recovery clears everything anyway.
+function clearSceneItemEffectsFromCharacter(character) {
+  const effects = character?.progression?.activeItemEffects || [];
+  if (!effects.some(effect => effect.expires === 'scene')) return character;
+  return {
+    ...character,
+    progression: {
+      ...DEFAULT_CHARACTER.progression,
+      ...(character.progression || {}),
+      activeItemEffects: effects.filter(effect => effect.expires !== 'scene')
+    }
+  };
+}
+
+function addTemporarySkillPenaltyToCharacter(character, skillId, amount = 1) {
+  return {
+    ...character,
+    progression: {
+      ...DEFAULT_CHARACTER.progression,
+      ...(character.progression || {}),
+      temporarySkillPenalties: {
+        ...(character.progression?.temporarySkillPenalties || {}),
+        [skillId]: (character.progression?.temporarySkillPenalties?.[skillId] || 0) + amount
+      }
+    }
+  };
+}
+
+function clearRestItemCooldowns(character) {
+  const currentCooldowns = character?.progression?.itemCooldowns || {};
+  const itemCooldowns = Object.fromEntries(
+    Object.entries(currentCooldowns).filter(([, cooldown]) => cooldown?.reset !== 'rest')
+  );
+  return {
+    ...character,
+    progression: {
+      ...DEFAULT_CHARACTER.progression,
+      ...(character.progression || {}),
+      itemCooldowns
+    }
+  };
+}
+
+function applyRewardRestRecovery(character) {
+  const resetCharacter = clearRestItemCooldowns(character);
+  return {
+    ...resetCharacter,
+    progression: {
+      ...DEFAULT_CHARACTER.progression,
+      ...(resetCharacter.progression || {}),
+      temporarySkillPenalties: {},
+      activeItemEffects: []
+    }
+  };
+}
+
+function getEquippedItemNames(character) {
+  return Object.values(character?.equipment || {}).filter(Boolean);
+}
+
+function characterHasAffinity(character, affinity) {
+  return !!affinity && (character?.element || '').toLowerCase() === affinity;
+}
+
+function getPassiveRewardSkillBonus(character, skillId) {
+  if (!skillId) return { bonus: 0, labels: [] };
+  const equipped = getEquippedItemNames(character);
+  let bonus = 0;
+  const labels = [];
+
+  equipped.forEach(itemName => {
+    const lower = itemName.toLowerCase();
+    let itemBonus = 0;
+    if (lower.includes("saint orra's veil +3") && ['insight', 'divine_communion'].includes(skillId)) itemBonus = 3;
+    else if (lower.includes('masterwork tool kit +2') && ['crafting', 'smithing'].includes(skillId)) itemBonus = 2;
+    else if (lower.includes('amulet of tide-taming') && ['survival', 'sailing'].includes(skillId)) itemBonus = 1;
+    else if (lower.includes('living thorn charm') && ['survival', 'tracking', 'animal_rapport'].includes(skillId)) itemBonus = 1;
+
+    if (itemBonus > 0) {
+      bonus += itemBonus;
+      labels.push(`${itemName} +${itemBonus}`);
+    }
+  });
+
+  return { bonus, labels };
+}
+
+function getRewardWeaponProfile(weaponName, character, enemy = null, activeAdventureId = null) {
+  const base = getWeaponProperties(weaponName);
+  const lower = (weaponName || '').toLowerCase();
+  const equippedAndCarried = [
+    ...Object.values(character?.equipment || {}).filter(Boolean),
+    ...(character?.inventory || [])
+  ].map(itemName => itemName.toLowerCase());
+  const hasStarfallBowstring = equippedAndCarried.some(itemName => itemName.includes('starfall bowstring +3'));
+  const effects = [];
+  let dice = base.dice;
+  let skill = base.skill;
+  // Prefer the reward table's declared bonus over parsing "+N" out of the display
+  // name: not every rewarded weapon spells its bonus in its name (Black-Crown
+  // Longbow and Glass Thorn Dagger are both +1 but read as +0 by name alone).
+  const rewardEntry = getRewardItemByName(weaponName);
+  let attackBonus = Math.max(getMagicBonus(weaponName), rewardEntry?.bonus || 0);
+  let damageBonus = 0;
+
+  if (lower.includes('champion maul +2')) {
+    dice = '1d10+1';
+    skill = 'heavy_weapons';
+  } else if (lower.includes('frostfire glaive +3')) {
+    dice = '1d10';
+    skill = 'heavy_weapons';
+    if (getCooldownReady(character, weaponName, 'frostfire_strike')) {
+      damageBonus += 3;
+      effects.push({ type: 'cooldown', itemName: weaponName, effectId: 'frostfire_strike', reset: 'rest', text: '+3 frostfire damage' });
+    }
+  } else if (lower.includes('dawnbound sickle +3')) {
+    dice = '1d6';
+    skill = 'light_weapons';
+    const targetText = `${activeAdventureId || ''} ${enemy?.name || ''} ${enemy?.role || ''} ${enemy?.desc || ''}`.toLowerCase();
+    if (/(harvest_hill_hunger|hunger|root|vine|famine|pact-bound|pact)/.test(targetText)) {
+      damageBonus += 2;
+      effects.push({ type: 'passive', text: '+2 damage vs pact-bound growth' });
+    }
+  } else if (lower.includes('basalt warhammer +2')) {
+    dice = '1d8';
+    skill = 'heavy_weapons';
+    if (getCooldownReady(character, weaponName, 'fire_core_strike')) {
+      damageBonus += 2;
+      effects.push({
+        type: 'cooldown',
+        itemName: weaponName,
+        effectId: 'fire_core_strike',
+        reset: characterHasAffinity(character, 'fire') ? '8_hours' : 'rest',
+        text: '+2 fire damage'
+      });
+    }
+  } else if (lower.includes('black-crown longbow')) {
+    dice = '1d6';
+    skill = 'marksmanship';
+    damageBonus += 1;
+    if (characterHasAffinity(character, 'fire') && getCooldownReady(character, weaponName, 'fire_arrow')) {
+      damageBonus += 2;
+      effects.push({ type: 'cooldown', itemName: weaponName, effectId: 'fire_arrow', reset: '8_hours', text: '+2 fire damage' });
+    }
+  } else if (lower.includes('sky-stalker composite bow +2')) {
+    dice = '1d8+1';
+    skill = 'marksmanship';
+  } else if (lower.includes('glass thorn dagger')) {
+    dice = '1d4';
+    skill = 'light_weapons';
+    effects.push({
+      type: 'poison',
+      chance: characterHasAffinity(character, 'water') ? 0.75 : 0.5,
+      text: characterHasAffinity(character, 'water') ? '75% poison chance' : '50% poison chance'
+    });
+  }
+
+  if (hasStarfallBowstring && /\b(bow|longbow|shortbow|composite bow)\b/.test(lower)) {
+    attackBonus = Math.max(attackBonus, 3);
+    const targetText = `${activeAdventureId || ''} ${enemy?.name || ''} ${enemy?.role || ''} ${enemy?.desc || ''}`.toLowerCase();
+    if (/(astral|flying|airborne|incorporeal|spirit|wraith|ghost)/.test(targetText) && getCooldownReady(character, 'Starfall Bowstring +3', 'starfall_shot')) {
+      damageBonus += 3;
+      effects.push({
+        type: 'cooldown',
+        itemName: 'Starfall Bowstring +3',
+        effectId: 'starfall_shot',
+        reset: 'rest',
+        text: characterHasAffinity(character, 'air') ? '+3 starfall damage; ignores cover' : '+3 starfall damage vs astral/flying/incorporeal target'
+      });
+    }
+  }
+
+  return { ...base, dice, skill, attackBonus, damageBonus, effects };
 }
 
 function getArmorType(armorName) {
@@ -397,6 +656,18 @@ const DEFAULT_CHARACTER = {
     relationships: {},
     lastRecoveryTime: { day: 1, hour: 13.0 }
   },
+  skillPoints: 0,
+  progression: {
+    levelHpBonus: 0,
+    boons: [],
+    completedRewardClaims: [],
+    pendingRewardChoices: [],
+    completedObjectives: {},
+    completedEndings: {},
+    itemCooldowns: {},
+    temporarySkillPenalties: {},
+    activeItemEffects: []
+  },
   trainingSlots: 0,
   storyEvents: [],
   choicesMade: {},
@@ -448,6 +719,20 @@ export function validateCharacterSchema(raw) {
     localEconomy: {
       ...DEFAULT_CHARACTER.localEconomy,
       ...(raw.localEconomy || {})
+    },
+    skillPoints: Math.max(0, Number(raw.skillPoints) || 0),
+    progression: {
+      ...DEFAULT_CHARACTER.progression,
+      ...(raw.progression || {}),
+      boons: Array.isArray(raw.progression?.boons) ? raw.progression.boons : [],
+      completedRewardClaims: Array.isArray(raw.progression?.completedRewardClaims) ? raw.progression.completedRewardClaims : [],
+      pendingRewardChoices: Array.isArray(raw.progression?.pendingRewardChoices) ? raw.progression.pendingRewardChoices : [],
+      completedObjectives: typeof raw.progression?.completedObjectives === 'object' && raw.progression.completedObjectives !== null ? raw.progression.completedObjectives : {},
+      completedEndings: typeof raw.progression?.completedEndings === 'object' && raw.progression.completedEndings !== null ? raw.progression.completedEndings : {},
+      itemCooldowns: typeof raw.progression?.itemCooldowns === 'object' && raw.progression.itemCooldowns !== null ? raw.progression.itemCooldowns : {},
+      temporarySkillPenalties: typeof raw.progression?.temporarySkillPenalties === 'object' && raw.progression.temporarySkillPenalties !== null ? raw.progression.temporarySkillPenalties : {},
+      activeItemEffects: Array.isArray(raw.progression?.activeItemEffects) ? raw.progression.activeItemEffects : [],
+      levelHpBonus: Math.max(0, Number(raw.progression?.levelHpBonus) || 0)
     },
     storyEvents: Array.isArray(raw.storyEvents) ? raw.storyEvents : [],
     choicesMade: typeof raw.choicesMade === 'object' && raw.choicesMade !== null ? raw.choicesMade : {},
@@ -1129,6 +1414,22 @@ export default function useGameState() {
       currency: { gold: startingGold, fateCoins: 0 },
       strongholds: ["None"],
       relationships: { "Sylas the Wise": "Friendly" },
+      skillPoints: 0,
+      progression: {
+        levelHpBonus: 0,
+        boons: [],
+        completedRewardClaims: [],
+        pendingRewardChoices: [],
+        completedObjectives: {},
+        completedEndings: {},
+        itemCooldowns: {},
+        temporarySkillPenalties: {},
+        activeItemEffects: []
+      },
+      trainingSlots: 0,
+      storyEvents: [],
+      choicesMade: {},
+      confiscatedGear: []
     };
 
     setCharacter(startChar);
@@ -1166,23 +1467,32 @@ export default function useGameState() {
         const summaryPrompt = `Based on the conversation history, summarize the campaign's "Story so far" in exactly two short sentences. Focus only on achievements and the active threat. Do not output anything else.`;
         
         const engine = SAGA_ENGINES.find(e => e.id === engineTier) || SAGA_ENGINES[1];
-        const sessionToken = storage.get('supabase_session_token') || null;
+        const sessionToken = getToken() || storage.get('supabase_session_token') || null;
         
         const storedSettings = storage.get('settings', {});
         const activeProvider = engineTier === 'byok' ? (storedSettings.byokProvider || 'gemini') : engine.provider;
         const activeModel = engineTier === 'byok' ? (storedSettings.byokModel || 'gemini-1.5-flash') : engine.model;
         const activeKey = engineTier === 'byok' ? ((storedSettings.byokKeys || {})[activeProvider] || storedSettings.userApiKey || apiKey) : apiKey;
 
-        const response = await generateCompletion({
-          provider: activeProvider,
-          model: activeModel,
-          apiKey: activeKey,
-          systemPrompt: summaryPrompt,
-          history: newHistory.slice(-10),
-          sandboxMode: sandbox,
-          // BYOK routes through the direct client path, not the serverless proxy.
-          sessionToken: engineTier === 'byok' ? null : sessionToken
-        });
+        const useBackend = isBackendConfigured && !sandbox && engineTier !== 'byok';
+
+        const response = useBackend
+          ? await generateViaBackend({
+              systemPrompt: summaryPrompt,
+              history: newHistory.slice(-10),
+              premiumTurn: engineTier === 'premium',
+              model: activeModel,
+            })
+          : await generateCompletion({
+              provider: activeProvider,
+              model: activeModel,
+              apiKey: activeKey,
+              systemPrompt: summaryPrompt,
+              history: newHistory.slice(-10),
+              sandboxMode: sandbox,
+              // BYOK routes through the direct client path, not the serverless proxy.
+              sessionToken: engineTier === 'byok' ? null : sessionToken
+            });
 
         if (response.text) {
           const recentUserActions = newHistory
@@ -1232,12 +1542,12 @@ export default function useGameState() {
       return;
     }
 
-    const sessionToken = storage.get('supabase_session_token');
+    const sessionToken = getToken() || storage.get('supabase_session_token');
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
     if (!sandbox && engineTier === 'byok') {
       let subscriptionTier;
-      if (!supabaseUrl) {
+      if (!supabaseUrl && !isBackendConfigured) {
         const email = storage.get('shattered_email') || 'adventurer@saga.com';
         const mockProfile = storage.get(`mock_supabase_profile_${email}`, null);
         subscriptionTier = mockProfile ? mockProfile.subscription_tier : 'free';
@@ -1255,7 +1565,7 @@ export default function useGameState() {
 
     if (sessionToken && engineTier === 'premium') {
       let currentEnergy;
-      if (!supabaseUrl) {
+      if (!supabaseUrl && !isBackendConfigured) {
         // Simulation mode
         const email = storage.get('shattered_email') || 'adventurer@saga.com';
         const mockProfile = storage.get(`mock_supabase_profile_${email}`, null);
@@ -1671,6 +1981,12 @@ export default function useGameState() {
         cost = { fatigue: 0.1, time: 0.1667 }; // 10 minutes for treatment
       }
     }
+    const quickRepairEffect = (character.progression?.activeItemEffects || []).find(effect => effect.id === 'quick_repair');
+    if (quickRepairEffect && ['crafting', 'smithing'].includes(finalSkillFocusId)) {
+      cost = { ...cost, time: cost.time * 0.5 };
+      finalActionText += `\n\n[Reward Item Effect: Masterwork Tool Kit +2 quick repair halves the time cost for this field repair and is consumed.]`;
+      setCharacter(prev => removeActiveItemEffectsFromCharacter(prev, ['quick_repair']));
+    }
 
     // Auto-detect if player says they are eating a ration in their action
     const eatRegex = /\b(eat|consume|eating)\b.*\b(ration|rations|food)\b/i;
@@ -1724,7 +2040,26 @@ export default function useGameState() {
       }
     }
 
-    const totalModifier = nextRollModifier - starvationPenalty - exhaustionPenalty + weaponMagicBonus + shieldMagicBonus + armorCheckPenalty + encumbrancePenalty;
+    const activeRewardEffects = character.progression?.activeItemEffects || [];
+    const consumedActiveEffectIds = [];
+    let activeRewardBonus = 0;
+    const activeRewardLabels = [];
+    const pearlFocus = activeRewardEffects.find(effect => effect.id === 'pearl_memory_focus' && effect.skillId === finalSkillFocusId);
+    if (pearlFocus) {
+      activeRewardBonus += pearlFocus.bonus || 4;
+      activeRewardLabels.push(`Pearl Memory Scale +${pearlFocus.bonus || 4}`);
+      consumedActiveEffectIds.push(pearlFocus.id);
+    }
+    const aetherReveal = activeRewardEffects.find(effect => effect.id === 'aether_reveal' && ['perception', 'insight', 'lore', 'divine_communion'].includes(finalSkillFocusId));
+    if (aetherReveal) {
+      activeRewardBonus += aetherReveal.bonus || 2;
+      activeRewardLabels.push(`${aetherReveal.source || 'Aether reveal'} +${aetherReveal.bonus || 2}`);
+      consumedActiveEffectIds.push(aetherReveal.id);
+    }
+
+    const passiveRewardBonus = getPassiveRewardSkillBonus(character, finalSkillFocusId);
+    const temporarySkillPenalty = finalSkillFocusId ? (character.progression?.temporarySkillPenalties?.[finalSkillFocusId] || 0) : 0;
+    const totalModifier = nextRollModifier - starvationPenalty - exhaustionPenalty + weaponMagicBonus + shieldMagicBonus + passiveRewardBonus.bonus + activeRewardBonus - temporarySkillPenalty + armorCheckPenalty + encumbrancePenalty;
 
     // Determine spell resistance modifier based on SP spent
     let resistanceModifier = 0;
@@ -1760,6 +2095,9 @@ export default function useGameState() {
 
         // Reset modifier back to 0 immediately
         setNextRollModifier(0);
+        if (consumedActiveEffectIds.length > 0) {
+          setCharacter(prev => removeActiveItemEffectsFromCharacter(prev, consumedActiveEffectIds));
+        }
 
         // Save last check details
         setLastCheck({
@@ -1782,6 +2120,15 @@ export default function useGameState() {
           const loadPct = Math.max(encumbrance.weightRatio, encumbrance.volumeRatio);
           const loadKind = drivenByVolume ? 'pack volume' : 'weight';
           finalActionText += `\n\n[Notice: Player is Encumbered (${loadPct}% ${loadKind} capacity)! A ${encumbrancePenalty} penalty has been applied to this physical check.]`;
+        }
+        if (passiveRewardBonus.bonus > 0) {
+          finalActionText += `\n\n[Reward Item Bonus: ${passiveRewardBonus.labels.join(', ')} applied to this check.]`;
+        }
+        if (activeRewardBonus > 0) {
+          finalActionText += `\n\n[Activated Reward Item Bonus: ${activeRewardLabels.join(', ')} applied and consumed by this check.]`;
+        }
+        if (temporarySkillPenalty > 0) {
+          finalActionText += `\n\n[Temporary Item Penalty: -${temporarySkillPenalty} applied to ${skill.name}; clears after a successful rest.]`;
         }
 
         // Add to our skill tally for leveling up
@@ -2030,7 +2377,15 @@ Trade Rules: Merchants sell at listed value and buy relevant categories at 50% o
 ${activeAdventure.progression ? `[PROGRESSION & BALANCE]
 Campaign Order: ${activeAdventure.progression.campaignOrder}. Tier ${activeAdventure.progression.tier}. Recommended Level: ${activeAdventure.progression.recommendedLevel?.join('-') || 'Unlisted'}. Threat Profile: ${activeAdventure.progression.threatProfile}. Combat Expectation: ${activeAdventure.progression.combatExpectation}.
 Difficulty Notes: ${activeAdventure.progression.difficultyNotes}
-Reward Budget: ${activeAdventure.progression.rewardBudget?.skillRanks || 2} skill ranks, ${activeAdventure.progression.rewardBudget?.trainingSlots || 1} training slots, max gear ${activeAdventure.progression.rewardBudget?.maxGearTier || 'story appropriate'}, currency ${activeAdventure.progression.rewardBudget?.currencyBandCp?.join('-') || 'story appropriate'} cp, permanent unlock: ${activeAdventure.progression.rewardBudget?.permanentUnlock || 'none'}. Stay within this budget unless the player earns an exceptional ending.
+Reward Budget: ${activeAdventure.rewardModel?.guaranteedRewards?.skillPoints || activeAdventure.progression.rewardBudget?.skillPoints || 2} spendable skill points, ${activeAdventure.rewardModel?.guaranteedRewards?.trainingSlots || activeAdventure.progression.rewardBudget?.trainingSlots || 1} training slots, max gear ${activeAdventure.rewardModel?.maxGearQuality || activeAdventure.progression.rewardBudget?.maxGearTier || 'story appropriate'}, max total currency ${activeAdventure.rewardModel?.maxCurrencyBudgetCp || activeAdventure.progression.rewardBudget?.currencyBandCp?.[1] || 'story appropriate'} cp, permanent unlock: ${activeAdventure.progression.rewardBudget?.permanentUnlock || 'none'}.
+` : ''}
+
+${activeAdventure.rewardModel ? `[ENGINE-AUTHORITATIVE REWARD MODEL]
+Guaranteed Completion: +${activeAdventure.rewardModel.guaranteedRewards.skillPoints} skill points, +${activeAdventure.rewardModel.guaranteedRewards.trainingSlots} training slots, +${activeAdventure.rewardModel.guaranteedRewards.baseCurrencyCp} cp, +1 level, HP by Vigor progression.
+Opening Rewards: ${(activeAdventure.rewardModel.openingRewards || []).map(r => `${r.id} (${r.name}) available during ${r.availability || 'opening'}: ${r.baseEffect || r.notes || 'engine-defined item'}`).join('; ') || 'none'}.
+Special Rewards: ${activeAdventure.rewardModel.recommendedSpecialRewards.map(r => `${r.id} (${r.name}, ${r.type}) requires ${(r.requires || []).join(' or ')}`).join('; ') || 'none'}.
+Disallowed Permanent Rewards: ${(activeAdventure.rewardModel.disallowedRewards || []).join(', ') || 'none listed'}.
+The engine owns permanent rewards. Do not invent permanent items, currency, skill points, skill ranks, attribute increases, abilities, gems, premium turns, subscriptions, or other lasting character power. You may emit [objective_complete: id] or [ending_selected: id] only for IDs listed above when the player's actions clearly earn them. Unknown IDs are ignored by the client.
 ` : ''}
 
 ${(() => {
@@ -2167,6 +2522,8 @@ GM Instructions for automated tags:
 - Rest/Advance day: [advance_day]
 - Unlock elemental ability: [elemental_ability_unlock: fire|earth|air|water|aether]
 - Mark elemental ability as spent when used: [elemental_ability_used]
+- Record only known reward objectives/endings for the current adventure: [objective_complete: objective_id], [ending_selected: ending_id]
+- Do not award permanent skill ranks, skill points, attribute increases, major gear, gems, premium turns, or permanent abilities through freeform narration. Milestone rewards are engine-controlled.
 Ensure all tags are formatted exactly as shown. Always describe the narrative event corresponding to the tags.
 `;
 
@@ -2303,6 +2660,17 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         setActiveEnemy(null);
         setCombatStance(null);
         setCounterOpportunities(null);
+      }
+
+      // Scene boundary: expires scene-scoped reward item effects. Narration-only
+      // tag, so the GM may emit it freely — it grants nothing and can only end
+      // effects the engine already granted.
+      const sceneEndRegex = /\[scene_end\]/gi;
+      const sceneEndTriggered = sceneEndRegex.test(cleanedText);
+      cleanedText = cleanedText.replace(sceneEndRegex, '').trim();
+
+      if (sceneEndTriggered) {
+        setCharacter(prev => clearSceneItemEffectsFromCharacter(prev));
       }
 
       const enemyAttackRegex = /\[enemy_attack:\s*([^|\]]+)\|\s*([^|\]]+)\|\s*vs\s*([^|\]]+)\|\s*dmg\s*([^|\]]+)\|\s*([^|\]]+)\]/gi;
@@ -2479,6 +2847,21 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const choiceMatches = [...cleanedText.matchAll(choiceRegex)];
       cleanedText = cleanedText.replace(choiceRegex, '').trim();
 
+      const rewardModel = getAdventureRewardModel(activeAdventureId);
+      const knownOutcomeIds = new Set((rewardModel?.recommendedSpecialRewards || []).flatMap(r => r.requires || []));
+
+      const objectiveRegex = /\[objective_complete:\s*([a-z0-9_-]+)\]/gi;
+      const objectiveMatches = [...cleanedText.matchAll(objectiveRegex)]
+        .map(m => m[1].trim().toLowerCase())
+        .filter(id => knownOutcomeIds.has(id));
+      cleanedText = cleanedText.replace(objectiveRegex, '').trim();
+
+      const endingRegex = /\[ending_selected:\s*([a-z0-9_-]+)\]/gi;
+      const endingMatches = [...cleanedText.matchAll(endingRegex)]
+        .map(m => m[1].trim().toLowerCase())
+        .filter(id => knownOutcomeIds.has(id));
+      cleanedText = cleanedText.replace(endingRegex, '').trim();
+
       // Calculate HP damage mitigation details for feedback
       let combatNotice = '';
       let totalNetDamage = 0;
@@ -2565,6 +2948,12 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       if (currencyMatches.length > 0) {
         const text = currencyMatches.map(c => `${c.amount >= 0 ? '+' : ''}${c.amount} ${c.unit.toUpperCase()}`).join(', ');
         tagsFeedback += `\n\n[Currency Adjusted: ${text}]`;
+      }
+      if (objectiveMatches.length > 0) {
+        tagsFeedback += `\n\n[Objective Recorded: ${objectiveMatches.join(', ')}]`;
+      }
+      if (endingMatches.length > 0) {
+        tagsFeedback += `\n\n[Ending Recorded: ${endingMatches.join(', ')}]`;
       }
       if (parsedEnemyAttacks.length > 0) {
         tagsFeedback += `\n\n[Combat: Enemy is attacking! Defense roll required. Attacks queued: ${parsedEnemyAttacks.length}]`;
@@ -2656,6 +3045,33 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           };
         }
 
+        if (activeAdventureId && (objectiveMatches.length > 0 || endingMatches.length > 0)) {
+          const nextProgression = {
+            ...DEFAULT_CHARACTER.progression,
+            ...(updated.progression || {}),
+            completedObjectives: {
+              ...(updated.progression?.completedObjectives || {})
+            },
+            completedEndings: {
+              ...(updated.progression?.completedEndings || {})
+            }
+          };
+
+          if (objectiveMatches.length > 0) {
+            const existing = new Set(nextProgression.completedObjectives[activeAdventureId] || []);
+            objectiveMatches.forEach(id => existing.add(id));
+            nextProgression.completedObjectives[activeAdventureId] = [...existing];
+          }
+
+          if (endingMatches.length > 0) {
+            const existing = new Set(nextProgression.completedEndings[activeAdventureId] || []);
+            endingMatches.forEach(id => existing.add(id));
+            nextProgression.completedEndings[activeAdventureId] = [...existing];
+          }
+
+          updated.progression = nextProgression;
+        }
+
         if (dayAdvanced) {
           const { hasRations, updatedInventory } = consumeRationFromInventory(prev.inventory);
           updated.inventory = updatedInventory;
@@ -2685,6 +3101,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           };
           
           if (hasRations) {
+            Object.assign(updated, applyRewardRestRecovery(updated));
             updated.stats.hp = Math.min(prev.stats.maxHp || 10, prev.stats.hp + hpGained);
           }
         }
@@ -2856,6 +3273,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
               hp: nextHp,
               elementalAbilityUsed: false
             };
+            Object.assign(updated, applyRewardRestRecovery(updated));
           } else {
             const daysCount = Math.floor(restHours / 24) || 1;
             restDaysWithoutFood = (updated.daysWithoutFood || 0) + daysCount;
@@ -2888,18 +3306,14 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           else if (pool === 'divine') divineSPAmt += amt;
         });
 
-        // Skill rank improvements
-        skillUpMatches.forEach(skillStr => {
-          const matchedSkill = SKILLS_LIST.find(s => 
-            s.name.toLowerCase() === skillStr || 
-            s.id === skillStr || 
-            s.name.toLowerCase().replace(/\s+/g, '') === skillStr.replace(/\s+/g, '')
-          );
-          if (matchedSkill) {
-            const currentRank = updated.skills[matchedSkill.id] || 0;
-            updated.skills[matchedSkill.id] = Math.min(5, currentRank + 1);
-          }
-        });
+        // Permanent skill growth is now awarded by the engine as spendable
+        // skill points at milestones, not by freeform GM-generated tags.
+        if (skillUpMatches.length > 0) {
+          updated.storyEvents = [
+            ...(updated.storyEvents || []),
+            `Ignored unauthorized skill_up tag(s): ${skillUpMatches.join(', ')}`
+          ];
+        }
 
         // Status condition additions
         const newStatuses = [];
@@ -3058,8 +3472,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     }
   };
 
-  // Execute Skill Upgrades on Adventure/Milestone Complete
-  const executeMilestoneUpgrades = (chosenSkillId) => {
+  // Execute engine-authored rewards on adventure milestone completion.
+  const executeMilestoneUpgrades = () => {
     // Save final journal summary for cross-adventure reactivity
     if (activeAdventureId) {
       setAdventureSummaries(prev => ({
@@ -3068,63 +3482,140 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       }));
     }
 
-    // 1. Find most used skill in the tally
-    let mostUsedSkillId = null;
-    let maxUses = 0;
-    
-    Object.keys(skillTally).forEach((skillId) => {
-      if (skillTally[skillId] > maxUses) {
-        maxUses = skillTally[skillId];
-        mostUsedSkillId = skillId;
-      }
-    });
-
     setCharacter(prev => {
-      const updatedSkills = { ...prev.skills };
-      
-      // Upgrade most used skill (+1)
-      if (mostUsedSkillId) {
-        updatedSkills[mostUsedSkillId] = Math.min(5, (updatedSkills[mostUsedSkillId] || 0) + 1);
-      }
-      
-      // Upgrade chosen skill (+1) if valid and not the same as most used (unless chosen)
-      if (chosenSkillId && chosenSkillId !== mostUsedSkillId) {
-        updatedSkills[chosenSkillId] = Math.min(5, (updatedSkills[chosenSkillId] || 0) + 1);
-      }
-
-      const oldMaxArcane = prev.stats.maxArcaneSP || 0;
-      const oldMaxDivine = prev.stats.maxDivineSP || 0;
-      const newMaxArcane = (updatedSkills.arcane_drawing || 0) * 3;
-      const newMaxDivine = (updatedSkills.divine_communion || 0) * 3;
-
       const nextCompletedAdventures = [...(prev.completed_adventures || [])];
-      if (activeAdventureId && !nextCompletedAdventures.includes(activeAdventureId)) {
+      const isFirstCompletion = !!activeAdventureId && !nextCompletedAdventures.includes(activeAdventureId);
+      if (isFirstCompletion) {
         nextCompletedAdventures.push(activeAdventureId);
       }
 
-      const slotsAwarded = ADVENTURE_TRAINING_SLOTS[activeAdventureId] || 1;
-      const nextTrainingSlots = (prev.trainingSlots || 0) + slotsAwarded;
+      const rewardModel = getAdventureRewardModel(activeAdventureId);
+      const guaranteedRewards = rewardModel?.guaranteedRewards || null;
+      const slotsAwarded = guaranteedRewards?.trainingSlots ?? ADVENTURE_TRAINING_SLOTS[activeAdventureId] ?? 1;
+      const skillPointsAwarded = guaranteedRewards?.skillPoints ?? 2;
+      const baseCurrencyCp = guaranteedRewards?.baseCurrencyCp ?? 0;
+      const nextLevel = (prev.stats.level || 1) + (isFirstCompletion ? 1 : 0);
+      const hpAwarded = isFirstCompletion ? levelHpGain(nextLevel, prev.attributes?.vigor || 1) : 0;
+      const nextTrainingSlots = (prev.trainingSlots || 0) + (isFirstCompletion ? slotsAwarded : 0);
 
       const nextEvents = [...(prev.storyEvents || [])];
       const completionEvent = `Completed Quest: ${activeAdventureId || 'Unknown'}`;
-      if (activeAdventureId && !nextEvents.includes(completionEvent)) {
+      if (isFirstCompletion && !nextEvents.includes(completionEvent)) {
         nextEvents.push(completionEvent);
+      }
+      if (!isFirstCompletion && activeAdventureId) {
+        nextEvents.push(`Milestone replay ignored for already completed quest: ${activeAdventureId}`);
+      }
+
+      const nextProgression = {
+        ...DEFAULT_CHARACTER.progression,
+        ...(prev.progression || {}),
+        boons: Array.isArray(prev.progression?.boons) ? prev.progression.boons : [],
+        completedRewardClaims: Array.isArray(prev.progression?.completedRewardClaims) ? prev.progression.completedRewardClaims : [],
+        pendingRewardChoices: Array.isArray(prev.progression?.pendingRewardChoices) ? prev.progression.pendingRewardChoices : [],
+        completedObjectives: typeof prev.progression?.completedObjectives === 'object' && prev.progression.completedObjectives !== null ? prev.progression.completedObjectives : {},
+        completedEndings: typeof prev.progression?.completedEndings === 'object' && prev.progression.completedEndings !== null ? prev.progression.completedEndings : {},
+        levelHpBonus: (prev.progression?.levelHpBonus || 0) + hpAwarded
+      };
+
+      if (isFirstCompletion && activeAdventureId) {
+        nextProgression.completedRewardClaims = [
+          ...nextProgression.completedRewardClaims,
+          `${activeAdventureId}:guaranteed`
+        ];
+      }
+
+      let nextAttributes = { ...prev.attributes };
+      let nextInventory = [...(prev.inventory || [])];
+      let nextStats = {
+        ...prev.stats,
+        level: nextLevel,
+        maxHp: (prev.stats.maxHp || 10) + hpAwarded,
+        hp: Math.min((prev.stats.maxHp || 10) + hpAwarded, (prev.stats.hp || 0) + hpAwarded)
+      };
+
+      const applyAttributeIncrease = (attributeId, cap) => {
+        const current = nextAttributes[attributeId] || 1;
+        if (current >= cap) return false;
+
+        nextAttributes = {
+          ...nextAttributes,
+          [attributeId]: Math.min(cap, current + 1)
+        };
+
+        if (attributeId === 'vigor') {
+          nextStats = {
+            ...nextStats,
+            maxHp: (nextStats.maxHp || 10) + 2,
+            hp: (nextStats.hp || 0) + 2,
+            maxFatigue: (nextStats.maxFatigue || 0) + 2.5,
+            fatigue: (nextStats.fatigue || 0) + 2.5
+          };
+        }
+
+        return true;
+      };
+
+      if (isFirstCompletion && activeAdventureId && rewardModel?.recommendedSpecialRewards?.length > 0) {
+        const achievedIds = new Set([
+          ...(nextProgression.completedObjectives[activeAdventureId] || []),
+          ...(nextProgression.completedEndings[activeAdventureId] || [])
+        ]);
+
+        rewardModel.recommendedSpecialRewards.forEach(specialReward => {
+          const claimId = `${activeAdventureId}:${specialReward.id}`;
+          const isEarned = (specialReward.requires || []).some(id => achievedIds.has(id));
+          const alreadyClaimed = nextProgression.completedRewardClaims.includes(claimId);
+          if (!isEarned || alreadyClaimed) return;
+
+          const itemOptions = specialReward.itemIds || [];
+          const attributeOptions = specialReward.attributeOptions || [];
+
+          if (specialReward.type === 'elemental_ability') {
+            nextStats = {
+              ...nextStats,
+              elementalAbility: prev.element || 'air',
+              elementalAbilityUsed: false
+            };
+            nextProgression.completedRewardClaims.push(claimId);
+            nextProgression.boons = [...nextProgression.boons, specialReward.id];
+          } else if (attributeOptions.length === 1) {
+            const attributeId = attributeOptions[0];
+            const cap = specialReward.cap || 5;
+            applyAttributeIncrease(attributeId, cap);
+            nextProgression.completedRewardClaims.push(claimId);
+            nextProgression.boons = [...nextProgression.boons, specialReward.id];
+          } else if (itemOptions.length === 1) {
+            if (!nextInventory.some(item => item.toLowerCase() === itemOptions[0].toLowerCase())) {
+              nextInventory.push(itemOptions[0]);
+            }
+            nextProgression.completedRewardClaims.push(claimId);
+            nextProgression.boons = [...nextProgression.boons, specialReward.id];
+          } else {
+            nextProgression.pendingRewardChoices.push({
+              adventureId: activeAdventureId,
+              rewardId: specialReward.id,
+              name: specialReward.name,
+              type: specialReward.type,
+              itemOptions,
+              attributeOptions,
+              cap: specialReward.cap || 5
+            });
+          }
+        });
       }
 
       return {
         ...prev,
-        skills: updatedSkills,
+        attributes: nextAttributes,
+        inventory: nextInventory,
         completed_adventures: nextCompletedAdventures,
+        skillPoints: (prev.skillPoints || 0) + (isFirstCompletion ? skillPointsAwarded : 0),
+        progression: nextProgression,
         trainingSlots: nextTrainingSlots,
         storyEvents: nextEvents,
-        stats: {
-          ...prev.stats,
-          level: prev.stats.level + 1, // Increase level on milestone!
-          maxArcaneSP: newMaxArcane,
-          arcaneSP: (prev.stats.arcaneSP || 0) + (newMaxArcane - oldMaxArcane),
-          maxDivineSP: newMaxDivine,
-          divineSP: (prev.stats.divineSP || 0) + (newMaxDivine - oldMaxDivine)
-        }
+        currency: isFirstCompletion ? addCopperToCurrency(prev.currency, baseCurrencyCp) : prev.currency,
+        stats: nextStats
       };
     });
 
@@ -3211,6 +3702,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     storage.set(`slot_${activeSlotIndex}_pre_adventure_character`, character);
     
     const adventure = ADVENTURES_LIST.find(a => a.id === adventureId);
+    const rewardModel = getAdventureRewardModel(adventureId);
     const startLocation = adventure?.settings?.[0] || '';
     setCurrentLocation(startLocation);
 
@@ -3261,8 +3753,40 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         };
       }
 
+      const nextProgression = {
+        ...DEFAULT_CHARACTER.progression,
+        ...(prev.progression || {}),
+        completedRewardClaims: Array.isArray(prev.progression?.completedRewardClaims) ? prev.progression.completedRewardClaims : [],
+        boons: Array.isArray(prev.progression?.boons) ? prev.progression.boons : []
+      };
+      const openingItems = [];
+      const openingBoons = [];
+      if (!isFreeRoam) {
+        (rewardModel?.openingRewards || []).forEach(openingReward => {
+          const claimId = `${adventureId}:${openingReward.id}`;
+          if (nextProgression.completedRewardClaims.includes(claimId)) return;
+
+          (openingReward.itemIds || []).forEach(itemName => openingItems.push(itemName));
+          openingBoons.push(openingReward.id);
+          nextProgression.completedRewardClaims = [
+            ...nextProgression.completedRewardClaims,
+            claimId
+          ];
+        });
+      }
+
+      const nextInventory = [...(prev.inventory || [])];
+      openingItems.forEach(itemName => {
+        if (!nextInventory.some(item => item.toLowerCase() === itemName.toLowerCase())) {
+          nextInventory.push(itemName);
+        }
+      });
+      if (openingBoons.length > 0) {
+        nextProgression.boons = [...nextProgression.boons, ...openingBoons];
+      }
+
       const nextEquipment = { ...emptyEquipment, backpack: 'Small Backpack' };
-      (prev.inventory || []).forEach(item => {
+      nextInventory.forEach(item => {
         const details = getItemDetails(item);
         const slot = details.slot;
         if (!slot) return;
@@ -3294,7 +3818,12 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
       return {
         ...prev,
+        inventory: nextInventory,
         equipment: nextEquipment,
+        progression: nextProgression,
+        storyEvents: openingBoons.length > 0
+          ? [...(prev.storyEvents || []), `Opening Reward Claimed: ${openingItems.join(', ')}`]
+          : prev.storyEvents,
         is_free_roaming: isFreeRoam,
         stats: {
           ...prev.stats,
@@ -3431,12 +3960,13 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         }, 100);
       }
 
-      return {
+      const restedCharacter = {
         ...prev,
         inventory: nextInv,
         daysWithoutFood: nextDaysWithoutFood,
         stats
       };
+      return hasRations ? applyRewardRestRecovery(restedCharacter) : restedCharacter;
     });
   };
 
@@ -3657,6 +4187,23 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     const enemyAttack = enemyAttacksQueue[attackIndex];
     if (!enemyAttack) return;
 
+    if (activeEnemy.statuses?.poisoned) {
+      const poisonMissed = Math.random() < 0.25;
+      const nextQueue = enemyAttacksQueue.filter((_, idx) => idx !== attackIndex);
+      setEnemyAttacksQueue(nextQueue);
+      setActiveEnemy(prev => ({ ...prev, statuses: { ...(prev?.statuses || {}), poisoned: false } }));
+
+      if (poisonMissed) {
+        const newLogMsg = {
+          role: 'model',
+          content: `*The poison in ${activeEnemy.name}'s veins takes hold. The attack falters before it lands.*\n\n[Reward Item Effect: Poison from Glass Thorn Dagger caused ${enemyAttack.name} to miss. The poison has been consumed.]`,
+          checkDetails: null
+        };
+        setHistory(prev => [...prev, newLogMsg]);
+        return;
+      }
+    }
+
     // Enforce weapon or shield requirement for blocking
     const rightItem = character.equipment?.hand_right;
     const leftItem = character.equipment?.hand_left;
@@ -3696,7 +4243,11 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     const defensePenalty = defenseCount * -2;
 
     // Modifiers
-    const shieldMagicBonus = (defenseSkillId === 'blocking') ? getMagicBonus(shieldName) : 0;
+    const attackDamageType = (enemyAttack.damageType || '').toLowerCase();
+    let shieldMagicBonus = (defenseSkillId === 'blocking') ? getMagicBonus(shieldName) : 0;
+    if (defenseSkillId === 'blocking' && shieldName?.toLowerCase().includes('flame-ward shield +2') && !/(fire|heat|flame|elemental)/.test(attackDamageType)) {
+      shieldMagicBonus = 1;
+    }
 
     const armorName = character.equipment?.body;
     const armorType = getArmorType(armorName);
@@ -3723,7 +4274,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     const totalDefModifier = defensePenalty - starvationPenalty - exhaustionPenalty + shieldMagicBonus + armorCheckPenalty + stanceBonus;
 
     const playerRollTotal = primaryRoll + secondaryRoll + skillRoll + totalDefModifier;
-    const enemyRollTotal = rollDiceExpression(enemyAttack.diceExpr);
+    const attackModifier = activeEnemy?.attackModifier || 0;
+    const enemyRollTotal = rollDiceExpression(enemyAttack.diceExpr) + attackModifier;
 
     const margin = playerRollTotal - enemyRollTotal;
     const defenseSuccess = margin >= 0;
@@ -3761,7 +4313,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     }
 
     let typeModifier = 0;
-    const dt = (enemyAttack.damageType || '').toLowerCase();
+    const dt = attackDamageType;
     if (dt && armorName) {
       if (armorType === 'light') {
         if (dt === 'piercing') typeModifier = -2;
@@ -3792,6 +4344,27 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       rawDamageRoll = rollDiceExpression(enemyAttack.damageExpr);
       rawDamage = rawDamageRoll;
       netDamage = Math.max(0, rawDamage - finalArmorSoak - shieldSoak);
+    }
+
+    const activeRewardEffects = character.progression?.activeItemEffects || [];
+    const rootedResistance = activeRewardEffects.find(effect => effect.id === 'rooted_resistance');
+    const frostfireWard = activeRewardEffects.find(effect => effect.id === 'frostfire_stance');
+    let rootedReduction = 0;
+    if (rootedResistance && netDamage > 0 && ['blunt', 'edged', 'piercing', ''].includes(dt)) {
+      rootedReduction = Math.min(netDamage, 5);
+      netDamage = Math.max(0, netDamage - rootedReduction);
+      setCharacter(prev => removeActiveItemEffectsFromCharacter(prev, ['rooted_resistance']));
+    }
+    let frostfireReduction = 0;
+    if (frostfireWard && netDamage > 0 && /(fire|heat|flame|cold|frost|ice|elemental)/.test(dt)) {
+      frostfireReduction = Math.min(netDamage, frostfireWard.reduction || 3);
+      netDamage = Math.max(0, netDamage - frostfireReduction);
+    }
+    let flameWardPrevented = false;
+    if (shieldName?.toLowerCase().includes('flame-ward shield +2') && characterHasAffinity(character, 'fire') && netDamage > 0 && /(fire|heat|flame)/.test(dt) && getCooldownReady(character, shieldName, 'fire_ward_prevention')) {
+      flameWardPrevented = true;
+      netDamage = 0;
+      setCharacter(prev => setItemCooldownOnCharacter(prev, shieldName, 'fire_ward_prevention', '8_hours', 8));
     }
 
     // Bleeding logic
@@ -3869,7 +4442,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
     // Add to history
     const defSkillName = defenseSkillId === 'acrobatics' ? 'Dodge (Acrobatics)' : 'Block (Blocking)';
-    const rollText = `[Defense Check: ${defSkillName} vs ${enemyAttack.name}. Player Roll: ${playerRollTotal} (Base ${primaryRoll} + ${secondaryRoll} + Skill ${skillRoll} + Modifiers ${totalDefModifier}), Enemy Roll: ${enemyRollTotal}. ${defenseSuccess ? 'Success' : 'Failure'} (${margin >= 0 ? '+' : ''}${margin} margin)]`;
+    const rollText = `[Defense Check: ${defSkillName} vs ${enemyAttack.name}. Player Roll: ${playerRollTotal} (Base ${primaryRoll} + ${secondaryRoll} + Skill ${skillRoll} + Modifiers ${totalDefModifier}), Enemy Roll: ${enemyRollTotal} (Base Roll${attackModifier ? ` + Scaling ${attackModifier}` : ''}). ${defenseSuccess ? 'Success' : 'Failure'} (${margin >= 0 ? '+' : ''}${margin} margin)]`;
 
     let combatResultText;
     if (defenseSuccess) {
@@ -3884,6 +4457,15 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
     if (setBleedTier !== null) {
       combatResultText += ` Bleeding Tier was set to ${setBleedTier} due to high-margin ${enemyAttack.damageType || 'edged'} hit!`;
+    }
+    if (rootedReduction > 0) {
+      combatResultText += ` Dawnbound rooted resistance reduced the physical damage by ${rootedReduction} HP and was consumed.`;
+    }
+    if (frostfireReduction > 0) {
+      combatResultText += ` Frostfire Heart ward reduced elemental damage by ${frostfireReduction} HP.`;
+    }
+    if (flameWardPrevented) {
+      combatResultText += ` Flame-ward Shield +2 ignored this fire damage instance and is on an 8-hour cooldown.`;
     }
 
     const displayTime = formatTime(timeResult.nextDay, timeResult.nextHour);
@@ -3934,6 +4516,199 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     }
 
     const nameLower = itemName.toLowerCase();
+    const rewardItem = getRewardItemByName(itemName);
+
+    if (rewardItem) {
+      const equippedNames = Object.values(character.equipment || {}).filter(Boolean);
+      const ownsItem = (character.inventory || []).includes(itemName) || equippedNames.includes(itemName);
+      if (!ownsItem) {
+        setApiError(`You do not have ${itemName}.`);
+        return;
+      }
+
+      const requireAffinity = (affinity) => {
+        if (!characterHasAffinity(character, affinity)) {
+          setApiError(`${itemName}'s active power requires ${affinity} affinity.`);
+          return false;
+        }
+        return true;
+      };
+
+      const requireReady = (effectId = 'primary') => {
+        if (!getCooldownReady(character, itemName, effectId)) {
+          setApiError(`${itemName}'s active power is not ready yet. Rest or wait for its cooldown.`);
+          return false;
+        }
+        return true;
+      };
+
+      const addEngineLog = (content) => {
+        setHistory(prev => [...prev, { role: 'model', content, checkDetails: null }]);
+      };
+
+      if (nameLower.includes('blessed bell clapper')) {
+        if (!requireReady('restore_divine_sp')) return;
+        // The clapper does one of two things, not both: it stabilizes the dying,
+        // or it restores Divine SP. Resolve which from the character's state so
+        // the choice needs no extra prompt.
+        const isDying = (character.stats?.hp ?? 1) <= 0;
+        updateCharacterStats(prev => {
+          const stats = { ...prev.stats };
+          if (isDying) {
+            // Stabilizing must also end the death spiral. Leaving deathCountdown
+            // or bleeding set would let the countdown finish off a character the
+            // clapper just saved.
+            stats.hp = Math.max(1, prev.stats?.hp || 0);
+            stats.deathCountdown = null;
+            stats.bleedingTier = 0;
+          } else {
+            stats.divineSP = prev.stats?.maxDivineSP || 0;
+          }
+          return setItemCooldownOnCharacter({ ...prev, stats }, itemName, 'restore_divine_sp', 'rest');
+        });
+        const affinityText = characterHasAffinity(character, 'aether') ? ' Aether affinity also repels undead for one round.' : '';
+        const outcomeText = isDying
+          ? 'Stabilized at 1 HP; bleeding and the death countdown were ended.'
+          : 'Divine SP restored to full.';
+        addEngineLog(`[Reward Item Used: ${itemName}. ${outcomeText}${affinityText} Cooldown: once per rest.]`);
+        return;
+      }
+
+      if (nameLower.includes('amulet of tide-taming')) {
+        if (!requireReady('underwater_breathing')) return;
+        updateCharacterStats(prev => {
+          const withEffect = addActiveItemEffectToCharacter(prev, {
+            id: 'underwater_breathing',
+            source: itemName,
+            appliesToAllies: characterHasAffinity(prev, 'water'),
+            expires: 'scene'
+          });
+          return setItemCooldownOnCharacter(withEffect, itemName, 'underwater_breathing', 'rest');
+        });
+        const targetText = characterHasAffinity(character, 'water') ? 'the party' : 'the player';
+        addEngineLog(`[Reward Item Used: ${itemName}. Engine effect active: ${targetText} can breathe underwater for the current scene. Cooldown: once per rest.]`);
+        return;
+      }
+
+      if (nameLower.includes('pearl memory scale')) {
+        const rerollSkills = ['lore', 'insight', 'perception', 'negotiation', 'deception'];
+        if (!requireReady('memory_reroll')) return;
+        if (!lastCheck || lastCheck.success || !rerollSkills.includes(lastCheck.skillId)) {
+          setApiError('Pearl Memory Scale can only be used after a failed Lore, Insight, Perception, Negotiation, or Deception check.');
+          return;
+        }
+        updateCharacterStats(prev => {
+          let next = addActiveItemEffectToCharacter(prev, {
+            id: 'pearl_memory_focus',
+            source: itemName,
+            skillId: lastCheck.skillId,
+            bonus: 4,
+            expires: 'next_matching_check'
+          });
+          if (!characterHasAffinity(prev, 'aether')) {
+            next = addTemporarySkillPenaltyToCharacter(next, lastCheck.skillId, 1);
+          }
+          return setItemCooldownOnCharacter(next, itemName, 'memory_reroll', 'rest');
+        });
+        const costText = characterHasAffinity(character, 'aether') ? 'Aether affinity prevents the memory-cost penalty.' : `A -1 ${lastCheck.skillId} penalty applies until the next successful rest.`;
+        addEngineLog(`[Reward Item Used: ${itemName}. Engine effect active: +4 to the next ${lastCheck.skillId} check. ${costText} Cooldown: once per rest.]`);
+        return;
+      }
+
+      if (nameLower.includes('+1 dagger (voss crest)')) {
+        if (!requireAffinity('fire') || !requireReady('kindle_flame')) return;
+        updateCharacterStats(prev => {
+          const withEffect = addActiveItemEffectToCharacter(prev, {
+            id: 'normal_flame',
+            source: itemName,
+            expires: 'scene'
+          });
+          return setItemCooldownOnCharacter(withEffect, itemName, 'kindle_flame', 'rest');
+        });
+        addEngineLog(`[Reward Item Used: ${itemName}. Engine effect active: a normal flame is kindled in the current scene. Cooldown: once per rest.]`);
+        return;
+      }
+
+      if (nameLower.includes('+1 shield (voss crest)')) {
+        if (!requireAffinity('aether') || !requireReady('aether_reveal')) return;
+        updateCharacterStats(prev => {
+          const withEffect = addActiveItemEffectToCharacter(prev, {
+            id: 'aether_reveal',
+            source: itemName,
+            bonus: 2,
+            expires: 'next_reveal_check'
+          });
+          return setItemCooldownOnCharacter(withEffect, itemName, 'aether_reveal', 'rest');
+        });
+        addEngineLog(`[Reward Item Used: ${itemName}. Engine effect active: +2 to the next Perception, Insight, Lore, or Divine Communion check to reveal alignment, curse, undead taint, or possession. Cooldown: once per rest.]`);
+        return;
+      }
+
+      if (nameLower.includes("saint orra's veil +3")) {
+        if (!requireAffinity('aether') || !requireReady('orra_true_sight')) return;
+        updateCharacterStats(prev => {
+          const withEffect = addActiveItemEffectToCharacter(prev, {
+            id: 'aether_reveal',
+            source: itemName,
+            bonus: 3,
+            expires: 'next_reveal_check'
+          });
+          return setItemCooldownOnCharacter(withEffect, itemName, 'orra_true_sight', 'rest');
+        });
+        addEngineLog(`[Reward Item Used: ${itemName}. Engine effect active: +3 to the next Perception, Insight, Lore, or Divine Communion check against illusion, possession, or a false double. Cooldown: once per rest.]`);
+        return;
+      }
+
+      if (nameLower.includes('dawnbound sickle +3')) {
+        if (!requireAffinity('earth') || !requireReady('rooted_resistance')) return;
+        updateCharacterStats(prev => {
+          const withEffect = addActiveItemEffectToCharacter(prev, {
+            id: 'rooted_resistance',
+            source: itemName,
+            reduction: 5,
+            expires: 'next_physical_hit'
+          });
+          return setItemCooldownOnCharacter(withEffect, itemName, 'rooted_resistance', 'rest');
+        });
+        addEngineLog(`[Reward Item Used: ${itemName}. Engine effect active: the next physical damage taken is reduced by 5 HP, and forced movement is resisted for the scene. Cooldown: once per rest.]`);
+        return;
+      }
+
+      if (nameLower.includes('frostfire heart')) {
+        if (!requireReady('frostfire_stance')) return;
+        updateCharacterStats(prev => {
+          const withEffect = addActiveItemEffectToCharacter(prev, {
+            id: 'frostfire_stance',
+            source: itemName,
+            stance: characterHasAffinity(prev, 'water') ? 'frost_ward' : 'elemental_ward',
+            reduction: 3,
+            expires: 'scene'
+          });
+          return setItemCooldownOnCharacter(withEffect, itemName, 'frostfire_stance', 'rest');
+        });
+        const stanceText = characterHasAffinity(character, 'water') ? 'Water affinity grants party cold ward for the scene.' : 'Elemental ward active for the scene.';
+        addEngineLog(`[Reward Item Used: ${itemName}. Engine effect active: ${stanceText} Cooldown: once per rest.]`);
+        return;
+      }
+
+      if (nameLower.includes('masterwork tool kit +2') && characterHasAffinity(character, 'air')) {
+        if (!requireReady('quick_repair')) return;
+        updateCharacterStats(prev => {
+          const withEffect = addActiveItemEffectToCharacter(prev, {
+            id: 'quick_repair',
+            source: itemName,
+            expires: 'next_crafting_check'
+          });
+          return setItemCooldownOnCharacter(withEffect, itemName, 'quick_repair', 'rest');
+        });
+        addEngineLog(`[Reward Item Used: ${itemName}. Engine effect active: the next field repair can complete in half the normal time. Cooldown: once per rest.]`);
+        return;
+      }
+
+      setApiError(`${itemName} has passive engine bonuses but no direct activation.`);
+      return;
+    }
+
     let isBandage = nameLower.includes('bandage');
     let isHealerKit = nameLower.includes("healer's kit") || nameLower.includes("healer's satchel");
     let isHerb = nameLower.includes('herb') || nameLower.includes('poultice');
@@ -4238,6 +5013,154 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     });
   };
 
+  const spendSkillPoints = (skillId) => {
+    const currentRank = character.skills?.[skillId] || 0;
+    const cost = skillRankCost(currentRank);
+    const available = character.skillPoints || 0;
+
+    if (currentRank >= SKILL_RANK_CAP) {
+      return { ok: false, reason: 'max_rank' };
+    }
+
+    if (available < cost) {
+      return { ok: false, reason: 'not_enough_points', cost, available };
+    }
+
+    setCharacter(prev => {
+      const latestRank = prev.skills?.[skillId] || 0;
+      const latestCost = skillRankCost(latestRank);
+      const latestAvailable = prev.skillPoints || 0;
+
+      if (latestRank >= SKILL_RANK_CAP || latestAvailable < latestCost) {
+        return prev;
+      }
+
+      const nextSkills = {
+        ...prev.skills,
+        [skillId]: latestRank + 1
+      };
+
+      const oldMaxArcane = prev.stats.maxArcaneSP || 0;
+      const oldMaxDivine = prev.stats.maxDivineSP || 0;
+      const newMaxArcane = (nextSkills.arcane_drawing || 0) * 3;
+      const newMaxDivine = (nextSkills.divine_communion || 0) * 3;
+
+      return {
+        ...prev,
+        skills: nextSkills,
+        skillPoints: latestAvailable - latestCost,
+        stats: {
+          ...prev.stats,
+          maxArcaneSP: newMaxArcane,
+          arcaneSP: (prev.stats.arcaneSP || 0) + (newMaxArcane - oldMaxArcane),
+          maxDivineSP: newMaxDivine,
+          divineSP: (prev.stats.divineSP || 0) + (newMaxDivine - oldMaxDivine)
+        }
+      };
+    });
+
+    return { ok: true, cost, newRank: currentRank + 1 };
+  };
+
+  const claimPendingRewardChoice = (rewardId, choiceType, choiceValue) => {
+    const pendingChoices = character.progression?.pendingRewardChoices || [];
+    const pending = pendingChoices.find(choice => choice.rewardId === rewardId);
+    if (!pending) {
+      return { ok: false, reason: 'not_found' };
+    }
+
+    const claimId = `${pending.adventureId}:${pending.rewardId}`;
+    if ((character.progression?.completedRewardClaims || []).includes(claimId)) {
+      return { ok: false, reason: 'already_claimed' };
+    }
+
+    if (choiceType === 'attribute') {
+      if (!(pending.attributeOptions || []).includes(choiceValue)) {
+        return { ok: false, reason: 'invalid_attribute' };
+      }
+      const current = character.attributes?.[choiceValue] || 1;
+      const cap = pending.cap || 5;
+      if (current >= cap) {
+        return { ok: false, reason: 'attribute_at_cap' };
+      }
+    } else if (choiceType === 'item') {
+      if (!(pending.itemOptions || []).includes(choiceValue)) {
+        return { ok: false, reason: 'invalid_item' };
+      }
+    } else {
+      return { ok: false, reason: 'invalid_choice_type' };
+    }
+
+    setCharacter(prev => {
+      const latestPendingChoices = prev.progression?.pendingRewardChoices || [];
+      const latestPending = latestPendingChoices.find(choice => choice.rewardId === rewardId);
+      if (!latestPending) {
+        return prev;
+      }
+
+      const latestClaimId = `${latestPending.adventureId}:${latestPending.rewardId}`;
+      if ((prev.progression?.completedRewardClaims || []).includes(latestClaimId)) {
+        return prev;
+      }
+
+      let nextAttributes = { ...prev.attributes };
+      let nextInventory = [...(prev.inventory || [])];
+      let nextStats = { ...prev.stats };
+
+      if (choiceType === 'attribute') {
+        if (!(latestPending.attributeOptions || []).includes(choiceValue)) {
+          return prev;
+        }
+        const current = nextAttributes[choiceValue] || 1;
+        const cap = latestPending.cap || 5;
+        if (current >= cap) {
+          return prev;
+        }
+        nextAttributes[choiceValue] = Math.min(cap, current + 1);
+        if (choiceValue === 'vigor') {
+          nextStats = {
+            ...nextStats,
+            maxHp: (nextStats.maxHp || 10) + 2,
+            hp: (nextStats.hp || 0) + 2,
+            maxFatigue: (nextStats.maxFatigue || 0) + 2.5,
+            fatigue: (nextStats.fatigue || 0) + 2.5
+          };
+        }
+      } else if (choiceType === 'item') {
+        if (!(latestPending.itemOptions || []).includes(choiceValue)) {
+          return prev;
+        }
+        if (!nextInventory.some(item => item.toLowerCase() === choiceValue.toLowerCase())) {
+          nextInventory.push(choiceValue);
+        }
+      } else {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        attributes: nextAttributes,
+        inventory: nextInventory,
+        stats: nextStats,
+        progression: {
+          ...DEFAULT_CHARACTER.progression,
+          ...(prev.progression || {}),
+          pendingRewardChoices: latestPendingChoices.filter(choice => choice.rewardId !== rewardId),
+          completedRewardClaims: [
+            ...(prev.progression?.completedRewardClaims || []),
+            latestClaimId
+          ],
+          boons: [
+            ...(prev.progression?.boons || []),
+            latestPending.rewardId
+          ]
+        }
+      };
+    });
+
+    return { ok: true, rewardId, choiceType, choiceValue };
+  };
+
   const getMoralityCombatModifiers = (enemy, playerMorality) => {
     let hitBonus = 0;
     let dmgBonus = 0;
@@ -4311,14 +5234,15 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
     // Retrieve enemy defenses info
     const enemyDodgeVal = activeEnemy.defenses?.dodge || activeEnemy.defenses?.block || "10";
-    const enemyDefenseRoll = rollDiceExpression(enemyDodgeVal);
+    const defenseModifier = activeEnemy.defenseModifier || 0;
+    const enemyDefenseRoll = rollDiceExpression(enemyDodgeVal) + defenseModifier;
 
     // Calculate morality bonuses
     const { hitBonus, dmgBonus } = getMoralityCombatModifiers(activeEnemy, character.morality || 0);
 
     if (maneuverType === 'melee') {
       const rightItem = character.equipment?.hand_right;
-      const weaponProps = getWeaponProperties(rightItem);
+      const weaponProps = getRewardWeaponProfile(rightItem, character, activeEnemy, activeAdventureId);
       
       const attr1Roll = rollAttribute(character.attributes.coordination || 1);
       const attr2Roll = rollAttribute(character.attributes.power || 1);
@@ -4329,36 +5253,53 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         skillRoll += rollDie(2);
       }
 
-      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + (nextRollModifier || 0);
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + weaponProps.attackBonus + (nextRollModifier || 0);
       const isHit = totalRoll >= enemyDefenseRoll;
       setNextRollModifier(0);
 
       actionDesc = `I strike the ${activeEnemy.name} with my ${weaponProps.name}!`;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression(weaponProps.dice) + dmgBonus;
+        const rawDmg = rollDiceExpression(weaponProps.dice) + dmgBonus + weaponProps.damageBonus;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
+        const effectTexts = [];
+        const nextEnemyStatuses = { ...(activeEnemy.statuses || {}) };
 
-        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : '';
+        weaponProps.effects.forEach(effect => {
+          if (effect.type === 'cooldown') {
+            setCharacter(prev => setItemCooldownOnCharacter(prev, effect.itemName, effect.effectId, effect.reset, 8));
+            effectTexts.push(effect.text);
+          } else if (effect.type === 'poison') {
+            const poisoned = Math.random() < effect.chance;
+            effectTexts.push(`${effect.text}: ${poisoned ? 'poison applied' : 'no poison'}`);
+            if (poisoned) nextEnemyStatuses.poisoned = true;
+          } else if (effect.type === 'passive') {
+            effectTexts.push(effect.text);
+          }
+        });
+
+        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${weaponProps.attackBonus ? `, Weapon Bonus: +${weaponProps.attackBonus}` : ''}${weaponProps.damageBonus ? `, Reward Damage Bonus: +${weaponProps.damageBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''}`;
         systemNotice = `[Combat Action: Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
           systemNotice += " [combat_end]";
         }
 
-        setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
+        setActiveEnemy(prev => ({ ...prev, hp: nextHp, statuses: nextEnemyStatuses }));
       } else {
-        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : '';
+        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : ''}${weaponProps.attackBonus ? `, Weapon Bonus: +${weaponProps.attackBonus}` : ''}`;
         systemNotice = `[Combat Action: Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
       }
     } else if (maneuverType === 'ranged') {
       const rightItem = character.equipment?.hand_right;
       const leftItem = character.equipment?.hand_left;
       const isCrossbow = (rightItem && rightItem.toLowerCase().includes('crossbow')) || (leftItem && leftItem.toLowerCase().includes('crossbow'));
-      const bowName = isCrossbow ? "Crossbow" : "Hunting Bow";
-      const bowDice = isCrossbow ? "1d8" : "1d6";
+      const equippedRanged = [rightItem, leftItem].find(item => item && /\b(bow|crossbow)\b/i.test(item));
+      const bowName = equippedRanged || (isCrossbow ? "Crossbow" : "Hunting Bow");
+      const bowProfile = getRewardWeaponProfile(bowName, character, activeEnemy, activeAdventureId);
+      const bowDice = isCrossbow && !equippedRanged ? "1d8" : bowProfile.dice;
 
       const attr1Roll = rollAttribute(character.attributes.coordination || 1);
       const attr2Roll = rollAttribute(character.attributes.coordination || 1);
@@ -4369,7 +5310,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         skillRoll += rollDie(2);
       }
 
-      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + (nextRollModifier || 0);
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + bowProfile.attackBonus + (nextRollModifier || 0);
       const isHit = totalRoll >= enemyDefenseRoll;
       setNextRollModifier(0);
 
@@ -4377,12 +5318,22 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       consumesArrow = true;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression(bowDice) + dmgBonus;
+        const rawDmg = rollDiceExpression(bowDice) + dmgBonus + bowProfile.damageBonus;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
+        const effectTexts = [];
 
-        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : '';
+        bowProfile.effects.forEach(effect => {
+          if (effect.type === 'cooldown') {
+            setCharacter(prev => setItemCooldownOnCharacter(prev, effect.itemName, effect.effectId, effect.reset, 8));
+            effectTexts.push(effect.text);
+          } else if (effect.type === 'passive') {
+            effectTexts.push(effect.text);
+          }
+        });
+
+        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${bowProfile.attackBonus ? `, Weapon Bonus: +${bowProfile.attackBonus}` : ''}${bowProfile.damageBonus ? `, Reward Damage Bonus: +${bowProfile.damageBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''}`;
         systemNotice = `[Combat Action: Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
@@ -4391,7 +5342,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
         setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
       } else {
-        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : '';
+        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : ''}${bowProfile.attackBonus ? `, Weapon Bonus: +${bowProfile.attackBonus}` : ''}`;
         systemNotice = `[Combat Action: Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
       }
     } else if (maneuverType === 'arcane_attack') {
@@ -4534,14 +5485,15 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
     // Retrieve enemy defenses info
     const enemyDodgeVal = activeEnemy.defenses?.dodge || activeEnemy.defenses?.block || "10";
-    const enemyDefenseRoll = rollDiceExpression(enemyDodgeVal);
+    const defenseModifier = activeEnemy.defenseModifier || 0;
+    const enemyDefenseRoll = rollDiceExpression(enemyDodgeVal) + defenseModifier;
 
     // Calculate morality bonuses
     const { hitBonus, dmgBonus } = getMoralityCombatModifiers(activeEnemy, character.morality || 0);
 
     if (counterType === 'melee') {
       const rightItem = character.equipment?.hand_right;
-      const weaponProps = getWeaponProperties(rightItem);
+      const weaponProps = getRewardWeaponProfile(rightItem, character, activeEnemy, activeAdventureId);
       
       const attr1Roll = rollAttribute(character.attributes.coordination || 1);
       const attr2Roll = rollAttribute(character.attributes.power || 1);
@@ -4552,35 +5504,52 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         skillRoll += rollDie(2);
       }
 
-      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus;
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + weaponProps.attackBonus;
       const isHit = totalRoll >= enemyDefenseRoll;
 
       actionDesc = `*Reacting instantly, I launch a Melee Counter-Strike at the ${activeEnemy.name} with my ${weaponProps.name}!*`;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression(weaponProps.dice) + dmgBonus;
+        const rawDmg = rollDiceExpression(weaponProps.dice) + dmgBonus + weaponProps.damageBonus;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
+        const effectTexts = [];
+        const nextEnemyStatuses = { ...(activeEnemy.statuses || {}) };
 
-        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : '';
+        weaponProps.effects.forEach(effect => {
+          if (effect.type === 'cooldown') {
+            setCharacter(prev => setItemCooldownOnCharacter(prev, effect.itemName, effect.effectId, effect.reset, 8));
+            effectTexts.push(effect.text);
+          } else if (effect.type === 'poison') {
+            const poisoned = Math.random() < effect.chance;
+            effectTexts.push(`${effect.text}: ${poisoned ? 'poison applied' : 'no poison'}`);
+            if (poisoned) nextEnemyStatuses.poisoned = true;
+          } else if (effect.type === 'passive') {
+            effectTexts.push(effect.text);
+          }
+        });
+
+        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${weaponProps.attackBonus ? `, Weapon Bonus: +${weaponProps.attackBonus}` : ''}${weaponProps.damageBonus ? `, Reward Damage Bonus: +${weaponProps.damageBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''}`;
         systemNotice = `[Combat Action: Opportunity Counter-Attack! Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
           systemNotice += " [combat_end]";
         }
 
-        setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
+        setActiveEnemy(prev => ({ ...prev, hp: nextHp, statuses: nextEnemyStatuses }));
       } else {
-        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : '';
+        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : ''}${weaponProps.attackBonus ? `, Weapon Bonus: +${weaponProps.attackBonus}` : ''}`;
         systemNotice = `[Combat Action: Opportunity Counter-Attack! Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
       }
     } else if (counterType === 'ranged') {
       const rightItem = character.equipment?.hand_right;
       const leftItem = character.equipment?.hand_left;
       const isCrossbow = (rightItem && rightItem.toLowerCase().includes('crossbow')) || (leftItem && leftItem.toLowerCase().includes('crossbow'));
-      const bowName = isCrossbow ? "Crossbow" : "Hunting Bow";
-      const bowDice = isCrossbow ? "1d8" : "1d6";
+      const equippedRanged = [rightItem, leftItem].find(item => item && /\b(bow|crossbow)\b/i.test(item));
+      const bowName = equippedRanged || (isCrossbow ? "Crossbow" : "Hunting Bow");
+      const bowProfile = getRewardWeaponProfile(bowName, character, activeEnemy, activeAdventureId);
+      const bowDice = isCrossbow && !equippedRanged ? "1d8" : bowProfile.dice;
 
       const attr1Roll = rollAttribute(character.attributes.coordination || 1);
       const attr2Roll = rollAttribute(character.attributes.coordination || 1);
@@ -4591,18 +5560,28 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         skillRoll += rollDie(2);
       }
 
-      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus;
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + bowProfile.attackBonus;
       const isHit = totalRoll >= enemyDefenseRoll;
 
       actionDesc = `*Seizing the opening, I launch a Ranged Counter-Strike at the ${activeEnemy.name} with my ${bowName}!*`;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression(bowDice) + dmgBonus;
+        const rawDmg = rollDiceExpression(bowDice) + dmgBonus + bowProfile.damageBonus;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
+        const effectTexts = [];
 
-        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : '';
+        bowProfile.effects.forEach(effect => {
+          if (effect.type === 'cooldown') {
+            setCharacter(prev => setItemCooldownOnCharacter(prev, effect.itemName, effect.effectId, effect.reset, 8));
+            effectTexts.push(effect.text);
+          } else if (effect.type === 'passive') {
+            effectTexts.push(effect.text);
+          }
+        });
+
+        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${bowProfile.attackBonus ? `, Weapon Bonus: +${bowProfile.attackBonus}` : ''}${bowProfile.damageBonus ? `, Reward Damage Bonus: +${bowProfile.damageBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''}`;
         systemNotice = `[Combat Action: Opportunity Counter-Attack! Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
@@ -4611,7 +5590,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
         setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
       } else {
-        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : '';
+        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : ''}${bowProfile.attackBonus ? `, Weapon Bonus: +${bowProfile.attackBonus}` : ''}`;
         systemNotice = `[Combat Action: Opportunity Counter-Attack! Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
       }
     } else if (counterType === 'arcane') {
@@ -4691,6 +5670,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     character,
     initializeMerchantStock,
     trainSkillWithMerchant,
+    spendSkillPoints,
+    claimPendingRewardChoice,
     triggerPriceRecovery,
     buyItemFromMerchant,
     sellItemToMerchant,

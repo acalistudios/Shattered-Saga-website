@@ -11,7 +11,7 @@ export const ADVENTURE_PROGRESSION_METADATA = {
     combatExpectation: 'avoidable',
     difficultyNotes: 'Teach haunted-site investigation, basic combat, and ritual problem solving. Malachar is a ritual threat, not a fair early duel.',
     rewardBudget: {
-      skillRanks: 2,
+      skillPoints: 2,
       trainingSlots: 2,
       maxGearTier: '+1 situational',
       currencyBandCp: [300, 900],
@@ -27,7 +27,7 @@ export const ADVENTURE_PROGRESSION_METADATA = {
     combatExpectation: 'optional',
     difficultyNotes: 'Start with deprivation and improvised tools. Reward stealth, lockpicking, leadership, and restraint as strongly as combat.',
     rewardBudget: {
-      skillRanks: 2,
+      skillPoints: 2,
       trainingSlots: 2,
       maxGearTier: 'mundane restored gear',
       currencyBandCp: [300, 1200],
@@ -43,7 +43,7 @@ export const ADVENTURE_PROGRESSION_METADATA = {
     combatExpectation: 'optional',
     difficultyNotes: 'Use spiders as terrain, fear, venom, and rescue pressure. Direct nest-clearing should be possible but not the only optimal answer.',
     rewardBudget: {
-      skillRanks: 2,
+      skillPoints: 2,
       trainingSlots: 1,
       maxGearTier: 'consumable or crafting material',
       currencyBandCp: [250, 900],
@@ -59,7 +59,7 @@ export const ADVENTURE_PROGRESSION_METADATA = {
     combatExpectation: 'dangerous',
     difficultyNotes: 'Make treaty work, restitution, and forest law the primary difficulty. Violence should solve symptoms while worsening future politics.',
     rewardBudget: {
-      skillRanks: 2,
+      skillPoints: 2,
       trainingSlots: 2,
       maxGearTier: 'minor charm',
       currencyBandCp: [300, 1000],
@@ -75,7 +75,7 @@ export const ADVENTURE_PROGRESSION_METADATA = {
     combatExpectation: 'avoidable',
     difficultyNotes: 'Keep the challenge in identity, timing, secrets, and collateral consequences. Combat should be brief and costly in reputation.',
     rewardBudget: {
-      skillRanks: 2,
+      skillPoints: 2,
       trainingSlots: 2,
       maxGearTier: '+1 light weapon only on darker route',
       currencyBandCp: [500, 1500],
@@ -91,7 +91,7 @@ export const ADVENTURE_PROGRESSION_METADATA = {
     combatExpectation: 'optional',
     difficultyNotes: 'This is the first major character-power adventure. Tests should challenge identity and restraint more than raw damage output.',
     rewardBudget: {
-      skillRanks: 2,
+      skillPoints: 2,
       trainingSlots: 1,
       maxGearTier: 'minor relic',
       currencyBandCp: [0, 750],
@@ -107,7 +107,7 @@ export const ADVENTURE_PROGRESSION_METADATA = {
     combatExpectation: 'expected',
     difficultyNotes: 'Escalate through camps, logistics, and morale before the leader. Peaceful dispersal should grant comparable long-term value to bounty hunting.',
     rewardBudget: {
-      skillRanks: 2,
+      skillPoints: 3,
       trainingSlots: 2,
       maxGearTier: '+1 ranged weapon or cache access',
       currencyBandCp: [1000, 3000],
@@ -123,7 +123,7 @@ export const ADVENTURE_PROGRESSION_METADATA = {
     combatExpectation: 'optional',
     difficultyNotes: 'Pressure should come from water, time, ghosts, and archive choices. Reward preservation and rescue as much as treasure extraction.',
     rewardBudget: {
-      skillRanks: 2,
+      skillPoints: 3,
       trainingSlots: 2,
       maxGearTier: 'minor relic',
       currencyBandCp: [500, 2000],
@@ -139,7 +139,7 @@ export const ADVENTURE_PROGRESSION_METADATA = {
     combatExpectation: 'avoidable',
     difficultyNotes: 'Make supplies, triage, names of the dead, and ritual timing matter. Fighting grief should be a fallback, not the best solution.',
     rewardBudget: {
-      skillRanks: 2,
+      skillPoints: 3,
       trainingSlots: 2,
       maxGearTier: 'divine SP charm',
       currencyBandCp: [200, 1500],
@@ -155,7 +155,7 @@ export const ADVENTURE_PROGRESSION_METADATA = {
     combatExpectation: 'dangerous',
     difficultyNotes: 'The main risk is bargain cost. Push memory, identity, law, and debt consequences instead of ordinary loot-room pacing.',
     rewardBudget: {
-      skillRanks: 2,
+      skillPoints: 3,
       trainingSlots: 2,
       maxGearTier: 'minor relic',
       currencyBandCp: [500, 2500],
@@ -171,7 +171,7 @@ export const ADVENTURE_PROGRESSION_METADATA = {
     combatExpectation: 'avoidable',
     difficultyNotes: 'Escalate with synchronized mechanisms, countdown pressure, and ethical choices about sentient machines.',
     rewardBudget: {
-      skillRanks: 2,
+      skillPoints: 3,
       trainingSlots: 2,
       maxGearTier: 'major tool or clockwork relic',
       currencyBandCp: [1000, 3500],
@@ -187,9 +187,9 @@ export const ADVENTURE_PROGRESSION_METADATA = {
     combatExpectation: 'expected',
     difficultyNotes: 'The Fire Core should feel valuable and hazardous. Direct fights are fairer here, but heat, fatigue, and unstable terrain should matter.',
     rewardBudget: {
-      skillRanks: 2,
+      skillPoints: 3,
       trainingSlots: 1,
-      maxGearTier: '+1 weapon or heat-resistant armor',
+      maxGearTier: '+2 relic weapon, +2 shield, or heat-resistant armor',
       currencyBandCp: [1000, 4000],
       permanentUnlock: 'fire-core consequence, smithing access, or volcanic travel protection',
     },
@@ -203,7 +203,7 @@ export const ADVENTURE_PROGRESSION_METADATA = {
     combatExpectation: 'expected',
     difficultyNotes: 'Balance arena victories with escape, revolt, crowd manipulation, and illegal-sale evidence so non-bruisers still have routes to freedom.',
     rewardBudget: {
-      skillRanks: 2,
+      skillPoints: 4,
       trainingSlots: 3,
       maxGearTier: '+1 martial reward',
       currencyBandCp: [1200, 4000],
@@ -219,7 +219,7 @@ export const ADVENTURE_PROGRESSION_METADATA = {
     combatExpectation: 'expected',
     difficultyNotes: 'Use conversion infection, civic panic, and workshop problem solving. Destroying machines should be viable but less rewarding than curing or reprogramming.',
     rewardBudget: {
-      skillRanks: 2,
+      skillPoints: 4,
       trainingSlots: 3,
       maxGearTier: '+1 tool or schematic relic',
       currencyBandCp: [1500, 5000],
@@ -235,9 +235,9 @@ export const ADVENTURE_PROGRESSION_METADATA = {
     combatExpectation: 'optional',
     difficultyNotes: 'The hard part is judgment under time pressure. Combat with the Silver Contrary is an option, but truth, mercy, and precedent should be just as potent.',
     rewardBudget: {
-      skillRanks: 2,
+      skillPoints: 3,
       trainingSlots: 1,
-      maxGearTier: '+1 light weapon or truth relic',
+      maxGearTier: '+1 light weapon or rare +3 truth relic',
       currencyBandCp: [500, 3000],
       permanentUnlock: 'reflection ally, identity leverage, or Saint Orra blessing',
     },
@@ -251,9 +251,9 @@ export const ADVENTURE_PROGRESSION_METADATA = {
     combatExpectation: 'dangerous',
     difficultyNotes: 'Failure should move position, split resources, or strand allies before it simply deals damage. Gravity and timing should be the real boss.',
     rewardBudget: {
-      skillRanks: 2,
+      skillPoints: 4,
       trainingSlots: 2,
-      maxGearTier: 'major astral relic',
+      maxGearTier: '+2 weapon or rare +3 astral upgrade',
       currencyBandCp: [1500, 6000],
       permanentUnlock: 'sky-route access, prophecy clue, or gravity protection',
     },
@@ -267,9 +267,9 @@ export const ADVENTURE_PROGRESSION_METADATA = {
     combatExpectation: 'expected',
     difficultyNotes: 'This should be a late heroic delve. Cold, fire, undead control, and artifact temptation should stack pressure across the crypt.',
     rewardBudget: {
-      skillRanks: 2,
+      skillPoints: 4,
       trainingSlots: 3,
-      maxGearTier: 'major elemental relic',
+      maxGearTier: '+3 weapon or major elemental relic',
       currencyBandCp: [2000, 7000],
       permanentUnlock: 'Frostfire Heart consequence, frost ward, or scholar patronage',
     },
@@ -283,9 +283,9 @@ export const ADVENTURE_PROGRESSION_METADATA = {
     combatExpectation: 'dangerous',
     difficultyNotes: 'The Hunger should be beyond a normal monster. Contracts, sacrifice, famine math, and moral compromise should be the primary difficulty.',
     rewardBudget: {
-      skillRanks: 2,
+      skillPoints: 4,
       trainingSlots: 1,
-      maxGearTier: 'major pact relic',
+      maxGearTier: '+3 opening weapon or major pact relic',
       currencyBandCp: [500, 5000],
       permanentUnlock: 'harvest pact resolution, food security, corruption hook, or village loyalty',
     },

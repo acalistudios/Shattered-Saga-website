@@ -5,6 +5,7 @@ import { ADVENTURE_SETTING_METADATA } from './adventureEnhancements';
 import { ADVENTURE_ECONOMY_METADATA } from './adventureEconomy';
 import { ADVENTURE_MUSIC } from './adventureMusic';
 import { ADVENTURE_PROGRESSION_METADATA } from './adventureProgression';
+import { ADVENTURE_REWARD_MODELS } from './progressionRewards';
 
 const BASE_ADVENTURES_LIST = [
   {
@@ -256,8 +257,8 @@ const BASE_ADVENTURES_LIST = [
       { name: 'Creator\'s Binding Seal Tile', desc: 'A white stone tile veined with gold and old prayer-script, broken from the original prison seal.', properties: 'During the Malachar ritual, grants +1 to Lore, Divine Manifestation, or Arcane Drawing checks made to weaken or re-bind the demon. Outside that ritual it is evidence, not a general bonus item.' },
       { name: 'Demon-Cult Amulet', desc: 'A black iron amulet shaped like a hooked eye, warm whenever Malachar whispers.', properties: 'Grants +1 to Lore checks about Malachar or the cult, but each use may call for a Willpower resistance check. Keeping or using it in a bargain should carry morality loss and future corruption risk.' },
       { name: 'Aldric\'s Signet Ring', desc: 'A heavy silver signet bearing the Voss crest, found with old blood in the Lord\'s Study.', properties: 'Opens Voss crest mechanisms and grants a social advantage when appealing to Aldric. Can also prove rightful access to village elders.' },
-      { name: '+1 Dagger (Voss Crest)', desc: 'A narrow ceremonial dagger with the Voss crest worked into the pommel.', properties: 'Counts as a +1 Light Weapon. Deals 1d4 edged or piercing damage and can strike some keep-bound spirits.' },
-      { name: '+1 Shield (Voss Crest)', desc: 'A medium heater shield painted with a faded black falcon.', properties: 'Counts as a medium shield +1. Grants +1 to Blocking checks and soaks 1d6 + 1 on a successful block.' },
+      { name: '+1 Dagger (Voss Crest)', desc: 'A narrow ceremonial dagger with the Voss crest worked into the pommel, its edge warm when held near candlelight.', properties: 'Fire-aspected +1 Light Weapon. Deals 1d4 edged or piercing damage and can strike some keep-bound spirits. Fire-affinity PCs can use it to light a normal flame once per rest/day.' },
+      { name: '+1 Shield (Voss Crest)', desc: 'A medium heater shield painted with a faded black falcon whose eye seems to watch lies, curses, and oathbreakers.', properties: 'Aether-aspected medium shield +1. Grants +1 to Blocking checks and soaks 1d6 + 1 on a successful block. Aether-affinity PCs can reveal alignment, curse, undead taint, or possession in the current scene once per rest/day.' },
       { name: 'Holy Water', desc: 'A stoppered glass vial from the chapel font, still clear despite the dust.', properties: 'Harms demons, undead, incorporeal evil, and possessed targets. Against Aldric, who is not evil, it calms him briefly instead of dealing damage unless the player attacks again.' },
       { name: 'Silver Mirror', desc: 'A palm-sized mirror with a tarnished frame and a crack like a lightning fork.', properties: 'Reveals invisible shadows, possession marks, false reflections, and hidden writing tied to Malachar.' },
       { name: 'Binding Prayer Scroll', desc: 'A brittle chapel scroll written in a priest\'s cramped hand.', properties: 'One-use ritual aid. Reduces the final re-binding difficulty by one tier or grants +1 to a Divine Manifestation check against Malachar.' }
@@ -273,11 +274,11 @@ const BASE_ADVENTURES_LIST = [
     },
     rewards: {
       heroic: [
-        'All three children rescued and Malachar re-bound: moderate village gold reward, +10 morality, one Voss crest item, and a 10% discount on village goods with prices rounded up.',
+        'All three children rescued and Malachar re-bound: moderate village gold reward, +10 morality, both Voss crest items if recovered, and a 10% discount on village goods with prices rounded up.',
         'Gain 1 skill point for a skill used during the adventure.'
       ],
       vanquish: [
-        'Malachar fully destroyed or banished: stronger holy reward such as a blessed charm that restores 1 Divine SP once per adventure, larger reputation reward, moderate village gold, and a 10% village discount with prices rounded up.',
+        'Malachar fully destroyed or banished: stronger holy reward such as a blessed charm that restores full Divine SP once per rest, larger reputation reward, moderate village gold, and a 10% village discount with prices rounded up.',
         'Gain 1 skill point for a skill used during the adventure.'
       ],
       dark: [
@@ -540,11 +541,11 @@ const BASE_ADVENTURES_LIST = [
         }
       }
     ],
-    items: ['Fire Core', 'Flame-ward Shield', 'Basalt Warhammer'],
+    items: ['Fire Core', 'Flame-ward Shield +2', 'Basalt Warhammer +2'],
     itemsDetail: [
       { name: 'Fire Core', desc: 'A fist-sized crystal of molten orange light suspended inside black glass.', properties: 'Can restore 3 Arcane SP once if safely grounded, fuel a major crafting project, or wake Ember Maw if mishandled. Carrying it without protection may cause 1 Fatigue loss per scene from heat.' },
-      { name: 'Flame-ward Shield', desc: 'A broad blackened steel shield etched with cooling runes.', properties: 'Counts as a medium shield +1 against fire, heat, and volcanic hazards. Grants +1 to Blocking checks and soaks 1d6 + 1 on a successful block; also grants +1 to Survival checks against volcanic heat.' },
-      { name: 'Basalt Warhammer', desc: 'A dark stone warhammer balanced with a red iron core.', properties: 'Warhammer dealing 1d8 blunt damage. If forged with the Fire Core ending, it becomes Basalt Warhammer +1 and grants +1 to Heavy Weapons checks.' }
+      { name: 'Flame-ward Shield +2', desc: 'A broad blackened steel shield etched with cooling runes and a fire-core boss at its center.', properties: 'Counts as a +2 shield against fire, heat, and elemental attacks, and +1 otherwise. Soaks 1d6 + 2 on a successful block. Fire-affinity PCs ignore the first fire damage instance once per 8 hours.' },
+      { name: 'Basalt Warhammer +2', desc: 'A dark stone warhammer balanced with a red iron core that pulses like banked magma.', properties: 'Counts as a +2 Heavy Weapon. Deals 1d8 blunt damage. Once per rest, add +2 fire damage on a hit; Fire-affinity PCs recharge this fire-core strike once per 8 hours.' }
     ],
     settings: ['Basalt Ridge Gatehouse', 'Sulfuric Vents Chamber', 'Molten Lava Tube', 'Altar of Ember'],
     settingDescriptions: {
@@ -555,7 +556,7 @@ const BASE_ADVENTURES_LIST = [
     },
     rewards: {
       stabilize: [
-        'Stabilize the Fire Core: Flame-ward Shield, reputation with local smiths, a small Arcane SP recovery ember, and improved forge inventory in Ignis Ridge.',
+        'Stabilize the Fire Core: Flame-ward Shield +2, reputation with local smiths, a small Arcane SP recovery ember, and improved forge inventory in Ignis Ridge.',
         'Gain 1 skill point for a skill used during the adventure.'
       ],
       destroy: [
@@ -567,7 +568,7 @@ const BASE_ADVENTURES_LIST = [
         'Gain 1 skill point for a skill used during the adventure.'
       ],
       forge: [
-        'Forge with the Fire Core: create Basalt Warhammer +1 or upgrade one armor item with heat resistance, requiring meaningful Smithing or Crafting success.',
+        'Forge with the Fire Core: create Basalt Warhammer +2, Flame-ward Shield +2, or upgrade one armor item with heat resistance, requiring meaningful Smithing or Crafting success.',
         'Gain 1 skill point for a skill used during the adventure.'
       ]
     }
@@ -638,7 +639,7 @@ const BASE_ADVENTURES_LIST = [
     items: ['Lost Archive Scroll', 'Amulet of Tide-Taming', 'Water-Breathing Elixir'],
     itemsDetail: [
       { name: 'Lost Archive Scroll', desc: 'A waterproof scroll tube containing elven records on planar static cycles.', properties: 'Major lore reward. Grants campaign secrets and can justify a Lore or Languages skill point when those skills were used.' },
-      { name: 'Amulet of Tide-Taming', desc: 'A blue-green shell amulet strung on silver wire.', properties: 'Grants +1 to Survival or Acrobatics checks in flooded environments. Once per adventure, can calm a local surge or open a tidal valve without a check.' },
+      { name: 'Amulet of Tide-Taming', desc: 'A blue-green shell amulet strung on silver wire, cold as deep current when danger rises.', properties: 'Water-aspected relic. Breathe underwater for one scene once per rest and gain +1 to Survival or Sailing in water hazards. Water-affinity PCs can extend underwater breathing to close allies in the same scene.' },
       { name: 'Water-Breathing Elixir', desc: 'A cool glass vial smelling of mint, salt, and kelp.', properties: 'Consumable. Grants water breathing for one hour; does not restore Fatigue or SP.' }
     ],
     settings: ['Flooded Library Entrance', 'Hall of Forgotten Runes', 'Tidal Siphon Junction', 'Planar Archives Sanctuary'],
@@ -747,10 +748,11 @@ const BASE_ADVENTURES_LIST = [
         }
       }
     ],
-    items: ['Focal Static Core', 'Sky-Stalker Bow', 'Astral Gravity Compass'],
+    items: ['Focal Static Core', 'Sky-Stalker Composite Bow +2', 'Starfall Bowstring +3', 'Astral Gravity Compass'],
     itemsDetail: [
       { name: 'Focal Static Core', desc: 'A floating sapphire knot of light where several destiny threads cross.', properties: 'Can restore 3 Arcane SP once per adventure if stabilized, power a ward for one scene, or become a risky artifact that causes gravity anomalies when overused.' },
-      { name: 'Sky-Stalker Bow', desc: 'A recurved bow of pale skywood with a string that hums in strong wind.', properties: 'Bow dealing 1d6 piercing damage. If claimed from the altar after stabilizing the core, counts as Sky-Stalker Bow +1 and grants +1 to Marksmanship checks. Still requires arrows.' },
+      { name: 'Sky-Stalker Composite Bow +2', desc: 'A recurved bow of pale skywood with a string that hums in strong wind.', properties: 'Air-aspected +2 ranged weapon. Deals 1d8+1 piercing and requires arrows. Air-affinity PCs ignore wind, height, and unstable footing penalties.' },
+      { name: 'Starfall Bowstring +3', desc: 'A silver-black bowstring spun from a falling-star filament and wrapped around a bone shuttle.', properties: 'Air-aspected +3 bow upgrade. Upgrades one bow to +3. Once per rest, an arrow can strike an incorporeal, flying, or astral target normally; Air-affinity PCs also ignore cover with this shot.' },
       { name: 'Astral Gravity Compass', desc: 'A brass compass whose needle points toward the safest down.', properties: 'Grants +1 to Tracking, Survival, or Attunement checks involving gravity anomalies, floating routes, or unstable bridges.' }
     ],
     settings: ['Windrunner Sky-Bridges', 'Floating Leyline Isles', 'Gravity Siphon Spires', 'Astral Focal Altar'],
@@ -983,10 +985,11 @@ const BASE_ADVENTURES_LIST = [
         }
       }
     ],
-    items: ['Twin Embers Pouch', 'Frostfire Heart', 'Runic Ice-Chisel', 'Theron\'s Map', 'Freezing Venom Vial', 'Runic Tablet Translation'],
+    items: ['Twin Embers Pouch', 'Frostfire Heart', 'Frostfire Glaive +3', 'Runic Ice-Chisel', 'Theron\'s Map', 'Freezing Venom Vial', 'Runic Tablet Translation'],
     itemsDetail: [
       { name: 'Twin Embers Pouch', desc: 'A pouch containing two glowing, heat-generating sulfurous charcoal blocks.', properties: 'Two uses. Each use can light a thermal brazier, warm Theron, or cancel one scene of severe cold/Fatigue pressure. Does not restore SP.' },
-      { name: 'Frostfire Heart', desc: 'The legendary ice-encased heart of Kaelen-Ghar. It glows with a freezing blue light.', properties: 'If contained, becomes a sealed relic. If claimed, can add frostfire flavor to one Arcane attack per adventure or restore 3 Arcane SP once, but each use risks corruption or freezing backlash.' },
+      { name: 'Frostfire Heart', desc: 'The legendary ice-encased heart of Kaelen-Ghar. It glows with a freezing blue light.', properties: 'Water-aspected major relic. Once per rest, choose Flame Stance or Frost Stance for one scene. Water-affinity PCs grant party cold ward during Frost Stance.' },
+      { name: 'Frostfire Glaive +3', desc: 'Kaelen-Ghar\'s spectral polearm made solid by the twin embers, its edge smoking with blue flame.', properties: 'Water-aspected +3 Heavy Weapon. Deals 1d10 edged or piercing. Once per rest, add +3 frostfire damage on a hit; Water-affinity PCs may slow the target for one round instead of adding damage.' },
       { name: 'Runic Ice-Chisel', desc: 'A chisel made of reinforced steel, engraved with runes of shattering.', properties: 'Counts as a +1 Light Weapon dealing 1d4 piercing. Grants +1 to physical, Crafting, or Smithing checks to shatter ice walls, frost locks, or brittle runic mechanisms.' },
       { name: 'Theron\'s Map', desc: 'A damp parchment map of the crypt showing the hidden path to Kaelen-Ghar\'s sarcophagus and the trap switch locations.', properties: 'Grants +1 to Perception, Survival, or Trapping checks in the crypt.' },
       { name: 'Freezing Venom Vial', desc: 'A vial of venom harvested from the ice-spiders.', properties: 'One use. Applied to an edged or piercing weapon; on the next hit, the target must resist with Vigor or gain Frozen for 1 round.' },
@@ -1100,13 +1103,13 @@ const BASE_ADVENTURES_LIST = [
         }
       }
     ],
-    items: ['Arena Champion Laurel', 'Gladiator Net', 'Ledger of Illegal Sales', 'Underworks Key', 'Champion Maul +1'],
+    items: ['Arena Champion Laurel', 'Gladiator Net', 'Ledger of Illegal Sales', 'Underworks Key', 'Champion Maul +2'],
     itemsDetail: [
       { name: 'Arena Champion Laurel', desc: 'A bronze-and-red laurel awarded before the crowd.', properties: 'Proof of legal arena victory. Grants social leverage in the city and +1 to Performance checks involving arena fame.' },
       { name: 'Gladiator Net', desc: 'A weighted fighting net used to entangle opponents on the sand.', properties: 'Can be used with Thrown Weapons or Trapping to restrain a target for 1 round on a successful opposed check.' },
       { name: 'Ledger of Illegal Sales', desc: 'Varro\'s hidden record of unlawful enslavements, bribes, and noble buyers.', properties: 'Evidence item. Grants leverage with magistrates and can turn the crowd or city watch against Varro.' },
       { name: 'Underworks Key', desc: 'A rusted iron key stamped with a beast-gate number.', properties: 'Opens drain tunnels, beast pens, and one armory side door. Grants a major advantage to escape plans.' },
-      { name: 'Champion Maul +1', desc: 'Durn Ashjaw\'s black iron maul, etched with victory marks.', properties: 'Counts as a +1 Heavy Weapon. Deals 1d10 blunt damage and grants +1 to Heavy Weapons checks.' }
+      { name: 'Champion Maul +2', desc: 'Durn Ashjaw\'s black iron maul, etched with victory marks and heavy enough to crater arena sand.', properties: 'Earth-aspected +2 Heavy Weapon. Deals 1d10+1 blunt damage and grants +2 to Heavy Weapons checks. Earth-affinity PCs knock targets prone on critical hits.' }
     ],
     settings: ['Slave Pens', 'Training Sand', 'Beast Gate Underworks', 'Noble Gallery', 'Champion Dais'],
     settingDescriptions: {
@@ -1118,7 +1121,7 @@ const BASE_ADVENTURES_LIST = [
     },
     rewards: {
       winFreedom: [
-        'Win the tournament and earn legal freedom: Champion Maul +1 or a chosen arena weapon +1, moderate gold, arena fame, and morality gain if defeated foes were spared.',
+        'Win the tournament and earn legal freedom: Champion Maul +2 or a chosen arena weapon +2, moderate gold, arena fame, and morality gain if defeated foes were spared.',
         'Gain 1 skill point for a skill used during the adventure; gain a second restricted point in Heavy Weapons, Light Weapons, Blocking, Brawling, or Performance for an exceptional final match.'
       ],
       revolt: [
@@ -1304,7 +1307,7 @@ const BASE_ADVENTURES_LIST = [
     itemsDetail: [
       { name: 'Crown Map', desc: 'A coded map showing camps, supply drops, and Crown Hollow.', properties: 'Grants +1 to Tracking or Survival checks against bandit routes and reveals optional camp order.' },
       { name: 'Sealed Funding Letters', desc: 'Merchant correspondence proving Elsbet financed raids.', properties: 'Evidence item. Enables legal/political ending and social leverage.' },
-      { name: 'Black-Crown Longbow', desc: 'A dark yew longbow marked with a small black crown.', properties: 'Bow dealing 1d6 piercing damage. If awarded after defeating or redeeming Tamsin, counts as +1 and grants +1 to Marksmanship checks. Requires arrows.' },
+      { name: 'Black-Crown Longbow', desc: 'A dark yew longbow marked with a small black crown.', properties: 'Fire-aspected +1 ranged weapon dealing 1d6 piercing damage and +1 damage. Requires arrows. Fire-affinity PCs may add +2 fire damage once per 8 hours.' },
       { name: 'Bandit Cache Key', desc: 'A three-toothed key carried by camp bosses.', properties: 'Opens the Crown Hollow cache containing coin, weapons, and stolen farm deeds.' }
     ],
     settings: ['Greywash Road', 'Hungry Pines Camp', 'Deserter Ridge Camp', 'Smuggler Mill Base', 'Crown Hollow'],
@@ -1399,7 +1402,7 @@ const BASE_ADVENTURES_LIST = [
     ],
     items: ['Blessed Bell Clapper', 'Healer\'s Abbey Satchel', 'Names of the Dead Ledger', 'Blue Fever Poultices'],
     itemsDetail: [
-      { name: 'Blessed Bell Clapper', desc: 'The silver-inlaid clapper removed from the cracked plague bell.', properties: 'If purified, restores 1 Divine SP once per adventure or grants +1 to Divine Communion checks involving spirits of the dead.' },
+      { name: 'Blessed Bell Clapper', desc: 'The silver-inlaid clapper removed from the cracked plague bell.', properties: 'Aether-aspected divine relic. Once per rest, restore full Divine SP or stabilize all dying allies in the current scene. Aether-affinity PCs also repel undead for one round when the clapper is used.' },
       { name: 'Healer\'s Abbey Satchel', desc: 'A preserved satchel of linen, salves, and glass vials.', properties: 'Functions as a Healer\'s Kit with 5 uses, following the healing rules.' },
       { name: 'Names of the Dead Ledger', desc: 'A water-damaged ledger listing every plague victim whose grief was bound.', properties: 'Grants +1 to Lore, Divine Communion, or Performance checks during the release rite.' },
       { name: 'Blue Fever Poultices', desc: 'Cooling herbal compresses made in the abbey infirmary.', properties: 'Three uses. Each grants +1d6 to a recovery roll or stabilizes fever symptoms for one scene.' }
@@ -1474,7 +1477,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { Deception: 4, Stealth: 4, LightWeapons: 3, Performance: 3, Insight: 2 },
           defenses: { dodge: 'Coordination d12 + Vigor d2+1 + 3d2', will: 'Willpower d10 + Empathy d2' },
           armor: 'None',
-          attacks: [{ name: 'Glass Thorn Dagger', skill: 'Light Weapons', damage: '1d4 piercing', note: 'Poison threatens Fatigue loss on failed Vigor resistance.' }],
+          attacks: [{ name: 'Glass Thorn Dagger', skill: 'Light Weapons', damage: '1d4 piercing', note: 'On hit, poison can cause the target to miss its next attack.' }],
           equipment: ['Glass Thorn Dagger', 'Poison Ring', 'False Masks'],
           weaknesses: ['Reflections reveal repeated mannerisms; Performance contests can trap them in public.']
         }
@@ -1499,7 +1502,7 @@ const BASE_ADVENTURES_LIST = [
     itemsDetail: [
       { name: 'Cracked Masquerade Mask', desc: 'A porcelain half-mask with a hairline crack across one eye.', properties: 'Grants +1 to Deception or Performance checks while maintaining a false identity at the party.' },
       { name: 'Glass Secret Fruit', desc: 'A fragile transparent fruit containing a murmured confession.', properties: 'Break to reveal one secret. Can grant +1 to Insight, Negotiation, or Deception against the secret\'s owner.' },
-      { name: 'Glass Thorn Dagger', desc: 'A delicate dagger of hardened orchard glass.', properties: 'Dagger dealing 1d4 piercing damage. On a poisoned strike, target resists with Vigor or loses 2 Fatigue.' },
+      { name: 'Glass Thorn Dagger', desc: 'A delicate dagger of hardened orchard glass.', properties: 'Water-aspected +1 Light Weapon dealing 1d4 piercing damage. On hit, 50% chance to poison; poisoned enemies have a 25% chance to miss their next attack. Water-affinity PCs increase the poison chance to 75%.' },
       { name: 'Master Mask List', desc: 'Pell\'s hidden registry of guests and assigned disguises.', properties: 'Grants +1 to Perception or Insight checks to identify masked guests.' }
     ],
     settings: ['Lantern Walk', 'Mirror Hedge', 'Glass Orchard Ballroom', 'Servant Passage', 'Midnight Fountain'],
@@ -1594,7 +1597,7 @@ const BASE_ADVENTURES_LIST = [
     ],
     items: ['Pearl Memory Scale', 'Drowned Coin', 'Evacuation Bell Contract', 'Blue-Lantern Charm'],
     itemsDetail: [
-      { name: 'Pearl Memory Scale', desc: 'A tiny balance scale that weighs recollections as pale pearls.', properties: 'Grants +1 to Appraise or Insight checks involving supernatural bargains. Misuse can cost a memory.' },
+      { name: 'Pearl Memory Scale', desc: 'A tiny balance scale that weighs recollections as pale pearls.', properties: 'Aether-aspected relic. Once per rest, reroll a failed Lore, Insight, Perception, Negotiation, or Deception check. Cost: -1 to that same skill until next rest or surrender one journal memory scene. Aether-affinity PCs may reject the reroll after seeing it and pay no cost.' },
       { name: 'Drowned Coin', desc: 'A cold silver coin minted with a wave over a closed eye.', properties: 'Can pay one ghost toll or restore 1 Divine SP once when honoring the dead.' },
       { name: 'Evacuation Bell Contract', desc: 'A salt-stained contract proving the council sold the warning bells.', properties: 'Evidence item. Enables curse-breaking and public justice endings.' },
       { name: 'Blue-Lantern Charm', desc: 'A little lantern that burns underwater with a blue flame.', properties: 'Once per adventure, grants +1 to Lore, Divine Communion, or Survival checks involving ghosts, tides, or drowned places.' }
@@ -1829,7 +1832,7 @@ const BASE_ADVENTURES_LIST = [
     artwork: ancientBanner,
     startingDay: 1,
     startingHour: 16.0,
-    startingPrompt: 'Golden wheat bends around Harvest Hill though the surrounding fields are brown with drought. Villagers smile too quickly, children are kept indoors, and the shrine door at the hilltop is freshly washed. Tonight is the Choosing Feast, and one chair at the long table has no plate. Ask the player how they investigate the village.',
+    startingPrompt: 'Golden wheat bends around Harvest Hill though the surrounding fields are brown with drought. Beside the first milestone, a half-buried sickle gleams beneath woven ward-thread, as if someone left a weapon for the one person willing to end the pact. Villagers smile too quickly, children are kept indoors, and the shrine door at the hilltop is freshly washed. Tonight is the Choosing Feast, and one chair at the long table has no plate. Ask the player how they investigate the village and whether they claim the Dawnbound Sickle before entering.',
     objectives: [
       'Investigate the impossible harvest and the Choosing Feast.',
       'Find the old pact beneath the hill shrine.',
@@ -1886,10 +1889,10 @@ const BASE_ADVENTURES_LIST = [
         }
       }
     ],
-    items: ['Sacrifice Ledger', 'Blessed Sickle +1', 'Root-Heart Seed', 'Shrine Pact Stone'],
+    items: ['Sacrifice Ledger', 'Dawnbound Sickle +3', 'Root-Heart Seed', 'Shrine Pact Stone'],
     itemsDetail: [
       { name: 'Sacrifice Ledger', desc: 'A hidden village record of names, dates, and harvest yields.', properties: 'Evidence item. Grants +1 to Insight, Intimidation, or Negotiation when confronting village leaders.' },
-      { name: 'Blessed Sickle +1', desc: 'An old harvest blade blessed before the pact was corrupted.', properties: 'Counts as a +1 Light Weapon, dealing 1d4 edged damage. Especially effective against roots, vines, and the Hill Hunger.' },
+      { name: 'Dawnbound Sickle +3', desc: 'An old harvest blade blessed before the pact was corrupted, its bronze edge bright with morning light despite the dusk over Harvest Hill.', properties: 'Earth-aspected +3 Light Weapon. Deals 1d6 edged damage and is especially effective against roots, vines, famine spirits, and pact-bound growth. Earth-affinity PCs can root themselves once per rest until their next action to gain high resistance to forced movement and physical damage.' },
       { name: 'Root-Heart Seed', desc: 'A warm black seed taken from the entity\'s heart.', properties: 'Can restore 4 Fatigue once or grow impossible crops; using it without resolving the pact risks corruption and morality loss.' },
       { name: 'Shrine Pact Stone', desc: 'A flat stone carved with the first famine contract.', properties: 'Grants +1 to Lore, Languages, or Divine Communion checks to break, redirect, or renegotiate the pact.' }
     ],
@@ -1903,7 +1906,7 @@ const BASE_ADVENTURES_LIST = [
     },
     rewards: {
       slay: [
-        'Slay the Hunger: Blessed Sickle +1, strong morality gain, village food stores, and an uncertain future harvest.',
+        'Slay the Hunger: Dawnbound Sickle +3 if claimed and purified, strong morality gain, village food stores, and an uncertain future harvest.',
         'Gain 1 skill point for a skill used during the adventure.'
       ],
       breakPact: [
@@ -1983,9 +1986,9 @@ const BASE_ADVENTURES_LIST = [
         }
       }
     ],
-    items: ['Saint Orra\'s Veil', 'Mirror Shard Charm', 'Silvered Rapier +1', 'Reflection Testimony'],
+    items: ['Saint Orra\'s Veil +3', 'Mirror Shard Charm', 'Silvered Rapier +1', 'Reflection Testimony'],
     itemsDetail: [
-      { name: 'Saint Orra\'s Veil', desc: 'A white veil embroidered with silver eyes.', properties: 'Can cover and seal the mirror. Grants +1 to Divine Communion or Insight checks involving truth, doubles, or judgment.' },
+      { name: 'Saint Orra\'s Veil +3', desc: 'A white veil embroidered with silver eyes that open only in reflected light.', properties: 'Aether-aspected +3 relic. Grants +3 to Insight or Divine Communion when judging truth, possession, doubles, or reflected identities. Aether-affinity PCs can see through one illusion, possession, or false double once per rest.' },
       { name: 'Mirror Shard Charm', desc: 'A harmless polished shard wrapped in thread.', properties: 'Once per adventure, grants +1 to Insight or Deception by showing a flicker of a possible self.' },
       { name: 'Silvered Rapier +1', desc: 'A mirror-bright rapier drawn from the reflection realm.', properties: 'Counts as a +1 Light Weapon. Deals 1d6 piercing damage and grants +1 to Light Weapons checks.' },
       { name: 'Reflection Testimony', desc: 'Conflicting statements from originals and doubles.', properties: 'Evidence item. Grants +1 to Negotiation, Insight, or Lore when resolving who remains.' }
@@ -2022,6 +2025,7 @@ const BASE_ADVENTURES_LIST = [
 export const ADVENTURES_LIST = BASE_ADVENTURES_LIST.map((adventure) => ({
   ...adventure,
   progression: ADVENTURE_PROGRESSION_METADATA[adventure.id] || null,
+  rewardModel: ADVENTURE_REWARD_MODELS[adventure.id] || null,
   ...(ADVENTURE_SETTING_METADATA[adventure.id] || {}),
   ...(ADVENTURE_ECONOMY_METADATA[adventure.id] || {}),
   music: ADVENTURE_MUSIC[adventure.id] || null,

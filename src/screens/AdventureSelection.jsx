@@ -370,6 +370,12 @@ export default function AdventureSelection({
               </div>
             )}
 
+            {(character.skillPoints || 0) > 0 && (
+              <div className="px-2.5 py-2 rounded bg-emerald-950/40 border border-emerald-800/40 text-[10px] font-extrabold text-emerald-300 flex items-center gap-1.5 shadow-sm" title="Available Skill Points">
+                <span>Skill Pts: {character.skillPoints}</span>
+              </div>
+            )}
+
             <button
               type="button"
               onClick={() => setIsChestOpen(true)}

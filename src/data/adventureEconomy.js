@@ -122,8 +122,8 @@ export const ADVENTURE_ECONOMY_METADATA = {
   obsidian_vault: {
     itemValues: {
       'Fire Core': itemValue(7500, 'relics', 'Volatile planar fire engine; most lawful buyers require proof of safe containment.'),
-      'Flame-ward Shield': itemValue(4500, 'magical_armor', 'A protective shield with strong value to delvers and smiths.'),
-      'Basalt Warhammer': itemValue(500, 'weapons', 'Heavy volcanic stone-and-iron weapon.'),
+      'Flame-ward Shield +2': itemValue(9500, 'magical_armor', 'Fire-core shield with strong value to delvers and smiths.'),
+      'Basalt Warhammer +2': itemValue(10000, 'magical_weapons', 'Fire-core heavy weapon from the Obsidian Vault.'),
     },
     merchants: [
       {
@@ -145,7 +145,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
   sunken_spire: {
     itemValues: {
       'Lost Archive Scroll': itemValue(500, 'documents', 'Document value depends on proof, buyer, and political leverage.'),
-      'Amulet of Tide-Taming': itemValue(2500, 'relics', 'Minor relic or magical focus.'),
+      'Amulet of Tide-Taming': itemValue(3500, 'relics', 'Water relic for submerged scenes and water hazards.'),
       'Water-Breathing Elixir': itemValue(1500, 'alchemy', 'Major single-use survival elixir.'),
     },
     merchants: [
@@ -169,7 +169,8 @@ export const ADVENTURE_ECONOMY_METADATA = {
   astral_sky: {
     itemValues: {
       'Focal Static Core': itemValue(9000, 'relics', 'Dangerous astral focus; valued by scholars, artificers, and smugglers.'),
-      'Sky-Stalker Bow': itemValue(3500, 'magical_weapons', 'Precise enchanted bow with high value to hunters and scouts.'),
+      'Sky-Stalker Composite Bow +2': itemValue(12500, 'magical_weapons', 'Precise astral bow with high value to hunters and scouts.'),
+      'Starfall Bowstring +3': itemValue(17500, 'magical_weapons', 'Rare astral bow upgrade.'),
       'Astral Gravity Compass': itemValue(300, 'treasure', 'Estimated adventuring value; adjust for local demand.'),
     },
     merchants: [
@@ -221,7 +222,8 @@ export const ADVENTURE_ECONOMY_METADATA = {
   frostfire_crypt: {
     itemValues: {
       'Twin Embers Pouch': itemValue(800, 'relics', 'Warmth-bearing expedition relic.'),
-      'Frostfire Heart': itemValue(12000, 'relics', 'Major elemental relic; not safely sold to ordinary merchants.'),
+      'Frostfire Heart': itemValue(15000, 'relics', 'Major elemental relic; not safely sold to ordinary merchants.'),
+      'Frostfire Glaive +3': itemValue(20000, 'magical_weapons', 'Major frostfire weapon.'),
       'Runic Ice-Chisel': itemValue(300, 'treasure', 'Estimated adventuring value; adjust for local demand.'),
       'Theron\'s Map': itemValue(500, 'documents', 'Document value depends on proof, buyer, and political leverage.'),
       'Freezing Venom Vial': itemValue(250, 'alchemy', 'Rare venom reagent.'),
@@ -250,7 +252,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
       'Gladiator Net': itemValue(300, 'treasure', 'Estimated adventuring value; adjust for local demand.'),
       'Ledger of Illegal Sales': itemValue(500, 'documents', 'Document value depends on proof, buyer, and political leverage.'),
       'Underworks Key': itemValue(200, 'tools', 'Useful key or access token; value is mostly situational.'),
-      'Champion Maul +1': itemValue(6000, 'magical_weapons', 'Reliable enchanted arena weapon.'),
+      'Champion Maul +2': itemValue(12500, 'magical_weapons', 'Reliable late-tier enchanted arena weapon.'),
     },
     merchants: [
       {
@@ -359,7 +361,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
   },
   merrin_abbey_plague_bells: {
     itemValues: {
-      'Blessed Bell Clapper': itemValue(2500, 'relics', 'Minor relic or magical focus.'),
+      'Blessed Bell Clapper': itemValue(3500, 'relics', 'Divine relic that can restore full Divine SP.'),
       'Healer\'s Abbey Satchel': itemValue(500, 'healing', 'Field healer kit with abbey markings.'),
       'Names of the Dead Ledger': itemValue(500, 'documents', 'Document value depends on proof, buyer, and political leverage.'),
       'Blue Fever Poultices': itemValue(50, 'healing', 'Prepared plague treatment.'),
@@ -386,7 +388,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
     itemValues: {
       'Cracked Masquerade Mask': itemValue(300, 'treasure', 'Estimated adventuring value; adjust for local demand.'),
       'Glass Secret Fruit': itemValue(1000, 'jewelry', 'Portable treasure or prestige object.'),
-      'Glass Thorn Dagger': itemValue(5000, 'magical_weapons', 'Elegant enchanted dagger.'),
+      'Glass Thorn Dagger': itemValue(3000, 'magical_weapons', 'Poisoned orchard glass weapon.'),
       'Master Mask List': itemValue(1500, 'documents', 'Document value depends on proof, buyer, and political leverage.'),
     },
     merchants: [
@@ -408,7 +410,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
   },
   drowned_market: {
     itemValues: {
-      'Pearl Memory Scale': itemValue(2500, 'relics', 'Minor relic or magical focus.'),
+      'Pearl Memory Scale': itemValue(4000, 'relics', 'Aether relic that trades memory for a reroll.'),
       'Drowned Coin': itemValue(1000, 'relics', 'Occult coin with bargaining power in ghost markets.'),
       'Evacuation Bell Contract': itemValue(500, 'documents', 'Document value depends on proof, buyer, and political leverage.'),
       'Blue-Lantern Charm': itemValue(2500, 'relics', 'Protective charm with tide-magic resonance.'),
@@ -495,7 +497,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
   harvest_hill_hunger: {
     itemValues: {
       'Sacrifice Ledger': itemValue(500, 'documents', 'Document value depends on proof, buyer, and political leverage.'),
-      'Blessed Sickle +1': itemValue(5000, 'magical_weapons', 'Consecrated enchanted farming blade.'),
+      'Dawnbound Sickle +3': itemValue(22000, 'magical_weapons', 'Capstone consecrated farming blade placed early enough to matter.'),
       'Root-Heart Seed': itemValue(7500, 'relics', 'Major story relic; marketable only to specialized or morally complicated buyers.'),
       'Shrine Pact Stone': itemValue(7500, 'relics', 'Major story relic; marketable only to specialized or morally complicated buyers.'),
     },
@@ -518,7 +520,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
   },
   mirror_war_saint_orra: {
     itemValues: {
-      'Saint Orra\'s Veil': itemValue(7500, 'relics', 'Major story relic; marketable only to specialized or morally complicated buyers.'),
+      'Saint Orra\'s Veil +3': itemValue(18000, 'relics', 'Aether truth relic for reflected identities.'),
       'Mirror Shard Charm': itemValue(2500, 'relics', 'Minor relic or magical focus.'),
       'Silvered Rapier +1': itemValue(6000, 'magical_weapons', 'Silvered enchanted dueling weapon.'),
       'Reflection Testimony': itemValue(500, 'documents', 'Document value depends on proof, buyer, and political leverage.'),
