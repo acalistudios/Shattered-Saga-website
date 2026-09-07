@@ -161,17 +161,82 @@ app.get("/api/me", async (c) => {
   });
 });
 
-// Sponsored video ad reward endpoint: awards +10 energy_balance turns.
+// Sponsored video ad reward endpoint: awards energy for watching an ad.
+//
+// The client's "I finished the ad" assertion is not trustworthy on its own, so
+// the grant is bounded by a minimum interval and a daily cap. Both are enforced
+// in the WHERE clause of a single UPDATE, so concurrent requests cannot both
+// pass the check and double-credit.
+//
+// TODO: replace the client assertion with AdMob server-side verification (SSV).
+// Until then these limits cap the damage rather than prevent the abuse.
+const AD_REWARD_ENERGY = 10;
+const AD_MIN_INTERVAL_MS = 30_000; // shortest rewarded ad we serve
+const AD_DAILY_CAP = 10;
+const MS_PER_DAY = 86_400_000;
+
 app.post("/api/ads/claim", async (c) => {
   const session = await authFor(c).api.getSession({ headers: c.req.raw.headers });
   if (!session) return c.json({ error: "unauthorized" }, 401);
 
   const userId = session.user.id;
-  await c.env.DATABASE.prepare(
-    "UPDATE users SET energy_balance = energy_balance + 10 WHERE id = ?"
+  const now = Date.now();
+  const today = Math.floor(now / MS_PER_DAY);
+
+  const res = await c.env.DATABASE.prepare(
+    `UPDATE users
+        SET energy_balance  = energy_balance + ?,
+            ad_claims_today = CASE WHEN ad_claim_day = ? THEN ad_claims_today + 1 ELSE 1 END,
+            ad_claim_day    = ?,
+            ad_last_claim_at = ?
+      WHERE id = ?
+        AND (ad_last_claim_at IS NULL OR ? - ad_last_claim_at >= ?)
+        AND (ad_claim_day <> ? OR ad_claims_today < ?)`
   )
-    .bind(userId)
+    .bind(
+      AD_REWARD_ENERGY,
+      today,
+      today,
+      now,
+      userId,
+      now,
+      AD_MIN_INTERVAL_MS,
+      today,
+      AD_DAILY_CAP
+    )
     .run();
+
+  if (res.meta.changes === 0) {
+    // Nothing was credited. Read back only to say which limit was hit; the
+    // UPDATE above is what actually enforces them.
+    const row = await c.env.DATABASE.prepare(
+      "SELECT ad_last_claim_at, ad_claim_day, ad_claims_today FROM users WHERE id = ?"
+    )
+      .bind(userId)
+      .first<{ ad_last_claim_at: number | null; ad_claim_day: number; ad_claims_today: number }>();
+
+    if (!row) return c.json({ error: "not_found" }, 404);
+
+    if (row.ad_claim_day === today && row.ad_claims_today >= AD_DAILY_CAP) {
+      return c.json(
+        {
+          error: "daily_limit_reached",
+          message: `You've claimed all ${AD_DAILY_CAP} ad rewards for today. More tomorrow.`,
+        },
+        429
+      );
+    }
+
+    const waitMs = Math.max(0, AD_MIN_INTERVAL_MS - (now - (row.ad_last_claim_at ?? 0)));
+    return c.json(
+      {
+        error: "too_soon",
+        retry_after_seconds: Math.ceil(waitMs / 1000),
+        message: "Watch the full ad before claiming again.",
+      },
+      429
+    );
+  }
 
   const remaining = await currentEnergy(c.env, userId);
   return c.json({ ok: true, energy_remaining: remaining });
