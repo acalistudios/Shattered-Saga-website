@@ -171,7 +171,11 @@ app.get("/api/me", async (c) => {
 // TODO: replace the client assertion with AdMob server-side verification (SSV).
 // Until then these limits cap the damage rather than prevent the abuse.
 const AD_REWARD_ENERGY = 10;
-const AD_MIN_INTERVAL_MS = 30_000; // shortest rewarded ad we serve
+// Must not exceed the client's ad duration (AccountScreen's videoAdSeconds, 15s)
+// or honest players get blocked on their second ad: the interval is measured
+// between claims, so back-to-back 15s ads land ~16s apart. Kept slightly under
+// to absorb clock skew between the client's countdown and server time.
+const AD_MIN_INTERVAL_MS = 14_000;
 const AD_DAILY_CAP = 10;
 const MS_PER_DAY = 86_400_000;
 

@@ -75,6 +75,7 @@ const reward = ({
 export const ADVENTURE_REWARD_MODELS = {
   ashveil_keep: {
     wave: '1a',
+    permanentUnlock: 'Ashveil village discount or holy protection lead',
     tier: 1,
     recommendedLevelRange: [1, 2],
     maxCurrencyBudgetCp: 90,
@@ -96,6 +97,7 @@ export const ADVENTURE_REWARD_MODELS = {
   },
   saltblood_mines: {
     wave: '1b',
+    permanentUnlock: 'prisoner allies or legal leverage against Redvein traffickers',
     tier: 1,
     recommendedLevelRange: [1, 3],
     maxCurrencyBudgetCp: 120,
@@ -123,6 +125,7 @@ export const ADVENTURE_REWARD_MODELS = {
   },
   blackroot_hollow: {
     wave: '2a',
+    permanentUnlock: 'safe silk access or Mara as a wilderness contact',
     tier: 1,
     recommendedLevelRange: [2, 3],
     maxCurrencyBudgetCp: 90,
@@ -142,6 +145,7 @@ export const ADVENTURE_REWARD_MODELS = {
   },
   thorn_treaty: {
     wave: '2b',
+    permanentUnlock: 'forest passage, village favor, or recurring border conflict hook',
     tier: 1,
     recommendedLevelRange: [2, 3],
     maxCurrencyBudgetCp: 100,
@@ -161,6 +165,7 @@ export const ADVENTURE_REWARD_MODELS = {
   },
   glass_orchard_masquerade: {
     wave: '2c',
+    permanentUnlock: 'noble contact, assassin contact, or political leverage',
     tier: 1,
     recommendedLevelRange: [3, 4],
     maxCurrencyBudgetCp: 150,
@@ -183,6 +188,7 @@ export const ADVENTURE_REWARD_MODELS = {
   },
   elemental_crucible: {
     wave: '2d',
+    permanentUnlock: 'once-between-rests elemental ability',
     tier: 2,
     recommendedLevelRange: [3, 4],
     maxCurrencyBudgetCp: 75,
@@ -202,6 +208,7 @@ export const ADVENTURE_REWARD_MODELS = {
   },
   greywash_bandit_crown: {
     wave: '3a',
+    permanentUnlock: 'farmer militia, county favor, black-market route, or bandit intelligence network',
     tier: 2,
     recommendedLevelRange: [4, 5],
     maxCurrencyBudgetCp: 300,
@@ -223,6 +230,7 @@ export const ADVENTURE_REWARD_MODELS = {
   },
   merrin_abbey_plague_bells: {
     wave: '3b',
+    permanentUnlock: 'abbey healer network or spiritual reputation',
     tier: 2,
     recommendedLevelRange: [4, 5],
     maxCurrencyBudgetCp: 150,
@@ -244,6 +252,7 @@ export const ADVENTURE_REWARD_MODELS = {
   },
   sunken_spire: {
     wave: '4a',
+    permanentUnlock: 'elven records, ghostly blessing, or black-market archive contact',
     tier: 2,
     recommendedLevelRange: [5, 7],
     maxCurrencyBudgetCp: 200,
@@ -265,6 +274,7 @@ export const ADVENTURE_REWARD_MODELS = {
   },
   drowned_market: {
     wave: '4b',
+    permanentUnlock: 'recurring ghost market access or tide-law contact',
     tier: 2,
     recommendedLevelRange: [5, 7],
     maxCurrencyBudgetCp: 250,
@@ -286,6 +296,7 @@ export const ADVENTURE_REWARD_MODELS = {
   },
   clockwork_conservatory: {
     wave: '4c',
+    permanentUnlock: 'artificer patronage or conservatory research access',
     tier: 3,
     recommendedLevelRange: [6, 8],
     maxCurrencyBudgetCp: 350,
@@ -305,6 +316,7 @@ export const ADVENTURE_REWARD_MODELS = {
   },
   obsidian_vault: {
     wave: '4d',
+    permanentUnlock: 'fire-core consequence, smithing access, or volcanic travel protection',
     tier: 3,
     recommendedLevelRange: [6, 8],
     maxCurrencyBudgetCp: 400,
@@ -327,6 +339,7 @@ export const ADVENTURE_REWARD_MODELS = {
   },
   mirror_war_saint_orra: {
     wave: '4e',
+    permanentUnlock: 'reflection ally, identity leverage, or Saint Orra blessing',
     tier: 3,
     recommendedLevelRange: [7, 8],
     maxCurrencyBudgetCp: 300,
@@ -357,6 +370,7 @@ export const ADVENTURE_REWARD_MODELS = {
   },
   iron_colosseum: {
     wave: '5a',
+    permanentUnlock: 'freedom papers, gladiator reputation, or arena contact network',
     tier: 3,
     recommendedLevelRange: [8, 10],
     maxCurrencyBudgetCp: 400,
@@ -376,6 +390,7 @@ export const ADVENTURE_REWARD_MODELS = {
   },
   brass_plague_tinkertown: {
     wave: '5b',
+    permanentUnlock: 'Tinkertown workshop access or machine ally',
     tier: 3,
     recommendedLevelRange: [8, 10],
     maxCurrencyBudgetCp: 500,
@@ -395,6 +410,7 @@ export const ADVENTURE_REWARD_MODELS = {
   },
   astral_sky: {
     wave: '5c',
+    permanentUnlock: 'sky-route access, prophecy clue, or gravity protection',
     tier: 4,
     recommendedLevelRange: [9, 10],
     maxCurrencyBudgetCp: 600,
@@ -427,6 +443,7 @@ export const ADVENTURE_REWARD_MODELS = {
   },
   frostfire_crypt: {
     wave: '5d',
+    permanentUnlock: 'Frostfire Heart consequence, frost ward, or scholar patronage',
     tier: 4,
     recommendedLevelRange: [9, 10],
     maxCurrencyBudgetCp: 700,
@@ -459,6 +476,7 @@ export const ADVENTURE_REWARD_MODELS = {
   },
   harvest_hill_hunger: {
     wave: '6a',
+    permanentUnlock: 'harvest pact resolution, food security, corruption hook, or village loyalty',
     tier: 4,
     recommendedLevelRange: [10, 12],
     maxCurrencyBudgetCp: 500,

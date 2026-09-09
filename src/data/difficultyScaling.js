@@ -1,4 +1,4 @@
-import { ADVENTURE_PROGRESSION_METADATA } from './adventureProgression';
+import { ADVENTURE_REWARD_MODELS } from './progressionRewards';
 
 const EXPLICIT_SCALABLE_ROLES = new Set(['minion', 'standard', 'elite', 'boss']);
 const EXPLICIT_EXCLUDED_ROLES = new Set([
@@ -61,8 +61,11 @@ export function getAdventurePowerBand(character, adventure) {
   const level = character?.stats?.level || 1;
   const playerPower = calculatePlayerPower(character);
   const effectiveLevel = Math.max(level, Math.floor(playerPower));
-  const progression = adventure?.progression || ADVENTURE_PROGRESSION_METADATA[adventure?.id];
-  const [minLevel, maxLevel] = progression?.recommendedLevel || [1, 2];
+  // Level bands live in the reward model (progressionRewards.js), which is the
+  // single source of truth for the power curve. adventureProgression.js keeps
+  // only the non-reward metadata: order, prerequisites, threat profile.
+  const rewardModel = adventure?.rewardModel || ADVENTURE_REWARD_MODELS[adventure?.id];
+  const [minLevel, maxLevel] = rewardModel?.recommendedLevelRange || [1, 2];
 
   if (level < minLevel - 1) return 'dangerously_underpowered';
   if (effectiveLevel < minLevel) return 'underpowered';

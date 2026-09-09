@@ -815,7 +815,7 @@ export default function AdventureSelection({
                           Tier {selectedAdventure.progression.tier}
                         </span>
                         <span className="px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-300">
-                          Level {selectedAdventure.progression.recommendedLevel?.join('-')}
+                          Level {selectedAdventure.rewardModel?.recommendedLevelRange?.join('-')}
                         </span>
                         <span className="px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-400">
                           {selectedAdventure.progression.combatExpectation}

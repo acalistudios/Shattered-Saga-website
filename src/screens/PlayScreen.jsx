@@ -226,7 +226,7 @@ export default function PlayScreen({
   const activeAdventure = ADVENTURES_LIST.find((a) => a.id === activeAdventureId);
   const milestoneRewards = activeAdventure?.rewardModel?.guaranteedRewards || {
     skillPoints: 2,
-    trainingSlots: activeAdventure?.progression?.rewardBudget?.trainingSlots || 1,
+    trainingSlots: 1,
     baseCurrencyCp: 0
   };
   const activeRoom = currentLocation || activeAdventure?.settings?.[0] || null;
