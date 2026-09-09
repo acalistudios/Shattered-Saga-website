@@ -15,7 +15,13 @@ export const DEFAULT_PROGRESSION = {
   completedEndings: {},
   itemCooldowns: {},
   temporarySkillPenalties: {},
-  activeItemEffects: []
+  activeItemEffects: [],
+  // Resurrection state (see utils/resurrectionEngine.js). Permanent once set.
+  undead: false,
+  resurrectionCount: 0,
+  npcReactionPenalty: 0,
+  lostAttributes: [],
+  pendingGearRecovery: null
 };
 
 export function getWeaponProperties(weaponName) {

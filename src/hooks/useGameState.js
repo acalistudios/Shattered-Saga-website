@@ -24,6 +24,16 @@ import {
   getPassiveRewardSkillBonus,
   getRewardWeaponProfile
 } from '../utils/rewardEngine';
+import {
+  rollResurrectionAttributeChoices,
+  applyResurrection,
+  getUndeadSocialPenalty,
+  isUndead,
+  getAvailableResurrectionSites,
+} from '../utils/resurrectionEngine';
+import { getDivineInterventionItem } from '../data/resurrection';
+import { resolveGearRecovery } from '../data/gearRecovery';
+import { getGameHourStamp } from '../utils/rewardEngine';
 import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../utils/authApi';
 
 function consumeRationFromInventory(inventory) {
@@ -475,7 +485,13 @@ export function validateCharacterSchema(raw) {
       itemCooldowns: typeof raw.progression?.itemCooldowns === 'object' && raw.progression.itemCooldowns !== null ? raw.progression.itemCooldowns : {},
       temporarySkillPenalties: typeof raw.progression?.temporarySkillPenalties === 'object' && raw.progression.temporarySkillPenalties !== null ? raw.progression.temporarySkillPenalties : {},
       activeItemEffects: Array.isArray(raw.progression?.activeItemEffects) ? raw.progression.activeItemEffects : [],
-      levelHpBonus: Math.max(0, Number(raw.progression?.levelHpBonus) || 0)
+      levelHpBonus: Math.max(0, Number(raw.progression?.levelHpBonus) || 0),
+      // Resurrection state is permanent and must survive reload and cloud sync.
+      undead: raw.progression?.undead === true,
+      resurrectionCount: Math.max(0, Number(raw.progression?.resurrectionCount) || 0),
+      npcReactionPenalty: Math.max(0, Number(raw.progression?.npcReactionPenalty) || 0),
+      lostAttributes: Array.isArray(raw.progression?.lostAttributes) ? raw.progression.lostAttributes : [],
+      pendingGearRecovery: typeof raw.progression?.pendingGearRecovery === 'object' ? raw.progression.pendingGearRecovery : null
     },
     storyEvents: Array.isArray(raw.storyEvents) ? raw.storyEvents : [],
     choicesMade: typeof raw.choicesMade === 'object' && raw.choicesMade !== null ? raw.choicesMade : {},
@@ -634,6 +650,9 @@ export default function useGameState() {
   
   // Milestone upgrade screen state
   const [isUpgradeScreenVisible, setIsUpgradeScreenVisible] = useState(false);
+  // Set when the character dies: holds the two attributes offered and the
+  // sanctuaries available. Cleared once the player chooses.
+  const [pendingResurrection, setPendingResurrection] = useState(null);
 
   useEffect(() => {
     if (character && character.name) {
@@ -1279,9 +1298,13 @@ export default function useGameState() {
   ) => {
     if (!activeGmId || isLoading) return;
 
+    // Death no longer ends the campaign: it opens the resurrection choice. The
+    // block stays so a dead character cannot keep acting, but the way out is now
+    // choosing where to return rather than resetting the whole save.
     if (character.stats.hp <= -5) {
       setIsLoading(false);
-      setApiError("You are dead! You cannot take actions. Please reset the campaign to start a new Saga.");
+      if (!pendingResurrection) beginResurrection();
+      setApiError("You have died. Choose where to return, and what the return costs you.");
       return;
     }
 
@@ -1802,7 +1825,8 @@ export default function useGameState() {
 
     const passiveRewardBonus = getPassiveRewardSkillBonus(character, finalSkillFocusId);
     const temporarySkillPenalty = finalSkillFocusId ? (character.progression?.temporarySkillPenalties?.[finalSkillFocusId] || 0) : 0;
-    const totalModifier = nextRollModifier - starvationPenalty - exhaustionPenalty + weaponMagicBonus + shieldMagicBonus + passiveRewardBonus.bonus + activeRewardBonus - temporarySkillPenalty + armorCheckPenalty + encumbrancePenalty;
+    const undeadSocialPenalty = getUndeadSocialPenalty(character, finalSkillFocusId);
+    const totalModifier = nextRollModifier - starvationPenalty - exhaustionPenalty + weaponMagicBonus + shieldMagicBonus + passiveRewardBonus.bonus + activeRewardBonus - temporarySkillPenalty - undeadSocialPenalty + armorCheckPenalty + encumbrancePenalty;
 
     // Determine spell resistance modifier based on SP spent
     let resistanceModifier = 0;
@@ -1869,6 +1893,9 @@ export default function useGameState() {
         }
         if (activeRewardBonus > 0) {
           finalActionText += `\n\n[Activated Reward Item Bonus: ${activeRewardLabels.join(', ')} applied and consumed by this check.]`;
+        }
+        if (undeadSocialPenalty > 0) {
+          finalActionText += `\n\n[Undead Penalty: -${undeadSocialPenalty} applied to ${skill.name}. The living do not deal easily with the risen.]`;
         }
         if (temporarySkillPenalty > 0) {
           finalActionText += `\n\n[Temporary Item Penalty: -${temporarySkillPenalty} applied to ${skill.name}; clears after a successful rest.]`;
@@ -2129,6 +2156,13 @@ Opening Rewards: ${(activeAdventure.rewardModel.openingRewards || []).map(r => `
 Special Rewards: ${activeAdventure.rewardModel.recommendedSpecialRewards.map(r => `${r.id} (${r.name}, ${r.type}) requires ${(r.requires || []).join(' or ')}`).join('; ') || 'none'}.
 Disallowed Permanent Rewards: ${(activeAdventure.rewardModel.disallowedRewards || []).join(', ') || 'none listed'}.
 The engine owns permanent rewards. Do not invent permanent items, currency, skill points, skill ranks, attribute increases, abilities, gems, premium turns, subscriptions, or other lasting character power. You may emit [objective_complete: id] or [ending_selected: id] only for IDs listed above when the player's actions clearly earn them. Unknown IDs are ignored by the client.
+` : ''}
+
+${isUndead(character) ? `[RISEN CHARACTER]
+This character has died and been returned. They are visibly not wholly living: cold, wrong somehow, unsettling to those who look closely. The engine already applies a -${character.progression?.npcReactionPenalty || 1} penalty to their social checks, so do not apply your own numeric penalty — narrate the reaction instead. Ordinary people are wary, superstitious, or hostile; the devout may be worse. Animals shy away. This is permanent until cured by a specific purchased rite; nothing the player says or does in play removes it.
+${character.progression?.pendingGearRecovery ? `Their gear was lost on death. ${character.progression.pendingGearRecovery.carries
+  ? `${character.progression.pendingGearRecovery.killer} took it and was last near ${character.progression.pendingGearRecovery.location}.`
+  : `It lies where they fell, near ${character.progression.pendingGearRecovery.location}.`} The trail is going cold — the holder moves and caches get scavenged. You may narrate rumours and signs of it, but the engine decides whether the gear is actually recovered.` : ''}
 ` : ''}
 
 ${(() => {
@@ -4477,6 +4511,83 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     });
   };
 
+  /**
+   * Death: offer the way back. A divine-intervention item, if carried, is spent
+   * here instead and skips the penalties entirely — that is what it is sold for.
+   */
+  const beginResurrection = () => {
+    const carried = [
+      ...Object.values(character.equipment || {}).filter(Boolean),
+      ...(character.inventory || []),
+    ];
+    const divine = carried.map(getDivineInterventionItem).find(Boolean);
+
+    if (divine) {
+      updateCharacterStats(prev => ({
+        ...prev,
+        inventory: (prev.inventory || []).filter(i => !i.toLowerCase().includes(divine.name.toLowerCase())),
+        stats: {
+          ...prev.stats,
+          hp: divine.reviveHp || 1,
+          bleedingTier: 0,
+          deathCountdown: null,
+          defenseCount: 0,
+        },
+      }));
+      setHistory(prev => [...prev, {
+        role: 'model',
+        content: `[Divine Intervention: ${divine.name} was consumed. ${divine.description} No resurrection penalties applied.]`,
+        checkDetails: null,
+      }]);
+      if (divine.mode === 'restart_adventure' && activeAdventureId) {
+        setCurrentLocation(null);
+      }
+      setActiveEnemy(null);
+      setApiError(null);
+      return;
+    }
+
+    setPendingResurrection({
+      choices: rollResurrectionAttributeChoices(character),
+      sites: getAvailableResurrectionSites(character.completed_adventures || []),
+      killerName: activeEnemy?.name || '',
+      adventureId: activeAdventureId || null,
+    });
+  };
+
+  /** Player has chosen what to lose and where to return. Apply it all. */
+  const completeResurrection = (attributeId, site) => {
+    if (!pendingResurrection) return;
+    const diedAtHours = getGameHourStamp(character.stats?.day, character.stats?.hour);
+
+    updateCharacterStats(prev => applyResurrection(prev, {
+      attributeId,
+      site,
+      adventureId: pendingResurrection.adventureId,
+      killerName: pendingResurrection.killerName,
+      diedAtHours,
+    }));
+
+    const recovery = pendingResurrection.adventureId
+      ? resolveGearRecovery(pendingResurrection.adventureId, pendingResurrection.killerName)
+      : null;
+    const gearText = recovery
+      ? recovery.carries
+        ? ` Your gear was taken by ${recovery.killer}, last seen near ${recovery.location}. Find them before the trail goes cold.`
+        : ` Your gear lies where you fell, near ${recovery.location}. Recover it before it is scattered.`
+      : '';
+
+    setHistory(prev => [...prev, {
+      role: 'model',
+      content: `[Resurrection: you return at ${site.name}, risen and no longer wholly living. Permanent -1 ${attributeId}. The living react poorly to the risen.${gearText}]`,
+      checkDetails: null,
+    }]);
+
+    setPendingResurrection(null);
+    setActiveEnemy(null);
+    setApiError(null);
+  };
+
   const unlockRegion = (regionId) => {
     updateCharacterStats((prev) => {
       const nextRegions = [...(prev.unlocked_regions || ['region1'])];
@@ -5411,6 +5522,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
   return {
     character,
+    pendingResurrection,
+    beginResurrection,
+    completeResurrection,
     initializeMerchantStock,
     trainSkillWithMerchant,
     spendSkillPoints,
