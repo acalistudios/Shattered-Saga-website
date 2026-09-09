@@ -8,6 +8,7 @@ import { PRESET_METADATA } from '../data/portraits';
 import storage from '../utils/storage';
 import { calculateWeightAndVolume, getItemDetails, getItemSlot } from '../utils/items';
 import AccountStatusPills from '../components/AccountStatusPills';
+import ResurrectionModal from '../components/ResurrectionModal';
 import { getToken } from '../utils/authApi';
 import { skillRankCost } from '../data/progressionRewards';
 
@@ -47,6 +48,8 @@ export default function PlayScreen({
   onResetGame,
   onOpenSettings,
   executeMilestoneUpgrades,
+  pendingResurrection,
+  completeResurrection,
   spendSkillPoints,
   claimPendingRewardChoice,
   settings,
@@ -2394,6 +2397,13 @@ export default function PlayScreen({
           </div>
         </div>
       </div>
+
+      {/* Death: blocks all play until the player chooses how to return. */}
+      <ResurrectionModal
+        pendingResurrection={pendingResurrection}
+        character={character}
+        onConfirm={completeResurrection}
+      />
 
       {/* Onboarding Help & Rules Modal */}
       {isHelpOpen && (

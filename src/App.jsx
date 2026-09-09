@@ -99,6 +99,8 @@ function App() {
     trainSkillWithMerchant,
     spendSkillPoints,
     claimPendingRewardChoice,
+    pendingResurrection,
+    completeResurrection,
     activeEnemy,
     counterOpportunities,
     combatStance,
@@ -1034,6 +1036,8 @@ function App() {
             executeMilestoneUpgrades={executeMilestoneUpgrades}
             spendSkillPoints={spendSkillPoints}
             claimPendingRewardChoice={claimPendingRewardChoice}
+            pendingResurrection={pendingResurrection}
+            completeResurrection={completeResurrection}
             settings={settings}
             onRetryLastAction={retryLastAction}
             onQuitAdventure={handleQuitAdventure}
