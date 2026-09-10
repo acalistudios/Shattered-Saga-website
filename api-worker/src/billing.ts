@@ -17,6 +17,10 @@ const STRIPE_API = "https://api.stripe.com/v1";
 // events apart from theirs.
 const APP_TAG = "shattered-saga";
 
+export function isShatteredSagaStripeObject(metadata: Record<string, string> | null | undefined) {
+  return metadata?.app === APP_TAG;
+}
+
 /** What each purchasable thing grants. Prices live in Stripe; this maps intent. */
 type PlanKey = "supporter" | "adventurer" | "legend";
 type PackKey = "turns_200" | "turns_1500" | "gems_15";
@@ -173,6 +177,33 @@ export function registerBillingRoutes(
     const site = c.env.FRONTEND_URL || "https://shatteredsaga.com";
     const isSub = !!body.plan;
 
+    // A Customer belongs to exactly one ACALI product. Never search or reuse by
+    // email across the shared Stripe account.
+    const billingUser = await c.env.DATABASE.prepare(
+      "SELECT stripe_customer_id FROM users WHERE id = ?"
+    ).bind(user.id).first<{ stripe_customer_id: string | null }>();
+    let customerId = billingUser?.stripe_customer_id ?? null;
+    if (customerId) {
+      const customer = await stripe(c.env, `/customers/${customerId}`);
+      if (customer.metadata?.app && customer.metadata.app !== APP_TAG) {
+        return c.json({ error: "customer_scope_mismatch" }, 409);
+      }
+      if (customer.metadata?.app !== APP_TAG) {
+        await stripe(c.env, `/customers/${customerId}`, {
+          metadata: { ...customer.metadata, app: APP_TAG, user_id: user.id },
+        });
+      }
+    } else {
+      const customer = await stripe(c.env, "/customers", {
+        email: user.email,
+        metadata: { app: APP_TAG, user_id: user.id },
+      });
+      customerId = customer.id;
+      await c.env.DATABASE.prepare(
+        "UPDATE users SET stripe_customer_id = ? WHERE id = ?"
+      ).bind(customerId, user.id).run();
+    }
+
     // The client names the INTENT; the server resolves the actual price. A
     // client-supplied price id would let anyone buy Legend for a penny.
     const priceId = isSub
@@ -189,7 +220,7 @@ export function registerBillingRoutes(
         line_items: [{ price: priceId, quantity: 1 }],
         // Ties the payment back to our user in the webhook.
         client_reference_id: user.id,
-        customer_email: user.email,
+        customer: customerId,
         success_url: `${site}/?billing=success`,
         cancel_url: `${site}/?billing=cancelled`,
         metadata: {
@@ -231,12 +262,6 @@ export function registerBillingRoutes(
       return c.json({ error: "bad_payload" }, 400);
     }
 
-    // Idempotency: Stripe retries, and a replay must not credit twice.
-    const seen = await c.env.DATABASE.prepare("SELECT event_id FROM billing_events WHERE event_id = ?")
-      .bind(event.id)
-      .first();
-    if (seen) return c.json({ received: true, duplicate: true });
-
     const obj = event.data?.object ?? {};
     const userId = obj.client_reference_id || obj.metadata?.user_id || null;
 
@@ -246,14 +271,21 @@ export function registerBillingRoutes(
     // acting on it could credit or downgrade the wrong person. Safe to be strict
     // because every session and subscription we create is stamped at creation
     // and there are no pre-existing Shattered Saga subscriptions to grandfather.
-    if (obj.metadata?.app !== APP_TAG) {
+    if (!isShatteredSagaStripeObject(obj.metadata)) {
       await c.env.DATABASE.prepare(
-        "INSERT OR IGNORE INTO billing_events (event_id, type, user_id, processed_at) VALUES (?, ?, ?, ?)"
+        "INSERT OR IGNORE INTO billing_events (event_id, type, user_id, processed_at, status) VALUES (?, ?, ?, ?, 'processed')"
       ).bind(event.id, `${event.type}:foreign`, null, Date.now()).run();
       return c.json({ received: true, ignored: "other_app" });
     }
 
     try {
+      const claimToken = crypto.randomUUID();
+      const statements: D1PreparedStatement[] = [
+        c.env.DATABASE.prepare(
+          "INSERT OR IGNORE INTO billing_events (event_id, type, user_id, processed_at, claim_token, status) VALUES (?, ?, ?, ?, ?, 'processing')"
+        ).bind(event.id, event.type, userId, Date.now(), claimToken),
+      ];
+
       switch (event.type) {
         case "checkout.session.completed": {
           if (!userId) break;
@@ -263,24 +295,24 @@ export function registerBillingRoutes(
           if (kind === "pack" && item in PACK_GRANTS) {
             const grant = PACK_GRANTS[item as PackKey];
             if (grant.energy) {
-              await c.env.DATABASE.prepare(
-                "UPDATE users SET energy_balance = energy_balance + ? WHERE id = ?"
-              ).bind(grant.energy, userId).run();
+              statements.push(c.env.DATABASE.prepare(
+                "UPDATE users SET energy_balance = energy_balance + ? WHERE id = ? AND EXISTS (SELECT 1 FROM billing_events WHERE event_id = ? AND claim_token = ?)"
+              ).bind(grant.energy, userId, event.id, claimToken));
             }
             if (grant.gems) {
-              await c.env.DATABASE.prepare("UPDATE users SET gems = gems + ? WHERE id = ?")
-                .bind(grant.gems, userId).run();
+              statements.push(c.env.DATABASE.prepare(
+                "UPDATE users SET gems = gems + ? WHERE id = ? AND EXISTS (SELECT 1 FROM billing_events WHERE event_id = ? AND claim_token = ?)"
+              ).bind(grant.gems, userId, event.id, claimToken));
             }
           } else if (kind === "subscription") {
             // Record the subscription id so lifecycle events can be matched to
             // exactly this subscription rather than to the customer, who may
             // also hold subscriptions to other products on this Stripe account.
-            await c.env.DATABASE.prepare(
-              `UPDATE users
-               SET subscription_tier = ?, subscription_status = 'active',
-                   stripe_customer_id = ?, stripe_subscription_id = ?
-               WHERE id = ?`
-            ).bind(item, obj.customer ?? null, obj.subscription ?? null, userId).run();
+            statements.push(c.env.DATABASE.prepare(
+              `UPDATE users SET subscription_tier = ?, subscription_status = 'active',
+                 stripe_customer_id = ?, stripe_subscription_id = ?
+               WHERE id = ? AND EXISTS (SELECT 1 FROM billing_events WHERE event_id = ? AND claim_token = ?)`
+            ).bind(item, obj.customer ?? null, obj.subscription ?? null, userId, event.id, claimToken));
           }
           break;
         }
@@ -300,24 +332,23 @@ export function registerBillingRoutes(
           // Match on the subscription id we stored at checkout. Matching on
           // customer alone would let a cancellation on another ACALI product
           // downgrade this user's Shattered Saga tier.
-          const res = await c.env.DATABASE.prepare(
-            `UPDATE users
-             SET subscription_status = ?,
-                 subscription_period_end = ?,
-                 subscription_tier = CASE WHEN ? THEN subscription_tier ELSE 'free' END
-             WHERE stripe_subscription_id = ?`
-          ).bind(obj.status ?? "none", periodEnd, active ? 1 : 0, obj.id).run();
+          statements.push(c.env.DATABASE.prepare(
+            `UPDATE users SET subscription_status = ?, subscription_period_end = ?,
+               subscription_tier = CASE WHEN ? THEN subscription_tier ELSE 'free' END
+             WHERE stripe_subscription_id = ? AND EXISTS (SELECT 1 FROM billing_events WHERE event_id = ? AND claim_token = ?)`
+          ).bind(obj.status ?? "none", periodEnd, active ? 1 : 0, obj.id, event.id, claimToken));
 
-          if (res.meta.changes === 0) {
-            console.log(`[billing] ${event.type} for unknown subscription ${obj.id} — ignored`);
-          }
           break;
         }
       }
 
-      await c.env.DATABASE.prepare(
-        "INSERT INTO billing_events (event_id, type, user_id, processed_at) VALUES (?, ?, ?, ?)"
-      ).bind(event.id, event.type, userId, Date.now()).run();
+      statements.push(c.env.DATABASE.prepare(
+        "UPDATE billing_events SET status = 'processed' WHERE event_id = ? AND claim_token = ?"
+      ).bind(event.id, claimToken));
+      const results = await c.env.DATABASE.batch(statements);
+      if ((results[0].meta.changes ?? 0) === 0) {
+        return c.json({ received: true, duplicate: true });
+      }
     } catch (e: any) {
       console.error("[billing] webhook handling failed:", event.type, e?.message);
       // 500 so Stripe retries rather than silently dropping the entitlement.
