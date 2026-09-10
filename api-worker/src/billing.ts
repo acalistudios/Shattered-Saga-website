@@ -21,6 +21,13 @@ export function isShatteredSagaStripeObject(metadata: Record<string, string> | n
   return metadata?.app === APP_TAG;
 }
 
+export function isShatteredSagaPrice(price: {
+  active?: boolean;
+  metadata?: Record<string, string> | null;
+} | null | undefined) {
+  return !!price?.active && isShatteredSagaStripeObject(price.metadata);
+}
+
 /** What each purchasable thing grants. Prices live in Stripe; this maps intent. */
 type PlanKey = "supporter" | "adventurer" | "legend";
 type PackKey = "turns_200" | "turns_1500" | "gems_15";
@@ -48,12 +55,24 @@ function lookupKeyFor(kind: string, cycle?: string): string {
 async function resolvePriceId(env: Env, kind: string, cycle?: string): Promise<string | undefined> {
   const envKey = (cycle ? `STRIPE_PRICE_${kind}_${cycle}` : `STRIPE_PRICE_${kind}`).toUpperCase();
   const pinned = (env as any)[envKey];
-  if (pinned) return pinned;
-
   const lk = lookupKeyFor(kind, cycle);
   try {
-    const res = await stripe(env, `/prices?lookup_keys[]=${encodeURIComponent(lk)}&active=true&limit=1`);
-    return res.data?.[0]?.id;
+    let price = pinned
+      ? await stripe(env, `/prices/${encodeURIComponent(pinned)}`)
+      : (await stripe(env, `/prices?lookup_keys[]=${encodeURIComponent(lk)}&active=true&limit=1`)).data?.[0];
+    if (!price?.active) return undefined;
+    if (price.metadata?.app && price.metadata.app !== APP_TAG) return undefined;
+    if (price.metadata?.app !== APP_TAG) {
+      // Exact ss_* lookup keys are unique account-wide and were assigned by our
+      // catalogue sync before app tagging existed. Promote only that evidenced
+      // legacy path; an arbitrary pinned untagged price is never trusted.
+      if (pinned || price.lookup_key !== lk) return undefined;
+      price = await stripe(env, `/prices/${price.id}`, {
+        metadata: { ...price.metadata, app: APP_TAG },
+      });
+    }
+    if (!isShatteredSagaPrice(price)) return undefined;
+    return price.id;
   } catch {
     return undefined;
   }
@@ -120,22 +139,20 @@ function timingSafeEqual(a: string, b: string): boolean {
  * "<timestamp>.<raw body>" keyed by the webhook secret. Rejects signatures
  * older than the tolerance to blunt replay attempts.
  */
-async function verifyStripeSignature(
+export async function verifyStripeSignature(
   raw: string,
   header: string,
   secret: string,
   toleranceSec = 300
 ): Promise<boolean> {
   try {
-    const parts = Object.fromEntries(
-      header.split(",").map((p) => {
-        const [k, ...rest] = p.trim().split("=");
-        return [k, rest.join("=")];
-      })
-    );
-    const t = Number(parts.t);
-    const v1 = parts.v1;
-    if (!t || !v1) return false;
+    const parts = header.split(",").map((p) => {
+      const [key, ...rest] = p.trim().split("=");
+      return { key, value: rest.join("=") };
+    });
+    const t = Number(parts.find((part) => part.key === "t")?.value);
+    const signatures = parts.filter((part) => part.key === "v1").map((part) => part.value);
+    if (!t || signatures.length === 0) return false;
     if (Math.abs(Date.now() / 1000 - t) > toleranceSec) return false;
 
     const key = await crypto.subtle.importKey(
@@ -147,7 +164,8 @@ async function verifyStripeSignature(
     );
     const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${t}.${raw}`));
     const expected = [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
-    return timingSafeEqual(expected, v1);
+    // Stripe can include more than one v1 during webhook-secret rotation.
+    return signatures.some((signature) => timingSafeEqual(expected, signature));
   } catch {
     return false;
   }
@@ -415,9 +433,28 @@ export function registerBillingRoutes(
           continue;
         }
 
-        // Idempotent: only write when the key isn't already correct.
-        if (match.lookup_key !== lk) {
-          await stripe(c.env, `/prices/${match.id}`, { lookup_key: lk, transfer_lookup_key: "true" });
+        if (product.metadata?.app && product.metadata.app !== APP_TAG) {
+          report.push({ item: lk, status: "PRODUCT_SCOPE_MISMATCH", product: product.name });
+          continue;
+        }
+
+        // Idempotent: tag both catalogue layers and set the canonical key. A
+        // checkout accepts only prices explicitly tagged for this application.
+        if (product.metadata?.app !== APP_TAG) {
+          await stripe(c.env, `/products/${product.id}`, {
+            metadata: { ...product.metadata, app: APP_TAG },
+          });
+        }
+        if (match.metadata?.app && match.metadata.app !== APP_TAG) {
+          report.push({ item: lk, status: "PRICE_SCOPE_MISMATCH", priceId: match.id });
+          continue;
+        }
+        if (match.lookup_key !== lk || match.metadata?.app !== APP_TAG) {
+          await stripe(c.env, `/prices/${match.id}`, {
+            lookup_key: lk,
+            transfer_lookup_key: "true",
+            metadata: { ...match.metadata, app: APP_TAG },
+          });
         }
 
         report.push({
