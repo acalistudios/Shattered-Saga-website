@@ -9,10 +9,15 @@ import {
   getGearTrailHoursRemaining,
   recoverGear,
   abandonGearRecovery,
+  maybeRelocateGear,
+  canRecoverGearHere,
+  resolveGearTrailTick,
+  applyGearTrailTick,
   cureUndeath,
   getAvailableResurrectionSites,
 } from './resurrectionEngine';
 import { getDivineInterventionItem, RESURRECTION_SITES } from '../data/resurrection';
+import { ADVENTURE_GEAR_RECOVERY, CARRIER_MOVE_HOURS } from '../data/gearRecovery';
 
 const character = (over = {}) => ({
   attributes: {
@@ -186,6 +191,169 @@ describe('gear trail decay', () => {
     const c = character();
     expect(abandonGearRecovery(c)).toBe(c);
     expect(isGearTrailCold(c, 999)).toBe(false);
+  });
+});
+
+describe('trail relocation', () => {
+  const risen = (over = {}) => applyResurrection(character(), {
+    attributeId: 'vigor',
+    site: RESURRECTION_SITES[0],
+    adventureId: 'ashveil_keep',
+    killerName: 'Skritt',
+    diedAtHours: 100,
+    ...over,
+  });
+
+  it('stays put inside the move window', () => {
+    const c = risen();
+    const before = c.progression.pendingGearRecovery.location;
+    const after = maybeRelocateGear(c, 105, () => 0);
+    expect(after.progression.pendingGearRecovery.location).toBe(before);
+  });
+
+  it('moves once the window passes, and restarts the clock', () => {
+    const c = risen();
+    const before = c.progression.pendingGearRecovery.location;
+    const after = maybeRelocateGear(c, 100 + CARRIER_MOVE_HOURS, () => 0);
+
+    expect(after.progression.pendingGearRecovery.location).not.toBe(before);
+    expect(after.progression.pendingGearRecovery.lastMovedAtHours).toBe(100 + CARRIER_MOVE_HOURS);
+  });
+
+  it('only ever moves to a real location in the same adventure', () => {
+    const valid = ADVENTURE_GEAR_RECOVERY.ashveil_keep.locations;
+    for (let i = 0; i < 50; i++) {
+      const moved = maybeRelocateGear(risen(), 200, () => i / 50);
+      expect(valid).toContain(moved.progression.pendingGearRecovery.location);
+    }
+  });
+
+  it('never relocates onto the location it is already at', () => {
+    for (let i = 0; i < 50; i++) {
+      const c = risen();
+      const before = c.progression.pendingGearRecovery.location;
+      const moved = maybeRelocateGear(c, 200, () => i / 50);
+      expect(moved.progression.pendingGearRecovery.location).not.toBe(before);
+    }
+  });
+
+  it('is a no-op when nothing is pending', () => {
+    const c = character();
+    expect(maybeRelocateGear(c, 999)).toBe(c);
+  });
+
+  it('keeps the recovered items across a move', () => {
+    const moved = maybeRelocateGear(risen(), 200, () => 0);
+    expect(moved.progression.pendingGearRecovery.items).toContain('Champion Maul +2');
+  });
+});
+
+describe('reaching the gear', () => {
+  const carrierCase = () => applyResurrection(character(), {
+    attributeId: 'vigor', site: RESURRECTION_SITES[0],
+    adventureId: 'saltblood_mines', killerName: 'Threx', diedAtHours: 0,
+  });
+  const cacheCase = () => applyResurrection(character(), {
+    attributeId: 'vigor', site: RESURRECTION_SITES[0],
+    adventureId: 'blackroot_hollow', killerName: 'Mother Silken', diedAtHours: 0,
+  });
+
+  it('recovers by killing the carrier, wherever that happens', () => {
+    expect(canRecoverGearHere(carrierCase(), { defeatedEnemyName: 'Threx' })).toBe(true);
+  });
+
+  it('matches a carrier the GM names loosely', () => {
+    expect(canRecoverGearHere(carrierCase(), { defeatedEnemyName: 'Threx, the Mine Boss' })).toBe(true);
+  });
+
+  it('recovers by reaching the carrier\'s quarters without a fight', () => {
+    expect(canRecoverGearHere(carrierCase(), { currentLocation: "Threx's Office" })).toBe(true);
+  });
+
+  it('ignores killing some unrelated enemy', () => {
+    expect(canRecoverGearHere(carrierCase(), { defeatedEnemyName: 'Saltblood Guard' })).toBe(false);
+  });
+
+  it('ignores being in the wrong room', () => {
+    expect(canRecoverGearHere(carrierCase(), { currentLocation: 'Prisoner Barracks' })).toBe(false);
+  });
+
+  it('recovers a cache by reaching its site', () => {
+    expect(canRecoverGearHere(cacheCase(), { currentLocation: 'Egg Nursery' })).toBe(true);
+  });
+
+  it('does not let a beast be "defeated into" giving gear back', () => {
+    // Beasts do not carry, so killing one is not itself recovery — the player
+    // still has to reach the nest.
+    expect(canRecoverGearHere(cacheCase(), { defeatedEnemyName: 'Mother Silken' })).toBe(false);
+  });
+
+  it('is false when nothing is pending', () => {
+    expect(canRecoverGearHere(character(), { currentLocation: 'Anywhere' })).toBe(false);
+  });
+});
+
+describe('gear trail tick convergence', () => {
+  // The hook runs resolveGearTrailTick from an effect that depends on the
+  // character and then writes the character. If applying an action could ever
+  // produce another action, that is an infinite render loop in the game.
+  const settle = (c, opts) => {
+    let cur = c;
+    for (let i = 0; i < 10; i++) {
+      const action = resolveGearTrailTick(cur, opts);
+      if (action.type === 'none') return { character: cur, steps: i };
+      cur = applyGearTrailTick(cur, action);
+    }
+    throw new Error('did not converge in 10 ticks');
+  };
+
+  const risen = (adventureId, killerName) => applyResurrection(character(), {
+    attributeId: 'vigor', site: RESURRECTION_SITES[0],
+    adventureId, killerName, diedAtHours: 0,
+  });
+
+  it('settles after a recovery', () => {
+    const { character: c, steps } = settle(risen('saltblood_mines', 'Threx'), {
+      currentHours: 1, currentLocation: "Threx's Office",
+    });
+    expect(steps).toBe(1);
+    expect(c.inventory).toContain('Champion Maul +2');
+  });
+
+  it('settles after the trail goes cold', () => {
+    const { character: c, steps } = settle(risen('saltblood_mines', 'Threx'), { currentHours: 500 });
+    expect(steps).toBe(1);
+    expect(c.progression.pendingGearRecovery).toBeNull();
+  });
+
+  it('settles after a relocation instead of moving forever', () => {
+    const { steps } = settle(risen('ashveil_keep', 'Skritt'), {
+      currentHours: 20, currentLocation: 'Somewhere Else', rng: () => 0,
+    });
+    expect(steps).toBe(1);
+  });
+
+  it('does nothing at all when the trail is fresh and the player is elsewhere', () => {
+    const { steps } = settle(risen('ashveil_keep', 'Skritt'), {
+      currentHours: 1, currentLocation: 'Yew Graveyard',
+    });
+    expect(steps).toBe(0);
+  });
+
+  it('converges from any hour, for every adventure', () => {
+    for (const id of Object.keys(ADVENTURE_GEAR_RECOVERY)) {
+      for (const hour of [0, 5, 12, 13, 24, 25, 71, 72, 200]) {
+        expect(() => settle(risen(id, 'Nobody In Particular'), { currentHours: hour, rng: () => 0.5 })).not.toThrow();
+      }
+    }
+  });
+
+  it('prefers recovery over letting the trail go cold on the same tick', () => {
+    // Cold is checked first by design: past the deadline the gear is gone even
+    // if the player is standing on it. Guard the ordering so it stays deliberate.
+    const c = risen('saltblood_mines', 'Threx');
+    const action = resolveGearTrailTick(c, { currentHours: 500, currentLocation: "Threx's Office" });
+    expect(action.type).toBe('cold');
   });
 });
 

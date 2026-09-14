@@ -8,7 +8,7 @@ import {
   NPC_REACTION_PENALTY_REPEAT,
   getAvailableResurrectionSites,
 } from '../data/resurrection';
-import { resolveGearRecovery } from '../data/gearRecovery';
+import { resolveGearRecovery, ADVENTURE_GEAR_RECOVERY } from '../data/gearRecovery';
 
 /**
  * Offer two DIFFERENT attributes to lose. The player picks one.
@@ -121,6 +121,123 @@ export function getGearTrailHoursRemaining(character, currentHours) {
   const pending = character?.progression?.pendingGearRecovery;
   if (!pending) return null;
   return Math.max(0, pending.coldAtHours - currentHours);
+}
+
+/**
+ * Trails do not sit still. Once the move window has passed, a carrier has walked
+ * somewhere else and a cache has been dragged off — so the tracked location
+ * shifts to another site in the same adventure and the clock restarts.
+ */
+export function maybeRelocateGear(character, currentHours, rng = Math.random) {
+  const pending = character?.progression?.pendingGearRecovery;
+  if (!pending || !pending.adventureId) return character;
+
+  const lastMoved = pending.lastMovedAtHours ?? pending.diedAtHours ?? 0;
+  if (currentHours - lastMoved < pending.movesAfterHours) return character;
+
+  const entry = ADVENTURE_GEAR_RECOVERY[pending.adventureId];
+  const pool = (entry?.locations || []).filter(l => l !== pending.location);
+  if (pool.length === 0) return character;
+
+  const next = pool[Math.floor(rng() * pool.length) % pool.length];
+  return {
+    ...character,
+    progression: {
+      ...character.progression,
+      pendingGearRecovery: { ...pending, location: next, lastMovedAtHours: currentHours },
+    },
+  };
+}
+
+/**
+ * Is the gear within reach right now?
+ *
+ * Two ways in, matching the design: put down the carrier, or reach the place the
+ * gear is currently sitting — the carrier's quarters, or the cache itself.
+ */
+export function canRecoverGearHere(character, { currentLocation = null, defeatedEnemyName = '' } = {}) {
+  const pending = character?.progression?.pendingGearRecovery;
+  if (!pending) return false;
+
+  if (pending.carries && pending.killer && defeatedEnemyName) {
+    const killerLower = pending.killer.toLowerCase();
+    const foeLower = defeatedEnemyName.toLowerCase();
+    if (foeLower.includes(killerLower) || killerLower.includes(foeLower)) return true;
+  }
+
+  if (currentLocation && pending.location) {
+    if (currentLocation.toLowerCase() === pending.location.toLowerCase()) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Decide what, if anything, should happen to an open gear hunt right now.
+ *
+ * Pulled out of the hook so the decision is testable and, critically, provably
+ * CONVERGENT: applying the returned action and re-resolving must yield 'none'.
+ * The hook runs this from an effect that depends on `character` and then writes
+ * to `character`, so a non-convergent rule here would be an infinite render loop.
+ */
+export function resolveGearTrailTick(character, {
+  currentHours,
+  currentLocation = null,
+  defeatedEnemyName = '',
+  rng = Math.random,
+} = {}) {
+  const pending = character?.progression?.pendingGearRecovery;
+  if (!pending) return { type: 'none' };
+
+  if (isGearTrailCold(character, currentHours)) {
+    return { type: 'cold', items: pending.items || [] };
+  }
+
+  if (canRecoverGearHere(character, { currentLocation, defeatedEnemyName })) {
+    return {
+      type: 'recover',
+      items: pending.items || [],
+      from: defeatedEnemyName || pending.location,
+    };
+  }
+
+  const relocated = maybeRelocateGear(character, currentHours, rng);
+  if (relocated !== character) {
+    return {
+      type: 'move',
+      to: relocated.progression.pendingGearRecovery.location,
+      lastMovedAtHours: relocated.progression.pendingGearRecovery.lastMovedAtHours,
+    };
+  }
+
+  return { type: 'none' };
+}
+
+/** Apply a resolveGearTrailTick action to a character. Pure. */
+export function applyGearTrailTick(character, action) {
+  switch (action?.type) {
+    case 'cold':
+      return abandonGearRecovery(character);
+    case 'recover':
+      return recoverGear(character);
+    case 'move': {
+      const pending = character?.progression?.pendingGearRecovery;
+      if (!pending) return character;
+      return {
+        ...character,
+        progression: {
+          ...character.progression,
+          pendingGearRecovery: {
+            ...pending,
+            location: action.to,
+            lastMovedAtHours: action.lastMovedAtHours,
+          },
+        },
+      };
+    }
+    default:
+      return character;
+  }
 }
 
 /** Player reached the gear in time. Returns it and closes the recovery. */

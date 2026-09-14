@@ -33,6 +33,7 @@ const killer = (name, type, recoveredAt) => ({ name, type, carries: KILLER_TYPES
 
 export const ADVENTURE_GEAR_RECOVERY = {
   ashveil_keep: {
+    locations: ['Ashveil Village Square', 'Yew Graveyard', 'Great Hall', 'Lord\'s Study', 'Chapel', 'Prison Sub-Level'],
     defaultCacheSite: 'Great Hall',
     killers: [
       killer('Skritt', 'human', 'Prison Sub-Level'),
@@ -41,6 +42,7 @@ export const ADVENTURE_GEAR_RECOVERY = {
     ],
   },
   saltblood_mines: {
+    locations: ['Intake Cage', 'Prisoner Barracks', 'Processing Hall', 'Deep Redvein Vein', 'Threx\'s Office', 'Supply Depot'],
     // This adventure already confiscates equipment on entry, so the Supply Depot
     // is where the game's fiction already says your things are kept.
     defaultCacheSite: 'Supply Depot',
@@ -51,6 +53,7 @@ export const ADVENTURE_GEAR_RECOVERY = {
     ],
   },
   blackroot_hollow: {
+    locations: ['Blackroot Village Edge', 'Abandoned Mine Mouth', 'Webbed Root Gallery', 'Egg Nursery', 'Lower Molt Rift'],
     defaultCacheSite: 'Webbed Root Gallery',
     killers: [
       killer('Mother Silken', 'beast', 'Egg Nursery'),
@@ -58,10 +61,12 @@ export const ADVENTURE_GEAR_RECOVERY = {
     ],
   },
   thorn_treaty: {
+    locations: ['Boundary Stone Field', 'Milltown Hall', 'Orchard Graves', 'Thornwold Deep Path', 'Oath Stone Circle'],
     defaultCacheSite: 'Oath Stone Circle',
     killers: [killer('Briar-Eyed Leth', 'spirit', 'Thornwold Deep Path')],
   },
   glass_orchard_masquerade: {
+    locations: ['Lantern Walk', 'Mirror Hedge', 'Glass Orchard Ballroom', 'Servant Passage', 'Midnight Fountain'],
     defaultCacheSite: 'Servant Passage',
     killers: [
       killer('The Vesper Knife', 'human', 'Mirror Hedge'),
@@ -69,6 +74,7 @@ export const ADVENTURE_GEAR_RECOVERY = {
     ],
   },
   elemental_crucible: {
+    locations: ['Fivefold Gate', 'Cinder Trial Grove', 'Granite Burden Hall', 'Skyblind Walk', 'Tide Memory Pool', 'Aether Thread Nave', 'Mirror of Affinity'],
     defaultCacheSite: 'Fivefold Gate',
     killers: [
       killer('The Cinder Stag', 'elemental', 'Cinder Trial Grove'),
@@ -77,6 +83,7 @@ export const ADVENTURE_GEAR_RECOVERY = {
     ],
   },
   greywash_bandit_crown: {
+    locations: ['Greywash Road', 'Hungry Pines Camp', 'Deserter Ridge Camp', 'Smuggler Mill Base', 'Crown Hollow'],
     defaultCacheSite: 'Crown Hollow',
     killers: [
       killer('Tamsin Crowe', 'human', 'Crown Hollow'),
@@ -84,6 +91,7 @@ export const ADVENTURE_GEAR_RECOVERY = {
     ],
   },
   sunken_spire: {
+    locations: ['Flooded Library Entrance', 'Hall of Forgotten Runes', 'Tidal Siphon Junction', 'Planar Archives Sanctuary'],
     defaultCacheSite: 'Tidal Siphon Junction',
     killers: [
       killer('Drowned Guardian', 'undead', 'Hall of Forgotten Runes'),
@@ -92,6 +100,7 @@ export const ADVENTURE_GEAR_RECOVERY = {
     ],
   },
   merrin_abbey_plague_bells: {
+    locations: ['Sickfield Hamlet', 'Chained Abbey Gate', 'Infirmary Cloister', 'Reliquary Library', 'Bell Tower'],
     defaultCacheSite: 'Reliquary Library',
     killers: [
       killer('The Bell Grief', 'spirit', 'Bell Tower'),
@@ -99,6 +108,7 @@ export const ADVENTURE_GEAR_RECOVERY = {
     ],
   },
   drowned_market: {
+    locations: ['Empty Tide Flats', 'Ghost Bazaar Aisles', 'Memory Stall', 'Sunken Council Vault', 'Returning Tide Gate'],
     defaultCacheSite: 'Memory Stall',
     killers: [
       killer('Tide Bailiff', 'human', 'Returning Tide Gate'),
@@ -107,6 +117,7 @@ export const ADVENTURE_GEAR_RECOVERY = {
     ],
   },
   clockwork_conservatory: {
+    locations: ['The Brass Rotunda', 'The Steam-Weaving Gallery', 'The Clockwork Arboretum', 'The Alchemical Lab', 'The Chronos Vault', 'The Boiler Core Basement'],
     defaultCacheSite: 'The Chronos Vault',
     killers: [
       // Unit-7 tidies things away; it will have shelved your gear somewhere.
@@ -115,6 +126,7 @@ export const ADVENTURE_GEAR_RECOVERY = {
     ],
   },
   obsidian_vault: {
+    locations: ['Basalt Ridge Gatehouse', 'Sulfuric Vents Chamber', 'Molten Lava Tube', 'Altar of Ember'],
     defaultCacheSite: 'Sulfuric Vents Chamber',
     killers: [
       killer('Volcanic Warden', 'elemental', 'Altar of Ember'),
@@ -123,6 +135,7 @@ export const ADVENTURE_GEAR_RECOVERY = {
     ],
   },
   mirror_war_saint_orra: {
+    locations: ['Village Green', 'Saint Orra Chapel', 'Hall of Reflections', 'Vestry Archive', 'Dawn Mirror Threshold'],
     defaultCacheSite: 'Hall of Reflections',
     killers: [
       killer('Mara-Twice', 'human', 'Hall of Reflections'),
@@ -130,6 +143,7 @@ export const ADVENTURE_GEAR_RECOVERY = {
     ],
   },
   iron_colosseum: {
+    locations: ['Slave Pens', 'Training Sand', 'Beast Gate Underworks', 'Noble Gallery', 'Champion Dais'],
     // Arena rules: the house takes your kit before you ever reach the sand.
     defaultCacheSite: 'Beast Gate Underworks',
     killers: [
@@ -138,6 +152,7 @@ export const ADVENTURE_GEAR_RECOVERY = {
     ],
   },
   brass_plague_tinkertown: {
+    locations: ['Ticking Market Street', 'Gearwise Workshop', 'Converted Bakery', 'Servant Registry Hall', 'Central Logic Foundry'],
     defaultCacheSite: 'Central Logic Foundry',
     killers: [
       killer('Matron 12', 'construct', 'Servant Registry Hall'),
@@ -145,6 +160,7 @@ export const ADVENTURE_GEAR_RECOVERY = {
     ],
   },
   astral_sky: {
+    locations: ['Windrunner Sky-Bridges', 'Floating Leyline Isles', 'Gravity Siphon Spires', 'Astral Focal Altar'],
     defaultCacheSite: 'Floating Leyline Isles',
     killers: [
       killer('Vortex Elemental', 'elemental', 'Gravity Siphon Spires'),
@@ -153,6 +169,7 @@ export const ADVENTURE_GEAR_RECOVERY = {
     ],
   },
   frostfire_crypt: {
+    locations: ['The Runic Vestibule', 'The Sunken Reliquary', 'The Glyphed Catacombs', 'The Glacial Reach', 'The Sarcophagus Chamber', 'The Core Vault'],
     defaultCacheSite: 'The Glyphed Catacombs',
     killers: [
       killer('Kaelen-Ghar (Wraith)', 'undead', 'The Sarcophagus Chamber'),
@@ -161,6 +178,7 @@ export const ADVENTURE_GEAR_RECOVERY = {
     ],
   },
   harvest_hill_hunger: {
+    locations: ['Golden Wheat Road', 'Choosing Feast Hall', 'Elder\'s Root Cellar', 'Hill Shrine', 'Root-Heart Chamber'],
     defaultCacheSite: 'Hill Shrine',
     killers: [
       killer('The Hill Hunger', 'spirit', 'Root-Heart Chamber'),

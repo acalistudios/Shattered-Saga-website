@@ -30,6 +30,10 @@ import {
   getUndeadSocialPenalty,
   isUndead,
   getAvailableResurrectionSites,
+  canRecoverGearHere,
+  recoverGear,
+  resolveGearTrailTick,
+  applyGearTrailTick,
 } from '../utils/resurrectionEngine';
 import { getDivineInterventionItem } from '../data/resurrection';
 import { resolveGearRecovery } from '../data/gearRecovery';
@@ -2434,9 +2438,13 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       cleanedText = cleanedText.replace(combatEndRegex, '').trim();
 
       if (combatEndTriggered) {
+        // Read the fallen enemy BEFORE clearing it: killing the carrier is one
+        // of the two ways to get stripped gear back.
+        const defeatedName = activeEnemy?.name || '';
         setActiveEnemy(null);
         setCombatStance(null);
         setCounterOpportunities(null);
+        if (defeatedName) tryRecoverGear({ defeatedEnemyName: defeatedName });
       }
 
       // Scene boundary: expires scene-scoped reward item effects. Narration-only
@@ -4554,6 +4562,57 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       adventureId: activeAdventureId || null,
     });
   };
+
+  /**
+   * Try to close an open gear hunt.
+   *
+   * Engine-authoritative on purpose: the GM narrates finding the gear, it does
+   * not decide whether the gear is there. Called on combat end (with the fallen
+   * enemy's name) and from the recovery effect below (with the current room).
+   */
+  const tryRecoverGear = ({ defeatedEnemyName = '', currentLocation: atLocation = null } = {}) => {
+    const pending = character?.progression?.pendingGearRecovery;
+    if (!pending) return false;
+    if (!canRecoverGearHere(character, { defeatedEnemyName, currentLocation: atLocation })) return false;
+
+    const items = pending.items || [];
+    updateCharacterStats(prev => recoverGear(prev));
+    setHistory(prev => [...prev, {
+      role: 'model',
+      content: `[Gear Recovered: ${items.length} item${items.length === 1 ? '' : 's'} returned to your pack${
+        defeatedEnemyName ? ` from ${defeatedEnemyName}` : ` at ${pending.location}`
+      }. ${items.join(', ')}]`,
+      checkDetails: null,
+    }]);
+    return true;
+  };
+
+  /**
+   * The trail lives on its own clock: it moves, and eventually it dies. Watches
+   * the character rather than any single action, so time passing during rests,
+   * travel or downtime counts the same as time passing in a fight.
+   */
+  useEffect(() => {
+    const pending = character?.progression?.pendingGearRecovery;
+    if (!pending) return;
+
+    const nowHours = getGameHourStamp(character.stats?.day, character.stats?.hour);
+    // The destination is rolled ONCE here and then applied verbatim, so the
+    // functional update cannot draw a second, different location.
+    const action = resolveGearTrailTick(character, { currentHours: nowHours, currentLocation });
+    if (action.type === 'none') return;
+
+    updateCharacterStats(prev => applyGearTrailTick(prev, action));
+
+    const text = {
+      cold: `[Trail Cold: too much time has passed. Your lost gear is gone for good — ${(action.items || []).join(', ')}.]`,
+      recover: `[Gear Recovered: ${(action.items || []).length} item${(action.items || []).length === 1 ? '' : 's'} returned to your pack at ${action.from}. ${(action.items || []).join(', ')}]`,
+      move: `[Trail Moved: your gear is no longer where you left it. Word places it near ${action.to}.]`,
+    }[action.type];
+
+    if (text) setHistory(prev => [...prev, { role: 'model', content: text, checkDetails: null }]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [character, currentLocation]);
 
   /** Player has chosen what to lose and where to return. Apply it all. */
   const completeResurrection = (attributeId, site) => {
