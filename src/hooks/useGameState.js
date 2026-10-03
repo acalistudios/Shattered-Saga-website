@@ -4573,7 +4573,12 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
   const tryRecoverGear = ({ defeatedEnemyName = '', currentLocation: atLocation = null } = {}) => {
     const pending = character?.progression?.pendingGearRecovery;
     if (!pending) return false;
-    if (!canRecoverGearHere(character, { defeatedEnemyName, currentLocation: atLocation })) return false;
+    if (!canRecoverGearHere(character, {
+      defeatedEnemyName,
+      currentLocation: atLocation,
+      currentAdventureId: activeAdventureId,
+      currentHours: getGameHourStamp(character.stats?.day, character.stats?.hour),
+    })) return false;
 
     const items = pending.items || [];
     updateCharacterStats(prev => recoverGear(prev));
@@ -4599,7 +4604,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     const nowHours = getGameHourStamp(character.stats?.day, character.stats?.hour);
     // The destination is rolled ONCE here and then applied verbatim, so the
     // functional update cannot draw a second, different location.
-    const action = resolveGearTrailTick(character, { currentHours: nowHours, currentLocation });
+    const action = resolveGearTrailTick(character, {
+      currentHours: nowHours, currentLocation, currentAdventureId: activeAdventureId,
+    });
     if (action.type === 'none') return;
 
     updateCharacterStats(prev => applyGearTrailTick(prev, action));
@@ -4612,7 +4619,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
     if (text) setHistory(prev => [...prev, { role: 'model', content: text, checkDetails: null }]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [character, currentLocation]);
+  }, [character, currentLocation, activeAdventureId]);
 
   /** Player has chosen what to lose and where to return. Apply it all. */
   const completeResurrection = (attributeId, site) => {
@@ -4643,7 +4650,15 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     }]);
 
     setPendingResurrection(null);
+    // Change the room and its adventure together: retaining the death room can
+    // instantly recover stripped gear and gives the narrator the wrong setting.
+    setActiveAdventureId(site.adventureId);
+    setCurrentLocation(site.location);
     setActiveEnemy(null);
+    // Attacks and counters from the fatal encounter cannot follow to sanctuary.
+    setEnemyAttacksQueue([]);
+    setCounterOpportunities(null);
+    setCombatStance(null);
     setApiError(null);
   };
 

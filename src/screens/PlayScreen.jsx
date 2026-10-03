@@ -49,6 +49,7 @@ export default function PlayScreen({
   onOpenSettings,
   executeMilestoneUpgrades,
   pendingResurrection,
+  beginResurrection,
   completeResurrection,
   spendSkillPoints,
   claimPendingRewardChoice,
@@ -1322,14 +1323,14 @@ export default function PlayScreen({
             <span className="text-3xl">💀</span>
             <h3 className="text-sm font-extrabold uppercase font-serif text-red-500 tracking-wider">You Have Died</h3>
             <p className="text-2xs text-slate-400 max-w-xs leading-relaxed">
-              Your Saga has ended. Your hit points fell to -5 or lower. You can no longer take actions.
+              Your hit points fell to -5 or lower. Return to consecrated ground to continue your saga, at a permanent cost.
             </p>
             <button
               type="button"
-              onClick={onResetGame}
+              onClick={beginResurrection}
               className="px-4 py-2 bg-slate-900 hover:bg-slate-950 border border-red-900/30 text-red-400 text-3xs font-extrabold uppercase tracking-wider rounded transition-all cursor-pointer shadow-md"
             >
-              Reset Saga
+              Return to Life
             </button>
           </div>
         ) : enemyAttacksQueue && enemyAttacksQueue.length > 0 ? (

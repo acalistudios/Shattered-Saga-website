@@ -80,7 +80,9 @@ export function applyResurrection(character, {
   return {
     ...character,
     attributes,
-    equipment: {},
+    // Explicit nulls survive schema hydration; an empty object restores default
+    // equipment such as the starting backpack on the next load.
+    equipment: Object.fromEntries(Object.keys(character.equipment || {}).map(slot => [slot, null])),
     inventory: [],
     stats: {
       ...character.stats,
@@ -155,9 +157,18 @@ export function maybeRelocateGear(character, currentHours, rng = Math.random) {
  * Two ways in, matching the design: put down the carrier, or reach the place the
  * gear is currently sitting — the carrier's quarters, or the cache itself.
  */
-export function canRecoverGearHere(character, { currentLocation = null, defeatedEnemyName = '' } = {}) {
+export function canRecoverGearHere(character, {
+  currentLocation = null,
+  defeatedEnemyName = '',
+  currentAdventureId,
+  currentHours,
+} = {}) {
   const pending = character?.progression?.pendingGearRecovery;
   if (!pending) return false;
+  // Names and room labels can recur in other adventures; neither is a valid
+  // recovery trigger outside the adventure holding the gear or after expiry.
+  if (currentAdventureId !== undefined && currentAdventureId !== pending.adventureId) return false;
+  if (currentHours !== undefined && isGearTrailCold(character, currentHours)) return false;
 
   if (pending.carries && pending.killer && defeatedEnemyName) {
     const killerLower = pending.killer.toLowerCase();
@@ -184,6 +195,7 @@ export function resolveGearTrailTick(character, {
   currentHours,
   currentLocation = null,
   defeatedEnemyName = '',
+  currentAdventureId,
   rng = Math.random,
 } = {}) {
   const pending = character?.progression?.pendingGearRecovery;
@@ -193,7 +205,7 @@ export function resolveGearTrailTick(character, {
     return { type: 'cold', items: pending.items || [] };
   }
 
-  if (canRecoverGearHere(character, { currentLocation, defeatedEnemyName })) {
+  if (canRecoverGearHere(character, { currentLocation, defeatedEnemyName, currentAdventureId, currentHours })) {
     return {
       type: 'recover',
       items: pending.items || [],

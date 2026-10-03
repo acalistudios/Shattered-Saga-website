@@ -83,8 +83,7 @@ export const getDivineInterventionItem = (itemName) => {
 /** Sites the player can actually choose, given what they have completed. */
 export const getAvailableResurrectionSites = (completedAdventures = []) => {
   const done = new Set(completedAdventures);
-  const unlocked = RESURRECTION_SITES.filter(s => done.has(s.adventureId));
-  // Ashveil is the campaign opener and the fallback sanctuary: without it a
-  // player who dies in adventure 1 would have nowhere to return to.
-  return unlocked.length > 0 ? unlocked : [RESURRECTION_SITES[0]];
+  // Ashveil is always available, including imported saves that completed Merrin
+  // without Ashveil. Other sanctuaries still require their own completion.
+  return RESURRECTION_SITES.filter(s => s.adventureId === 'ashveil_keep' || done.has(s.adventureId));
 };

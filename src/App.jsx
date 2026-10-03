@@ -100,6 +100,7 @@ function App() {
     spendSkillPoints,
     claimPendingRewardChoice,
     pendingResurrection,
+    beginResurrection,
     completeResurrection,
     activeEnemy,
     counterOpportunities,
@@ -1037,6 +1038,7 @@ function App() {
             spendSkillPoints={spendSkillPoints}
             claimPendingRewardChoice={claimPendingRewardChoice}
             pendingResurrection={pendingResurrection}
+            beginResurrection={beginResurrection}
             completeResurrection={completeResurrection}
             settings={settings}
             onRetryLastAction={retryLastAction}

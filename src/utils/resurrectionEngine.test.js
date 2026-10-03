@@ -107,7 +107,7 @@ describe('applying resurrection', () => {
 
   it('strips carried gear and records where it went', () => {
     const c = revived();
-    expect(c.equipment).toEqual({});
+    expect(Object.values(c.equipment).every(item => item === null)).toBe(true);
     expect(c.inventory).toEqual([]);
 
     const pending = c.progression.pendingGearRecovery;
@@ -357,6 +357,59 @@ describe('gear trail tick convergence', () => {
   });
 });
 
+describe('gear recovery encounter boundaries', () => {
+  it('records stripped slots explicitly so reload does not grant default gear', () => {
+    const c = applyResurrection(character({ equipment: { backpack: 'Small Backpack', hand_right: 'Champion Maul +2' } }), {
+      attributeId: 'power', site: RESURRECTION_SITES[0], adventureId: 'saltblood_mines', killerName: 'Threx',
+    });
+    const hydratedEquipment = { backpack: 'Small Backpack', ...JSON.parse(JSON.stringify(c)).equipment };
+    expect(hydratedEquipment.backpack).toBeNull();
+    expect(c.progression.pendingGearRecovery.items).toContain('Small Backpack');
+  });
+  const risen = () => applyResurrection(character(), {
+    attributeId: 'power', site: RESURRECTION_SITES[0],
+    adventureId: 'saltblood_mines', killerName: 'Threx', diedAtHours: 28,
+  });
+
+  it('keeps the hunt open on arrival at the resurrection sanctuary', () => {
+    const c = risen();
+    expect(resolveGearTrailTick(c, {
+      currentHours: 28, currentAdventureId: 'ashveil_keep', currentLocation: 'Chapel',
+    }).type).toBe('none');
+    expect(c.progression.pendingGearRecovery.items).toContain('Champion Maul +2');
+  });
+
+  it('ignores matching names and locations in a different adventure', () => {
+    expect(canRecoverGearHere(risen(), {
+      currentAdventureId: 'ashveil_keep', currentLocation: "Threx's Office",
+      defeatedEnemyName: 'Threx', currentHours: 28,
+    })).toBe(false);
+  });
+
+  it('recovers once by defeating the carrier in the original adventure', () => {
+    const c = risen();
+    const action = resolveGearTrailTick(c, {
+      currentAdventureId: 'saltblood_mines', defeatedEnemyName: 'Threx, the mine boss', currentHours: 29,
+    });
+    expect(action.type).toBe('recover');
+    const recovered = applyGearTrailTick(c, action);
+    expect(recovered.inventory).toContain('Champion Maul +2');
+    expect(resolveGearTrailTick(recovered, { currentHours: 29, defeatedEnemyName: 'Threx' }).type).toBe('none');
+  });
+
+  it('recovers by reaching the quarters in the original adventure', () => {
+    expect(canRecoverGearHere(risen(), {
+      currentAdventureId: 'saltblood_mines', currentLocation: "Threx's Office", currentHours: 29,
+    })).toBe(true);
+  });
+
+  it('does not let a combat-end trigger bypass the 72-hour deadline', () => {
+    expect(canRecoverGearHere(risen(), {
+      currentAdventureId: 'saltblood_mines', defeatedEnemyName: 'Threx', currentHours: 100,
+    })).toBe(false);
+  });
+});
+
 describe('curing undeath', () => {
   it('clears the condition and the social penalty', () => {
     const risen = applyResurrection(character(), { attributeId: 'vigor', site: RESURRECTION_SITES[0] });
@@ -372,6 +425,10 @@ describe('curing undeath', () => {
 });
 
 describe('resurrection sites', () => {
+  it('keeps Ashveil available when only Merrin was completed', () => {
+    expect(getAvailableResurrectionSites(['merrin_abbey_plague_bells']).map(s => s.adventureId))
+      .toEqual(['ashveil_keep', 'merrin_abbey_plague_bells']);
+  });
   it('always offers Ashveil, even before anything is completed', () => {
     expect(getAvailableResurrectionSites([])).toHaveLength(1);
     expect(getAvailableResurrectionSites([])[0].adventureId).toBe('ashveil_keep');

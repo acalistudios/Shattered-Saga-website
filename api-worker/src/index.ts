@@ -32,10 +32,11 @@ app.use("*", async (c, next) => {
     "http://localhost:5185",
   ];
   return cors({
-    origin: (o) => (allowed.includes(o) ? o : allowed[0]),
+    origin: allowed,
     credentials: true,
     allowHeaders: ["Content-Type", "Authorization"],
-    allowMethods: ["GET", "POST", "OPTIONS"],
+    // Cloud saves update and delete slots; browsers preflight both operations.
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   })(c, next);
 });
 
