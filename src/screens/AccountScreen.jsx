@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import storage from '../utils/storage';
 import {
   startCheckout,
+  cancelSubscription,
   fetchBillingStatus,
   isBackendConfigured,
   linkSocialRedirect,
@@ -396,6 +397,18 @@ export default function AccountScreen({
       });
     }
   };
+
+  async function handleCancelRenewal() {
+    if (!window.confirm('Cancel renewal? Any current paid access continues until the end of its billing period.')) return;
+    setPurchaseLoading('cancel');
+    try {
+      await cancelSubscription();
+      alert('Renewal canceled. Any current paid access continues through its billing period.');
+      await fetchUserProfile?.();
+    } catch (error) {
+      alert(error.message || 'Cancellation failed. Please try again.');
+    } finally { setPurchaseLoading(null); }
+  }
 
   return (
     <div className="flex-1 flex flex-col justify-start p-6 max-w-5xl mx-auto w-full overflow-y-auto custom-scrollbar">
@@ -832,6 +845,11 @@ export default function AccountScreen({
           {showSubscriptions && (
           <div>
             <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Subscription covenants</h2>
+            {currentTier === 'free' && (
+              <button onClick={handleCancelRenewal} disabled={purchaseLoading !== null} className="text-xs text-slate-400 underline mb-4">
+                Cancel renewal of an existing subscription
+              </button>
+            )}
             
             {/* Billing cycle toggle */}
             <div className="flex items-center justify-between mb-4 bg-slate-900 border border-slate-800/80 p-3 rounded-lg">
@@ -893,11 +911,11 @@ export default function AccountScreen({
                   </div>
                 ) : (
                   <button 
-                    onClick={() => alert('Subscription cancellation and plan management will be handled by the billing portal.')}
+                    onClick={handleCancelRenewal}
                     disabled={purchaseLoading !== null}
                     className="w-full py-1 rounded bg-slate-900 hover:bg-slate-850 text-slate-350 border border-slate-800 font-bold text-4xs uppercase tracking-wider cursor-pointer transition-colors"
                   >
-                    Manage Plan
+                    Cancel Renewal
                   </button>
                 )}
               </div>

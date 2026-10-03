@@ -142,6 +142,10 @@ export async function startCheckout({ plan, cycle, pack }) {
   window.location.href = data.url;
 }
 
+export async function cancelSubscription() {
+  return post('/api/billing/cancel', {}, true);
+}
+
 // Current user's tier + energy (replaces the Supabase profile fetch).
 export async function fetchMe() {
   const t = getToken();
