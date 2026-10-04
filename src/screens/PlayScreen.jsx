@@ -51,6 +51,7 @@ export default function PlayScreen({
   pendingResurrection,
   beginResurrection,
   completeResurrection,
+  returnToInterruptedAdventure,
   spendSkillPoints,
   claimPendingRewardChoice,
   settings,
@@ -1318,6 +1319,14 @@ export default function PlayScreen({
         </div>
 
         {/* Narrative inputs or Defense Queue Panel */}
+        {character.progression?.interruptedAdventureId && character.stats.hp > 0 && !activeEnemy && enemyAttacksQueue.length === 0 && (
+          <div className="border-t border-amber-800 p-3">
+            <button type="button" disabled={isLoading} onClick={returnToInterruptedAdventure}
+              className="px-4 py-2 rounded border border-amber-700 text-amber-400 disabled:opacity-50">
+              Return to {ADVENTURES_LIST.find(entry => entry.id === character.progression.interruptedAdventureId)?.name || 'interrupted adventure'}
+            </button>
+          </div>
+        )}
         {character.stats.hp <= -5 ? (
           <div className="border-t border-rose-950 p-6 bg-rose-950/10 flex flex-col items-center justify-center gap-3 text-center">
             <span className="text-3xl">💀</span>

@@ -5,18 +5,14 @@ export default function useSettings() {
   const [settings, setSettings] = useState(() => {
     const stored = storage.get('settings', {});
     const keys = {
-      oracle: stored.keys?.oracle || import.meta.env.VITE_GEMINI_API_KEY || '',
-      titan: stored.keys?.titan || import.meta.env.VITE_GROQ_API_KEY || '',
-      ancient: stored.keys?.ancient || import.meta.env.VITE_CEREBRAS_API_KEY || '',
+      // Only user-entered device keys belong here. VITE_* values ship publicly.
+      oracle: stored.keys?.oracle || '',
+      titan: stored.keys?.titan || '',
+      ancient: stored.keys?.ancient || '',
     };
     const sandboxMode = stored.sandboxMode !== undefined
       ? stored.sandboxMode
-      : !(
-          import.meta.env.VITE_API_URL ||
-          import.meta.env.VITE_GEMINI_API_KEY ||
-          import.meta.env.VITE_GROQ_API_KEY ||
-          import.meta.env.VITE_CEREBRAS_API_KEY
-        );
+      : !import.meta.env.VITE_API_URL;
     
     const engineTier = stored.engineTier || 'free';
     const userApiKey = stored.userApiKey || '';

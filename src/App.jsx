@@ -102,6 +102,7 @@ function App() {
     pendingResurrection,
     beginResurrection,
     completeResurrection,
+    returnToInterruptedAdventure,
     activeEnemy,
     counterOpportunities,
     combatStance,
@@ -279,8 +280,10 @@ function App() {
     }
 
     setAccountNotice(`${authSuccess} sign-in completed.`);
+    // A successful real sign-in must not inherit a previous guest's offline mode.
+    setSandboxMode(false);
     fetchUserProfile();
-  }, [fetchUserProfile]);
+  }, [fetchUserProfile, setSandboxMode]);
 
   // After a social sign-in the Worker redirects back here with a session cookie
   // scoped to .shatteredsaga.com — but nothing is in local storage yet, so the
@@ -450,6 +453,7 @@ function App() {
 
     if (!isOAuthProvider) {
       // Guest / Sandbox Login
+      setSandboxMode(true);
       const email = 'guest-adventurer@shatteredsaga.com';
       const displayName = provider; // e.g., 'Guest_Adventurer'
       
@@ -746,6 +750,7 @@ function App() {
       storage.set('shattered_username', usernameVal);
       setUsername(usernameVal);
       setIsLoggedIn(true);
+      setSandboxMode(false);
       window.dispatchEvent(new Event('shattered_auth_update'));
       return { success: true };
     }
@@ -755,6 +760,7 @@ function App() {
 
     if (!supabaseUrl || !supabaseAnonKey) {
       // Sandbox Mode
+      setSandboxMode(true);
       const usernamePrefix = email.split('@')[0];
       const displayName = usernamePrefix.charAt(0).toUpperCase() + usernamePrefix.slice(1) + '_Adventurer';
       
@@ -1040,6 +1046,7 @@ function App() {
             pendingResurrection={pendingResurrection}
             beginResurrection={beginResurrection}
             completeResurrection={completeResurrection}
+            returnToInterruptedAdventure={returnToInterruptedAdventure}
             settings={settings}
             onRetryLastAction={retryLastAction}
             onQuitAdventure={handleQuitAdventure}

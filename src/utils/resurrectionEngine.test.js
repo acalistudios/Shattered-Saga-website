@@ -117,6 +117,18 @@ describe('applying resurrection', () => {
     expect(pending.items).toContain('Rations (3)');
   });
 
+  it('persists the interrupted adventure independently of gear-trail expiry', () => {
+    const restored = JSON.parse(JSON.stringify(revived()));
+    expect(restored.progression.interruptedAdventureId).toBe('saltblood_mines');
+    const expired = applyGearTrailTick(restored, resolveGearTrailTick(restored, {
+      currentHours: 100, currentLocation: 'Chapel', currentAdventureId: 'ashveil_keep',
+    }));
+    expect(expired.progression.pendingGearRecovery).toBeNull();
+    expect(expired.progression.interruptedAdventureId).toBe('saltblood_mines');
+    expect(expired.stats.day).toBe(2);
+    expect(expired.stats.hour).toBe(4);
+  });
+
   it('ends the death spiral rather than reviving into it', () => {
     const c = revived();
     expect(c.stats.hp).toBe(1);

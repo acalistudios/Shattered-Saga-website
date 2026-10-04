@@ -5,6 +5,7 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { drizzle } from "drizzle-orm/d1";
 import { schema } from "./db/schema";
 import { sendEmail } from "./email";
+import { getAuthCookieScope } from "./authCookies";
 
 export interface Env {
   DATABASE: D1Database;
@@ -126,13 +127,10 @@ export function createAuth(env?: Env, cf?: IncomingRequestCfProperties, baseURL?
           },
         },
         // Inside withCloudflare's options so it survives the spread above.
-        // Scopes auth cookies to .shatteredsaga.com, letting the site read the
-        // session set by api.shatteredsaga.com after an OAuth redirect.
+        // Share cookies only across production hosts; local and preview APIs
+        // must issue host-only cookies that their browsers can actually accept.
         advanced: {
-          crossSubDomainCookies: {
-            enabled: true,
-            domain: ".shatteredsaga.com",
-          },
+          crossSubDomainCookies: getAuthCookieScope(baseURL),
         },
         rateLimit: { enabled: true, window: 60, max: 100 },
         // Bearer tokens let the static frontend authenticate cross-origin with

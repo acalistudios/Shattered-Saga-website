@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_PROGRESSION,
+  getAdventureStartClock,
   getMagicBonus,
   getCooldownReady,
   setItemCooldownOnCharacter,
@@ -24,6 +25,21 @@ const character = (over = {}) => ({
   stats: { day: 1, hour: 13.0 },
   progression: { ...DEFAULT_PROGRESSION },
   ...over,
+});
+
+describe('campaign clock at adventure entry', () => {
+  it('honors a later authored opening', () => {
+    expect(getAdventureStartClock({ day: 1, hour: 13 }, { startingDay: 1, startingHour: 22 }))
+      .toEqual({ day: 1, hour: 22 });
+  });
+  it('never rewinds a recovery or cooldown clock on re-entry', () => {
+    expect(getAdventureStartClock({ day: 4, hour: 7.5 }, { startingDay: 1, startingHour: 13 }))
+      .toEqual({ day: 4, hour: 7.5 });
+  });
+  it('preserves midnight and normalizes overflowing hours', () => {
+    expect(getAdventureStartClock({ day: 3, hour: 0 }, {})).toEqual({ day: 3, hour: 0 });
+    expect(getAdventureStartClock({ day: 3, hour: 25 }, {})).toEqual({ day: 4, hour: 1 });
+  });
 });
 
 describe('reward item lookup', () => {

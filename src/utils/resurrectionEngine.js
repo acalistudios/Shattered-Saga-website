@@ -97,6 +97,7 @@ export function applyResurrection(character, {
       resurrectionCount: nextCount,
       npcReactionPenalty,
       lostAttributes: [...(character.progression?.lostAttributes || []), attributeId].filter(Boolean),
+      interruptedAdventureId: adventureId,
       pendingGearRecovery: recovery
         ? {
             ...recovery,

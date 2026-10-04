@@ -37,7 +37,7 @@ import {
 } from '../utils/resurrectionEngine';
 import { getDivineInterventionItem } from '../data/resurrection';
 import { resolveGearRecovery } from '../data/gearRecovery';
-import { getGameHourStamp } from '../utils/rewardEngine';
+import { getGameHourStamp, getAdventureStartClock } from '../utils/rewardEngine';
 import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../utils/authApi';
 
 function consumeRationFromInventory(inventory) {
@@ -3491,10 +3491,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     const startLocation = adventure?.settings?.[0] || '';
     setCurrentLocation(startLocation);
 
-    const startDay = adventure?.startingDay || 1;
-    const startHour = adventure?.startingHour !== undefined ? adventure.startingHour : 13.0;
-
     setCharacter(prev => {
+      const { day: startDay, hour: startHour } = getAdventureStartClock(prev.stats, adventure);
       const vigor = prev.attributes?.vigor || 1;
       const drawingRank = prev.skills?.arcane_drawing || 0;
       const communionRank = prev.skills?.divine_communion || 0;
@@ -4662,6 +4660,25 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     setApiError(null);
   };
 
+  const returnToInterruptedAdventure = () => {
+    const adventureId = character.progression?.interruptedAdventureId;
+    const adventure = ADVENTURES_LIST.find(entry => entry.id === adventureId);
+    if (!adventure || isLoading || activeEnemy || enemyAttacksQueue.length || character.stats.hp <= 0) return;
+    // Re-enter at the entrance, not the death site. Do not replay confiscation,
+    // restore resources, reset objectives, or teleport directly to lost gear.
+    setActiveAdventureId(adventureId);
+    setCurrentLocation(adventure.settings[0]);
+    updateCharacterStats(prev => ({
+      ...prev,
+      progression: { ...prev.progression, interruptedAdventureId: null },
+    }));
+    setHistory(prev => [...prev, {
+      role: 'model',
+      content: `[Return: you arrive at ${adventure.settings[0]} in ${adventure.name}. Your previous objectives and the campaign clock are unchanged.]`,
+      checkDetails: null,
+    }]);
+  };
+
   const unlockRegion = (regionId) => {
     updateCharacterStats((prev) => {
       const nextRegions = [...(prev.unlocked_regions || ['region1'])];
@@ -5599,6 +5616,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     pendingResurrection,
     beginResurrection,
     completeResurrection,
+    returnToInterruptedAdventure,
     initializeMerchantStock,
     trainSkillWithMerchant,
     spendSkillPoints,

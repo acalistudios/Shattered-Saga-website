@@ -283,56 +283,12 @@ async function executeRawCompletion({
   sessionToken = null,
   onChunk = null
 }) {
-  if (sandboxMode || (!apiKey && !sessionToken)) {
-    try {
-      const messages = [];
-      messages.push({ role: 'system', content: systemPrompt });
-      history.forEach((msg) => {
-        messages.push({
-          role: msg.role === 'model' ? 'assistant' : msg.role,
-          content: msg.content
-        });
-      });
-
-      const requestBody = {
-        messages: messages,
-        model: 'openai-fast',
-        jsonMode: isHandoff,
-        seed: Math.floor(Math.random() * 1000000)
-      };
-
-      if (onChunk) {
-        requestBody.stream = true;
-      }
-
-      const response = await fetch('https://text.pollinations.ai/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (response.ok) {
-        if (onChunk && response.body) {
-          const text = await readStream(response, 'groq', onChunk);
-          return {
-            text: text,
-            totalTokens: text.split(' ').length + 100,
-            error: null
-          };
-        } else {
-          const text = await response.text();
-          return {
-            text: text,
-            totalTokens: text.split(' ').length + 100,
-            error: null
-          };
-        }
-      }
-    } catch (e) {
-      console.warn("Pollinations keyless fallback failed, returning local mock:", e);
-    }
-
+  if (sandboxMode) {
+    // Sandbox must not send player history to an external provider or spend turns.
     return runSandboxMock(provider, history, isHandoff, characterData, currentSituation);
+  }
+  if (!apiKey && !sessionToken) {
+    return { text: '', totalTokens: 0, error: 'Sign in for AI play or enable Sandbox in Settings.' };
   }
 
   // Secure Serverless Proxy Path
@@ -588,6 +544,18 @@ function runSandboxMock(provider, history, isHandoff, characterData, currentSitu
     setTimeout(() => {
       const lastUserMsg = [...history].reverse().find(m => m.role === 'user')?.content || 'Begin';
       const charName = characterData?.name || 'Adventurer';
+
+      // An authored adventure's location is independent of the PC's affinity.
+      // This is a UI fixture, not a GM: never invent travel or quest completion.
+      if (currentSituation && !isHandoff) {
+        const room = typeof currentSituation === 'string' ? currentSituation : currentSituation.location;
+        resolve({
+          text: `[Offline sandbox] ${charName}'s action is recorded at ${room || 'the current location'}. No AI story outcome was generated.`,
+          totalTokens: 0,
+          error: null,
+        });
+        return;
+      }
 
       if (isHandoff) {
         const handoffData = {

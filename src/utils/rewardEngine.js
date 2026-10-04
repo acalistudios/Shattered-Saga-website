@@ -49,6 +49,15 @@ export function getGameHourStamp(day, hour) {
   return ((day || 1) - 1) * 24 + (hour || 0);
 }
 
+export function getAdventureStartClock(stats, adventure) {
+  // Authored openings may advance the campaign, never rewind cooldowns or trails.
+  const hours = Math.max(
+    getGameHourStamp(stats?.day, stats?.hour),
+    getGameHourStamp(adventure?.startingDay ?? 1, adventure?.startingHour ?? 13)
+  );
+  return { day: Math.floor(hours / 24) + 1, hour: hours % 24 };
+}
+
 export function getCharacterHourStamp(character) {
   return getGameHourStamp(character?.stats?.day || 1, character?.stats?.hour ?? 13.0);
 }
