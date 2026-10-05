@@ -74,9 +74,9 @@ const BASE_ADVENTURE_SETTING_METADATA = {
   "ashveil_keep": {
     settingChoices: {
       "Ashveil Village Square": [
-        { text: "Inspect the locks, seams, and mechanisms for a safe way through", skill: "lockpicking", difficulty: "professional", intent: "utility" },
-        { text: "Speak carefully and draw out motives before committing", skill: "insight", difficulty: "novice", intent: "social" },
-        { text: "Read the terrain for tracks, hazards, and safer routes", skill: "survival", difficulty: "novice", intent: "travel" },
+        { text: "Ask Martha where Oswin and the other children were last seen", skill: "insight", difficulty: "novice", intent: "social" },
+        { text: "Ask Vance what he knows about the keep and its old defenses", skill: "negotiation", difficulty: "professional", intent: "social" },
+        { text: "Look for the children's tracks on the hill road toward the graveyard", skill: "tracking", difficulty: "professional", intent: "investigate" },
       ],
       "Yew Graveyard": [
         { text: "Inspect the locks, seams, and mechanisms for a safe way through", skill: "lockpicking", difficulty: "professional", intent: "utility" },

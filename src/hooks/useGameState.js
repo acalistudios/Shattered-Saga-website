@@ -39,29 +39,8 @@ import { getDivineInterventionItem } from '../data/resurrection';
 import { resolveGearRecovery } from '../data/gearRecovery';
 import { getGameHourStamp, getAdventureStartClock } from '../utils/rewardEngine';
 import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../utils/authApi';
-
-function consumeRationFromInventory(inventory) {
-  let hasRations = false;
-  let updatedInventory = inventory.map(item => {
-    const match = item.match(/Rations(?:\s*\((\d+)\))?/i);
-    if (match && !hasRations) {
-      hasRations = true;
-      if (match[1]) {
-        const count = parseInt(match[1], 10);
-        if (count > 1) {
-          return `Rations (${count - 1})`;
-        } else {
-          return null; // Consumed the last one
-        }
-      } else {
-        return null; // Consumed the only one
-      }
-    }
-    return item;
-  }).filter(Boolean);
-
-  return { hasRations, updatedInventory };
-}
+import { consumeRationFromInventory, resolveRest } from '../utils/restEngine';
+import { canDeferNarrationCosts, createPreparedNarrationTurn } from '../utils/narrationTurn';
 
 function addCopperToCurrency(currency = {}, amountCp = 0) {
   const currentCp = (currency.gp || currency.gold || 0) * 100 + (currency.sp || 0) * 10 + (currency.cp || 0);
@@ -631,6 +610,19 @@ export default function useGameState() {
   const [safetyState, setSafetyState] = useState(() => storage.get(`slot_${activeSlotIndex}_safety_state`, DEFAULT_SAFETY_STATE));
   const [nextRollModifier, setNextRollModifier] = useState(() => storage.get(`slot_${activeSlotIndex}_next_roll_modifier`, 0));
   const [lastActionParams, setLastActionParams] = useState(null);
+  useEffect(() => {
+    if (!lastActionParams) return;
+    const snapshot = lastActionParams.snapshot;
+    if (!snapshot) {
+      // Capture after React commits all engine updates from the failed request.
+      setLastActionParams(prev => prev ? {
+        ...prev, snapshot: { character, activeAdventureId, activeSlotIndex },
+      } : null);
+    } else if (snapshot.character !== character || snapshot.activeAdventureId !== activeAdventureId
+      || snapshot.activeSlotIndex !== activeSlotIndex) {
+      setLastActionParams(null);
+    }
+  }, [lastActionParams, character, activeAdventureId, activeSlotIndex]);
   const [handoffState, setHandoffState] = useState(() => storage.get(`slot_${activeSlotIndex}_handoff_state`, null));
   const [, setLastHandoffJson] = useState(null);
   const [, setIsHandoffScreenVisible] = useState(false);
@@ -1355,8 +1347,7 @@ export default function useGameState() {
     setApiError(null);
     setWarningMessage(null);
 
-    // Save action params for potential retries
-    setLastActionParams({ actionText, apiKey, sandbox, skillFocusId, difficulty });
+    setLastActionParams(null);
 
     // Safety Interceptor Check
     if (checkSafetyViolation(actionText)) {
@@ -2037,7 +2028,8 @@ export default function useGameState() {
     // Append Notices to player action text for GM/Display
     const displayTime = formatTime(timeResult.nextDay, timeResult.nextHour);
     const timeDeltaMins = Math.round(timeDelta * 60);
-    finalActionText += `\n\n[Notice: Time passed: ${timeDeltaMins} mins. Current time: ${displayTime}. Fatigue: ${localFatigue.toFixed(1)}/${maxFatigue.toFixed(1)}]`;
+    const deferActionCosts = canDeferNarrationCosts(finalSkillFocusId, activeEnemy, character.stats);
+    finalActionText += `\n\n[Notice: ${deferActionCosts ? 'Pending narration acceptance' : 'Time passed'}: ${timeDeltaMins} mins. ${deferActionCosts ? 'Resulting' : 'Current'} time: ${displayTime}. Fatigue: ${localFatigue.toFixed(1)}/${maxFatigue.toFixed(1)}]`;
     
     if (localFatigue < 0) {
       finalActionText += `\n\n[Warning: You are Over-Fatigued! A roll penalty of -${Math.floor(Math.abs(localFatigue) * 2)} is active. Resting is advised.]`;
@@ -2067,8 +2059,9 @@ export default function useGameState() {
       finalActionText += starvationMessage;
     }
 
-    // Update character state
-    setCharacter(prev => ({
+    // Skill/combat outcomes stand even if the narrator fails; plain conversation
+    // costs wait for a usable response. Retries below reuse this prepared action.
+    const commitActionCosts = () => setCharacter(prev => ({
       ...prev,
       inventory: finalInventory,
       daysWithoutFood: finalDaysWithoutFood,
@@ -2086,10 +2079,10 @@ export default function useGameState() {
         statuses: activeStatuses
       }
     }));
+    if (!deferActionCosts) commitActionCosts();
 
     const userMsg = { role: 'user', content: finalActionText };
     const updatedHistory = [...history, userMsg];
-    setHistory([...updatedHistory, { role: 'model', content: '', isStreaming: true }]);
 
     // 2. Prepare system instructions
     let systemPrompt = BASE_SYSTEM_PROMPT + activeGm.promptOverride;
@@ -2308,6 +2301,11 @@ GM Instructions for automated tags:
 Ensure all tags are formatted exactly as shown. Always describe the narrative event corresponding to the tags.
 `;
 
+    const completePreparedAction = createPreparedNarrationTurn(async acceptNarration => {
+    let responseAccepted = false;
+    setIsLoading(true);
+    setApiError(null);
+    setHistory([...updatedHistory, { role: 'model', content: '', isStreaming: true }]);
     try {
       const engine = SAGA_ENGINES.find(e => e.id === engineTier) || SAGA_ENGINES[1];
       const sessionToken = storage.get('supabase_session_token') || null;
@@ -2369,9 +2367,15 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
       if (response.error) {
         setApiError(response.error);
-        setHistory(prev => prev.filter((h, i) => i !== prev.length - 1));
+        setLastActionParams({ retry: completePreparedAction });
+        setHistory(prev => prev.filter(h => !h.isStreaming));
         return;
       }
+
+      responseAccepted = true;
+      acceptNarration();
+      setLastActionParams(null);
+      if (deferActionCosts) commitActionCosts();
 
       let cleanedText = response.text || '';
 
@@ -3185,9 +3189,13 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         checkDetails: rollDetails
       };
 
-      const nextHistory = [...updatedHistory, assistantMsg];
+      const acceptedUserMsg = deferActionCosts ? {
+        ...userMsg,
+        content: userMsg.content.replace('[Notice: Pending narration acceptance:', '[Notice: Time passed:').replace('Resulting time:', 'Current time:')
+      } : userMsg;
+      const nextHistory = [...history, acceptedUserMsg, assistantMsg];
       setHistory(prev => {
-        const nextHistoryList = [...prev];
+        const nextHistoryList = prev.map(message => message === userMsg ? acceptedUserMsg : message);
         if (nextHistoryList.length > 0 && nextHistoryList[nextHistoryList.length - 1].role === 'model') {
           nextHistoryList[nextHistoryList.length - 1] = assistantMsg;
         } else {
@@ -3227,7 +3235,13 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     } catch (e) {
       setIsLoading(false);
       setApiError(e.message || "An unexpected error occurred.");
+      if (!responseAccepted) {
+        setLastActionParams({ retry: completePreparedAction });
+        setHistory(prev => prev.filter(h => !h.isStreaming));
+      }
     }
+    });
+    await completePreparedAction();
   };
 
   // Perform voluntary manual GM Swapping
@@ -3638,9 +3652,11 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
   };
 
   const retryLastAction = async () => {
-    if (!lastActionParams) return;
-    const { actionText, apiKey, sandbox, skillFocusId, difficulty } = lastActionParams;
-    await sendPlayerAction(actionText, apiKey, sandbox, skillFocusId, difficulty);
+    if (isLoading || !lastActionParams?.retry) return;
+    const snapshot = lastActionParams.snapshot;
+    if (!snapshot || snapshot.character !== character || snapshot.activeAdventureId !== activeAdventureId
+      || snapshot.activeSlotIndex !== activeSlotIndex) return;
+    await lastActionParams.retry();
   };
 
   const resetGame = () => {
@@ -3696,61 +3712,12 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
   };
 
   const restCharacter = () => {
-    setCharacter(prev => {
-      const { hasRations, updatedInventory } = consumeRationFromInventory(prev.inventory);
-      const stats = { ...prev.stats };
-      const currentDay = stats.day || 1;
-      const currentHour = stats.hour || 13.0;
-
-      // Rest advances 8 hours
-      const timeResult = advanceTime(currentDay, currentHour, 8.0);
-      stats.day = timeResult.nextDay;
-      stats.hour = timeResult.nextHour;
-
-      let nextInv = prev.inventory;
-      let nextDaysWithoutFood;
-
-      if (hasRations) {
-        nextInv = updatedInventory;
-        nextDaysWithoutFood = 0;
-        stats.fatigue = stats.maxFatigue || 15;
-        stats.arcaneSP = stats.maxArcaneSP || 0;
-        stats.divineSP = stats.maxDivineSP || 0;
-        stats.elementalAbilityUsed = false;
-        
-        setTimeout(() => {
-          setHistory(h => [
-            ...h,
-            {
-              role: 'model',
-              content: `*You set up camp and rest for 8 hours, consuming a ration. Your physical energy, spiritual focus, and elemental focus are fully restored.*`,
-              checkDetails: null
-            }
-          ]);
-        }, 100);
-      } else {
-        nextDaysWithoutFood = (prev.daysWithoutFood || 0) + 1;
-        
-        setTimeout(() => {
-          setHistory(h => [
-            ...h,
-            {
-              role: 'model',
-              content: `*You try to rest for 8 hours, but with no rations to nourish you, you cannot recover your strength. You wake up weak and hungry.*`,
-              checkDetails: null
-            }
-          ]);
-        }, 100);
-      }
-
-      const restedCharacter = {
-        ...prev,
-        inventory: nextInv,
-        daysWithoutFood: nextDaysWithoutFood,
-        stats
-      };
-      return hasRations ? applyRewardRestRecovery(restedCharacter) : restedCharacter;
-    });
+    if (isLoading || activeEnemy || enemyAttacksQueue.length || character.stats.hp <= 0) return;
+    const { message } = resolveRest(character);
+    setLastActionParams(null);
+    // React may replay updaters: keep them pure and emit history only in the event.
+    setCharacter(prev => resolveRest(prev).character);
+    setHistory(prev => [...prev, { role: 'model', content: message, checkDetails: null }]);
   };
 
   const convertSP = (direction) => {
@@ -5659,6 +5626,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     quitActiveAdventure,
     exitAdventureSavingProgress,
     retryLastAction,
+    canRetryLastAction: !!lastActionParams?.snapshot && !isLoading,
     setActiveAdventureId,
     startAdventure,
     userProfile,

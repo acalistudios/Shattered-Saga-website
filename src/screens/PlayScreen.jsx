@@ -56,6 +56,7 @@ export default function PlayScreen({
   claimPendingRewardChoice,
   settings,
   onRetryLastAction,
+  canRetryLastAction,
   onQuitAdventure,
   onExitAdventure,
   activeAdventureId,
@@ -266,7 +267,7 @@ export default function PlayScreen({
   };
 
   return (
-    <div className={`flex-1 flex h-full overflow-hidden bg-slate-950 relative ${isDesktopLayout ? 'flex-row' : 'flex-col'}`}>
+    <div className={`flex-1 min-h-0 flex h-full bg-slate-950 relative ${isDesktopLayout ? 'flex-row overflow-hidden' : 'flex-col overflow-y-auto'}`}>
       
       {/* ----------------- LEFT SIDEBAR (GM & V4 Stats) ----------------- */}
       <div className={`
@@ -1110,10 +1111,10 @@ export default function PlayScreen({
       )}
 
       {/* ----------------- CENTER PANEL (Narration & Checks Interface) ----------------- */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden border-r border-slate-900">
+      <div className={`flex-1 min-w-0 flex flex-col border-r border-slate-900 ${isDesktopLayout ? 'h-full min-h-0 overflow-hidden' : 'shrink-0'}`}>
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-900 px-4 py-3 bg-slate-900/10 z-10">
+        <div className="flex flex-wrap shrink-0 items-center justify-between gap-3 border-b border-slate-900 px-4 py-3 bg-slate-900/10 z-10">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsStatsOpen(!isStatsOpen)}
@@ -1142,7 +1143,7 @@ export default function PlayScreen({
           </div>
 
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setIsHelpOpen(true)}
               className="p-1.5 rounded bg-slate-900 border border-slate-800 hover:border-amber-500/40 text-slate-400 hover:text-amber-400 cursor-pointer transition-colors text-xs font-semibold flex items-center gap-1.5"
@@ -1202,7 +1203,7 @@ export default function PlayScreen({
         </div>
 
         {/* Narrative Output area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-5 custom-scrollbar bg-slate-950/60">
+        <div data-testid="narrative-panel" className={`overflow-y-auto p-4 space-y-5 custom-scrollbar bg-slate-950/60 ${isDesktopLayout ? 'flex-1 min-h-48' : 'shrink-0 h-96'}`}>
           
           {history.length === 0 && (
             <div className="rounded border border-amber-500/10 bg-slate-900/30 p-5 text-center">
@@ -1292,7 +1293,8 @@ export default function PlayScreen({
                 <button
                   type="button"
                   onClick={onRetryLastAction}
-                  className="px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 text-3xs font-extrabold uppercase tracking-wider cursor-pointer transition-colors"
+                  disabled={!canRetryLastAction}
+                  className="px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 text-3xs font-extrabold uppercase tracking-wider cursor-pointer transition-colors"
                 >
                   Retry Last Action
                 </button>
@@ -1406,7 +1408,7 @@ export default function PlayScreen({
             })()}
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="border-t border-slate-900 p-4 bg-slate-950 flex flex-col gap-2">
+          <form onSubmit={handleSubmit} className={`shrink-0 border-t border-slate-900 p-4 bg-slate-950 flex flex-col gap-2 ${isDesktopLayout ? 'max-h-[45%] overflow-y-auto' : ''}`}>
             
             {/* Active Enemy HP HUD */}
             {activeEnemy && (
@@ -1510,18 +1512,6 @@ export default function PlayScreen({
                   <div className="p-3 space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-3xs uppercase tracking-widest text-slate-500 font-bold">Suggested Actions</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setInputText('');
-                          setSkillFocus('');
-                          inputRef.current?.focus();
-                        }}
-                        disabled={isLoading}
-                        className="text-[10px] text-slate-500 hover:text-amber-400 disabled:opacity-40 disabled:hover:text-slate-500 transition-colors cursor-pointer"
-                      >
-                        Do something else...
-                      </button>
                     </div>
 
                     <div className="grid gap-2 sm:grid-cols-3">
@@ -1546,13 +1536,21 @@ export default function PlayScreen({
                         );
                       })}
                     </div>
+                    <button type="button" onClick={() => {
+                      setInputText('');
+                      setSkillFocus('');
+                      inputRef.current?.focus();
+                    }} disabled={isLoading}
+                      className="text-xs text-slate-400 hover:text-amber-400 disabled:opacity-40 transition-colors cursor-pointer">
+                      Do something else...
+                    </button>
                   </div>
                 )}
               </div>
             )}
             
             {/* Check Configurations Bar */}
-            <div className="flex gap-2 mb-1 text-2xs font-semibold text-slate-400">
+            <div className="flex flex-wrap gap-2 mb-1 text-2xs font-semibold text-slate-400">
             <div className="flex items-center gap-1.5">
               <span>Skill Focus:</span>
               <select
@@ -1836,7 +1834,7 @@ export default function PlayScreen({
 
       {/* ----------------- RIGHT PANEL (Adventure Journal) ----------------- */}
       {isJournalOpen && (
-        <div className={`border-slate-900 bg-slate-900/25 p-4 flex flex-col overflow-hidden ${isDesktopLayout ? 'w-64 lg:w-72 border-l h-full' : 'w-full border-t h-72'}`}>
+        <div className={`shrink-0 border-slate-900 bg-slate-900/25 p-4 flex flex-col overflow-hidden ${isDesktopLayout ? 'w-64 lg:w-72 border-l h-full' : 'w-full border-t h-72'}`}>
           <h3 className="text-2xs uppercase tracking-widest text-slate-500 font-bold border-b border-slate-900 pb-2 mb-3 flex items-center justify-between">
             <span>Adventure Journal</span>
             <button

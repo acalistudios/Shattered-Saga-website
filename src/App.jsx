@@ -73,6 +73,7 @@ function App() {
     quitActiveAdventure,
     exitAdventureSavingProgress,
     retryLastAction,
+    canRetryLastAction,
     startAdventure,
     userProfile,
     fetchUserProfile,
@@ -1049,6 +1050,7 @@ function App() {
             returnToInterruptedAdventure={returnToInterruptedAdventure}
             settings={settings}
             onRetryLastAction={retryLastAction}
+            canRetryLastAction={canRetryLastAction}
             onQuitAdventure={handleQuitAdventure}
             onExitAdventure={handleExitAdventure}
             activeAdventureId={activeAdventureId}

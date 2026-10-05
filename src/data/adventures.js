@@ -154,7 +154,7 @@ const BASE_ADVENTURES_LIST = [
     artwork: ancientBanner,
     startingDay: 1,
     startingHour: 13.0, // 1:00 PM
-    startingPrompt: 'The player stands in the quiet, dusty square of Ashveil Village at early afternoon. The looming grey stone walls of Ashveil Keep dominate the hill above, silhouetted against the pale sky. Villagers speak in hushed whispers behind locked doors. From Martha\'s Provisions, the sound of quiet weeping. From Vance\'s Forge, the slow, distracted rhythm of a hammer. The hill road leads up past a yew-screened graveyard before it reaches the keep gate. Three children are missing. Ask the player where they want to go first.',
+    startingPrompt: 'You stand in the quiet, dusty square of Ashveil Village at early afternoon. The looming grey stone walls of Ashveil Keep dominate the hill above, silhouetted against the pale sky. Villagers speak in hushed whispers behind locked doors. From Martha\'s Provisions, you hear quiet weeping. From Vance\'s Forge comes the slow, distracted rhythm of a hammer. The hill road leads up past a yew-screened graveyard before it reaches the keep gate. Three children are missing. Where do you go first?',
     objectives: [
       'Find and rescue Tam, Lira, and Oswin before the keep fully claims them.',
       'Gain entry to the keep through the locked gate, the graveyard passage, or a Voss crest mechanism.',
