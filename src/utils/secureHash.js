@@ -246,10 +246,10 @@ export function decompressCharacter(comp) {
   const allSkillIds = [
     'acrobatics', 'alchemy', 'animal_rapport', 'appraise', 'arcane_drawing', 
     'arcane_shaping', 'athletics', 'blocking', 'brawling', 'crafting', 
-    'deception', 'diplomacy', 'divine_communion', 'divine_manifestation', 
+    'deception', 'divine_communion', 'divine_manifestation', 
     'escapology', 'healing', 'heavy_weapons', 'herbalism', 'insight', 
     'intimidation', 'languages', 'leadership', 'light_weapons', 'lockpicking', 
-    'luck', 'marksmanship', 'negotiation', 'perception', 'performance', 
+    'lore', 'luck', 'marksmanship', 'negotiation', 'perception', 'performance', 
     'smithing', 'stealth', 'survival', 'thievery', 'thrown_weapons', 
     'tracking', 'trapping'
   ];
@@ -297,7 +297,11 @@ export function decompressCharacter(comp) {
   }
   if (comp.sk) {
     for (const [sk, rank] of Object.entries(comp.sk)) {
-      character.skills[sk] = rank;
+      if (sk === 'diplomacy') {
+        character.skills.negotiation = Math.max(character.skills.negotiation || 0, rank);
+      } else {
+        character.skills[sk] = rank;
+      }
     }
   }
 

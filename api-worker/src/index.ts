@@ -30,6 +30,8 @@ app.use("*", async (c, next) => {
     "https://www.shatteredsaga.com",
     "https://shattered-saga.pages.dev",
     "http://localhost:5185",
+    "http://127.0.0.1:5186",
+    "http://127.0.0.1:5187",
   ];
   return cors({
     origin: allowed,

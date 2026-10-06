@@ -418,7 +418,14 @@ export function validateCharacterSchema(raw) {
     for (const key in raw.skills) {
       skills[key] = Math.max(0, Math.min(5, Number(raw.skills[key]) || 0));
     }
+    if (skills.diplomacy !== undefined) {
+      if ((!skills.negotiation || skills.negotiation === 0) && skills.diplomacy > 0) {
+        skills.negotiation = skills.diplomacy;
+      }
+      delete skills.diplomacy;
+    }
   }
+  if (skills.lore === undefined) skills.lore = 0;
 
   const gp = raw.currency?.gp ?? raw.currency?.gold ?? 100;
   const sp = raw.currency?.sp ?? 0;

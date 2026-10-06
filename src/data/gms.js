@@ -107,7 +107,6 @@ export const SKILLS_LIST = [
   { id: 'brawling', name: 'Brawling', primary: 'power', secondary: 'vigor', desc: 'Fist fighting, grapples, brawling.' },
   { id: 'crafting', name: 'Crafting', primary: 'coordination', secondary: 'intellect', desc: 'Weaving robes, woodwork, leather.' },
   { id: 'deception', name: 'Deception', primary: 'charisma', secondary: 'intellect', desc: 'Lying, acting, using disguises.' },
-  { id: 'diplomacy', name: 'Negotiation', primary: 'charisma', secondary: 'empathy', desc: 'Persuading, bartering, gaining trust.' }, // maps negotiation internally
   { id: 'divine_communion', name: 'Divine Communion', primary: 'empathy', secondary: 'willpower', desc: 'Channeling holy focus, prayer.' },
   { id: 'divine_manifestation', name: 'Divine Manifestation', primary: 'empathy', secondary: 'willpower', desc: 'Healing, smiting, holy spells.' },
   { id: 'escapology', name: 'Escapology', primary: 'coordination', secondary: 'willpower', desc: 'Escaping restraints/pins.' },
@@ -120,9 +119,10 @@ export const SKILLS_LIST = [
   { id: 'leadership', name: 'Leadership', primary: 'charisma', secondary: 'willpower', desc: 'Rallying allies, maintaining morale.' },
   { id: 'light_weapons', name: 'Light Weapons', primary: 'coordination', secondary: 'power', desc: 'Rapiers, daggers, shortswords.' },
   { id: 'lockpicking', name: 'Lockpicking', primary: 'coordination', secondary: 'intellect', desc: 'Picking locks, opening chests.' },
+  { id: 'lore', name: 'Lore', primary: 'intellect', secondary: 'empathy', desc: 'History, legends, planar knowledge.' },
   { id: 'luck', name: 'Luck', primary: 'attunement', secondary: 'willpower', desc: 'Bending chance, escaping death.' },
   { id: 'marksmanship', name: 'Marksmanship', primary: 'coordination', secondary: 'intellect', desc: 'Aiming and shooting bows/crossbows.' },
-  { id: 'negotiation', name: 'Negotiation', primary: 'charisma', secondary: 'intellect', desc: 'Haggling, bartering, contracts.' }, // keep both for safe mapping
+  { id: 'negotiation', name: 'Negotiation', primary: 'charisma', secondary: 'empathy', desc: 'Persuading, bartering, gaining trust.' },
   { id: 'perception', name: 'Perception', primary: 'intellect', secondary: 'empathy', desc: 'Spotting traps, secrets, details.' },
   { id: 'performance', name: 'Performance', primary: 'charisma', secondary: 'coordination', desc: 'Singing, public speaking, storytelling.' },
   { id: 'smithing', name: 'Smithing', primary: 'power', secondary: 'intellect', desc: 'Forging steel weapons/armor.' },

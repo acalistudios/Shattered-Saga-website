@@ -156,7 +156,7 @@ describe('undead social penalty', () => {
   it('applies to social skills only', () => {
     const c = risen();
     expect(getUndeadSocialPenalty(c, 'negotiation')).toBe(1);
-    expect(getUndeadSocialPenalty(c, 'diplomacy')).toBe(1);
+    expect(getUndeadSocialPenalty(c, 'deception')).toBe(1);
     expect(getUndeadSocialPenalty(c, 'lockpicking')).toBe(0);
     expect(getUndeadSocialPenalty(c, 'heavy_weapons')).toBe(0);
   });

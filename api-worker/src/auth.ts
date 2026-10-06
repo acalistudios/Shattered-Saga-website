@@ -58,6 +58,8 @@ export function createAuth(env?: Env, cf?: IncomingRequestCfProperties, baseURL?
     // Allow the static frontend origin to call this API and receive cookies.
     trustedOrigins: [
       frontendUrl,
+      "http://127.0.0.1:5186",
+      "http://127.0.0.1:5187",
       "https://shatteredsaga.com",
       "https://www.shatteredsaga.com",
       // Cloudflare Pages staging alias, so deploys can be verified pre-cutover.

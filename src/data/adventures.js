@@ -595,7 +595,7 @@ const BASE_ADVENTURES_LIST = [
       {
         name: 'Vaelin Deep-Eye',
         role: 'Elven Archivist Ghost',
-        desc: 'Haunts the library; will share ancient history if diplomacy/lore is checked.',
+        desc: 'Haunts the library; will share ancient history if negotiation/lore is checked.',
         stats: {
           HP: 20,
           attributes: { Power: 1, Coordination: 3, Vigor: 2, Willpower: 5, Intellect: 5, Charisma: 3, Attunement: 4, Empathy: 4 },

@@ -43,7 +43,6 @@ export const ATTRIBUTE_FLOOR = 1;
 // removing it from this list if that reads better in play.
 export const UNDEAD_SOCIAL_SKILLS = [
   'deception',
-  'diplomacy',
   'intimidation',
   'leadership',
   'negotiation',
