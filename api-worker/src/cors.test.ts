@@ -21,7 +21,7 @@ describe("credentialed cloud-save CORS", () => {
     "https://shattered-saga.pages.dev",
     "http://localhost:5185",
     "https://preview.example.test",
-  ])("allows save operations from %s", async (origin) => {
+  ])("allows save operations from %s", async (origin: string) => {
     for (const method of ["PUT", "DELETE"]) {
       const response = await preflight(origin, method);
       expect(response.status).toBe(204);
@@ -38,7 +38,7 @@ describe("credentialed cloud-save CORS", () => {
     "https://shatteredsaga.com.untrusted.example.test",
     "http://shatteredsaga.com",
     "null",
-  ])("does not grant browser access to %s", async (origin) => {
+  ])("does not grant browser access to %s", async (origin: string) => {
     const response = await preflight(origin, "PUT");
     expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
   });
