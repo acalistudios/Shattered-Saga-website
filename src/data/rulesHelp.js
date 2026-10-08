@@ -1,7 +1,49 @@
 // Structured Game Rules & Help Content for Shattered Saga
-// Sourced directly from GAME_RULES.md (v6.1). Can be rendered by in-game help modals.
+// Sourced directly from GAME_RULES.md (v7.0 Player's Manual Edition).
+// Powers in-game help modals, rulebook drawers, and player guides.
 
 export const GAME_RULES_SECTIONS = [
+  {
+    id: 'world_and_lore',
+    title: 'The Shattered World & Cosmology',
+    icon: '🌍',
+    summary: 'The Great Sundering, 5 Cosmic Elements, and the 4 Realm Provinces.',
+    points: [
+      'The Great Sundering: 500 years ago, mortal kings shattered the Prime Keystone, fracturing the realm into planar pockets.',
+      'The 5 Elements: Air (Speed/Freedom), Earth (Endurance/Duty), Fire (Passion/Destruction), Water (Adaptation/Healing), and Aether (The Weave/Time/Space).',
+      'Region 1: Aethelgard — Central temperate lowlands, gothic keeps, ancient yew groves, and forgotten subterranean crypts.',
+      'Region 2: Ignis Ridge — Volcanic calderas, iron smelters, clockwork factories, and illicit Flare mining refineries.',
+      'Region 3: Frostfire Glacier — Howling blizzards, permafrost bogs, blackroot caverns, and the necrotic Brass Plague.',
+      'Region 4: The Sapphire Deep — Oceanic abyssal trenches, coral citadels, glass orchards, and floating astral islands.'
+    ]
+  },
+  {
+    id: 'quick_start',
+    title: 'Quick Start & Core Gameplay Loop',
+    icon: '⚡',
+    summary: 'Playing in 5 minutes, turn economy, and player intent.',
+    points: [
+      'Core Loop: AI GM presents narrative scene -> Player chooses or writes custom action -> Engine rolls Step-Die opposed check -> AI narrates outcome & updates state.',
+      'Exploration Turns: Room searches, dialogue, and investigation advance the in-game world clock by 10 minutes.',
+      'Combat Rounds: Battle occurs in 10-second tactical combat rounds (1 major action, 1 free action, defensive reactions).',
+      'Short Rest (1 Hour): Patch wounds with First Aid and recover minor stamina in the field.',
+      'Full Rest (8 Hours): Consumes 1 Ration; restores 40 Fatigue, resets SP to maximum, and clears temporary conditions.'
+    ]
+  },
+  {
+    id: 'character_creation',
+    title: 'Character Creation & Philosophies',
+    icon: '👤',
+    summary: 'Elemental Affinities, Age Tiers, Backgrounds, Attributes, and Morality.',
+    points: [
+      'Elemental Affinities: Fire (Cinderbreath), Earth (Stone Mantle), Air (Gale Flash), Water (Tide Mend), Aether (Threadstep). Usable once per rest.',
+      'Age Tiers: Youth (physical boost), Adult (balanced), Middle-Aged (mental boost + skills), Veteran (spiritual/SP boost).',
+      'Professions: Iron Legionnaire, Shadow Scout, Scholarly Hedge Mage, Wandering Pilgrim, Guild Artisan.',
+      '8 Attributes: Power, Coordination, Vigor, Willpower, Intellect, Charisma, Attunement, Empathy (Starting pool: 24 total points).',
+      'Roleplay Modifier (+1 / -1): Acting in harmony with your Virtue/Philosophy awards +1 to rolls; acting against nature incurs -1.',
+      'Morality (-10 to +10): Heroic choices grant combat bonuses vs demons/undead; malevolent choices grant bonuses vs holy defenders.'
+    ]
+  },
   {
     id: 'dice_resolution',
     title: 'Opposed Skill & Attribute Checks',
@@ -13,7 +55,7 @@ export const GAME_RULES_SECTIONS = [
       'Secondary Attribute Die: Score 1 (1d2), 2 (1d2+1), 3 (1d4), 4 (1d4+1), 5 (1d6), 6+ (1d10). Represents supporting finesse.',
       'Skill Ranks (0-5): Each rank adds 1d2 (coin flip: 1 or 2). Gives reliable, training-based consistency instead of wild variance.',
       'Margin of Success (Player - Resistance): Margin > 0 is Success; Margin 0 is Standoff/Tension; Margin < 0 is Failure with complications.',
-      'Combat Margin Bonus: Every full 3 points of margin over the defender adds +1 Raw Weapon Damage (+2 at margin 6, etc.). High-margin edged attacks also trigger Bleeding.'
+      'Combat Margin Bonus: Every full 3 points of margin over defender adds +1 Raw Weapon Damage (+2 at margin 6, etc.). High-margin edged attacks also trigger Bleeding.'
     ]
   },
   {
@@ -24,22 +66,9 @@ export const GAME_RULES_SECTIONS = [
     points: [
       '8 Attributes: Power, Coordination, Vigor, Willpower, Intellect, Charisma, Attunement, Empathy.',
       'Attribute Pool: Base 1 in all stats + 16 points to allocate freely (Total 24). Normal cap is 5. Attributes are locked by default.',
-      'Max Health: 10 + (Vigor * 2). Starting HP ranges from 12 to 20.',
+      'Max Health: 12 + (Vigor * 4) + (Power * 2) + (Level * 2).',
       '36 Skills: Each skill is tied to 1 Primary Attribute (1.0 weight) and 1 Secondary Attribute (0.5 weight).',
       'Canonical Alignment: Skill 24 is Lore (Intellect + Empathy); Skill 27 is Negotiation (Charisma + Empathy).'
-    ]
-  },
-  {
-    id: 'virtues_vices_morality',
-    title: 'Virtues, Vices & Roleplay Modifiers',
-    icon: '⚖️',
-    summary: 'Moral anchors, roleplay roll bonuses (+1/-1), and morality combat scaling.',
-    points: [
-      'Moral Anchors: Virtues (Justice, Mercy, Courage, Integrity, Humility, Wisdom) and Vices (Wrath, Greed, Pride, Deceit, Stubbornness, Cruelty).',
-      'Roleplay Roll Modifier: Acting strongly in character awards +1 to the next check ([roleplay_modifier: +1]). Wildly out-of-character actions suffer -1.',
-      'Morality Scale (-100 to +100): Heroic choices shift positive (+morality); villainous/selfish choices shift negative.',
-      'Heroic Combat Advantage: At +15, +30, +45 morality, gain up to +3 Hit and +3 Damage against demonic, undead, and monstrous foes.',
-      'Villainous Combat Advantage: At -15, -30, -45 morality, gain up to +3 Hit and +3 Damage against holy and innocent defenders.'
     ]
   },
   {
@@ -48,10 +77,10 @@ export const GAME_RULES_SECTIONS = [
     icon: '⭐',
     summary: 'Engine-authoritative leveling, spendable skill points, and upgrade costs.',
     points: [
-      'Level Up: Grants +1 Max HP base. Even levels grant bonus HP if Vigor >= 3.',
-      'Skill Points: Awarded on adventure completion (Wave 1-2: 2 pts, Wave 3-4: 3 pts, Wave 5-6: 4 pts).',
+      'Engine Authority: Code strictly controls stats, skill points, currency, and rewards; the AI narrates the milestone moment.',
+      'Skill Points: Awarded on adventure completion (Wave 1: 2 pts, Wave 2: 3 pts, Wave 3: 4 pts).',
       'Skill Upgrade Cost: Cost = currentRank + 1 (Rank 0->1 costs 1 pt; 1->2 costs 2 pts; 2->3 costs 3 pts; 3->4 costs 4 pts; 4->5 costs 5 pts). Max rank is 5.',
-      'Attributes Locked: Attributes do not increase on normal level-ups; permanent boosts are rare, named story rewards tied to specific milestones.'
+      'Milestone Boons: Signature elemental abilities unlock at Level 2; attribute increases at Levels 4 and 8; Planar Champion at Level 10.'
     ]
   },
   {
@@ -61,11 +90,11 @@ export const GAME_RULES_SECTIONS = [
     summary: '10-second combat rounds, dodging, shield blocking, and the damage-type matrix.',
     points: [
       'Actions: 1 primary action per round + defensive reactions against incoming attacks.',
-      'Dodging (Acrobatics): Completely avoids incoming damage on a successful roll. Medium/Heavy armor applies check penalties.',
-      'Blocking (Blocking): Uses equipped shield/weapon. Absorbs damage via shield soak (Buckler 1d4, Medium 1d6, Tower 1d8 + magic bonus).',
+      'Dodging (Coordination + Vigor): Completely avoids incoming damage on a successful roll.',
+      'Blocking (Power + Coordination + Shield): Absorbs damage via shield soak (Buckler 1d4, Medium 1d6, Tower 1d8 + magic bonus).',
       'Multi-Defense Penalty: First defense rolls normally; each additional defense in the same round suffers a cumulative -2 penalty.',
-      'Armor Soak: Light (1d3), Medium (1d4, -1 check penalty), Heavy (1d6, -2 check penalty) + magic bonus.',
-      'Tactical Damage Matrix: Blunt breaks heavy armor (+0 vs Leather, -2 vs Chain, -2 vs Plate). Piercing punctures leather (-2 vs Leather, +2 vs Chain, +0 vs Plate). Edged cuts unarmored (+0 vs Leather, +0 vs Chain, +2 vs Plate).'
+      'Armor Soak: Light (1d3), Medium (1d4+1), Heavy (1d6) + magic bonus.',
+      'Tactical Damage Matrix: Slashing (+2 vs unarmored, -2 vs plate). Piercing (+2 penetration vs chainmail). Bludgeoning (+2 soak bypass vs plate).'
     ]
   },
   {
@@ -74,10 +103,10 @@ export const GAME_RULES_SECTIONS = [
     icon: '🩸',
     summary: 'Bandages, bleeding tiers 1-4, unconscious countdown, and true death.',
     points: [
-      'Bleeding (Tiers 1-4): High-margin edged attacks cause bleeding (-1 to -4 HP per action). 10% chance per action to reduce tier naturally.',
-      'Bandages: Usable anytime as 1 action: restores +1 HP and halts all bleeding immediately.',
-      'Unconscious (0 to -4 HP): A 5-round death countdown begins while active bleeding continues to tick.',
-      'True Death: Occurs if HP reaches -5 or the death countdown reaches 0.'
+      'Bleeding (Tiers 1-4): High-margin edged attacks cause ongoing bleeding (-1 to -8 HP per round/turn).',
+      'Bandages: Usable as 1 action: halts Bleeding Tier 1-2 immediately.',
+      'Dying Countdown (0 HP): Character collapses; a 3-round Vigor survival countdown (DC 11) begins.',
+      'True Death: Occurs if the dying countdown reaches 0 or fails 3 consecutive checks.'
     ]
   },
   {
@@ -86,11 +115,10 @@ export const GAME_RULES_SECTIONS = [
     icon: '💀',
     summary: 'Consequences of death, attribute sacrifice, the undead curse, and gear trails.',
     points: [
-      'The Resurrection Rite: Permadeath is replaced by resurrection at unlocked sanctuaries (Ashveil Chapel or Merrin Abbey).',
+      'The Resurrection Rite: Permadeath is replaced by resurrection at regional leylines.',
       'Sacrifice of Power: Player permanently loses 1 of 2 offered random attributes (cannot drop below 1).',
       'Undead Curse: Resurrected characters become Undead, suffering a permanent -1 penalty to social skills (-2 on repeat death). Curable ONLY by the rare Rite of Quiet Return.',
-      'Gear Recovery Trail: Carried gear is stripped on death. Intelligent killers carry it (relocates every 12h); beasts leave a cache (relocates every 24h). Trails go cold at 72h.',
-      'Divine Intervention: Consuming Breath of the Creator revives in place at 1 HP. Thread of Returning restarts the quest. Both bypass death penalties.'
+      'Gear Recovery Trail: Carried gear is stripped on death. Intelligent killers carry it (12h window); hidden caches last 24h; trails expire at 72h.'
     ]
   },
   {
@@ -99,11 +127,11 @@ export const GAME_RULES_SECTIONS = [
     icon: '⏳',
     summary: 'Dynamic time advancement, fatigue drain, starvation, and 8-hour rests.',
     points: [
-      'Dynamic Time: Actions advance time (10s combat, 1m dialogue, 5m lockpicking, 10m search, 30m craft, 1h smith).',
+      'Dynamic Time: Actions advance time (10s combat, 10m search, 30m craft, 1h smith).',
       'Midnight & Rations: Crossing midnight advances the Day and consumes 1 Ration.',
-      'Starvation: Going without food increases Starvation Level, inflicting a cumulative -1 penalty to all checks per level. Eating a ration cures hunger.',
-      'Fatigue Pool: Max Fatigue = 12.5 + (2.5 * Vigor). Below 0 fatigue inflicts Exhaustion (-1 per 0.5 below 0). Below -10 triggers collapse.',
-      '8-Hour Rest: Consumes 1 ration, fully restores Fatigue and SP, and heals HP via Vigor + Healing skill.'
+      'Starvation: Crossing midnight with 0 rations inflicts Starving debuff and +15 Fatigue.',
+      'Fatigue Pool (0-100): Over 50 causes Exhaustion (-2 to all rolls); 100 triggers physical collapse.',
+      '8-Hour Rest: Consumes 1 ration, fully restores SP, restores 40 Fatigue, and heals 20% Max HP.'
     ]
   },
   {
@@ -112,11 +140,35 @@ export const GAME_RULES_SECTIONS = [
     icon: '✨',
     summary: 'Freeform spell shaping, Channeling magnitude (S), Burnout, and SP conversion.',
     points: [
-      'Arcane Magic: Uses Arcane SP (Max = Arcane Drawing * 3) rolled with Arcane Shaping. Allowed shapes: Attack (S d6 damage) and Ward (+1d4 soak per S).',
-      'Divine Magic: Uses Divine SP (Max = Divine Communion * 3) rolled with Divine Manifestation. Allowed shapes: Heal (S d6 HP), Control (bind/charm for S rounds), and Smite (S d8 radiant vs evil).',
-      'Channeling (S): Caster chooses SP invested up to skill rank. Adds +4 * S complexity to the obstacle resistance.',
-      'Burnout: Overspending Arcane SP damages HP directly; overspending Divine SP drains Fatigue directly.',
-      'SP Conversion: Arcane and Divine SP can be converted at a 3:1 ratio.'
+      'Arcane Shaping (Intellect + Attunement): Dynamic leylines for kinetic force, lightning, fire, and spatial manipulation.',
+      'Divine Manifestation (Attunement + Willpower): Holy miracles for healing, radiant smites, and warding against corruption.',
+      'Channeling Magnitude (S = 1 to 5): Choose SP cost and die scaling (1d4 up to 4d8+6).',
+      'Planar Burnout: Casting without sufficient SP drains Fatigue directly; catastrophic failures risk lethal Arcane Backlash.'
+    ]
+  },
+  {
+    id: 'campaign_saga',
+    title: 'The Campaign Saga: Planar Convergence',
+    icon: '📜',
+    summary: 'The 3-Act overarching storyline connecting all 18 adventures.',
+    points: [
+      'Act I: The Whispering Static (Region 1: Aethelgard) — Local crises (Ashveil, Saltblood, Clockwork) culminate in the Elemental Crucible, uncovering deliberate planar fractures.',
+      'Act II: The Smoldering Conspiracies (Regions 2 & 3) — The Redvein Syndicate and Baron Threx weaponize Flare in Ignis Ridge while Frostfire thermal seals thaw.',
+      'Act III: The Sunken Convergence (Region 4: The Sapphire Deep) — Infiltrate the Planar Architects in the Astral Sky to decide the realm fate (Restoration, Convergence, Ascendance).',
+      'Affinity Loci: Each adventure contains unique secret pathways resonant with your chosen elemental affinity.',
+      'Campfire Interludes: Rescued NPCs and traveling companions react dynamically to your choices and morality during camp rests.'
+    ]
+  },
+  {
+    id: 'ai_gamemaster',
+    title: 'The AI Game Master & Interactive Play',
+    icon: '🎭',
+    summary: 'The 3 GM archetypes, prompting tips, and engine tags.',
+    points: [
+      'The 3 Archetypes: The Ancient (gothic/historical dread), The Oracle (mystical/philosophical planar wonder), The Titan (kinetic/military grit).',
+      'Player Prompting Secrets: State clear intent rather than assuming success; include sensory details; use the environment; speak in character with quotes.',
+      'Free-Roam Mode: Step off the beaten path to explore roadside inns, ancient ruins, and regional bounties.',
+      'Constrained Tags: The AI communicates with the engine via tags like [check: skill dc], [damage: X type], [heal: X], and [objective_complete: id].'
     ]
   },
   {
@@ -125,9 +177,9 @@ export const GAME_RULES_SECTIONS = [
     icon: '💰',
     summary: 'Copper, Silver, Gold conversion, merchant buying rates, and item conditions.',
     points: [
-      'Currency: 10 Copper (cp) = 1 Silver (sp); 10 Silver (sp) = 1 Gold (gp); 1 Gold = 100 Copper.',
-      'Merchant Trade: Merchants buy relevant goods at 50% listed value. Successful Negotiation checks improve rates up to 75%.',
-      'Item Condition: Multipliers adjust item values (Broken x0.1, Worn x0.75, Common x1, Masterwork x2.5, Magical x10, +1 Relic x15-x20).'
+      'Currency: 10 Copper (cp) = 1 Silver (sp); 10 Silver (sp) = 1 Gold (gp); 1 Gold = 100 Copper; 1 Electrum = 500 Copper.',
+      'Merchant Trade: Merchants buy relevant goods at 50% listed value. Successful Negotiation checks improve rates up to 70%.',
+      'Patrols & Arena: Low-risk wilderness patrols award steady copper; the Iron Colosseum awards gladiatorial gold and rare weapons.'
     ]
   }
 ];
