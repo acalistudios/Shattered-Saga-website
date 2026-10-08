@@ -275,21 +275,43 @@ Your character's inner psyche shapes both the narrative and the dice:
   * *Dominion:* The strong must lead; law and order must be enforced by an iron fist.
   * *Freedom:* Break shackles, defy tyrannical lords and ancient gods alike.
 
-### Step 6: The Morality Scale & Roleplay Modifiers
+### Step 6: The Morality Scale, Roleplay Modifiers & Alignment Mechanics
 
-#### Roleplay Modifier (`[roleplay_modifier: +1 / -1]`)
-When you write an action that strongly embodies your chosen **Virtue** or acts directly in harmony with your **Philosophy**, the engine awards a **$+1$ bonus modifier** to your roll. Conversely, acting out of character or succumbing to weakness without justification incurs a **$-1$ penalty modifier**.
+#### In-Character Bonuses & Out-of-Character Penalties (`[roleplay_modifier: +1 / -1]`)
+Shattered Saga directly rewards immersive roleplaying and penalizes arbitrary, discordant actions through the **Roleplay Modifier Engine**:
 
-#### The Morality Meter (-10 to +10)
-Your moral actions move your global morality slider:
+1. **In-Character Bonus (`[roleplay_modifier: +1]`):**
+   - **Trigger:** Awarded whenever your written action, spoken dialogue, or tactical decision strongly reflects your character’s chosen **Virtue** (e.g., standing fast against terrifying monsters with *Courage*, sparing a defeated enemy with *Mercy*, upholding an inconvenient oath with *Justice*), or actively advances your core **Philosophy** (*Preservation*, *Evolution*, *Dominion*, *Freedom*).
+   - **Mechanical Resolution:** The AI Game Master emits `[roleplay_modifier: +1]`. The engine captures this tag and stores it as an active bonus for your champion: **$+1$ to your very next dice roll check**!
+   - *Example:* A paladin sworn to *Justice* refuses to execute an unarmed goblin thief, instead demanding he surrender stolen medicine to save the sick. The GM emits `[roleplay_modifier: +1]`, granting $+1$ to the ensuing Negotiation check.
+
+2. **Out-of-Character Penalty (`[roleplay_modifier: -1]`):**
+   - **Trigger:** Imposed whenever your action blatantly contradicts your character's established virtues, indulges in arbitrary cowardice without psychological justification, abuses modern metagame knowledge, or violates sacred vows.
+   - **Mechanical Resolution:** The AI Game Master emits `[roleplay_modifier: -1]`. The engine captures this tag and applies an immediate penalty: **$-1$ to your very next dice roll check**!
+   - *Example:* A knight sworn to *Courage* and *Preservation* suddenly decides to loot the bodies of dead villagers while abandoned children scream for help nearby. The GM emits `[roleplay_modifier: -1]`, rattling their spiritual conviction and imposing $-1$ on their next check.
+
+#### The Morality Meter (-100 to +100 Scale)
+Every ethical choice, sacrifice, and mercy or cruelty permanently adjusts your champion's global morality score on a dynamic $-100$ to $+100$ scale:
 
 ```
-[-10: Malevolent] <--- [-5: Ruthless] <--- [0: Pragmatic] ---> [+5: Virtuous] ---> [+10: Righteous]
+[-100: Scourge] <--- [-45: Malevolent] <--- [-15: Ruthless] <--- [0: Pragmatic] ---> [+15: Virtuous] ---> [+45: Righteous] ---> [+100: Paragon]
 ```
 
-* **Righteous (+6 to +10):** Radiate inspiring conviction. Allies gain courage, commoners welcome you with discounts, and your divine prayers roll with $+2$ bonus soak vs dark planar damage.
-* **Pragmatic (-3 to +3):** Unburdened by dogmatism. You find creative solutions, barter easily with criminals and nobles alike.
-* **Malevolent (-6 to -10):** Feared throughout the provinces. Intimidation checks receive $+2$ bonus roll, cutthroats hesitate to cross you, but holy sanctuaries close their gates.
+#### Alignment Combat Modifiers (Engine-Authoritative)
+Your moral standing directly influences combat prowess against opposing planar and moral forces:
+
+* **Heroic Combat Advantage (vs Demonic, Undead, Cultist, and Monstrous Foes):**
+  - **Morality $\ge +15$ (Virtuous):** $+1$ Attack Roll (Hit Bonus) and $+1$ Raw Damage.
+  - **Morality $\ge +30$ (Righteous):** $+2$ Attack Roll (Hit Bonus) and $+2$ Raw Damage.
+  - **Morality $\ge +45$ (Paragon):** $+3$ Attack Roll (Hit Bonus) and $+3$ Raw Damage.
+* **Villainous Combat Advantage (vs Holy Defenders, Priests, Paladins, and Innocents):**
+  - **Morality $\le -15$ (Ruthless):** $+1$ Attack Roll (Hit Bonus) and $+1$ Raw Damage.
+  - **Morality $\le -30$ (Malevolent):** $+2$ Attack Roll (Hit Bonus) and $+2$ Raw Damage.
+  - **Morality $\le -45$ (Scourge):** $+3$ Attack Roll (Hit Bonus) and $+3$ Raw Damage.
+
+#### Narrative & Faction Repercussions of Morality
+- **High Righteousness ($\ge +30$):** Common folk offer free lodging, temples provide free healing and sanctuary, merchants grant up to $10\%$ goodwill discounts, and radiant divine spells gain $+2$ soak against necrotic planar harm.
+- **Deep Malevolence ($\le -30$):** Towns bar their gates against you, bounties are posted by provincial marshals, but the criminal underworld welcomes you: fences in the Drowned Market offer exclusive contraband, cutthroats yield to your Intimidation rolls (with $+2$ bonus), and forbidden blood-rites become accessible.
 
 ---
 
@@ -919,26 +941,21 @@ Between perilous dungeon rooms, resting at a camp or tavern triggers reactive ch
 
 ## Chapter 10: The AI Game Master & Interactive Play
 
-### The Three Game Master Archetypes
-Shattered Saga offers three distinct AI Game Master personalities:
+### The Master Narrator: The Chronicler
+In earlier playtests, Shattered Saga experimented with three cosmetic Game Master wrappers (*The Ancient*, *The Oracle*, and *The Titan*). Through extensive development, these personas were **unified into a single, grounded master storyteller: The Chronicler** (`src/data/gms.js`).
 
-#### 1. The Ancient
-![The Ancient Banner](../../src/assets/images/ancient.png)
-* **Voice & Tone:** Deep, weathered, gothic, atmospheric, and historically rich.
-* **Focus:** Ancient ruins, gothic horror, forgotten curses, crumbling empires, and moral weight.
-* **Suggested Adventures:** *Ashveil Keep, Frostfire Crypt, Blackroot Hollow, Merrin Abbey Plague Bells*.
+![The Chronicler Portrait](../../src/assets/images/ancient.png)
 
-#### 2. The Oracle
-![The Oracle Banner](../../src/assets/images/oracle.png)
-* **Voice & Tone:** Poetic, mystical, contemplative, introspective, and planar.
-* **Focus:** Cosmic mysteries, elemental philosophy, dreamscapes, the weave of fate, and personal introspection.
-* **Suggested Adventures:** *The Elemental Crucible, Sunken Spire, The Astral Sky, Glass Orchard Masquerade*.
+#### The Voice of The Chronicler
+* **Even-Handed & Grounded:** The Chronicler speaks as a neutral, vivid narrator addressing you directly as *"you"*. It avoids booming theatrical theatrics, grandiose clichés (*"the threads of destiny summon thee"*), or repetitive stock tropes.
+* **Grounded Sensory Reality:** Descriptions prioritize tactile, concrete details—the bitter taste of sulfur in the air, the cold drip of water from vaulted crypt ceilings, the scraping echo of steel drawing from a sheath.
+* **Respect for Player Agency:** The Chronicler **never** writes your dialogue, declares your emotional reactions, or decides your choices for you. It describes how the living world changes, presents the immediate tactical situation, and returns control to your hands.
 
-#### 3. The Titan
-![The Titan Banner](../../src/assets/images/titan.png)
-* **Voice & Tone:** Energetic, kinetic, gritty, militaristic, and high-adrenaline.
-* **Focus:** Brutal tactical combat, industrial gears, arena glory, mercenary grit, and explosive physical action.
-* **Suggested Adventures:** *Saltblood Mines, Clockwork Conservatory, The Obsidian Vault, The Iron Colosseum*.
+#### Dynamic Atmospheric Modes
+While The Chronicler provides a unified voice, its descriptive lens dynamically adapts to the atmosphere of your current adventure:
+1. **Gothic & Historical Dread:** Evoked in ancient crypts, plague abbeys, and haunted ruins (*Ashveil Keep, Frostfire Crypt, Merrin Abbey Plague Bells*). Focuses on architectural decay, shifting shadows, and the creeping dread of ancient curses.
+2. **Mystical & Planar Wonder:** Evoked in elemental fonts, celestial rifts, and glass islands (*The Elemental Crucible, Sunken Spire, The Astral Sky*). Focuses on vibrant elemental light, shifting gravity, and cosmic awe.
+3. **Kinetic & Industrial Grit:** Evoked in volcanic forges, iron mines, and blood-soaked gladiatorial pits (*Saltblood Mines, Clockwork Conservatory, The Obsidian Vault, The Iron Colosseum*). Focuses on grinding gears, whistling steam, roaring crowds, and bone-cracking melee impacts.
 
 ---
 

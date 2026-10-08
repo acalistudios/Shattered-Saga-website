@@ -40,8 +40,8 @@ export const GAME_RULES_SECTIONS = [
       'Age Tiers: Youth (physical boost), Adult (balanced), Middle-Aged (mental boost + skills), Veteran (spiritual/SP boost).',
       'Professions: Iron Legionnaire, Shadow Scout, Scholarly Hedge Mage, Wandering Pilgrim, Guild Artisan.',
       '8 Attributes: Power, Coordination, Vigor, Willpower, Intellect, Charisma, Attunement, Empathy (Starting pool: 24 total points).',
-      'Roleplay Modifier (+1 / -1): Acting in harmony with your Virtue/Philosophy awards +1 to rolls; acting against nature incurs -1.',
-      'Morality (-10 to +10): Heroic choices grant combat bonuses vs demons/undead; malevolent choices grant bonuses vs holy defenders.'
+      'Roleplay Modifier ([roleplay_modifier: +1/-1]): In-character bonus (+1 to next roll) when acting in harmony with Virtue/Philosophy; Out-of-character penalty (-1 to next roll) for breaking vows or metagaming.',
+      'Morality (-100 to +100 Scale): Heroic (>= +15/+30/+45) awards up to +3 Hit and +3 Damage vs evil/monstrous foes; Malevolent (<= -15/-30/-45) awards up to +3 Hit and +3 Damage vs holy/innocents.'
     ]
   },
   {
@@ -163,9 +163,10 @@ export const GAME_RULES_SECTIONS = [
     id: 'ai_gamemaster',
     title: 'The AI Game Master & Interactive Play',
     icon: '🎭',
-    summary: 'The 3 GM archetypes, prompting tips, and engine tags.',
+    summary: 'The Chronicler narrator, prompting tips, and engine tags.',
     points: [
-      'The 3 Archetypes: The Ancient (gothic/historical dread), The Oracle (mystical/philosophical planar wonder), The Titan (kinetic/military grit).',
+      'The Master Narrator: The Chronicler — a unified, grounded, neutral narrator addressing you as "you" without purple clichés or forced theatrics.',
+      'Adaptive Atmosphere: Dynamically shifts tone between Gothic Dread (crypts), Planar Wonder (fonts), and Kinetic Grit (iron forges).',
       'Player Prompting Secrets: State clear intent rather than assuming success; include sensory details; use the environment; speak in character with quotes.',
       'Free-Roam Mode: Step off the beaten path to explore roadside inns, ancient ruins, and regional bounties.',
       'Constrained Tags: The AI communicates with the engine via tags like [check: skill dc], [damage: X type], [heal: X], and [objective_complete: id].'
