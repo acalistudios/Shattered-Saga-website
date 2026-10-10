@@ -37,3 +37,46 @@ describe('offline sandbox isolation', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 });
+
+describe('executeOpposedCheck mechanics and roleplay modifiers', () => {
+  it('correctly calculates step-die rolls and includes resistanceBase in check details', async () => {
+    const { executeOpposedCheck } = await import('./ai');
+    const check = executeOpposedCheck({
+      skillName: 'Athletics',
+      primaryAttr: 'Coordination',
+      primaryScore: 3,
+      secondaryAttr: 'Power',
+      secondaryScore: 2,
+      skillRanks: 2,
+      difficulty: 'professional',
+      roleplayModifier: 1
+    });
+
+    expect(check).toHaveProperty('playerTotal');
+    expect(check).toHaveProperty('resistanceBase');
+    expect(check).toHaveProperty('resistanceTotal');
+    expect(check).toHaveProperty('margin');
+    expect(typeof check.success).toBe('boolean');
+    expect(check.playerTotal).toBe(check.primaryRoll + check.secondaryRoll + check.skillRoll + 1);
+    expect(check.text).toContain('[Check: Athletics vs Professional Challenge.');
+    expect(check.text).toContain('Modifier +1');
+  });
+
+  it('correctly applies negative roleplay modifier penalties', async () => {
+    const { executeOpposedCheck } = await import('./ai');
+    const check = executeOpposedCheck({
+      skillName: 'Stealth',
+      primaryAttr: 'Coordination',
+      primaryScore: 2,
+      secondaryAttr: 'Wit',
+      secondaryScore: 2,
+      skillRanks: 1,
+      difficulty: 'novice',
+      roleplayModifier: -1
+    });
+
+    expect(check.playerTotal).toBe(check.primaryRoll + check.secondaryRoll + check.skillRoll - 1);
+    expect(check.text).toContain('Modifier -1');
+  });
+});
+

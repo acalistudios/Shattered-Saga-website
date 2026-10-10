@@ -646,6 +646,10 @@ export default function useGameState() {
   const [counterOpportunities, setCounterOpportunities] = useState(() => storage.get(`slot_${activeSlotIndex}_counter_opportunities`, null));
   const [combatStance, setCombatStance] = useState(() => storage.get(`slot_${activeSlotIndex}_combat_stance`, null));
 
+  // Dice Roll Log & Roleplay Event States
+  const [diceRollLog, setDiceRollLog] = useState(() => storage.get(`slot_${activeSlotIndex}_dice_roll_log`, []));
+  const [lastRoleplayEvent, setLastRoleplayEvent] = useState(null);
+
   // UI state
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState(null);
@@ -776,6 +780,12 @@ export default function useGameState() {
   }, [combatStance, activeSlotIndex, character?.name]);
 
   useEffect(() => {
+    if (character && character.name) {
+      storage.set(`slot_${activeSlotIndex}_dice_roll_log`, diceRollLog);
+    }
+  }, [diceRollLog, activeSlotIndex, character?.name]);
+
+  useEffect(() => {
     if (character && character.name && character.stats) {
       const vigor = character.attributes?.vigor || 1;
       const drawingRank = character.skills?.arcane_drawing || 0;
@@ -894,6 +904,24 @@ export default function useGameState() {
   // Single-narrator model: any legacy GM id (oracle/titan/ancient) or null resolves
   // to the sole narrator entry so saved games and adventure suggestedGm values keep working.
   const activeGm = GMS.find(g => g.id === activeGmId) || GMS[0];
+
+  const recordDiceRoll = useCallback((entry) => {
+    const id = entry.id || `roll_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const newEntry = {
+      id,
+      timestamp: entry.timestamp || Date.now(),
+      day: character?.stats?.day || 1,
+      hour: character?.stats?.hour || 12,
+      ...entry
+    };
+    setDiceRollLog(prev => [newEntry, ...(prev || [])].slice(0, 50));
+    return newEntry;
+  }, [character?.stats?.day, character?.stats?.hour]);
+
+  const clearDiceRollLog = useCallback(() => {
+    setDiceRollLog([]);
+    storage.remove(`slot_${activeSlotIndex}_dice_roll_log`);
+  }, [activeSlotIndex]);
 
   // Checks energy recharges periodically
   const checkEnergyResets = useCallback(() => {
@@ -1876,6 +1904,31 @@ export default function useGameState() {
           resistanceRoll: rollDetails.resistanceTotal
         });
 
+        // Record in persistent Dice Roll Log
+        recordDiceRoll({
+          type: 'skill_check',
+          title: `${skill.name} Check`,
+          subtitle: `vs ${finalDifficulty.charAt(0).toUpperCase() + finalDifficulty.slice(1)} Challenge`,
+          skillId: finalSkillFocusId,
+          difficulty: finalDifficulty,
+          primaryAttr: skill.primary,
+          primaryScore,
+          primaryRoll: rollDetails.primaryRoll,
+          secondaryAttr: skill.secondary,
+          secondaryScore,
+          secondaryRoll: rollDetails.secondaryRoll,
+          skillRanks,
+          skillRoll: rollDetails.skillRoll,
+          roleplayModifier: totalModifier,
+          playerTotal: rollDetails.playerTotal,
+          resistanceBase: rollDetails.resistanceBase,
+          resistanceTotal: rollDetails.resistanceTotal,
+          margin: rollDetails.margin,
+          success: rollDetails.success,
+          tie: rollDetails.tie,
+          detailsText: rollDetails.text
+        });
+
         // Append roll details to the player's text action for the GM to read!
         finalActionText += `\n\n${rollDetails.text}`;
         if (starvationPenalty > 0) {
@@ -2088,7 +2141,7 @@ export default function useGameState() {
     }));
     if (!deferActionCosts) commitActionCosts();
 
-    const userMsg = { role: 'user', content: finalActionText };
+    const userMsg = { role: 'user', content: finalActionText, checkDetails: rollDetails };
     const updatedHistory = [...history, userMsg];
 
     // 2. Prepare system instructions
@@ -3173,6 +3226,20 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
       if (roleplayChange !== 0) {
         setNextRollModifier(roleplayChange);
+        setLastRoleplayEvent({
+          amount: roleplayChange,
+          timestamp: Date.now(),
+          id: `rp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
+        });
+        recordDiceRoll({
+          type: 'roleplay_modifier',
+          title: roleplayChange > 0 ? 'Roleplay Commendation' : 'Roleplay Hesitation',
+          subtitle: roleplayChange > 0 ? `+${roleplayChange} In-Character Bonus Granted` : `${roleplayChange} Out-of-Character Penalty Applied`,
+          amount: roleplayChange,
+          detailsText: roleplayChange > 0
+            ? 'The GM favored your vivid in-character portrayal! +1 bonus granted to your next roll.'
+            : 'The GM noted out-of-character hesitation or meta-friction. -1 penalty applied to your next roll.'
+        });
       }
 
       // Parse image tags out of the response text
@@ -3672,7 +3739,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       'journal', 'handoff_state', 'skill_tally', 'active_adventure_id',
       'safety_state', 'next_roll_modifier', 'pre_adventure_character', 'last_check',
       'active_enemy', 'counter_opportunities', 'combat_stance',
-      'npc_memory', 'region_memory', 'adventure_summaries'
+      'npc_memory', 'region_memory', 'adventure_summaries', 'dice_roll_log'
     ];
     keysToWipe.forEach(k => {
       storage.remove(`slot_${activeSlotIndex}_${k}`);
@@ -3689,6 +3756,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     setActiveAdventureId(null);
     setSafetyState(DEFAULT_SAFETY_STATE);
     setNextRollModifier(0);
+    setDiceRollLog([]);
+    setLastRoleplayEvent(null);
     setLastActionParams(null);
     setActiveEnemy(null);
     setCounterOpportunities(null);
@@ -4231,6 +4300,24 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       content: `*You brace yourself as the ${enemyAttack.name} attacks!* \n\n${rollText}\n\n${combatResultText}\n\n[Notice: 10 seconds passed. Current time: ${displayTime}. Fatigue: ${(localFatigue - 0.1).toFixed(1)}/${character.stats.maxFatigue?.toFixed(1)}]`,
       checkDetails: null
     };
+
+    recordDiceRoll({
+      type: 'combat_defense',
+      title: defSkillName,
+      subtitle: `vs ${enemyAttack.name}`,
+      attacker: activeEnemy?.name || 'Enemy',
+      attackName: enemyAttack.name,
+      defenseSkillId,
+      playerRoll: playerRollTotal,
+      enemyRoll: enemyRollTotal,
+      success: defenseSuccess,
+      margin,
+      rawDamage,
+      armorSoak: finalArmorSoak,
+      shieldSoak,
+      netDamage,
+      detailsText: `${rollText} - ${combatResultText}`
+    });
 
     setHistory(prev => [...prev, newLogMsg]);
 
@@ -5349,6 +5436,31 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       systemNotice = `[Combat Action: Player takes Divine Aegis Stance. Spend 1 Divine SP. Next defense rolls get +6 holy barrier bonus (+4 if dodging).]`;
     }
 
+    if (['melee', 'ranged', 'arcane_attack', 'divine_attack'].includes(maneuverType)) {
+      const isHit = systemNotice.includes('. Hit!');
+      recordDiceRoll({
+        type: 'combat_attack',
+        title: maneuverType === 'melee' ? 'Melee Strike' :
+               maneuverType === 'ranged' ? 'Ranged Shot' :
+               maneuverType === 'arcane_attack' ? 'Arcane Spell Strike' : 'Divine Smiting Spell',
+        subtitle: `vs ${activeEnemy.name}`,
+        target: activeEnemy.name,
+        maneuverType,
+        hit: isHit,
+        enemyRemainingHp: activeEnemy.hp,
+        enemyMaxHp: activeEnemy.maxHp,
+        detailsText: systemNotice
+      });
+    } else if (['block', 'arcane_block', 'divine_block'].includes(maneuverType)) {
+      recordDiceRoll({
+        type: 'combat_stance',
+        title: `Combat Stance: ${maneuverType.replace('_', ' ').toUpperCase()}`,
+        subtitle: actionDesc,
+        maneuverType,
+        detailsText: systemNotice
+      });
+    }
+
     // Deduct SP/Ammunition
     if (consumesArrow || consumesArcaneSp || consumesDivineSp) {
       setCharacter(prev => {
@@ -5580,6 +5692,19 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       }
     }
 
+    const isHit = systemNotice.includes('. Hit!');
+    recordDiceRoll({
+      type: 'combat_attack',
+      title: `Opportunity Counter (${counterType.charAt(0).toUpperCase() + counterType.slice(1)})`,
+      subtitle: `vs ${activeEnemy.name}`,
+      target: activeEnemy.name,
+      maneuverType: `counter_${counterType}`,
+      hit: isHit,
+      enemyRemainingHp: activeEnemy.hp,
+      enemyMaxHp: activeEnemy.maxHp,
+      detailsText: systemNotice
+    });
+
     // Trigger AI GM prompt payload
     const finalPayload = `${systemNotice} ${actionDesc}`;
     await sendPlayerAction(finalPayload, apiKey, sandbox);
@@ -5661,6 +5786,10 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     executeCombatManeuver,
     executeCounterAttack,
     unlockRegion,
-    consumeItem
+    consumeItem,
+    diceRollLog,
+    lastRoleplayEvent,
+    clearDiceRollLog,
+    recordDiceRoll
   };
 }

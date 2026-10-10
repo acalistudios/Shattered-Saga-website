@@ -110,7 +110,11 @@ function App() {
     executeCombatManeuver,
     executeCounterAttack,
     unlockRegion,
-    consumeItem
+    consumeItem,
+    nextRollModifier,
+    diceRollLog,
+    lastRoleplayEvent,
+    clearDiceRollLog
   } = useGameState();
 
   const [screen, setScreen] = useState('splash');
@@ -1078,6 +1082,10 @@ function App() {
             onExecuteCombatManeuver={executeCombatManeuver}
             onExecuteCounterAttack={executeCounterAttack}
             audio={audio}
+            nextRollModifier={nextRollModifier}
+            diceRollLog={diceRollLog}
+            lastRoleplayEvent={lastRoleplayEvent}
+            clearDiceRollLog={clearDiceRollLog}
           />
         )}
 

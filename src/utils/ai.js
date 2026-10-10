@@ -114,6 +114,7 @@ export function executeOpposedCheck({
     primaryRoll,
     secondaryRoll,
     skillRoll,
+    resistanceBase,
     resistanceTotal,
     margin,
     success,

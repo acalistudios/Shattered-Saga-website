@@ -31,6 +31,99 @@ function formatTime(day, hourFloat) {
   return `Day ${day}, ${hour12}:${minStr} ${ampm}`;
 }
 
+function renderMessageContent(content) {
+  if (!content || typeof content !== 'string') return <span>{content}</span>;
+
+  const trimmed = content.trim();
+  if (trimmed.startsWith('[OOC:') && trimmed.endsWith(']')) {
+    const oocBody = trimmed.replace(/^\[OOC:\s*/i, '').replace(/\]$/, '').trim();
+    return (
+      <div className="p-2.5 rounded-lg border border-violet-500/35 bg-violet-955/25 text-violet-200 text-xs shadow-sm">
+        <span className="text-4xs font-mono uppercase font-black tracking-widest text-violet-400 block mb-1">
+          💡 Out-of-Character (OOC)
+        </span>
+        <span className="italic leading-relaxed">{oocBody}</span>
+      </div>
+    );
+  }
+
+  const tagRegex = /\[(Check|Defense Check|Combat Action):\s*([^\]]+)\]/gi;
+  const parts = [];
+  let lastIdx = 0;
+  let match;
+
+  while ((match = tagRegex.exec(content)) !== null) {
+    if (match.index > lastIdx) {
+      parts.push({
+        type: 'text',
+        content: content.substring(lastIdx, match.index)
+      });
+    }
+    parts.push({
+      type: 'tactical_card',
+      category: match[1],
+      details: match[2]
+    });
+    lastIdx = tagRegex.lastIndex;
+  }
+
+  if (lastIdx < content.length) {
+    parts.push({
+      type: 'text',
+      content: content.substring(lastIdx)
+    });
+  }
+
+  if (parts.length === 0) {
+    return <span className="whitespace-pre-wrap">{content}</span>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {parts.map((p, pIdx) => {
+        if (p.type === 'text') {
+          return p.content.trim() ? (
+            <p key={pIdx} className="whitespace-pre-wrap">{p.content.trim()}</p>
+          ) : null;
+        }
+
+        const isSuccess = /Success|Hit!/i.test(p.details);
+        const isFailure = /Failure|Miss!/i.test(p.details);
+
+        return (
+          <div
+            key={pIdx}
+            className={`my-2 p-2.5 rounded-lg border text-2xs font-mono shadow-sm ${
+              isSuccess
+                ? 'bg-emerald-955/25 border-emerald-500/35 text-emerald-200'
+                : isFailure
+                ? 'bg-rose-955/25 border-rose-500/35 text-rose-200'
+                : 'bg-slate-900/80 border-slate-800 text-slate-200'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-serif font-black uppercase text-3xs tracking-wider flex items-center gap-1.5 text-amber-350">
+                <span>🎲</span>
+                <span>{p.category.toUpperCase()}</span>
+              </span>
+              <span className={`px-1.5 py-0.2 rounded text-4xs font-bold uppercase tracking-wider ${
+                isSuccess ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' :
+                isFailure ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
+                'bg-slate-800 text-slate-300'
+              }`}>
+                {isSuccess ? 'SUCCESS' : isFailure ? 'FAILURE / MISS' : 'ACTION'}
+              </span>
+            </div>
+            <div className="leading-relaxed opacity-95 break-words">
+              {p.details}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function PlayScreen({
   character,
   activeGm,
@@ -82,16 +175,53 @@ export default function PlayScreen({
   onExecuteCombatManeuver,
   onExecuteCounterAttack,
   onExportSaveFile,
-  onOpenAccount
+  onOpenAccount,
+  nextRollModifier = 0,
+  diceRollLog = [],
+  lastRoleplayEvent = null,
+  clearDiceRollLog
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
   const isSubscriber = ['supporter', 'adventurer', 'legend'].includes(userProfile?.subscription_tier || 'free');
   const showAdSidebar = settings?.engineTier === 'free' && !isSubscriber;
 
   const [inputText, setInputText] = useState('');
+  const [inputMode, setInputMode] = useState('act'); // 'act' | 'say' | 'ooc'
+  const [isDiceLogOpen, setIsDiceLogOpen] = useState(false);
+  const [diceLogFilter, setDiceLogFilter] = useState('all'); // 'all' | 'skills' | 'combat' | 'roleplay'
+  const [activeRoleplayToast, setActiveRoleplayToast] = useState(null);
   const [skillFocus, setSkillFocus] = useState(''); // Empty string means no specific check
   const [difficulty, setDifficulty] = useState('professional');
   const [spSpend, setSpSpend] = useState(0);
+
+  useEffect(() => {
+    if (lastRoleplayEvent && lastRoleplayEvent.amount !== 0) {
+      setActiveRoleplayToast(lastRoleplayEvent);
+      const timer = setTimeout(() => {
+        setActiveRoleplayToast(null);
+      }, 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [lastRoleplayEvent]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const activeTag = document.activeElement?.tagName;
+      const isInputActive = activeTag === 'INPUT' || activeTag === 'TEXTAREA';
+      
+      if ((e.key === 'l' || e.key === 'L') && !isInputActive && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        setIsDiceLogOpen(prev => !prev);
+      } else if (e.key === 'Escape') {
+        if (isDiceLogOpen) {
+          setIsDiceLogOpen(false);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isDiceLogOpen]);
 
   useEffect(() => {
     if (skillFocus === 'arcane_shaping' || skillFocus === 'divine_manifestation') {
@@ -158,9 +288,20 @@ export default function PlayScreen({
     e.preventDefault();
     if (!inputText.trim() || isLoading) return;
     
+    let formattedText = inputText.trim();
+    if (inputMode === 'say') {
+      if (!formattedText.startsWith('"') && !formattedText.startsWith('“')) {
+        formattedText = `"${formattedText}"`;
+      }
+    } else if (inputMode === 'ooc') {
+      if (!formattedText.toLowerCase().startsWith('[ooc:')) {
+        formattedText = `[OOC: ${formattedText.replace(/^\[OOC:\s*/i, '').replace(/\]$/, '')}]`;
+      }
+    }
+
     // Call state sender passing the text, key, sandbox, and the skill focus + difficulty
     onSendAction(
-      inputText.trim(),
+      formattedText,
       skillFocus || null,
       difficulty,
       spSpend
@@ -1199,6 +1340,25 @@ export default function PlayScreen({
               </svg>
               <span>Gear & Pack</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setIsDiceLogOpen(!isDiceLogOpen)}
+              className={`p-1.5 rounded border transition-all text-xs font-semibold cursor-pointer flex items-center gap-1.5 ${
+                isDiceLogOpen
+                  ? 'bg-amber-500/20 border-amber-500/60 text-amber-300 shadow-sm shadow-amber-500/20'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-amber-400 hover:border-amber-500/40'
+              }`}
+              title="View Action & Dice Roll Log (Hotkey: L)"
+            >
+              <span>🎲</span>
+              <span>Dice Log</span>
+              {diceRollLog.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-4xs font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  {diceRollLog.length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -1242,7 +1402,7 @@ export default function PlayScreen({
                       <span className="text-4xs uppercase tracking-widest text-amber-450 font-bold mb-1 select-none">
                         Action
                       </span>
-                      <span>{turn.content}</span>
+                      {renderMessageContent(turn.content)}
                     </div>
                   ) : (
                     <div className="narration-content">
@@ -1251,7 +1411,7 @@ export default function PlayScreen({
                         {turn.isManualImage && <span className="text-amber-550 lowercase italic">Materialization complete (-{activeGm.id === 'titan' ? '2K' : '10K'} power)</span>}
                       </div>
                       
-                      <p className="whitespace-pre-wrap">{turn.content}</p>
+                      {renderMessageContent(turn.content)}
 
                       {turn.imageUrl && (
                         <div className="mt-4 rounded-lg overflow-hidden border border-slate-800 bg-slate-950 shadow-md">
@@ -1745,6 +1905,67 @@ export default function PlayScreen({
               ) : null;
             })()}
 
+          {/* Input Mode Toggles & Active Roll Modifier Banner */}
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+            <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-lg border border-slate-850">
+              <span className="text-4xs uppercase tracking-widest text-slate-500 font-bold px-1.5 select-none">
+                Mode:
+              </span>
+              <button
+                type="button"
+                onClick={() => setInputMode('act')}
+                className={`px-2.5 py-1 rounded text-3xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
+                  inputMode === 'act'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/20'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+                title="Narrative action in the world"
+              >
+                <span>🎭</span>
+                <span>Act</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setInputMode('say')}
+                className={`px-2.5 py-1 rounded text-3xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
+                  inputMode === 'say'
+                    ? 'bg-sky-500 text-slate-950 shadow-sm shadow-sky-500/20'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+                title="Dialogue (automatically enclosed in quotation marks)"
+              >
+                <span>💬</span>
+                <span>Say</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setInputMode('ooc')}
+                className={`px-2.5 py-1 rounded text-3xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
+                  inputMode === 'ooc'
+                    ? 'bg-violet-500 text-slate-950 shadow-sm shadow-violet-500/20'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+                title="Out-of-Character questions or meta-clarification to GM"
+              >
+                <span>💡</span>
+                <span>OOC</span>
+              </button>
+            </div>
+
+            {nextRollModifier !== 0 && (
+              <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-3xs font-extrabold uppercase tracking-wider border shadow-sm transition-all animate-pulse ${
+                nextRollModifier > 0
+                  ? 'bg-amber-500/15 border-amber-400/40 text-amber-300 shadow-amber-500/10'
+                  : 'bg-rose-500/15 border-rose-500/40 text-rose-300 shadow-rose-500/10'
+              }`}>
+                <span>{nextRollModifier > 0 ? '⭐' : '⚠️'}</span>
+                <span>
+                  {nextRollModifier > 0 ? `Active Roleplay Bonus: +${nextRollModifier} to Next Roll` : `Active Roleplay Penalty: ${nextRollModifier} to Next Roll`}
+                </span>
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-2">
             <input
               ref={inputRef}
@@ -1753,7 +1974,11 @@ export default function PlayScreen({
               onChange={(e) => setInputText(e.target.value)}
               disabled={isLoading}
               placeholder={
-                skillFocus
+                inputMode === 'say'
+                  ? `What does ${character.name} say in dialogue? (automatically wrapped in quotes)`
+                  : inputMode === 'ooc'
+                  ? `Ask the GM an out-of-character question or clarification [OOC]...`
+                  : skillFocus
                   ? `State how you attempt your ${SKILLS_LIST.find(s=>s.id===skillFocus)?.name}...`
                   : `State your character's action, ${character.name}...`
               }
@@ -2516,6 +2741,258 @@ export default function PlayScreen({
           </div>
         </div>
       )}
+
+      {/* ----------------- FLASHING ROLEPLAY MODIFIER TOAST/BANNER ----------------- */}
+      {activeRoleplayToast && (
+        <aside
+          aria-label="Roleplay Modifier Banner"
+          className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[92%] sm:w-auto px-4 py-3 rounded-xl border shadow-2xl backdrop-blur-md flex items-center gap-3 transition-all animate-bounceOnce ${
+            activeRoleplayToast.amount > 0
+              ? 'bg-gradient-to-r from-amber-950/95 via-slate-950/95 to-emerald-950/95 border-amber-400/80 shadow-amber-500/20 text-amber-200'
+              : 'bg-gradient-to-r from-rose-950/95 via-slate-950/95 to-amber-950/95 border-rose-500/80 shadow-rose-500/20 text-rose-200'
+          }`}
+        >
+          <div className="text-2xl flex-shrink-0 animate-pulse">
+            {activeRoleplayToast.amount > 0 ? '🌟' : '⚠️'}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-serif font-black text-xs uppercase tracking-wider">
+                {activeRoleplayToast.amount > 0 ? 'In-Character Commendation' : 'Out-of-Character Hesitation'}
+              </span>
+              <span className={`px-1.5 py-0.5 rounded text-4xs font-mono font-black uppercase tracking-wider ${
+                activeRoleplayToast.amount > 0
+                  ? 'bg-amber-400 text-slate-950'
+                  : 'bg-rose-500 text-white'
+              }`}>
+                {activeRoleplayToast.amount > 0 ? `+${activeRoleplayToast.amount} Roll Bonus` : `${activeRoleplayToast.amount} Roll Penalty`}
+              </span>
+            </div>
+            <p className="text-2xs text-slate-300 mt-0.5 leading-snug">
+              {activeRoleplayToast.amount > 0
+                ? 'The GM favored your vivid portrayal! +1 bonus granted to your next action roll.'
+                : 'The GM noted out-of-character hesitation or meta-friction. -1 penalty applied to your next action roll.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveRoleplayToast(null)}
+            aria-label="Dismiss Roleplay Toast"
+            className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors cursor-pointer flex-shrink-0"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </aside>
+      )}
+
+      {/* ----------------- SLIDE-OUT ACTION & DICE ROLL LOG DRAWER ----------------- */}
+      {isDiceLogOpen && (
+        <div
+          onClick={() => setIsDiceLogOpen(false)}
+          className="absolute inset-0 z-38 bg-black/60 backdrop-blur-xs transition-opacity duration-300"
+        />
+      )}
+
+      <div
+        className={`absolute top-0 right-0 z-40 h-full w-80 sm:w-[440px] md:w-[480px] border-l border-slate-850 bg-slate-950/95 backdrop-blur-md shadow-2xl transition-transform duration-300 flex flex-col p-4 ${
+          isDiceLogOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        <div className="flex justify-between items-center border-b border-slate-900 pb-3 mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🎲</span>
+            <div>
+              <h3 className="text-xs uppercase tracking-widest text-amber-400 font-extrabold font-serif">
+                Action & Dice Roll Log
+              </h3>
+              <span className="text-4xs text-slate-500 font-medium">
+                Chronological Step-Die & Combat Breakdown
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {diceRollLog.length > 0 && (
+              <button
+                type="button"
+                onClick={clearDiceRollLog}
+                className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 hover:border-rose-500/40 text-slate-400 hover:text-rose-400 text-4xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                title="Clear roll log history"
+              >
+                Clear
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setIsDiceLogOpen(false)}
+              className="p-1 rounded bg-slate-900 border border-slate-800 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+              aria-label="Close Dice Log"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Filter Tabs */}
+        <div className="flex gap-1 mb-3 bg-slate-900/60 p-1 rounded-lg border border-slate-850 text-3xs">
+          {['all', 'skills', 'combat', 'roleplay'].map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setDiceLogFilter(tab)}
+              className={`flex-1 py-1 rounded font-extrabold uppercase tracking-wider transition-all cursor-pointer text-center ${
+                diceLogFilter === tab
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {tab === 'all' ? `All (${diceRollLog.length})` :
+               tab === 'skills' ? 'Skills' :
+               tab === 'combat' ? 'Combat' : 'Roleplay'}
+            </button>
+          ))}
+        </div>
+
+        {/* Roll List */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
+          {(() => {
+            const filtered = diceRollLog.filter(entry => {
+              if (diceLogFilter === 'skills') return entry.type === 'skill_check';
+              if (diceLogFilter === 'combat') return ['combat_attack', 'combat_defense', 'combat_stance'].includes(entry.type);
+              if (diceLogFilter === 'roleplay') return entry.type === 'roleplay_modifier';
+              return true;
+            });
+
+            if (filtered.length === 0) {
+              return (
+                <div className="p-8 text-center text-slate-500 text-xs">
+                  <span className="text-3xl block mb-2 opacity-40">🎲</span>
+                  <p className="font-semibold text-slate-400">No rolls recorded in this category yet.</p>
+                  <p className="text-3xs text-slate-600 mt-1">
+                    Rolls from skill checks, melee & ranged strikes, defensive reactions, and GM roleplay awards will be preserved here.
+                  </p>
+                </div>
+              );
+            }
+
+            return filtered.map((entry) => (
+              <div
+                key={entry.id}
+                className={`p-3 rounded-lg border transition-all text-2xs ${
+                  entry.type === 'skill_check'
+                    ? entry.success
+                      ? 'bg-emerald-955/20 border-emerald-500/30'
+                      : 'bg-rose-955/20 border-rose-500/30'
+                    : entry.type === 'combat_attack'
+                    ? entry.hit
+                      ? 'bg-amber-955/20 border-amber-500/30'
+                      : 'bg-slate-900/60 border-slate-800'
+                    : entry.type === 'combat_defense'
+                    ? entry.success
+                      ? 'bg-emerald-955/20 border-emerald-500/30'
+                      : 'bg-rose-955/20 border-rose-500/30'
+                    : entry.type === 'roleplay_modifier'
+                    ? entry.amount > 0
+                      ? 'bg-amber-955/25 border-amber-400/40'
+                      : 'bg-rose-955/25 border-rose-400/40'
+                    : 'bg-slate-900/50 border-slate-800'
+                }`}
+              >
+                {/* Header row */}
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="font-serif font-black uppercase tracking-wider text-slate-200">
+                    {entry.title}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {entry.day && (
+                      <span className="text-4xs text-slate-500 font-mono">
+                        {formatTime(entry.day, entry.hour || 12)}
+                      </span>
+                    )}
+                    {entry.type === 'skill_check' && (
+                      <span className={`px-1.5 py-0.2 rounded text-4xs font-mono font-black uppercase ${
+                        entry.success ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                      }`}>
+                        {entry.success ? `SUCCESS (+${entry.margin})` : `FAILURE (${entry.margin})`}
+                      </span>
+                    )}
+                    {entry.type === 'combat_attack' && (
+                      <span className={`px-1.5 py-0.2 rounded text-4xs font-mono font-black uppercase ${
+                        entry.hit ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-400 border border-slate-700'
+                      }`}>
+                        {entry.hit ? 'HIT' : 'MISS'}
+                      </span>
+                    )}
+                    {entry.type === 'combat_defense' && (
+                      <span className={`px-1.5 py-0.2 rounded text-4xs font-mono font-black uppercase ${
+                        entry.success ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                      }`}>
+                        {entry.success ? 'DEFENDED' : 'HIT'}
+                      </span>
+                    )}
+                    {entry.type === 'roleplay_modifier' && (
+                      <span className={`px-1.5 py-0.2 rounded text-4xs font-mono font-black uppercase ${
+                        entry.amount > 0 ? 'bg-amber-400 text-slate-950 font-bold' : 'bg-rose-500 text-white font-bold'
+                      }`}>
+                        {entry.amount > 0 ? `+${entry.amount} BONUS` : `${entry.amount} PENALTY`}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Subtitle / summary */}
+                {entry.subtitle && (
+                  <div className="text-3xs text-slate-400 mb-1.5 font-medium">
+                    {entry.subtitle}
+                  </div>
+                )}
+
+                {/* Step-Die Math Breakdown for Skill Checks */}
+                {entry.type === 'skill_check' && (
+                  <div className="bg-slate-950/80 rounded p-2 border border-slate-850/80 space-y-1 font-mono text-3xs">
+                    <div className="flex justify-between text-slate-350">
+                      <span>Player Roll:</span>
+                      <span className="font-bold text-amber-300">
+                        {entry.playerTotal}
+                        <span className="font-normal text-slate-500 ml-1">
+                          ({entry.primaryAttr} {entry.primaryRoll} + {entry.secondaryAttr} {entry.secondaryRoll} + Skill {entry.skillRoll}{entry.roleplayModifier ? ` + Mod ${entry.roleplayModifier > 0 ? '+' : ''}${entry.roleplayModifier}` : ''})
+                        </span>
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-slate-350">
+                      <span>Resistance DC:</span>
+                      <span className="font-bold text-slate-200">
+                        {entry.resistanceTotal}
+                        {entry.resistanceBase && (
+                          <span className="font-normal text-slate-500 ml-1">
+                            (Base {entry.resistanceBase})
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-t border-slate-900 pt-1 text-slate-400">
+                      <span>Outcome Margin:</span>
+                      <span className={`font-bold ${entry.success ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {entry.margin >= 0 ? `+${entry.margin}` : entry.margin}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Details narrative / notice for Combat and Roleplay */}
+                {entry.type !== 'skill_check' && entry.detailsText && (
+                  <div className="bg-slate-950/60 rounded p-2 border border-slate-850/60 text-3xs text-slate-350 leading-relaxed font-mono whitespace-pre-wrap">
+                    {entry.detailsText.replace(/^\[Combat Action:\s*/i, '').replace(/\]$/, '')}
+                  </div>
+                )}
+              </div>
+            ));
+          })()}
+        </div>
+      </div>
 
     </div>
   );
