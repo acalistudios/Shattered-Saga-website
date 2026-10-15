@@ -144,6 +144,39 @@ export const GAME_RULES_SECTIONS = [
     ]
   },
   {
+    id: 'tactical_survival_guide',
+    title: 'Tactical Survival & Boss Encounters',
+    icon: '🧭',
+    subsections: [
+      {
+        title: 'The Investigative Mindset (Tactics vs. Brute Force)',
+        content: [
+          'Shattered Saga is not a hack-and-slash brawler where raw martial force solves every crisis.',
+          'Many encounters are investigative and tactical puzzles: gather local intelligence from NPCs like Martha and Vance before embarking.',
+          'Search for sacred relics, ciphered notes, signet rings, and holy water fonts in ruins before challenging the depths.',
+          'Ghosts bound by oaths, cowardly goblins, and ancient guardians can often be pacified, bargained with, or outmaneuvered.'
+        ]
+      },
+      {
+        title: 'Boss Encounters & The Malachar Rule',
+        content: [
+          'Immunity to Mundane Steel: Planar, demonic, and spectral bosses (like Malachar the Bound Demon) ignore normal weapons and roll monstrous d20 resistance dice.',
+          'Attempting to duel an ancient demon head-on with a starting character is swift suicide.',
+          'The Ritual Solution: Dismantle bosses through preparation—restore Lord Aldric Voss’s broken oath with his signet ring, deploy chapel Holy Water to weaken incorporeal forms, and use sacred Binding Scrolls and Keystones to re-seal the horror while allies hold the line.'
+        ]
+      },
+      {
+        title: 'Opposed Check Strategy & Odds',
+        content: [
+          'Novice Challenges (EV ~6.0): Trained primary skills succeed ~85-90% of the time.',
+          'Professional Challenges (EV ~8.0): Trained skills succeed ~70-75%; untrained attempts drop below 20%.',
+          'Veteran Challenges (EV ~10.0): Specialized mastery required (~50-60% success for specialists; under 10% for novices).',
+          'Rule of thumb: Play to your champion’s primary attributes and trained skill coins. Avoid low-die untrained rolls when an alternate route or ally exists.'
+        ]
+      }
+    ]
+  },
+  {
     id: 'magic_system',
     title: 'Freeform Magic: Arcane & Divine',
     icon: '✨',

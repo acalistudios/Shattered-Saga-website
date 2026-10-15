@@ -167,7 +167,7 @@ const BASE_ADVENTURES_LIST = [
       {
         name: 'Vance',
         role: 'Forge Owner',
-        desc: 'A grizzled retired watchman with a limp who is suspicious of the keep.',
+        desc: 'A grizzled retired watchman with a limp. Suspicious of the keep, he warns travelers: "Cold iron won\'t bite the shadow bound below—search Aldric\'s study for his signet ring and search the chapel altar for holy water and prayer scrolls before you descend, or you will die in those vaults."',
         stats: {
           HP: 14,
           attributes: { Power: 3, Coordination: 2, Vigor: 2, Willpower: 3, Intellect: 2, Charisma: 2, Attunement: 1, Empathy: 2 },
@@ -212,7 +212,7 @@ const BASE_ADVENTURES_LIST = [
       {
         name: 'Aldric Voss',
         role: 'Lord Ghost',
-        desc: 'A ghostly knight bound by unfinished duty to contain Malachar.',
+        desc: 'A ghostly knight bound by unfinished duty to contain Malachar. Will shield the sleeping children and hold the line against the demon if shown his Signet Ring and reminded of his sacred oath.',
         stats: {
           HP: 22,
           attributes: { Power: 4, Coordination: 3, Vigor: 3, Willpower: 5, Intellect: 3, Charisma: 3, Attunement: 3, Empathy: 2 },
@@ -238,7 +238,7 @@ const BASE_ADVENTURES_LIST = [
             { name: 'Shadow Claw', skill: 'Brawling', damage: '1d6 edged', note: 'Can inflict Bleeding Tier 1 only on margin 5+.' },
             { name: 'Dread Whisper', skill: 'Intimidation', damage: '2 Fatigue', note: 'Opposed by Willpower; failure applies frightened for 1 round.' }
           ],
-          special: 'Counts as monstrous score 6 for Willpower and Attunement resistance. Bargains always carry a morality cost.',
+          special: 'Counts as monstrous score 6 for Willpower and Attunement resistance. Incorporeal: completely ignores mundane physical weapons. If the player attacks directly with mundane steel, the Chronicler must describe their blade passing harmlessly through icy shadow, deal immediate counter-fatigue, and narrate an urgent clue to use Holy Water, the Binding Prayer Scroll, or Aldric\'s aid. Bargains always carry a morality cost.',
           weaknesses: ['Holy Water', 'Creator\'s Binding Seal Tile', 'Binding Prayer Scroll', 'Aldric\'s restored oath.']
         }
       }

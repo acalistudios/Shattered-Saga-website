@@ -160,6 +160,34 @@ Defending against multiple strikes in the same round imposes a cumulative **-2 p
 - 2nd Defense: -2 penalty
 - 3rd Defense: -4 penalty
 - 4th Defense: -6 penalty
+*Tactical Tip:* Never allow multiple adversaries to surround your champion. Use bottlenecks, doorways, table cover, and stealth to break enemy lines into single combat.
+
+### The Investigative Mindset (Tactics vs. Brute Force)
+*Shattered Saga* is not a hack-and-slash brawler where raw martial force solves every crisis. Many encounters—particularly in ruins, haunted keeps, and planar rifts—are **investigative and tactical puzzles**:
+1. **Gather Local Intelligence:** Always interview locals and witnesses (such as Martha the provisioner and Vance the blacksmith in Ashveil Village) before embarking. They hold critical lore regarding entrance bypasses, ancient history, and enemy weaknesses.
+2. **Search for Sacred Relics & Weaknesses:** Historic sites frequently hide ciphered journals, signet rings, holy water fonts, and binding scrolls. Recovering these items often turns impossible battles into manageable tactical triumphs.
+3. **Seek Non-Lethal & Ritual Solutions:** Ghosts bound by unfinished duty, terrified goblin deserters, and ancient guardians can frequently be pacified, bribed, intimidated, or reasoned with, saving vital Hit Points for the true horrors below.
+
+### Boss Encounters & Monstrous Horrors (The Malachar Rule)
+Major bosses—such as **Malachar the Bound Demon** beneath Ashveil Keep, or planar horrors in deep rifts—are **ritual and environmental threats**, not fair early-game duels:
+- **Immunity to Mundane Steel:** Planar, demonic, and spectral entities often possess incorporeal forms that completely ignore mundane physical blades and arrows. Striking them with standard iron will result in shattered weapons and swift death.
+- **Overwhelming Opposition Dice:** Major demonic entities roll monstrous resistance dice (often `d20` on mental, arcane, and physical tests). Attempting a direct head-to-head brawl with a starting character is almost guaranteed suicide.
+- **The Ritual Solution:** Boss encounters must be dismantled using preparation:
+  - *Alliances:* Restore Lord Aldric Voss's broken oath using his recovered signet ring so his spectral blade engages the demon.
+  - *Consecration:* Utilize Holy Water and holy relics from chapels to weaken incorporeal armor.
+  - *Binding Rites:* Deploy sacred scrolls and keystones (e.g., the *Creator's Binding Seal Tile* and *Binding Prayer Scroll*) with Divine or Arcane checks to re-seal or banish the horror while allies hold the line.
+
+### Opposed Check Strategy & Specialization Odds
+Every opposed check pits your step dice against the challenge resistance:
+- **Novice Challenges (Resistance EV ~6.0):** Characters rolling trained primary skills succeed ~85%–90% of the time. Even moderately capable characters succeed ~70%.
+- **Professional Challenges (Resistance EV ~8.0):** Trained champions succeed ~70%–75%. Untrained attempts drop below 20%.
+- **Veteran Challenges (Resistance EV ~10.0):** Specialized mastery is required (~50%–60% success for specialists; under 10% for novices).
+- **Rule of Thumb:** Play to your champion's primary attributes and trained skill coins. If an obstacle requires an untrained skill (Score 1 + 0 ranks), look for an alternative route, use an item, or recruit an NPC ally rather than gambling your survival on a low die.
+
+### Hit Point Attrition & The Resurrection Safety Net
+- **Manage Scant Healing:** Starting champions have only 10–14 Hit Points. First Aid bandages halt lethal venous bleeding immediately, but restore only 1 HP. Conserve healing potions (which restore 2d6+2 HP) for dire crises, and utilize safe taverns or dusk camps to recover.
+- **Resurrection Sites & Scars:** Falling to 0 HP does not delete your character save. The **Resurrection Engine** awakens your champion at a nearby Consecrated Shrine or safe tavern, leaving a marked **Gear Trail** at the site of your fall. You return with your story intact, marked by narrative scars but ready to recover your gear with newfound wisdom.
+
 
 ---
 
