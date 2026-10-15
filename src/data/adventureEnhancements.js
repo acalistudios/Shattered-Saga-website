@@ -85,7 +85,7 @@ const BASE_ADVENTURE_SETTING_METADATA = {
       ],
       "Great Hall": [
         { text: "Use shattered banquet tables and shadows for cover to bypass the goblins", skill: "stealth", difficulty: "novice", intent: "stealth" },
-        { text: "Intimidate Skritt from the shadows, demanding the goblins stand down", skill: "intimidation", difficulty: "novice", intent: "social" },
+        { text: "Offer rations and safe passage to soothe Skritt's panic and win him over as an ally", skill: "negotiation", difficulty: "novice", intent: "social" },
         { text: "Read the crumbling hall structure for weak stones or alternative passages", skill: "survival", difficulty: "professional", intent: "investigate" },
       ],
       "Lord's Study": [
@@ -100,8 +100,8 @@ const BASE_ADVENTURE_SETTING_METADATA = {
       ],
       "Prison Sub-Level": [
         { text: "Invoke Lord Aldric's sacred oath with his Signet Ring to shield the children", skill: "leadership", difficulty: "novice", intent: "social" },
+        { text: "Drive Vance's consecrated wedge into the fracturing seal keystone to anchor the binding", skill: "athletics", difficulty: "novice", intent: "utility" },
         { text: "Channel the Binding Prayer Scroll and Seal Tile to re-bind Malachar into the floor", skill: "divine_communion", difficulty: "professional", intent: "magic" },
-        { text: "Hurl Holy Water across Malachar's shadowy core to disrupt its manifestation", skill: "thrown_weapons", difficulty: "novice", intent: "combat" },
       ],
     },
     settingImages: {

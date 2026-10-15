@@ -154,7 +154,7 @@ const BASE_ADVENTURES_LIST = [
     artwork: ancientBanner,
     startingDay: 1,
     startingHour: 13.0, // 1:00 PM
-    startingPrompt: 'You stand in the quiet, dusty square of Ashveil Village at early afternoon. The looming grey stone walls of Ashveil Keep dominate the hill above, silhouetted against the pale sky. Villagers speak in hushed whispers behind locked doors. From Martha\'s Provisions, you hear quiet weeping. From Vance\'s Forge comes the slow, distracted rhythm of a hammer. The hill road leads up past a yew-screened graveyard before it reaches the keep gate. Three children are missing. Where do you go first?',
+    startingPrompt: 'You stand in the quiet, dusty square of Ashveil Village at early afternoon. The looming grey stone walls of Ashveil Keep dominate the hill above, silhouetted against the pale sky. Villagers speak in hushed whispers behind locked doors. From Martha\'s Provisions, you hear quiet weeping—she desperately urges travelers to speak with Vance at the forge for holy tools and armor before hiking up the hill road. From Vance\'s Forge comes the slow, distracted rhythm of a hammer. The hill road leads up past a yew-screened graveyard before it reaches the keep gate. Three children are missing. Where do you go first?',
     objectives: [
       'Find and rescue Tam, Lira, and Oswin before the keep fully claims them.',
       'Gain entry to the keep through the locked gate, the graveyard passage, or a Voss crest mechanism.',
@@ -167,7 +167,7 @@ const BASE_ADVENTURES_LIST = [
       {
         name: 'Vance',
         role: 'Forge Owner',
-        desc: 'A grizzled retired watchman with a limp. Suspicious of the keep, he warns travelers: "Cold iron won\'t bite the shadow bound below—search Aldric\'s study for his signet ring and search the chapel altar for holy water and prayer scrolls before you descend, or you will die in those vaults."',
+        desc: 'A grizzled retired watchman with a limp. Suspicious of the keep, he offers his consecrated forge wedge and warns travelers: "Cold iron won\'t bite the shadow bound below—search Aldric\'s study for his signet ring and search the chapel altar for holy water and prayer scrolls before you descend, or you will die in those vaults."',
         stats: {
           HP: 14,
           attributes: { Power: 3, Coordination: 2, Vigor: 2, Willpower: 3, Intellect: 2, Charisma: 2, Attunement: 1, Empathy: 2 },
@@ -175,14 +175,14 @@ const BASE_ADVENTURES_LIST = [
           defenses: { dodge: 'Coordination d6 + Vigor d2+1', block: 'Power d8 + Coordination d2+1 + 2d2' },
           armor: 'Leather apron, light armor soak 1d3 when relevant',
           attacks: [{ name: 'Forge Hammer', skill: 'Heavy Weapons', damage: '1d8 blunt', note: 'Uses a smithing hammer as a warhammer if cornered.' }],
-          equipment: ['Forge Hammer', 'Iron Shield', 'Smithing Tools'],
+          equipment: ['Forge Hammer', 'Iron Shield', 'Smithing Tools', 'Vance\'s Consecrated Forge Wedge'],
           weaknesses: ['Old leg injury imposes -1 on chase, Acrobatics, or extended Athletics checks.']
         }
       },
       {
         name: 'Martha',
         role: 'Provisioner',
-        desc: 'Frantic widow whose nephew Oswin is one of the missing children.',
+        desc: 'Frantic widow whose nephew Oswin is one of the missing children. She desperately warns the player: "Don\'t hike up that hill without speaking to Vance at the forge first! He served the old watch and knows what cold iron can and cannot touch."',
         stats: {
           HP: 12,
           attributes: { Power: 1, Coordination: 2, Vigor: 1, Willpower: 3, Intellect: 3, Charisma: 3, Attunement: 1, Empathy: 4 },
@@ -238,8 +238,8 @@ const BASE_ADVENTURES_LIST = [
             { name: 'Shadow Claw', skill: 'Brawling', damage: '1d6 edged', note: 'Can inflict Bleeding Tier 1 only on margin 5+.' },
             { name: 'Dread Whisper', skill: 'Intimidation', damage: '2 Fatigue', note: 'Opposed by Willpower; failure applies frightened for 1 round.' }
           ],
-          special: 'Counts as monstrous score 6 for Willpower and Attunement resistance. Incorporeal: completely ignores mundane physical weapons. If the player attacks directly with mundane steel, the Chronicler must describe their blade passing harmlessly through icy shadow, deal immediate counter-fatigue, and narrate an urgent clue to use Holy Water, the Binding Prayer Scroll, or Aldric\'s aid. Bargains always carry a morality cost.',
-          weaknesses: ['Holy Water', 'Creator\'s Binding Seal Tile', 'Binding Prayer Scroll', 'Aldric\'s restored oath.']
+          special: 'Counts as monstrous score 6 for Willpower and Attunement resistance. Incorporeal: completely ignores mundane physical weapons. If the player attacks directly with mundane steel, the Chronicler must describe their blade passing harmlessly through icy shadow, deal immediate counter-fatigue, and narrate an urgent clue to use Holy Water, the Binding Prayer Scroll, Vance\'s consecrated wedge, or Aldric\'s aid. Every 1d2+1 rounds of direct melee combat, Malachar taunts the player: for rounds 2–5, he announces either "You know fighting me is a lost cause, right? Cold iron cannot sever shadow." or "What mortal could hope to prevail against the incorporeal? Yet still you try..."; for round 6 and beyond, he mocks: "The fool keeps trying more of the same! Victory shall be mine!" The Chronicler must then intervene and point out to the player that there may be better ways to defeat Malachar than a direct confrontation (such as using the sacred seal tile, Aldric\'s oath, holy water, or driving the consecrated wedge into the altar). Bargains always carry a morality cost.',
+          weaknesses: ['Holy Water', 'Creator\'s Binding Seal Tile', 'Binding Prayer Scroll', 'Aldric\'s restored oath.', 'Vance\'s Consecrated Forge Wedge']
         }
       }
     ],
@@ -251,7 +251,8 @@ const BASE_ADVENTURES_LIST = [
       '+1 Shield (Voss Crest)',
       'Holy Water',
       'Silver Mirror',
-      'Binding Prayer Scroll'
+      'Binding Prayer Scroll',
+      'Vance\'s Consecrated Forge Wedge'
     ],
     itemsDetail: [
       { name: 'Creator\'s Binding Seal Tile', desc: 'A white stone tile veined with gold and old prayer-script, broken from the original prison seal.', properties: 'During the Malachar ritual, grants +1 to Lore, Divine Manifestation, or Arcane Drawing checks made to weaken or re-bind the demon. Outside that ritual it is evidence, not a general bonus item.' },
@@ -261,7 +262,8 @@ const BASE_ADVENTURES_LIST = [
       { name: '+1 Shield (Voss Crest)', desc: 'A medium heater shield painted with a faded black falcon whose eye seems to watch lies, curses, and oathbreakers.', properties: 'Aether-aspected medium shield +1. Grants +1 to Blocking checks and soaks 1d6 + 1 on a successful block. Aether-affinity PCs can reveal alignment, curse, undead taint, or possession in the current scene once per rest/day.' },
       { name: 'Holy Water', desc: 'A stoppered glass vial from the chapel font, still clear despite the dust.', properties: 'Harms demons, undead, incorporeal evil, and possessed targets. Against Aldric, who is not evil, it calms him briefly instead of dealing damage unless the player attacks again.' },
       { name: 'Silver Mirror', desc: 'A palm-sized mirror with a tarnished frame and a crack like a lightning fork.', properties: 'Reveals invisible shadows, possession marks, false reflections, and hidden writing tied to Malachar.' },
-      { name: 'Binding Prayer Scroll', desc: 'A brittle chapel scroll written in a priest\'s cramped hand.', properties: 'One-use ritual aid. Reduces the final re-binding difficulty by one tier or grants +1 to a Divine Manifestation check against Malachar.' }
+      { name: 'Binding Prayer Scroll', desc: 'A brittle chapel scroll written in a priest\'s cramped hand.', properties: 'One-use ritual aid. Reduces the final re-binding difficulty by one tier or grants +1 to a Divine Manifestation check against Malachar.' },
+      { name: 'Vance\'s Consecrated Forge Wedge', desc: 'A heavy iron wedge stamped with holy smithing runes from Vance\'s forge.', properties: 'Grants +2 to Athletics or Heavy Weapons checks made to physically wedge, brace, or hammer the cracked prison seal in the Prison Sub-Level.' }
     ],
     settings: ['Ashveil Village Square', 'Yew Graveyard', 'Great Hall', 'Lord\'s Study', 'Chapel', 'Prison Sub-Level'],
     settingDescriptions: {
