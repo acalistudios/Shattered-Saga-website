@@ -37,19 +37,31 @@ const ARCHETYPES = {
     attributes: { power: 1, coordination: 2, vigor: 1, willpower: 3, intellect: 4, charisma: 2, attunement: 3, empathy: 2 },
     skills: { lore: 3, languages: 2, insight: 2, arcane_drawing: 1, appraise: 1 },
   },
+  hunter: {
+    name: 'Hunter (Ranger / Wilderness)',
+    primaryAttr: 'coordination',
+    attributes: { power: 3, coordination: 4, vigor: 2, willpower: 2, intellect: 2, charisma: 1, attunement: 1, empathy: 2 },
+    skills: { marksmanship: 2, tracking: 2, survival: 2, stealth: 1, trapping: 1 },
+  },
+  bard: {
+    name: 'Bard (Diplomat / Performer)',
+    primaryAttr: 'charisma',
+    attributes: { power: 1, coordination: 3, vigor: 2, willpower: 2, intellect: 2, charisma: 4, attunement: 1, empathy: 2 },
+    skills: { performance: 2, deception: 2, negotiation: 2, insight: 1, light_weapons: 1 },
+  },
 };
 
-// Skill classification
+// Canonical 35-Skill classification
 const PHYSICAL_SKILLS = new Set([
-  'heavy_weapons', 'light_weapons', 'brawling', 'athletics', 'acrobatics', 'blocking', 'thrown_weapons', 'archery'
+  'heavy_weapons', 'light_weapons', 'brawling', 'athletics', 'acrobatics', 'blocking', 'thrown_weapons', 'marksmanship', 'escapology'
 ]);
 const MENTAL_SKILLS = new Set([
   'lore', 'languages', 'insight', 'perception', 'arcane_drawing', 'arcane_shaping',
   'divine_communion', 'divine_manifestation', 'tracking', 'survival', 'herbalism',
-  'appraise', 'trapping', 'lockpicking', 'alchemy', 'healing'
+  'appraise', 'trapping', 'lockpicking', 'alchemy', 'healing', 'crafting', 'smithing', 'luck'
 ]);
 const SOCIAL_SKILLS = new Set([
-  'negotiation', 'deception', 'intimidation', 'leadership', 'empathy', 'perform'
+  'negotiation', 'deception', 'intimidation', 'leadership', 'performance', 'thievery', 'animal_rapport'
 ]);
 
 function getSkillCategory(skillId) {
@@ -106,12 +118,10 @@ describe('18-Adventure Campaign Playability and Challenge Audit', () => {
         roomCount: adventure.settings.length,
         rooms: [],
         bossAudit: [],
-        archetypeSimulations: {
-          soldier: { roomPassRates: [] },
-          duelist: { roomPassRates: [] },
-          cleric: { roomPassRates: [] },
-          scholar: { roomPassRates: [] },
-        },
+        archetypeSimulations: Object.keys(ARCHETYPES).reduce((acc, k) => {
+          acc[k] = { roomPassRates: [] };
+          return acc;
+        }, {}),
       };
 
       report.summary.totalRooms += adventure.settings.length;

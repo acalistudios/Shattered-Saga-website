@@ -210,6 +210,18 @@ Every opposed check pits your step dice against the challenge resistance:
   - *Tier 2 (4–6 slots over):* -3 all physical checks, +5 Fatigue/turn, speed halved.
   - *Tier 3 (7+ slots over):* Immobile / Encumbered Stasis.
 - **Darkness & Torches:** Pitch darkness imposes -4 penalty. Torches illuminate 15 yards (normal melee), but distant targets beyond light circle suffer -2 dim-light penalty.
+- **Highway Travel & Road Patrols:**
+  - High roads between settlements are troubled by outlaws, brigands, and monsters. Players may engage in roadside combat via the **"⚔️ Road Patrol"** action on the campaign map or during region transit.
+  - Each encounter features 5 tactical approaches:
+    - *Archery & Stealth:* Extra surprise damage, snipes leaders, breaks bandit nerve, loots bows and rations.
+    - *Heavy Melee & Shield Wall:* Frontline charges, breaks barricades, parries boulders, loots cleavers and shields.
+    - *Arcane Spell Shaping:* Kinetic shockwaves and firestorms (`arcane_shaping`), scatters raiders, loots aether shards.
+    - *Divine Holy Smiting:* Righteous radiance (`divine_manifestation`), forces repentance, loots holy water and earns morality.
+    - *Diplomatic Parleys & Tolls:* High-margin wins give free passage with no gold lost; narrow wins talk bandits down in exchange for a modest road toll (10–15g); failures result in stolen coin and trauma.
+- **Companions & Teamwork Assists:**
+  - Solo adventurers can recruit allies across the campaign (e.g. *Skritt the Goblin Scout* in Ashveil Keep, *Kaelen Iron-Breaker* in Saltblood Mines, *Silas the Timber-Hound* in Blackroot Hollow, *Sister Maren* in Merrin Abbey, *Cog-Tail the Brass Familiar* in Clockwork Conservatory).
+  - Active companions provide an automatic **+1 Teamwork Assist bonus** to player skill checks matching their specialized training.
+  - Companions shore up untrained skill gaps, allowing specialized warriors to bypass occult wards and solitary scholars to detect wilderness traps.
 
 ---
 

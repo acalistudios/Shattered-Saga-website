@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { executeOpposedCheck } from '../utils/ai';
 import { SKILLS_LIST } from '../data/gms';
+import { getCompanionForSkill } from '../data/companions';
 
 /**
  * Interactive Travel & Roadside Combat Encounter Modal.
@@ -58,13 +59,18 @@ export default function TravelEncounterModal({
     const pScore = character.attributes?.[pAttr] || 1;
     const sScore = character.attributes?.[sAttr] || 1;
 
+    const companion = getCompanionForSkill(character.companions, chosenSkill.id);
+    const companionBonus = companion ? (companion.assistBonus || 1) : 0;
+
     return {
       skill: chosenSkill,
       ranks: chosenRanks,
       primaryAttr: pAttr,
       primaryScore: pScore,
       secondaryAttr: sAttr,
-      secondaryScore: sScore
+      secondaryScore: sScore,
+      companion,
+      companionBonus
     };
   };
 
@@ -79,12 +85,13 @@ export default function TravelEncounterModal({
       secondaryAttr: meta.secondaryAttr,
       secondaryScore: meta.secondaryScore,
       skillRanks: meta.ranks,
-      difficulty: approach.difficulty || 'novice'
+      difficulty: approach.difficulty || 'novice',
+      roleplayModifier: meta.companionBonus
     });
 
     const isSuccess = opposedCheck.success || opposedCheck.tie;
     const margin = opposedCheck.margin;
-    const isDiplomacy = approach.id === 'diplomatic_parley' || approach.id === 'corsair_bribe';
+    const isDiplomacy = approach.id === 'diplomatic_parley' || approach.id === 'corsair_bribe' || approach.id === 'mountain_intimidation' || approach.id === 'ration_bargain' || approach.id === 'gladiator_code' || approach.id === 'pack_negotiate' || approach.id === 'medical_triage_parley' || approach.id === 'planar_bargain';
     const isNarrowDiplomacy = isDiplomacy && isSuccess && margin <= 2;
 
     let appliedToll = 0;
@@ -99,7 +106,9 @@ export default function TravelEncounterModal({
       isSuccess,
       isNarrowDiplomacy,
       appliedToll,
-      approach
+      approach,
+      companion: meta.companion,
+      companionBonus: meta.companionBonus
     });
 
     // Apply stats changes
@@ -254,9 +263,16 @@ export default function TravelEncounterModal({
                         </span>
                       </div>
 
-                      <p className="text-3xs text-slate-350 mb-3 leading-snug">
+                      <p className="text-3xs text-slate-350 mb-2 leading-snug">
                         {app.actionDesc}
                       </p>
+
+                      {meta.companion && (
+                        <div className="mb-3 flex items-center gap-1.5 text-4xs text-emerald-300 bg-emerald-955/60 px-2 py-0.5 rounded border border-emerald-500/25 w-fit font-medium">
+                          <span>{meta.companion.icon || '🤝'}</span>
+                          <span>Teamwork: <strong>{meta.companion.name}</strong> assists (+{meta.companionBonus} to check)</span>
+                        </div>
+                      )}
 
                       <div className="flex items-center justify-between text-4xs pt-2 border-t border-slate-850/60 text-slate-400">
                         <span>
@@ -299,6 +315,12 @@ export default function TravelEncounterModal({
                 <div className="text-slate-400">
                   Bandit Resistance: <span className="text-red-300 font-bold text-xs">{rollResult.resistanceTotal}</span> (Base {rollResult.resistanceBase})
                 </div>
+                {rollResult.companion && (
+                  <div className="text-emerald-400 text-4xs flex items-center gap-1">
+                    <span>{rollResult.companion.icon || '🤝'}</span>
+                    <span>Teamwork Assist: <strong>{rollResult.companion.name}</strong> added +{rollResult.companionBonus} to roll</span>
+                  </div>
+                )}
                 <div className="text-slate-355 text-4xs pt-1 border-t border-slate-850">
                   {rollResult.text}
                 </div>

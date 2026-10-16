@@ -11,6 +11,7 @@ import AccountStatusPills from '../components/AccountStatusPills';
 import ResurrectionModal from '../components/ResurrectionModal';
 import { getToken } from '../utils/authApi';
 import { skillRankCost } from '../data/progressionRewards';
+import { getCompanionById } from '../data/companions';
 
 
 
@@ -946,6 +947,33 @@ export default function PlayScreen({
                               <span>{quest}</span>
                             </li>
                           ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Active Companions & Teamwork Allies */}
+                    {character.companions && character.companions.length > 0 && (
+                      <div className="space-y-1.5 pt-3 border-t border-slate-900">
+                        <h5 className="text-3xs uppercase tracking-wider text-indigo-400 font-bold font-serif flex items-center gap-1.5">
+                          <span>🤝</span>
+                          <span>Companions & Allies</span>
+                        </h5>
+                        <ul className="space-y-1 text-slate-355 font-medium">
+                          {character.companions.map((compItem, idx) => {
+                            const comp = typeof compItem === 'string' ? getCompanionById(compItem) : compItem;
+                            if (!comp) return null;
+                            return (
+                              <li key={idx} className="flex flex-col gap-0.5 bg-slate-950/60 p-2 rounded border border-indigo-900/30">
+                                <div className="flex items-center gap-1.5 text-indigo-300 font-bold text-3xs">
+                                  <span>{comp.icon || '🤝'}</span>
+                                  <span>{comp.name}</span>
+                                </div>
+                                <span className="text-5xs text-slate-400 pl-4">
+                                  {comp.role} (+{comp.assistBonus || 1} to {comp.skills.join(', ')})
+                                </span>
+                              </li>
+                            );
+                          })}
                         </ul>
                       </div>
                     )}

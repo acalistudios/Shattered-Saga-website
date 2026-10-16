@@ -5,14 +5,17 @@ import { SKILLS_LIST } from './gms';
 const validSkills = new Set(SKILLS_LIST.map(s => s.id));
 
 describe('Travel & Roadside Combat Encounters', () => {
-  it('has valid encounter definitions with full tactical branches', () => {
-    expect(TRAVEL_ENCOUNTERS.length).toBeGreaterThan(0);
+  it('has 8 valid encounter definitions with full tactical branches across all 4 regions', () => {
+    expect(TRAVEL_ENCOUNTERS.length).toBe(8);
+
+    const regionsCovered = new Set();
 
     for (const encounter of TRAVEL_ENCOUNTERS) {
       expect(encounter.id).toBeTruthy();
       expect(encounter.title).toBeTruthy();
       expect(encounter.intro.length).toBeGreaterThan(20);
-      expect(encounter.approaches.length).toBeGreaterThanOrEqual(4);
+      expect(encounter.approaches.length).toBe(5);
+      regionsCovered.add(encounter.region);
 
       // Verify each approach
       for (const app of encounter.approaches) {
@@ -40,15 +43,19 @@ describe('Travel & Roadside Combat Encounters', () => {
       expect(hasDivine, `${encounter.id} missing divine approach`).toBe(true);
       expect(hasSocial, `${encounter.id} missing social approach`).toBe(true);
     }
+
+    expect(regionsCovered.has('region1')).toBe(true);
+    expect(regionsCovered.has('region2')).toBe(true);
+    expect(regionsCovered.has('region3')).toBe(true);
+    expect(regionsCovered.has('region4')).toBe(true);
   });
 
-  it('selects a valid random encounter for a given region', () => {
-    const enc1 = getRandomTravelEncounter('region1');
-    expect(enc1).toBeDefined();
-    expect(enc1.region).toBe('region1');
-
-    const enc2 = getRandomTravelEncounter('region2');
-    expect(enc2).toBeDefined();
-    expect(enc2.region).toBe('region2');
+  it('selects a valid random encounter for each of the 4 regions', () => {
+    for (const reg of ['region1', 'region2', 'region3', 'region4']) {
+      const enc = getRandomTravelEncounter(reg);
+      expect(enc).toBeDefined();
+      expect(enc.region).toBe(reg);
+      expect(enc.approaches.length).toBe(5);
+    }
   });
 });

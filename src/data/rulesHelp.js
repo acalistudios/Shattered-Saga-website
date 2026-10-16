@@ -260,5 +260,29 @@ export const GAME_RULES_SECTIONS = [
         ]
       }
     ]
+  },
+  {
+    id: 'travel_and_companions',
+    title: 'Travel Encounters & Teamwork Allies',
+    icon: '🐎',
+    subsections: [
+      {
+        title: 'Road Patrols & Highway Hazards',
+        content: [
+          'Between adventures or during transit across dangerous frontiers, outlaws, brigands, and monsters roam the high roads.',
+          'Click "⚔️ Road Patrol" from the campaign map at any time to patrol highways for bandit ambushes and test your combat tactics.',
+          'Each roadside encounter presents 5 distinct tactical approaches: Archery/Stealth (+extra surprise damage), Heavy Melee Charges / Shield Walls, Arcane Shockwaves, Divine Smites, and Diplomatic Parleys with tolls.',
+          'Defeating roadside hazards awards looted weapons, rations, coins, reputation, and morality bonuses. Narrow diplomatic successes let you talk highwaymen down in exchange for a modest road toll (10-15g).'
+        ]
+      },
+      {
+        title: 'Companions & Teamwork Assists',
+        content: [
+          'Solo adventurers can recruit allies across the campaign (e.g. Skritt the Goblin Scout in Ashveil Keep, Kaelen the Miner in Saltblood, Silas the Hound in Blackroot Hollow, Sister Maren in Merrin Abbey, Cog-Tail the Familiar in Clockwork Conservatory).',
+          'Active companions provide an automatic +1 Teamwork Assist bonus to skill checks matching their specialized training.',
+          'Companions shore up untrained skill weaknesses, allowing martial characters to overcome occult barriers or scholars to navigate dangerous wilderness traps.'
+        ]
+      }
+    ]
   }
 ];

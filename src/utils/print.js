@@ -1,6 +1,7 @@
 import { signCharacter, compressCharacter } from './secureHash';
 import { calculateWeightAndVolume } from './items';
 import { SKILLS_LIST, ELEMENTS_LIST, PROFESSIONS_LIST, ATTRIBUTE_LIST } from '../data/gms';
+import { getCompanionById } from '../data/companions';
 
 const ELEMENTAL_ABILITIES = {
   fire: { name: 'Cinderbreath', effect: 'Cone of flame (2d6 fire/blunt damage split or ignite hazard)' },
@@ -122,6 +123,15 @@ export function printCharacterSheet(character) {
   const questsHtml = quests.length > 0
     ? quests.map(q => `<li>${q}</li>`).join('')
     : '<li class="empty-note">No active quests</li>';
+
+  // Active Companions
+  const comps = character.companions || [];
+  const compsHtml = comps.length > 0
+    ? comps.map(c => {
+        const comp = typeof c === 'string' ? getCompanionById(c) : c;
+        return comp ? `<li><strong>${comp.name}:</strong> ${comp.role} (+${comp.assistBonus || 1})</li>` : `<li>${c}</li>`;
+      }).join('')
+    : '<li class="empty-note">Solo wanderer</li>';
 
   // Inventory list
   const invItems = character.inventory || [];
@@ -720,6 +730,8 @@ export function printCharacterSheet(character) {
               <ul class="journal-list">
                 <li><span class="label">Active Quests:</span></li>
                 ${questsHtml}
+                <li style="margin-top: 4px;"><span class="label">Allies & Companions:</span></li>
+                ${compsHtml}
                 <li style="margin-top: 4px;"><span class="label">Backpack Inventory:</span></li>
                 ${invHtml}
                 <li style="margin-top: 4px;"><span class="label">Narrative Scars & Boons:</span></li>

@@ -381,8 +381,15 @@ export default function AdventureSelection({
             )}
 
             {(character.skillPoints || 0) > 0 && (
-              <div className="px-2.5 py-2 rounded bg-emerald-950/40 border border-emerald-800/40 text-[10px] font-extrabold text-emerald-300 flex items-center gap-1.5 shadow-sm" title="Available Skill Points">
+              <div className="px-2.5 py-2 rounded bg-emerald-955/40 border border-emerald-800/40 text-[10px] font-extrabold text-emerald-300 flex items-center gap-1.5 shadow-sm" title="Available Skill Points">
                 <span>Skill Pts: {character.skillPoints}</span>
+              </div>
+            )}
+
+            {character.companions && character.companions.length > 0 && (
+              <div className="px-2.5 py-2 rounded bg-indigo-955/40 border border-indigo-800/40 text-[10px] font-extrabold text-indigo-300 flex items-center gap-1.5 shadow-sm" title={`Allies: ${character.companions.join(', ')}`}>
+                <span>🤝</span>
+                <span>Allies ({character.companions.length})</span>
               </div>
             )}
 
@@ -771,12 +778,22 @@ export default function AdventureSelection({
                               </button>
                             </>
                           ) : storyUnlocked && travelUnlocked ? (
-                            <button
-                              onClick={() => setMapLevel(selectedRegion.id)}
-                              className="w-full py-2.5 bg-gradient-to-r from-amber-600 to-amber-550 hover:from-amber-500 hover:to-amber-450 text-slate-950 rounded text-3xs font-extrabold uppercase tracking-widest cursor-pointer shadow-lg hover:shadow-amber-500/10 transition-all text-center"
-                            >
-                              Enter Region Map
-                            </button>
+                            <div className="space-y-2">
+                              <button
+                                onClick={() => setMapLevel(selectedRegion.id)}
+                                className="w-full py-2.5 bg-gradient-to-r from-amber-600 to-amber-550 hover:from-amber-500 hover:to-amber-450 text-slate-950 rounded text-3xs font-extrabold uppercase tracking-widest cursor-pointer shadow-lg hover:shadow-amber-500/10 transition-all text-center"
+                              >
+                                Enter Region Map
+                              </button>
+                              <button
+                                onClick={handleStartRoadPatrol}
+                                className="w-full py-2 bg-slate-900 hover:bg-slate-850 border border-amber-500/30 hover:border-amber-500/60 text-amber-300 rounded text-3xs font-bold uppercase tracking-wider cursor-pointer transition-all text-center flex items-center justify-center gap-1.5"
+                                title="Engage in road travel encounters within this region"
+                              >
+                                <span>⚔️</span>
+                                <span>Patrol Region Roads</span>
+                              </button>
+                            </div>
                           ) : storyUnlocked && !travelUnlocked ? (
                             <button
                               onClick={() => {

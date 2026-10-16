@@ -41,6 +41,7 @@ import { getGameHourStamp, getAdventureStartClock } from '../utils/rewardEngine'
 import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../utils/authApi';
 import { consumeRationFromInventory, resolveRest } from '../utils/restEngine';
 import { canDeferNarrationCosts, createPreparedNarrationTurn } from '../utils/narrationTurn';
+import { getCompanionForSkill } from '../data/companions';
 
 function addCopperToCurrency(currency = {}, amountCp = 0) {
   const currentCp = (currency.gp || currency.gold || 0) * 100 + (currency.sp || 0) * 10 + (currency.cp || 0);
@@ -407,7 +408,8 @@ const DEFAULT_CHARACTER = {
   trainingSlots: 0,
   storyEvents: [],
   choicesMade: {},
-  confiscatedGear: []
+  confiscatedGear: [],
+  companions: []
 };
 
 export function validateCharacterSchema(raw) {
@@ -486,7 +488,8 @@ export function validateCharacterSchema(raw) {
     storyEvents: Array.isArray(raw.storyEvents) ? raw.storyEvents : [],
     choicesMade: typeof raw.choicesMade === 'object' && raw.choicesMade !== null ? raw.choicesMade : {},
     trainingSlots: typeof raw.trainingSlots === 'number' ? raw.trainingSlots : 0,
-    confiscatedGear: Array.isArray(raw.confiscatedGear) ? raw.confiscatedGear : []
+    confiscatedGear: Array.isArray(raw.confiscatedGear) ? raw.confiscatedGear : [],
+    companions: Array.isArray(raw.companions) ? raw.companions : []
   };
 }
 
@@ -1877,6 +1880,11 @@ export default function useGameState() {
           potencyModifier = 3 * spSpend;
         }
 
+        // Companion Teamwork Assist Bonus
+        const companionAssist = getCompanionForSkill(character.companions, finalSkillFocusId);
+        const companionBonus = companionAssist ? (companionAssist.assistBonus || 1) : 0;
+        const totalRoleplayModifier = totalModifier + companionBonus;
+
         rollDetails = executeOpposedCheck({
           skillName: skill.name,
           primaryAttr: skill.primary.charAt(0).toUpperCase() + skill.primary.slice(1),
@@ -1885,10 +1893,14 @@ export default function useGameState() {
           secondaryScore,
           skillRanks,
           difficulty: finalDifficulty,
-          roleplayModifier: totalModifier,
+          roleplayModifier: totalRoleplayModifier,
           resistanceModifier,
           potencyModifier
         });
+        if (companionAssist) {
+          rollDetails.companionName = companionAssist.name;
+          rollDetails.companionBonus = companionBonus;
+        }
 
         // Reset modifier back to 0 immediately
         setNextRollModifier(0);
@@ -2492,6 +2504,11 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const questsToRemove = [...cleanedText.matchAll(removeQuestRegex)].map(m => m[1].trim());
       cleanedText = cleanedText.replace(removeQuestRegex, '').trim();
 
+      // 1b. Companion / Follower recruitment parsing
+      const addCompanionRegex = /\[(?:recruit_companion|add_companion|companion_joined):\s*([^\]]+)\]/gi;
+      const companionsToAdd = [...cleanedText.matchAll(addCompanionRegex)].map(m => m[1].trim());
+      cleanedText = cleanedText.replace(addCompanionRegex, '').trim();
+
       // 2. Combat start / end tags
       const combatStartRegex = /\[combat_start\]/gi;
       const combatStartTriggered = combatStartRegex.test(cleanedText);
@@ -3088,6 +3105,17 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
         updated.active_quests = nextActiveQuests;
         updated.completed_quests = nextCompletedQuests;
+
+        // Companions Modification
+        if (companionsToAdd.length > 0) {
+          let nextCompanions = [...(updated.companions || [])];
+          companionsToAdd.forEach(c => {
+            if (!nextCompanions.includes(c)) {
+              nextCompanions.push(c);
+            }
+          });
+          updated.companions = nextCompanions;
+        }
 
         // Rest tag execution
         let restTimeResult;
