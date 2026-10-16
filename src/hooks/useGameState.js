@@ -42,6 +42,7 @@ import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../u
 import { consumeRationFromInventory, resolveRest } from '../utils/restEngine';
 import { canDeferNarrationCosts, createPreparedNarrationTurn } from '../utils/narrationTurn';
 import { getCompanionForSkill } from '../data/companions';
+import { applyCompanionCampfireDuty } from '../data/campfireInterludes';
 
 function addCopperToCurrency(currency = {}, amountCp = 0) {
   const currentCp = (currency.gp || currency.gold || 0) * 100 + (currency.sp || 0) * 10 + (currency.cp || 0);
@@ -1883,7 +1884,16 @@ export default function useGameState() {
         // Companion Teamwork Assist Bonus
         const companionAssist = getCompanionForSkill(character.companions, finalSkillFocusId);
         const companionBonus = companionAssist ? (companionAssist.assistBonus || 1) : 0;
-        const totalRoleplayModifier = totalModifier + companionBonus;
+
+        // Campfire Tool Preparation Bonus (e.g. Cog-Tail clockwork tuning)
+        let campfireBonus = 0;
+        let consumedCampfireBonus = false;
+        if (character.progression?.campfireToolBonus?.skills?.includes(finalSkillFocusId)) {
+          campfireBonus = character.progression.campfireToolBonus.bonus || 1;
+          consumedCampfireBonus = true;
+        }
+
+        const totalRoleplayModifier = totalModifier + companionBonus + campfireBonus;
 
         rollDetails = executeOpposedCheck({
           skillName: skill.name,
@@ -1901,11 +1911,23 @@ export default function useGameState() {
           rollDetails.companionName = companionAssist.name;
           rollDetails.companionBonus = companionBonus;
         }
+        if (campfireBonus > 0) {
+          rollDetails.campfireBonus = campfireBonus;
+        }
 
         // Reset modifier back to 0 immediately
         setNextRollModifier(0);
         if (consumedActiveEffectIds.length > 0) {
           setCharacter(prev => removeActiveItemEffectsFromCharacter(prev, consumedActiveEffectIds));
+        }
+        if (consumedCampfireBonus) {
+          setCharacter(prev => ({
+            ...prev,
+            progression: {
+              ...(prev.progression || {}),
+              campfireToolBonus: null,
+            }
+          }));
         }
 
         // Save last check details
@@ -3815,13 +3837,25 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     });
   };
 
-  const restCharacter = () => {
+  const restCharacter = (companionDutyId = null) => {
     if (isLoading || activeEnemy || enemyAttacksQueue.length || character.stats.hp <= 0) return;
     const { message } = resolveRest(character);
     setLastActionParams(null);
+    let dutyMessage = '';
+    if (companionDutyId) {
+      const dutyResult = applyCompanionCampfireDuty(character, companionDutyId);
+      dutyMessage = dutyResult.message;
+    }
     // React may replay updaters: keep them pure and emit history only in the event.
-    setCharacter(prev => resolveRest(prev).character);
-    setHistory(prev => [...prev, { role: 'model', content: message, checkDetails: null }]);
+    setCharacter(prev => {
+      let updated = resolveRest(prev).character;
+      if (companionDutyId) {
+        updated = applyCompanionCampfireDuty(updated, companionDutyId).character;
+      }
+      return updated;
+    });
+    const fullMessage = dutyMessage ? `${message}\n\n${dutyMessage}` : message;
+    setHistory(prev => [...prev, { role: 'model', content: fullMessage, checkDetails: null }]);
   };
 
   const convertSP = (direction) => {

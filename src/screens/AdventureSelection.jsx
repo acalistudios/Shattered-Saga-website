@@ -6,9 +6,11 @@ import { coinValue } from '../data/economy';
 import { WORLD_REGIONS, MAP_NODES, MAP_IMAGES, REGION_TRANSIT_CHALLENGES } from '../data/cartography';
 import AccountStatusPills from '../components/AccountStatusPills';
 import TravelEncounterModal from '../components/TravelEncounterModal';
+import KeystoneFontTracker from '../components/KeystoneFontTracker';
 import { getRandomTravelEncounter } from '../data/travelEncounters';
 import { ADVENTURE_PROGRESSION_METADATA } from '../data/adventureProgression';
 import { getAdventurePowerBand } from '../data/difficultyScaling';
+import { isTier4Unlocked, getKeystoneCount } from '../data/keystoneShards';
 
 const isRegionStoryUnlocked = (regionId, completedAdventures = []) => {
   if (regionId === 'region1') return true;
@@ -48,6 +50,15 @@ const getUnlockStatus = (advId, completedAdventures = [], character = {}) => {
   const meta = ADVENTURE_PROGRESSION_METADATA[advId];
   if (!meta) {
     return { unlocked: true, requirements: [] };
+  }
+
+  // Check Keystone Font restoration for Tier 4 adventures
+  if (meta.tier === 4 && !isTier4Unlocked(character, false)) {
+    const keystoneCount = getKeystoneCount(character);
+    return {
+      unlocked: false,
+      requirements: [`Restore at least 3 Keystone Shards at the Fivefold Font (Current: ${keystoneCount}/3)`]
+    };
   }
 
   const prerequisites = meta.prerequisites || [];
@@ -441,6 +452,15 @@ export default function AdventureSelection({
       {/* Main Campaign Screen */}
       <div className="flex-1 flex flex-col justify-start">
         
+        {/* Fivefold Font Keystone Shard Tracker */}
+        <div className="mb-5">
+          <KeystoneFontTracker
+            character={character}
+            sandboxMode={sandboxMode}
+            onSelectAdventure={onSelectAdventure}
+          />
+        </div>
+
         {viewMode === 'map' ? (
           /* MAP VIEW WITH SPLIT SIDEBAR */
           <div className={`flex-1 grid gap-5 ${isDesktopLayout ? 'grid-cols-12' : 'grid-cols-1'}`}>

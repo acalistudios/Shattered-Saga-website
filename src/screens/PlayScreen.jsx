@@ -12,6 +12,7 @@ import ResurrectionModal from '../components/ResurrectionModal';
 import { getToken } from '../utils/authApi';
 import { skillRankCost } from '../data/progressionRewards';
 import { getCompanionById } from '../data/companions';
+import CampfireModal from '../components/CampfireModal';
 
 
 
@@ -194,6 +195,7 @@ export default function PlayScreen({
   const [skillFocus, setSkillFocus] = useState(''); // Empty string means no specific check
   const [difficulty, setDifficulty] = useState('professional');
   const [spSpend, setSpSpend] = useState(0);
+  const [isCampfireOpen, setIsCampfireOpen] = useState(false);
 
   useEffect(() => {
     if (lastRoleplayEvent && lastRoleplayEvent.amount !== 0) {
@@ -524,7 +526,7 @@ export default function PlayScreen({
               <div className="mt-3 space-y-2">
                 <button
                   type="button"
-                  onClick={onRest}
+                  onClick={() => setIsCampfireOpen(true)}
                   disabled={isLoading}
                   className="w-full py-1.5 px-3 rounded text-3xs uppercase tracking-wider font-bold border border-emerald-500/20 text-emerald-400 bg-emerald-950/15 hover:bg-emerald-950/30 hover:border-emerald-500/50 cursor-pointer text-center block transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 >
@@ -2664,6 +2666,17 @@ export default function PlayScreen({
         pendingResurrection={pendingResurrection}
         character={character}
         onConfirm={completeResurrection}
+      />
+
+      {/* Campfire Interlude & Companion Rest Duties */}
+      <CampfireModal
+        character={character}
+        isOpen={isCampfireOpen}
+        onClose={() => setIsCampfireOpen(false)}
+        onConfirmRest={(companionDutyId) => {
+          setIsCampfireOpen(false);
+          onRest(companionDutyId);
+        }}
       />
 
       {/* Onboarding Help & Rules Modal */}
