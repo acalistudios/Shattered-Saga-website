@@ -5,6 +5,8 @@ import { getItemDetails } from '../utils/items';
 import { coinValue } from '../data/economy';
 import { WORLD_REGIONS, MAP_NODES, MAP_IMAGES, REGION_TRANSIT_CHALLENGES } from '../data/cartography';
 import AccountStatusPills from '../components/AccountStatusPills';
+import TravelEncounterModal from '../components/TravelEncounterModal';
+import { getRandomTravelEncounter } from '../data/travelEncounters';
 import { ADVENTURE_PROGRESSION_METADATA } from '../data/adventureProgression';
 import { getAdventurePowerBand } from '../data/difficultyScaling';
 
@@ -111,6 +113,14 @@ export default function AdventureSelection({
   const [activeTransitChallengeId, setActiveTransitChallengeId] = useState(null); // 'region2' | 'region3' | 'region4'
   const [transitRollResult, setTransitRollResult] = useState(null);
   const [transitMessage, setTransitMessage] = useState('');
+
+  const [activeTravelEncounter, setActiveTravelEncounter] = useState(null);
+
+  const handleStartRoadPatrol = () => {
+    const targetRegion = mapLevel === 'world' ? selectedRegionId : mapLevel;
+    const encounter = getRandomTravelEncounter(targetRegion);
+    setActiveTravelEncounter(encounter);
+  };
 
   const rollDie = (s) => Math.floor(Math.random() * s) + 1;
   const rollAttribute = (score) => {
@@ -394,6 +404,16 @@ export default function AdventureSelection({
             >
               <span>🛒</span>
               <span>Market</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleStartRoadPatrol}
+              className="px-3 py-2 rounded bg-gradient-to-r from-red-950/80 to-slate-900 border border-red-500/40 hover:border-red-400 text-xs font-bold text-amber-300 hover:text-amber-200 cursor-pointer transition-all flex items-center gap-1.5 shadow-sm"
+              title="Patrol the highway for bandit ambushes and travel combat encounters"
+            >
+              <span>⚔️</span>
+              <span>Road Patrol</span>
             </button>
 
             {onExportSaveFile && (
@@ -1184,6 +1204,15 @@ export default function AdventureSelection({
             
           </div>
         </div>
+      )}
+
+      {activeTravelEncounter && (
+        <TravelEncounterModal
+          encounter={activeTravelEncounter}
+          character={character}
+          onClose={() => setActiveTravelEncounter(null)}
+          onUpdateCharacterStats={onUpdateCharacterStats}
+        />
       )}
 
       {/* Footer info */}
