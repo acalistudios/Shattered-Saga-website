@@ -12,6 +12,7 @@ import ResurrectionModal from '../components/ResurrectionModal';
 import { getToken } from '../utils/authApi';
 import { skillRankCost } from '../data/progressionRewards';
 import { getCompanionById } from '../data/companions';
+import { getActiveKeystoneResonances } from '../data/keystoneShards';
 import CampfireModal from '../components/CampfireModal';
 
 
@@ -369,6 +370,7 @@ export default function PlayScreen({
     }
   });
   const mostUsedSkillName = SKILLS_LIST.find((s) => s.id === mostUsedSkillId)?.name || 'None';
+  const activeKeystones = getActiveKeystoneResonances(character);
 
   const sessionToken = getToken() || storage.get('supabase_session_token');
   const energyBalance = userProfile ? userProfile.energy_balance : null;
@@ -664,6 +666,35 @@ export default function PlayScreen({
               </div>
             </div>
           </div>
+
+          {/* Active Keystone Resonances Card */}
+          {activeKeystones.length > 0 && (
+            <div className="rounded border border-amber-500/30 bg-slate-950/60 p-4 space-y-2.5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <h4 className="text-3xs uppercase tracking-widest text-amber-400 font-bold font-serif flex items-center gap-1.5">
+                  <span>✨</span>
+                  <span>Keystone Resonances</span>
+                </h4>
+                <span className="text-4xs font-mono text-amber-300 bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-500/30">
+                  {activeKeystones.length} / 5 Active
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {activeKeystones.map(shard => (
+                  <div key={shard.id} className="text-2xs bg-slate-900/60 p-2 rounded border border-slate-800">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-amber-200 font-bold">
+                        <span>{shard.icon}</span>
+                        <span>{shard.perkName}</span>
+                      </span>
+                      <span className="text-4xs font-mono uppercase text-slate-400">{shard.element}</span>
+                    </div>
+                    <p className="text-4xs text-slate-300 mt-1 leading-relaxed font-sans">{shard.perkDesc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Active Skills Card */}
           <div className="rounded border border-slate-800 bg-slate-950/45 p-4">
@@ -1307,6 +1338,20 @@ export default function PlayScreen({
                 </span>
               )}
               <AccountStatusPills gems={gems} userProfile={userProfile} onOpenAccount={onOpenAccount} compact />
+              {activeKeystones.length > 0 && (
+                <span className="hidden sm:inline-flex items-center gap-1.5 ml-1">
+                  {activeKeystones.map(shard => (
+                    <span
+                      key={shard.id}
+                      className="px-1.5 py-0.5 rounded text-4xs font-mono bg-amber-950/40 border border-amber-500/30 text-amber-200 flex items-center gap-1 shadow-sm"
+                      title={`${shard.name} (${shard.fontTitle})\n${shard.perkName}: ${shard.perkDesc}`}
+                    >
+                      <span>{shard.icon}</span>
+                      <span className="hidden md:inline font-bold">{shard.perkName}</span>
+                    </span>
+                  ))}
+                </span>
+              )}
               <span className="hidden">
                 💎 {gems} Gems
               </span>

@@ -41,8 +41,9 @@ import { getGameHourStamp, getAdventureStartClock } from '../utils/rewardEngine'
 import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../utils/authApi';
 import { consumeRationFromInventory, resolveRest } from '../utils/restEngine';
 import { canDeferNarrationCosts, createPreparedNarrationTurn } from '../utils/narrationTurn';
-import { getCompanionForSkill } from '../data/companions';
+import { getCompanionById, getCompanionForSkill, getPartingBoon } from '../data/companions';
 import { applyCompanionCampfireDuty } from '../data/campfireInterludes';
+import { getKeystoneStatModifiers, getActiveKeystoneResonances } from '../data/keystoneShards';
 
 function addCopperToCurrency(currency = {}, amountCp = 0) {
   const currentCp = (currency.gp || currency.gold || 0) * 100 + (currency.sp || 0) * 10 + (currency.cp || 0);
@@ -1893,7 +1894,11 @@ export default function useGameState() {
           consumedCampfireBonus = true;
         }
 
-        const totalRoleplayModifier = totalModifier + companionBonus + campfireBonus;
+        // Keystone Resonance Skill Bonus
+        const keystoneMods = getKeystoneStatModifiers(character);
+        const keystoneSkillBonus = keystoneMods.skillBonuses?.[finalSkillFocusId] || 0;
+
+        const totalRoleplayModifier = totalModifier + companionBonus + campfireBonus + keystoneSkillBonus;
 
         rollDetails = executeOpposedCheck({
           skillName: skill.name,
@@ -1913,6 +1918,9 @@ export default function useGameState() {
         }
         if (campfireBonus > 0) {
           rollDetails.campfireBonus = campfireBonus;
+        }
+        if (keystoneSkillBonus > 0) {
+          rollDetails.keystoneBonus = keystoneSkillBonus;
         }
 
         // Reset modifier back to 0 immediately
@@ -2119,6 +2127,33 @@ export default function useGameState() {
       }
     }
 
+    // Water Keystone Ongoing Regeneration (+1 HP & staunch bleed per 2 hours)
+    let waterRegenNotice = '';
+    const keystoneStatMods = getKeystoneStatModifiers(character);
+    let nextProgressionAfterTurn = character.progression;
+    if (keystoneStatMods.periodicHealHpPer2Hours > 0) {
+      const currentStamp = getGameHourStamp(timeResult.nextDay, timeResult.nextHour);
+      const lastRegenStamp = character.progression?.lastWaterRegenHour ?? getGameHourStamp(character.stats.day || 1, character.stats.hour || 13.0);
+      const elapsedRegen = currentStamp - lastRegenStamp;
+      if (elapsedRegen >= 2.0) {
+        const cycles = Math.floor(elapsedRegen / 2.0);
+        const hpBefore = localHp;
+        localHp = Math.min(character.stats.maxHp || 10, localHp + cycles * keystoneStatMods.periodicHealHpPer2Hours);
+        const hpGained = localHp - hpBefore;
+        let bleedStaunched = 0;
+        if (bleedingTier > 0) {
+          const oldTier = bleedingTier;
+          bleedingTier = Math.max(0, bleedingTier - cycles * keystoneStatMods.periodicStaunchBleedPer2Hours);
+          bleedStaunched = oldTier - bleedingTier;
+        }
+        nextProgressionAfterTurn = {
+          ...(nextProgressionAfterTurn || {}),
+          lastWaterRegenHour: lastRegenStamp + cycles * 2.0
+        };
+        waterRegenNotice = `\n\n[Tidal Surge & Mend: Water keystone resonance restored ${hpGained > 0 ? `+${hpGained} HP` : 'vitality'}${bleedStaunched > 0 ? ` and staunched ${bleedStaunched} tier(s) of bleeding` : ''}.]`;
+      }
+    }
+
     // Append Notices to player action text for GM/Display
     const displayTime = formatTime(timeResult.nextDay, timeResult.nextHour);
     const timeDeltaMins = Math.round(timeDelta * 60);
@@ -2149,6 +2184,9 @@ export default function useGameState() {
     if (arrowConsumedNotice) {
       finalActionText += arrowConsumedNotice;
     }
+    if (waterRegenNotice) {
+      finalActionText += waterRegenNotice;
+    }
     if (starvationMessage) {
       finalActionText += starvationMessage;
     }
@@ -2159,6 +2197,7 @@ export default function useGameState() {
       ...prev,
       inventory: finalInventory,
       daysWithoutFood: finalDaysWithoutFood,
+      progression: nextProgressionAfterTurn || prev.progression,
       stats: {
         ...prev.stats,
         hp: localHp,
@@ -3405,6 +3444,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       }));
     }
 
+    let awardedPartingNarratives = [];
+
     setCharacter(prev => {
       const nextCompletedAdventures = [...(prev.completed_adventures || [])];
       const isFirstCompletion = !!activeAdventureId && !nextCompletedAdventures.includes(activeAdventureId);
@@ -3528,6 +3569,40 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         });
       }
 
+      // Parting boons for local adventure allies (Model A)
+      const currentCompanions = Array.isArray(prev.companions) ? prev.companions : [];
+      if (currentCompanions.length > 0) {
+        currentCompanions.forEach(compId => {
+          const comp = getCompanionById(compId);
+          const boon = comp?.partingBoon;
+          if (boon) {
+            if (boon.rewardItem && !nextInventory.some(item => (typeof item === 'string' ? item : item.name).toLowerCase() === boon.rewardItem.toLowerCase())) {
+              nextInventory.push(boon.rewardItem);
+            }
+            if (boon.partingNarrative) {
+              awardedPartingNarratives.push(`### Parting Gift: ${boon.partingTitle || comp.name}\n${boon.partingNarrative}`);
+            }
+            if (boon.reputation) {
+              nextEvents.push(`Earned ${boon.reputation.amount} standing with ${boon.reputation.faction} from ${comp.name}'s parting favor.`);
+            }
+          }
+        });
+      }
+
+      // Check if Earth shard was newly awakened and grants Granite Bastion Max HP
+      const prevKeystoneMods = getKeystoneStatModifiers(prev);
+      const postCharForKeystones = { ...prev, completed_adventures: nextCompletedAdventures, inventory: nextInventory };
+      const nextKeystoneMods = getKeystoneStatModifiers(postCharForKeystones);
+      const keystoneHpDelta = (nextKeystoneMods.maxHpBonus || 0) - (prevKeystoneMods.maxHpBonus || 0);
+      if (keystoneHpDelta > 0) {
+        nextStats = {
+          ...nextStats,
+          maxHp: (nextStats.maxHp || 10) + keystoneHpDelta,
+          hp: Math.min((nextStats.maxHp || 10) + keystoneHpDelta, (nextStats.hp || 0) + keystoneHpDelta)
+        };
+        nextEvents.push(`Awakened Granite Bastion keystone resonance (+${keystoneHpDelta} Max HP).`);
+      }
+
       return {
         ...prev,
         attributes: nextAttributes,
@@ -3538,9 +3613,21 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         trainingSlots: nextTrainingSlots,
         storyEvents: nextEvents,
         currency: isFirstCompletion ? addCopperToCurrency(prev.currency, baseCurrencyCp) : prev.currency,
-        stats: nextStats
+        stats: nextStats,
+        companions: []
       };
     });
+
+    if (awardedPartingNarratives.length > 0) {
+      setHistory(prev => [
+        ...prev,
+        {
+          role: 'model',
+          content: awardedPartingNarratives.join('\n\n'),
+          checkDetails: null
+        }
+      ]);
+    }
 
     // Reset tally & close screen
     setSkillTally({});
@@ -3616,7 +3703,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     setSkillTally({});
     setWarningMessage(null);
     setApiError(null);
-    setCharacter(prev => ({ ...prev, is_free_roaming: false }));
+    setCharacter(prev => ({ ...prev, is_free_roaming: false, companions: [] }));
   };
 
   const startAdventure = (adventureId, gmId, startingPrompt, isFreeRoam = false) => {
@@ -3634,10 +3721,11 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const vigor = prev.attributes?.vigor || 1;
       const drawingRank = prev.skills?.arcane_drawing || 0;
       const communionRank = prev.skills?.divine_communion || 0;
+      const keystoneMods = getKeystoneStatModifiers(prev);
 
-      const expectedMaxFatigue = 12.5 + 2.5 * vigor;
-      const expectedMaxArcane = drawingRank * 3;
-      const expectedMaxDivine = communionRank * 3;
+      const expectedMaxFatigue = 12.5 + 2.5 * vigor + (keystoneMods.maxFatigueBonus || 0);
+      const expectedMaxArcane = drawingRank * 3 + (keystoneMods.maxArcaneSpBonus || 0);
+      const expectedMaxDivine = communionRank * 3 + (keystoneMods.maxDivineSpBonus || 0);
 
       const emptyEquipment = {
         head: null, neck: null, body: null, legs: null, feet: null, hands: null,
@@ -3660,6 +3748,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           equipment: emptyEquipment,
           confiscatedGear: [...(prev.confiscatedGear || []), ...stashed],
           is_free_roaming: isFreeRoam,
+          companions: [],
           stats: {
             ...prev.stats,
             day: startDay,
@@ -3746,6 +3835,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           ? [...(prev.storyEvents || []), `Opening Reward Claimed: ${openingItems.join(', ')}`]
           : prev.storyEvents,
         is_free_roaming: isFreeRoam,
+        companions: [],
         stats: {
           ...prev.stats,
           day: startDay,
@@ -4159,7 +4249,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       stanceBonus = (defenseSkillId === 'blocking') ? 6 : 4;
     }
 
-    const totalDefModifier = defensePenalty - starvationPenalty - exhaustionPenalty + shieldMagicBonus + armorCheckPenalty + stanceBonus;
+    const keystoneMods = getKeystoneStatModifiers(character);
+    const keystoneDodgeBonus = (defenseSkillId === 'dodge' || defenseSkillId === 'acrobatics') ? (keystoneMods.dodgeBonus || 0) : 0;
+    const totalDefModifier = defensePenalty - starvationPenalty - exhaustionPenalty + shieldMagicBonus + armorCheckPenalty + stanceBonus + keystoneDodgeBonus;
 
     const playerRollTotal = primaryRoll + secondaryRoll + skillRoll + totalDefModifier;
     const attackModifier = activeEnemy?.attackModifier || 0;
@@ -4198,6 +4290,11 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         armorSoakBase = r + armorMagic;
         armorRollStr = `1d6 (${r})${armorMagic ? ` + ${armorMagic}` : ''} heavy armor`;
       }
+    }
+
+    if (keystoneMods.crushingSoakBonus > 0 && (attackDamageType === 'blunt' || attackDamageType === 'crushing')) {
+      armorSoakBase += keystoneMods.crushingSoakBonus;
+      armorRollStr += ` + ${keystoneMods.crushingSoakBonus} granite bastion`;
     }
 
     let typeModifier = 0;
@@ -5305,8 +5402,11 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     const defenseModifier = activeEnemy.defenseModifier || 0;
     const enemyDefenseRoll = rollDiceExpression(enemyDodgeVal) + defenseModifier;
 
-    // Calculate morality bonuses
+    // Calculate morality bonuses & keystone combat perks
     const { hitBonus, dmgBonus } = getMoralityCombatModifiers(activeEnemy, character.morality || 0);
+    const keystoneMods = getKeystoneStatModifiers(character);
+    const keystoneAtkDmg = keystoneMods.attackDamageBonus || 0;
+    const keystoneSpellPwr = keystoneMods.spellPowerBonus || 0;
 
     if (maneuverType === 'melee') {
       const rightItem = character.equipment?.hand_right;
@@ -5328,7 +5428,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       actionDesc = `I strike the ${activeEnemy.name} with my ${weaponProps.name}!`;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression(weaponProps.dice) + dmgBonus + weaponProps.damageBonus;
+        const rawDmg = rollDiceExpression(weaponProps.dice) + dmgBonus + weaponProps.damageBonus + keystoneAtkDmg;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
@@ -5348,8 +5448,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           }
         });
 
-        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${weaponProps.attackBonus ? `, Weapon Bonus: +${weaponProps.attackBonus}` : ''}${weaponProps.damageBonus ? `, Reward Damage Bonus: +${weaponProps.damageBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''}`;
-        systemNotice = `[Combat Action: Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${keystoneAtkDmg > 0 ? `, Cinder Might: +${keystoneAtkDmg}` : ''}${weaponProps.attackBonus ? `, Weapon Bonus: +${weaponProps.attackBonus}` : ''}${weaponProps.damageBonus ? `, Reward Damage Bonus: +${weaponProps.damageBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''}`;
+        systemNotice = `[Combat Action: Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus${keystoneAtkDmg > 0 ? ` +${keystoneAtkDmg} keystone` : ''}), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
           systemNotice += " [combat_end]";
@@ -5386,7 +5486,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       consumesArrow = true;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression(bowDice) + dmgBonus + bowProfile.damageBonus;
+        const rawDmg = rollDiceExpression(bowDice) + dmgBonus + bowProfile.damageBonus + keystoneAtkDmg;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
@@ -5401,8 +5501,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           }
         });
 
-        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${bowProfile.attackBonus ? `, Weapon Bonus: +${bowProfile.attackBonus}` : ''}${bowProfile.damageBonus ? `, Reward Damage Bonus: +${bowProfile.damageBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''}`;
-        systemNotice = `[Combat Action: Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${keystoneAtkDmg > 0 ? `, Cinder Might: +${keystoneAtkDmg}` : ''}${bowProfile.attackBonus ? `, Weapon Bonus: +${bowProfile.attackBonus}` : ''}${bowProfile.damageBonus ? `, Reward Damage Bonus: +${bowProfile.damageBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''}`;
+        systemNotice = `[Combat Action: Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus${keystoneAtkDmg > 0 ? ` +${keystoneAtkDmg} keystone` : ''}), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
           systemNotice += " [combat_end]";
@@ -5431,13 +5531,13 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       consumesArcaneSp = true;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression("2d6") + dmgBonus;
+        const rawDmg = rollDiceExpression("2d6") + dmgBonus + keystoneAtkDmg + keystoneSpellPwr;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
 
-        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : '';
-        systemNotice = `[Combat Action: Arcane Spell Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Attunement: ${attr1Roll}, Intellect: ${attr2Roll}, Arcane Shaping: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Radiant Arcane Damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${keystoneSpellPwr > 0 ? `, Void Weave: +${keystoneSpellPwr}` : ''}${keystoneAtkDmg > 0 ? `, Cinder Might: +${keystoneAtkDmg}` : ''}`;
+        systemNotice = `[Combat Action: Arcane Spell Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Attunement: ${attr1Roll}, Intellect: ${attr2Roll}, Arcane Shaping: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Radiant Arcane Damage: ${rawDmg} (includes +${dmgBonus} morality bonus${(keystoneSpellPwr + keystoneAtkDmg) > 0 ? ` +${keystoneSpellPwr + keystoneAtkDmg} keystone` : ''}), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
           systemNotice += " [combat_end]";
@@ -5466,13 +5566,13 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       consumesDivineSp = true;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression("2d6") + dmgBonus;
+        const rawDmg = rollDiceExpression("2d6") + dmgBonus + keystoneAtkDmg + keystoneSpellPwr;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
 
-        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : '';
-        systemNotice = `[Combat Action: Divine Smiting Spell vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Empathy: ${attr1Roll}, Willpower: ${attr2Roll}, Divine Manifestation: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Holy radiant damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${keystoneSpellPwr > 0 ? `, Void Weave: +${keystoneSpellPwr}` : ''}${keystoneAtkDmg > 0 ? `, Cinder Might: +${keystoneAtkDmg}` : ''}`;
+        systemNotice = `[Combat Action: Divine Smiting Spell vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Empathy: ${attr1Roll}, Willpower: ${attr2Roll}, Divine Manifestation: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Holy radiant damage: ${rawDmg} (includes +${dmgBonus} morality bonus${(keystoneSpellPwr + keystoneAtkDmg) > 0 ? ` +${keystoneSpellPwr + keystoneAtkDmg} keystone` : ''}), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
           systemNotice += " [combat_end]";
@@ -5581,8 +5681,11 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     const defenseModifier = activeEnemy.defenseModifier || 0;
     const enemyDefenseRoll = rollDiceExpression(enemyDodgeVal) + defenseModifier;
 
-    // Calculate morality bonuses
+    // Calculate morality bonuses & keystone combat perks
     const { hitBonus, dmgBonus } = getMoralityCombatModifiers(activeEnemy, character.morality || 0);
+    const keystoneMods = getKeystoneStatModifiers(character);
+    const keystoneAtkDmg = keystoneMods.attackDamageBonus || 0;
+    const keystoneSpellPwr = keystoneMods.spellPowerBonus || 0;
 
     if (counterType === 'melee') {
       const rightItem = character.equipment?.hand_right;
@@ -5603,7 +5706,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       actionDesc = `*Reacting instantly, I launch a Melee Counter-Strike at the ${activeEnemy.name} with my ${weaponProps.name}!*`;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression(weaponProps.dice) + dmgBonus + weaponProps.damageBonus;
+        const rawDmg = rollDiceExpression(weaponProps.dice) + dmgBonus + weaponProps.damageBonus + keystoneAtkDmg;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
@@ -5623,8 +5726,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           }
         });
 
-        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${weaponProps.attackBonus ? `, Weapon Bonus: +${weaponProps.attackBonus}` : ''}${weaponProps.damageBonus ? `, Reward Damage Bonus: +${weaponProps.damageBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''}`;
-        systemNotice = `[Combat Action: Opportunity Counter-Attack! Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${keystoneAtkDmg > 0 ? `, Cinder Might: +${keystoneAtkDmg}` : ''}${weaponProps.attackBonus ? `, Weapon Bonus: +${weaponProps.attackBonus}` : ''}${weaponProps.damageBonus ? `, Reward Damage Bonus: +${weaponProps.damageBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''}`;
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus${keystoneAtkDmg > 0 ? ` +${keystoneAtkDmg} keystone` : ''}), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
           systemNotice += " [combat_end]";
@@ -5659,7 +5762,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       actionDesc = `*Seizing the opening, I launch a Ranged Counter-Strike at the ${activeEnemy.name} with my ${bowName}!*`;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression(bowDice) + dmgBonus + bowProfile.damageBonus;
+        const rawDmg = rollDiceExpression(bowDice) + dmgBonus + bowProfile.damageBonus + keystoneAtkDmg;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
@@ -5674,8 +5777,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           }
         });
 
-        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${bowProfile.attackBonus ? `, Weapon Bonus: +${bowProfile.attackBonus}` : ''}${bowProfile.damageBonus ? `, Reward Damage Bonus: +${bowProfile.damageBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''}`;
-        systemNotice = `[Combat Action: Opportunity Counter-Attack! Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${keystoneAtkDmg > 0 ? `, Cinder Might: +${keystoneAtkDmg}` : ''}${bowProfile.attackBonus ? `, Weapon Bonus: +${bowProfile.attackBonus}` : ''}${bowProfile.damageBonus ? `, Reward Damage Bonus: +${bowProfile.damageBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''}`;
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus${keystoneAtkDmg > 0 ? ` +${keystoneAtkDmg} keystone` : ''}), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
           systemNotice += " [combat_end]";
@@ -5702,13 +5805,13 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       actionDesc = `*In a flash of light, I unleash an Arcane Counter-Strike at the ${activeEnemy.name}!*`;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression("2d6") + dmgBonus;
+        const rawDmg = rollDiceExpression("2d6") + dmgBonus + keystoneAtkDmg + keystoneSpellPwr;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
 
-        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : '';
-        systemNotice = `[Combat Action: Opportunity Counter-Attack! Arcane Counter-Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Attunement: ${attr1Roll}, Intellect: ${attr2Roll}, Arcane Shaping: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Radiant Arcane Damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${keystoneSpellPwr > 0 ? `, Void Weave: +${keystoneSpellPwr}` : ''}${keystoneAtkDmg > 0 ? `, Cinder Might: +${keystoneAtkDmg}` : ''}`;
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Arcane Counter-Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Attunement: ${attr1Roll}, Intellect: ${attr2Roll}, Arcane Shaping: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Radiant Arcane Damage: ${rawDmg} (includes +${dmgBonus} morality bonus${(keystoneSpellPwr + keystoneAtkDmg) > 0 ? ` +${keystoneSpellPwr + keystoneAtkDmg} keystone` : ''}), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
           systemNotice += " [combat_end]";
@@ -5735,13 +5838,13 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       actionDesc = `*With holy wrath, I strike back with a Divine Counter-Strike at the ${activeEnemy.name}!*`;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression("2d6") + dmgBonus;
+        const rawDmg = rollDiceExpression("2d6") + dmgBonus + keystoneAtkDmg + keystoneSpellPwr;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = Math.max(1, rawDmg - soak);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);
 
-        const bonusesStr = hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : '';
-        systemNotice = `[Combat Action: Opportunity Counter-Attack! Divine Counter-Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Empathy: ${attr1Roll}, Willpower: ${attr2Roll}, Divine Manifestation: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Holy radiant damage: ${rawDmg} (includes +${dmgBonus} morality bonus), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${keystoneSpellPwr > 0 ? `, Void Weave: +${keystoneSpellPwr}` : ''}${keystoneAtkDmg > 0 ? `, Cinder Might: +${keystoneAtkDmg}` : ''}`;
+        systemNotice = `[Combat Action: Opportunity Counter-Attack! Divine Counter-Strike vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Empathy: ${attr1Roll}, Willpower: ${attr2Roll}, Divine Manifestation: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Holy radiant damage: ${rawDmg} (includes +${dmgBonus} morality bonus${(keystoneSpellPwr + keystoneAtkDmg) > 0 ? ` +${keystoneSpellPwr + keystoneAtkDmg} keystone` : ''}), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
 
         if (nextHp === 0) {
           systemNotice += " [combat_end]";

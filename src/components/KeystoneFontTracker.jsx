@@ -114,6 +114,28 @@ export default function KeystoneFontTracker({ character, sandboxMode = false, on
             {selectedShard.lore}
           </p>
 
+          {/* Resonance Perk details */}
+          {selectedShard.resonance && (
+            <div className={`mt-2.5 p-2 rounded border text-[11px] ${
+              selectedShard.isAwakened
+                ? 'bg-amber-950/30 border-amber-500/40 text-amber-200'
+                : 'bg-slate-950/50 border-slate-800 text-slate-400'
+            }`}>
+              <div className="flex items-center justify-between font-bold mb-1">
+                <span className="flex items-center gap-1.5">
+                  <span>⚡</span>
+                  <span>{selectedShard.resonance.perkName}</span>
+                </span>
+                <span className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-mono ${
+                  selectedShard.isAwakened ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-800 text-slate-500'
+                }`}>
+                  {selectedShard.isAwakened ? 'Active Resonance' : 'Dormant Potential'}
+                </span>
+              </div>
+              <p className="leading-relaxed opacity-90">{selectedShard.resonance.perkDesc}</p>
+            </div>
+          )}
+
           <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between text-[11px] text-slate-400">
             <div>
               <span className="text-slate-500">Restoration Source: </span>
@@ -130,6 +152,28 @@ export default function KeystoneFontTracker({ character, sandboxMode = false, on
                 Embark on source quest to recover
               </span>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Active Resonances Summary */}
+      {count > 0 && (
+        <div className="mt-3 pt-2.5 border-t border-amber-500/20">
+          <div className="text-[10px] uppercase tracking-wider font-bold text-amber-400 mb-1.5 flex items-center gap-1.5">
+            <span>✨</span>
+            <span>Active Keystone Resonances ({count}/5)</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {shards.filter(s => s.isAwakened).map(s => (
+              <span
+                key={s.id}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-amber-950/40 border border-amber-500/30 text-amber-200 shadow-sm"
+                title={s.resonance?.perkDesc}
+              >
+                <span>{s.icon}</span>
+                <span className="font-semibold">{s.resonance?.perkName}</span>
+              </span>
+            ))}
           </div>
         </div>
       )}

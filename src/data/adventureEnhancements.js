@@ -85,7 +85,7 @@ const BASE_ADVENTURE_SETTING_METADATA = {
       ],
       "Great Hall": [
         { text: "Use shattered banquet tables and shadows for cover to bypass the goblins", skill: "stealth", difficulty: "novice", intent: "stealth" },
-        { text: "Offer rations and safe passage to soothe Skritt's panic and win him over as an ally", skill: "negotiation", difficulty: "novice", intent: "social" },
+        { text: "Offer rations and safe passage to soothe Skritt's panic and win him over as an ally [recruit_companion: skritt_goblin]", skill: "negotiation", difficulty: "novice", intent: "social" },
         { text: "Read the crumbling hall structure for weak stones or alternative passages", skill: "survival", difficulty: "professional", intent: "investigate" },
       ],
       "Lord's Study": [
@@ -117,7 +117,7 @@ const BASE_ADVENTURE_SETTING_METADATA = {
     settingChoices: {
       "Intake Cage": [
         { text: "Contort and dislocate wrists to slip free from the heavy iron intake manacles", skill: "escapology", intent: "stealth" },
-        { text: "Heave with raw strength against the rusted cage bars to force an opening", skill: "athletics", intent: "utility" },
+        { text: "Pry open the bent cage bars to liberate Kaelen Iron-Breaker and recruit the burly miner [recruit_companion: kaelen_miner]", skill: "athletics", intent: "utility" },
         { text: "Feign violent fever and agony to lure the intake warden close to the bars", skill: "deception", intent: "social" }
       ],
       "Prisoner Barracks": [
@@ -269,7 +269,7 @@ const BASE_ADVENTURE_SETTING_METADATA = {
       ],
       "The Chronos Vault": [
         { text: "Slip through the narrowing cage bars of the descending pendulum time trap", skill: "escapology", intent: "stealth" },
-        { text: "Align the seven-stage celestial chronometer lock to open the vault sanctuary", skill: "lockpicking", intent: "utility" },
+        { text: "Recalibrate the delicate brass escapement of Cog-Tail the mechanical familiar, awakening an artificer ally [recruit_companion: cogtail_familiar]", skill: "crafting", intent: "utility" },
         { text: "Dispel the pulsating temporal static field that distorts physical motion", skill: "arcane_shaping", intent: "magic" }
       ],
       "The Boiler Core Basement": [
@@ -379,7 +379,7 @@ const BASE_ADVENTURE_SETTING_METADATA = {
       ],
       "Webbed Root Gallery": [
         { text: "Leap and swing across hanging subterranean tree roots over the chasm floor", skill: "acrobatics", intent: "travel" },
-        { text: "Wriggle free from tightening silk cocoons before venom can paralyze your limbs", skill: "escapology", intent: "stealth" },
+        { text: "Slice open the thick silk cocoon to free Silas the timber-hound and earn his loyal tracking instincts [recruit_companion: silas_hound]", skill: "animal_rapport", intent: "social" },
         { text: "Follow dragged boot marks and webbing anchor strands deeper into the root tangle", skill: "tracking", intent: "investigate" }
       ],
       "Egg Nursery": [
@@ -450,7 +450,7 @@ const BASE_ADVENTURE_SETTING_METADATA = {
         { text: "Shout down the panicked monks behind the wicket gate to demand emergency entry", skill: "intimidation", intent: "social" }
       ],
       "Infirmary Cloister": [
-        { text: "Brew sulfur and charcoal vapor pans to sterilize the contagion-choked wards", skill: "alchemy", intent: "utility" },
+        { text: "Aid Sister Maren in treating the fevered patients, enlisting her holy healing devotion [recruit_companion: sister_maren]", skill: "healing", intent: "social" },
         { text: "Establish an airtight quarantine perimeter around the uncontaminated chapel wing", skill: "survival", intent: "travel" },
         { text: "Interrogate the evasive Prior Malrec to uncover his role in locking out the infected", skill: "insight", intent: "social" }
       ],

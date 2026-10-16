@@ -376,6 +376,21 @@ const BASE_ADVENTURES_LIST = [
         }
       },
       {
+        name: 'Kaelen Iron-Breaker',
+        role: 'Companion & Miner Rebel',
+        desc: 'A burly salt miner whose pickaxe strikes and structural expertise can shatter barricades, pry open cell bars, and forge improvised gear. Liberate him with [recruit_companion: kaelen_miner].',
+        stats: {
+          HP: 16,
+          attributes: { Power: 5, Coordination: 3, Vigor: 4, Willpower: 3, Intellect: 2, Charisma: 2, Attunement: 1, Empathy: 2 },
+          skills: { HeavyWeapons: 4, Athletics: 3, Smithing: 3, Brawling: 2, Intimidation: 2 },
+          defenses: { dodge: 'Coordination d8 + Vigor d4', block: 'Power d12 + Coordination d4 + 3d2' },
+          armor: 'Reinforced mining leathers, soak 1d4',
+          attacks: [{ name: 'Heavy Mining Pick', skill: 'Heavy Weapons', damage: '1d8+1 piercing/crushing', note: 'Can sunder doors, lock mechanisms, and rockfalls.' }],
+          equipment: ['Heavy Mining Pick', 'Rough Whetstone', 'Miner Leather Apron'],
+          weaknesses: ['Stubborn and protective of fellow miners; will not leave wounded comrades behind.']
+        }
+      },
+      {
         name: 'Threx',
         role: 'Mine Boss',
         desc: 'A hard-eyed overseer using Redvein shipments and prisoners to serve a hidden possession network.',
@@ -864,6 +879,21 @@ const BASE_ADVENTURES_LIST = [
           special: 'Can be disabled by smashing, covering, or redirecting the projecting lens. Can reveal the Chronos Vault override.',
           weaknesses: ['Proof of the Baron\'s suffering, Eleanor\'s keepsakes, and sincere mercy.']
         }
+      },
+      {
+        name: 'Cog-Tail the Brass Familiar',
+        role: 'Companion & Clockwork Familiar',
+        desc: 'An intricate, spring-loaded mechanical familiar with dexterous brass claws. Repair and wind its delicate mainspring with [recruit_companion: cogtail_familiar] to gain a nimble crafting and lockpicking ally.',
+        stats: {
+          HP: 12,
+          attributes: { Power: 2, Coordination: 5, Vigor: 2, Willpower: 3, Intellect: 4, Charisma: 2, Attunement: 3, Empathy: 1 },
+          skills: { Crafting: 4, Lockpicking: 3, ArcaneDrawing: 3, Stealth: 3, Acrobatics: 3 },
+          defenses: { dodge: 'Coordination d12 + Vigor d2+1', will: 'Willpower d8 + Empathy d2' },
+          armor: 'Articulated brass carapace, soak 1d3',
+          attacks: [{ name: 'Whirring Brass Claws', skill: 'Brawling', damage: '1d4 edged', note: 'Can pick locks, disable clockwork triggers, and manipulate intricate mechanisms.' }],
+          equipment: ['Tuning Wrench', 'Fine Spring Coil'],
+          weaknesses: ['Susceptible to intense magnetic fields and extreme water submersion.']
+        }
       }
     ],
     items: ['Sun Gear Key', 'Moon Gear Key', 'Star Gear Key', 'Aether-Wrench', 'Stabilized Chrono-Core', 'Von Rictor\'s Ledger', 'Tiny Copper Leg', 'Alchemical Acid Flask'],
@@ -1204,6 +1234,21 @@ const BASE_ADVENTURES_LIST = [
           attacks: [{ name: 'Crushing Mandibles', skill: 'Brawling', damage: '1d8 blunt', note: 'Can break web bridges and collapse tunnels.' }],
           weaknesses: ['Sound lures, blunt weapons, and collapsing brittle tunnels.']
         }
+      },
+      {
+        name: 'Silas the Timber-Hound',
+        role: 'Companion & Faithful Mastiff',
+        desc: 'A loyal, broad-chested mastiff trapped in sticky web cocoons within the cavern. Free him with [recruit_companion: silas_hound] to gain his keen tracking and survival instincts.',
+        stats: {
+          HP: 14,
+          attributes: { Power: 3, Coordination: 4, Vigor: 3, Willpower: 3, Intellect: 2, Charisma: 2, Attunement: 1, Empathy: 3 },
+          skills: { Tracking: 4, AnimalRapport: 3, Survival: 3, Brawling: 2, Perception: 3 },
+          defenses: { dodge: 'Coordination d10 + Vigor d4', will: 'Willpower d8 + Empathy d4' },
+          armor: 'Thick fur and rugged leather collar, soak 1d2',
+          attacks: [{ name: 'Snapping Jaws', skill: 'Brawling', damage: '1d6 piercing', note: 'Can trip or harry fleeing enemies.' }],
+          equipment: ['Studded Leather Collar', 'Braided Leash'],
+          weaknesses: ['Protective bark may alert distant predators; frightened by open roaring fire.']
+        }
       }
     ],
     items: ['Spider-Silk Bundle', 'Queen Venom Vial', 'Blackroot Egg Sac', 'Mara\'s Smoke Bombs'],
@@ -1399,6 +1444,21 @@ const BASE_ADVENTURES_LIST = [
           attacks: [{ name: 'Ceremonial Dagger', skill: 'Light Weapons', damage: '1d4 edged', note: 'Only fights if cornered.' }],
           equipment: ['Ceremonial Dagger', 'Abbey Seal', 'Relic Cabinet Key'],
           weaknesses: ['Confession, public testimony, and Sister Hale\'s courage.']
+        }
+      },
+      {
+        name: 'Sister Maren',
+        role: 'Companion & Consecrated Medic',
+        desc: 'A courageous field nurse and nun treating victims in the Infirmary Cloister. Aid her with [recruit_companion: sister_maren] to bolster your party\'s healing, herbalism, and divine communion.',
+        stats: {
+          HP: 12,
+          attributes: { Power: 2, Coordination: 2, Vigor: 3, Willpower: 5, Intellect: 3, Charisma: 3, Attunement: 2, Empathy: 5 },
+          skills: { Healing: 4, DivineCommunion: 3, Herbalism: 3, Insight: 2, Negotiation: 2 },
+          defenses: { dodge: 'Coordination d6 + Vigor d4', will: 'Willpower d12 + Empathy d6' },
+          armor: 'Consecrated vestments, soak 1d2',
+          attacks: [{ name: 'Silver Censer', skill: 'Brawling', damage: '1d4 blunt', note: 'Can distract fiends or spread soothing incense.' }],
+          equipment: ['Infirmary Poultice Kit', 'Silver Censer', 'Consecrated Water Vial'],
+          weaknesses: ['Devoted to saving every patient; will not abandon infected souls.']
         }
       }
     ],

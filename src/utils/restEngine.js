@@ -1,4 +1,5 @@
 import { applyRewardRestRecovery, getGameHourStamp } from './rewardEngine';
+import { getKeystoneStatModifiers } from '../data/keystoneShards';
 
 export function consumeRationFromInventory(inventory = []) {
   let hasRations = false;
@@ -13,7 +14,7 @@ export function consumeRationFromInventory(inventory = []) {
   return { hasRations, updatedInventory };
 }
 
-/** A rest changes resources, not HP, undeath, or permanent adventure rewards. */
+/** A rest changes resources, not HP, undeath, or permanent adventure rewards (unless keystone perks are active). */
 export function resolveRest(character) {
   const { hasRations, updatedInventory } = consumeRationFromInventory(character.inventory);
   const stats = { ...character.stats };
@@ -26,6 +27,17 @@ export function resolveRest(character) {
     stats.divineSP = stats.maxDivineSP ?? 0;
     stats.elementalAbilityUsed = false;
   }
+  const keystoneMods = getKeystoneStatModifiers(character);
+  let keystoneRestMsg = '';
+  if (hasRations && keystoneMods.restHpBonus > 0) {
+    const healHp = Math.min(stats.maxHp ?? 10, (stats.hp ?? 0) + keystoneMods.restHpBonus);
+    stats.hp = healHp;
+    if ((stats.bleedingTier || 0) > 0) {
+      stats.bleedingTier = Math.max(0, (stats.bleedingTier || 0) - (keystoneMods.restBleedStaunch || 4));
+    }
+    keystoneRestMsg = ' The Tide Seal keystone circulates soothing waters through your body, restoring +4 HP and staunching bleeding wounds.';
+  }
+
   const rested = {
     ...character, stats,
     inventory: hasRations ? updatedInventory : character.inventory,
@@ -34,7 +46,7 @@ export function resolveRest(character) {
   return {
     character: hasRations ? applyRewardRestRecovery(rested) : rested,
     message: hasRations
-      ? '*You set up camp and rest for 8 hours, consuming a ration. Your physical energy, spiritual focus, and elemental focus are fully restored.*'
+      ? `*You set up camp and rest for 8 hours, consuming a ration. Your physical energy, spiritual focus, and elemental focus are fully restored.*${keystoneRestMsg}`
       : '*You try to rest for 8 hours, but with no rations to nourish you, you cannot recover your strength. You wake up weak and hungry.*',
   };
 }
