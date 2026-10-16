@@ -3570,6 +3570,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       }
 
       // Parting boons for local adventure allies (Model A)
+      let nextLocalEconomy = { ...(prev.localEconomy || {}) };
+      let nextRelationships = { ...(nextLocalEconomy.relationships || {}) };
+
       const currentCompanions = Array.isArray(prev.companions) ? prev.companions : [];
       if (currentCompanions.length > 0) {
         currentCompanions.forEach(compId => {
@@ -3583,10 +3586,17 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
               awardedPartingNarratives.push(`### Parting Gift: ${boon.partingTitle || comp.name}\n${boon.partingNarrative}`);
             }
             if (boon.reputation) {
-              nextEvents.push(`Earned ${boon.reputation.amount} standing with ${boon.reputation.faction} from ${comp.name}'s parting favor.`);
+              const amount = boon.reputation.amount || 10;
+              nextEvents.push(`Earned +${amount} local reputation with ${boon.reputation.faction} from ${comp.name}'s parting favor.`);
+              if (Array.isArray(boon.reputation.merchants)) {
+                boon.reputation.merchants.forEach(mName => {
+                  nextRelationships[mName] = Math.min(100, (nextRelationships[mName] || 0) + amount);
+                });
+              }
             }
           }
         });
+        nextLocalEconomy = { ...nextLocalEconomy, relationships: nextRelationships };
       }
 
       // Check if Earth shard was newly awakened and grants Granite Bastion Max HP
@@ -3614,6 +3624,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         storyEvents: nextEvents,
         currency: isFirstCompletion ? addCopperToCurrency(prev.currency, baseCurrencyCp) : prev.currency,
         stats: nextStats,
+        localEconomy: nextLocalEconomy,
         companions: []
       };
     });

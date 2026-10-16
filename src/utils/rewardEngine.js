@@ -190,6 +190,7 @@ export function getPassiveRewardSkillBonus(character, skillId) {
   let bonus = 0;
   const labels = [];
 
+  // Major equipment items that must be equipped to grant their bonuses
   equipped.forEach(itemName => {
     const lower = itemName.toLowerCase();
     let itemBonus = 0;
@@ -201,6 +202,29 @@ export function getPassiveRewardSkillBonus(character, skillId) {
     if (itemBonus > 0) {
       bonus += itemBonus;
       labels.push(`${itemName} +${itemBonus}`);
+    }
+  });
+
+  // Portable parting boon relics & charms that grant bonuses when equipped or carried
+  const allCarried = [
+    ...equipped,
+    ...(character?.inventory || [])
+  ].map(i => (typeof i === 'string' ? i : i?.name || ''));
+
+  const seenBoons = new Set();
+  allCarried.forEach(itemName => {
+    const lower = itemName.toLowerCase();
+    if (seenBoons.has(lower)) return;
+    seenBoons.add(lower);
+    let boonBonus = 0;
+    if (lower.includes("silas's bone fang") && ['animal_rapport', 'tracking'].includes(skillId)) boonBonus = 1;
+    else if (lower.includes("skritt's lockpick shim") && ['thievery', 'trapping'].includes(skillId)) boonBonus = 1;
+    else if (lower.includes('clockwork mainspring') && ['crafting', 'arcane_drawing'].includes(skillId)) boonBonus = 1;
+    else if (lower.includes('consecrated healing draught') && ['negotiation', 'insight', 'leadership', 'empathy'].includes(skillId)) boonBonus = 1;
+
+    if (boonBonus > 0) {
+      bonus += boonBonus;
+      labels.push(`${itemName} +${boonBonus}`);
     }
   });
 
