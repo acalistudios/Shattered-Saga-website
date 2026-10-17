@@ -37,6 +37,7 @@ export const currencyFromCp = (currencyCp = 0) => ({
 const guaranteed = (wave, trainingSlots, baseCurrencyCp) => ({
   levelUps: 1,
   skillPoints: skillPointsForWave(wave),
+  availableTrainings: trainingSlots,
   trainingSlots,
   baseCurrencyCp,
 });

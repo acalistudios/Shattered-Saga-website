@@ -5,7 +5,7 @@ import { calculateWeightAndVolume, getItemDetails } from '../utils/items';
 import { generateCompletion, executeOpposedCheck, rollDie, rollAttributePrimary, rollAttributeSecondary, rollSkillRanks } from '../utils/ai';
 import { ADVENTURES_LIST } from '../data/adventures';
 import { checkSafetyViolation, getGMStrikeWarning, getGMSternWarning, calculateLockoutExpiry, isGloballyBanned } from '../utils/safety';
-import { generateMerchantStock, ADVENTURE_TRAINING_SLOTS, TAVERNS } from '../data/downtimeMerchants';
+import { generateMerchantStock, ADVENTURE_TRAINING_SLOTS, TAVERNS, getTrainerConfig } from '../data/downtimeMerchants';
 import { ADVENTURE_ECONOMY_METADATA } from '../data/adventureEconomy';
 import { getDifficultyScaling } from '../data/difficultyScaling';
 import { getAdventureRewardModel, levelHpGain, skillRankCost, SKILL_RANK_CAP } from '../data/progressionRewards';
@@ -408,6 +408,7 @@ const DEFAULT_CHARACTER = {
   },
   skillPoints: 0,
   progression: { ...DEFAULT_PROGRESSION },
+  availableTrainings: 0,
   trainingSlots: 0,
   storyEvents: [],
   choicesMade: {},
@@ -491,7 +492,8 @@ export function validateCharacterSchema(raw) {
     },
     storyEvents: Array.isArray(raw.storyEvents) ? raw.storyEvents : [],
     choicesMade: typeof raw.choicesMade === 'object' && raw.choicesMade !== null ? raw.choicesMade : {},
-    trainingSlots: typeof raw.trainingSlots === 'number' ? raw.trainingSlots : 0,
+    availableTrainings: typeof raw.availableTrainings === 'number' ? Math.max(0, raw.availableTrainings) : (typeof raw.trainingSlots === 'number' ? Math.max(0, raw.trainingSlots) : 0),
+    trainingSlots: typeof raw.availableTrainings === 'number' ? Math.max(0, raw.availableTrainings) : (typeof raw.trainingSlots === 'number' ? Math.max(0, raw.trainingSlots) : 0),
     confiscatedGear: Array.isArray(raw.confiscatedGear) ? raw.confiscatedGear : [],
     companions: Array.isArray(raw.companions) ? raw.companions : []
   };
@@ -1226,6 +1228,7 @@ export default function useGameState() {
         temporarySkillPenalties: {},
         activeItemEffects: []
       },
+      availableTrainings: 0,
       trainingSlots: 0,
       storyEvents: [],
       choicesMade: {},
@@ -3474,7 +3477,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const baseCurrencyCp = guaranteedRewards?.baseCurrencyCp ?? 0;
       const nextLevel = (prev.stats.level || 1) + (isFirstCompletion ? 1 : 0);
       const hpAwarded = isFirstCompletion ? levelHpGain(nextLevel, prev.attributes?.vigor || 1) : 0;
-      const nextTrainingSlots = (prev.trainingSlots || 0) + (isFirstCompletion ? slotsAwarded : 0);
+      const currentBanked = prev.availableTrainings ?? prev.trainingSlots ?? 0;
+      const nextTrainingSlots = currentBanked + (isFirstCompletion ? slotsAwarded : 0);
 
       const nextEvents = [...(prev.storyEvents || [])];
       const completionEvent = `Completed Quest: ${activeAdventureId || 'Unknown'}`;
@@ -3658,6 +3662,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         completed_adventures: nextCompletedAdventures,
         skillPoints: (prev.skillPoints || 0) + (isFirstCompletion ? skillPointsAwarded : 0),
         progression: nextProgression,
+        availableTrainings: nextTrainingSlots,
         trainingSlots: nextTrainingSlots,
         storyEvents: nextEvents,
         currency: isFirstCompletion ? addCopperToCurrency(prev.currency, baseCurrencyCp) : prev.currency,
@@ -5191,12 +5196,37 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
   const trainSkillWithMerchant = (merchantName, skillId) => {
     updateCharacterStats((prev) => {
       const currentRank = prev.skills?.[skillId] || 0;
-      if (currentRank >= 5) return prev;
+      // Cap at Rank 3 (Journeyman)
+      if (currentRank >= 3) return prev;
       
-      const trainingSlots = prev.trainingSlots || 0;
-      if (trainingSlots <= 0) return prev;
+      const availableTrainings = prev.availableTrainings ?? prev.trainingSlots ?? 0;
+      if (availableTrainings <= 0) return prev;
 
-      const costCp = (currentRank + 1) * 100;
+      const trainerConfig = getTrainerConfig(merchantName);
+      if (!trainerConfig || !trainerConfig.skills.includes(skillId)) return prev;
+
+      const currentRelation = prev.localEconomy?.relationships?.[merchantName] || 0;
+      if (trainerConfig.evil) {
+        if (currentRelation > trainerConfig.reqReputation) return prev;
+      } else {
+        if (currentRelation < trainerConfig.reqReputation) return prev;
+      }
+
+      // Base costs: Rank 1 = 1,000 CP (10 GP), Rank 2 = 2,500 CP (25 GP), Rank 3 = 5,000 CP (50 GP)
+      const targetRank = currentRank + 1;
+      let baseCostCp = 1000;
+      if (targetRank === 2) baseCostCp = 2500;
+      else if (targetRank === 3) baseCostCp = 5000;
+
+      // Reputation discount: 5% (>= 11 or <= -11 if evil), 15% (>= 50 or <= -50 if evil), 25% (>= 80 or <= -80 if evil)
+      const absRel = Math.abs(currentRelation);
+      let discountFactor = 0;
+      if (absRel >= 80) discountFactor = 0.25;
+      else if (absRel >= 50) discountFactor = 0.15;
+      else if (absRel >= 11) discountFactor = 0.05;
+
+      const costCp = Math.max(1, Math.round(baseCostCp * (1 - discountFactor)));
+
       let cp = prev.currency?.cp || 0;
       let sp = prev.currency?.sp || 0;
       let gp = prev.currency?.gp || 0;
@@ -5212,12 +5242,14 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       stats.hp = stats.maxHp || 10;
       stats.fatigue = stats.maxFatigue || 15;
 
-      const timeResult = advanceTime(stats.day || 1, stats.hour || 13.0, 24);
+      // Active study time = targetRank^2 days, Equal downtime = targetRank^2 days -> Total = 2 * targetRank^2 days
+      const totalHours = 2 * (targetRank * targetRank) * 24;
+      const timeResult = advanceTime(stats.day || 1, stats.hour || 13.0, totalHours);
       stats.day = timeResult.nextDay;
       stats.hour = timeResult.nextHour;
 
       const nextSkills = { ...(prev.skills || {}) };
-      nextSkills[skillId] = currentRank + 1;
+      nextSkills[skillId] = targetRank;
 
       if (skillId === 'arcane_drawing') {
         stats.maxArcaneSP = nextSkills.arcane_drawing * 3;
@@ -5228,21 +5260,20 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         stats.divineSP = stats.maxDivineSP;
       }
 
-      const relChange = Math.floor(costCp / 100);
-      const rels = { ...(prev.localEconomy?.relationships || {}) };
-      const oldScore = rels[merchantName] || 0;
-      rels[merchantName] = Math.max(-100, Math.min(100, oldScore + relChange));
+      // No reputation gain: training is a commercial service.
+      const skillName = skillId.replace(/_/g, ' ');
+      const storyEvent = `Completed ${targetRank * targetRank} days of ${skillName} training under ${merchantName} (Rank ${targetRank}), followed by ${targetRank * targetRank} days of downtime integration.`;
+      const nextStoryEvents = [...(prev.storyEvents || [])];
+      nextStoryEvents.push(storyEvent);
 
       let updated = {
         ...prev,
         skills: nextSkills,
-        trainingSlots: trainingSlots - 1,
+        availableTrainings: availableTrainings - 1,
+        trainingSlots: availableTrainings - 1,
         stats,
-        currency: { ...prev.currency, gp, sp, cp, gold: gp },
-        localEconomy: {
-          ...(prev.localEconomy || {}),
-          relationships: rels
-        }
+        storyEvents: nextStoryEvents,
+        currency: { ...prev.currency, gp, sp, cp, gold: gp }
       };
 
       updated = applyPriceRecovery(updated);

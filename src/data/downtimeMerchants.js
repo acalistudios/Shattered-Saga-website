@@ -427,39 +427,101 @@ export const EXCLUSIVE_STOCK = {
 };
 
 export const TRAINING_EXPERTS = {
-  "Vance Coalhand": ["smithing", "heavy_weapons"],
-  "Martha Greaves": ["negotiation"],
-  "Mirra Fen": ["healing", "herbalism"],
-  "Bram": ["appraise", "crafting"],
-  "Cogsmith Kael": ["trapping", "smithing"],
-  "Dennis": ["alchemy"],
-  "Silas": ["languages", "perception"],
-  "Frost-Weaver Karen": ["light_weapons", "blocking"],
-  "Captain Harek": ["blocking", "heavy_weapons"],
-  "Master Kaelen": ["alchemy", "arcane_shaping"],
-  "Arena Quartermaster": ["athletics", "brawling"],
-  "Slave-master Horg": ["intimidation"],
-  "Spidery Weaver": ["crafting", "stealth"],
-  "Hermit Healer": ["herbalism", "healing"],
-  "Smuggler Pete": ["thievery", "lockpicking"],
-  "Warden Elenya": ["marksmanship", "survival"],
-  "Father Thomas": ["divine_communion", "divine_manifestation"],
-  "Ned": ["survival", "athletics"],
-  "Lord Julian": ["appraise", "deception"],
-  "Madame Sophie": ["crafting", "deception"],
-  "Forester Jack": ["survival", "athletics"],
-  "Gethin": ["herbalism", "alchemy"],
-  "Faelar": ["languages", "arcane_drawing"],
-  "Drowned Custodian": ["appraise"],
-  "Spectral Merchant": ["luck"],
-  "Sunken Merchant": ["survival"],
-  "Scrap-King Barnaby": ["lockpicking", "trapping"],
-  "Clockwork Doctor": ["healing", "alchemy"],
-  "Thomas": ["negotiation"],
-  "Earth Shaman": ["animal_rapport", "herbalism"],
-  "Sister Clara": ["divine_communion", "healing"],
-  "Mirrored Merchant": ["luck"]
+  // The Elemental Crucible
+  "Ilyra of the Fivefold Font": { skills: ["arcane_drawing", "arcane_shaping"], reqReputation: 30 },
+
+  // Ashveil Keep
+  "Vance Coalhand": { skills: ["smithing", "heavy_weapons"], reqReputation: 10 },
+  "Martha Greaves": { skills: ["negotiation", "leadership"], reqReputation: 10 },
+  "Dermot Greaves": { skills: ["brawling", "insight"], reqReputation: 10 },
+
+  // The Saltblood Mines
+  "Mirra Fen": { skills: ["healing", "herbalism"], reqReputation: 20 },
+  "Old Salk": { skills: ["brawling", "escapology"], reqReputation: -10, evil: true },
+  "Krag": { skills: ["athletics", "performance"], reqReputation: 10 },
+
+  // The Obsidian Vault
+  "Hask of Basalt Ridge": { skills: ["survival", "blocking"], reqReputation: 15 },
+  "Brak": { skills: ["intimidation", "brawling"], reqReputation: 10 },
+
+  // Whispers of the Sunken Spire
+  "Faelar": { skills: ["languages", "lore"], reqReputation: 30 },
+  "Neris Tidehand": { skills: ["escapology", "athletics"], reqReputation: 15 },
+
+  // Threads of the Astral Sky
+  "Pell Windledger": { skills: ["marksmanship", "perception"], reqReputation: 20 },
+  "Sora": { skills: ["acrobatics", "athletics"], reqReputation: 15 },
+
+  // The Clockwork Conservatory
+  "Gearwise Noma": { skills: ["crafting", "trapping"], reqReputation: 20 },
+  "Vian": { skills: ["alchemy", "performance"], reqReputation: 10 },
+
+  // The Frostfire Crypt
+  "Theron Vell": { skills: ["survival", "light_weapons"], reqReputation: 15 },
+  "Crypt-keeper Silas": { skills: ["languages", "perception"], reqReputation: 30 },
+
+  // Chains of the Iron Colosseum
+  "Savax the Locker-Keeper": { skills: ["blocking", "heavy_weapons"], reqReputation: 10 },
+  "Mirel Voss": { skills: ["intimidation", "deception"], reqReputation: -20, evil: true },
+  "Garr": { skills: ["heavy_weapons", "trapping"], reqReputation: -10, evil: true },
+
+  // Blackroot Hollow
+  "Etta Bramble": { skills: ["crafting", "herbalism"], reqReputation: 10 },
+  "Mara Voss": { skills: ["tracking", "stealth"], reqReputation: 20 },
+  "Huld": { skills: ["thrown_weapons", "animal_rapport"], reqReputation: 10 },
+
+  // Greywash Bandit Crown
+  "Jory Pike": { skills: ["light_weapons", "thrown_weapons"], reqReputation: 10 },
+  "Candle Nix": { skills: ["thievery", "lockpicking"], reqReputation: -15, evil: true },
+  "Dermot": { skills: ["deception", "thievery"], reqReputation: -10, evil: true },
+
+  // Merrin Abbey Plague Bells
+  "Sister Elowen": { skills: ["healing", "divine_communion"], reqReputation: 20 },
+  "Eamon": { skills: ["divine_manifestation", "insight"], reqReputation: 20 },
+
+  // The Glass Orchard Masquerade
+  "Lord Julian": { skills: ["appraise", "deception"], reqReputation: 30 },
+  "Velvet Min": { skills: ["stealth", "acrobatics"], reqReputation: -15, evil: true },
+
+  // The Drowned Market
+  "Mother-of-Pearl Jax": { skills: ["appraise", "negotiation"], reqReputation: -15, evil: true },
+  "Ghostly Bill": { skills: ["luck", "languages"], reqReputation: 30 },
+
+  // The Thorn Treaty
+  "Alda Reed": { skills: ["survival", "marksmanship"], reqReputation: 10 },
+  "Fletcher": { skills: ["animal_rapport", "tracking"], reqReputation: 15 },
+
+  // The Brass Plague of Tinkertown
+  "Nell Gearwise": { skills: ["smithing", "lockpicking"], reqReputation: 15 },
+  "Baker Pell": { skills: ["alchemy", "healing"], reqReputation: 20 },
+  "Gizmo": { skills: ["trapping", "luck"], reqReputation: 10 },
+
+  // The Hunger Under Harvest Hill
+  "Elder Thomas": { skills: ["negotiation", "leadership"], reqReputation: 20 },
+  "Tarn Barley": { skills: ["herbalism", "lore"], reqReputation: 10 },
+
+  // The Mirror War of Saint Orra
+  "Sister Clara": { skills: ["divine_communion", "arcane_shaping"], reqReputation: 25 },
+  "Cale of the Vestry": { skills: ["divine_manifestation", "arcane_drawing"], reqReputation: 25 },
+
+  // Legacy aliases for existing saves/tests
+  "Arena Quartermaster": { skills: ["blocking", "heavy_weapons"], reqReputation: 10 },
+  "Silas": { skills: ["languages", "perception"], reqReputation: 30 },
+  "Thomas": { skills: ["negotiation", "leadership"], reqReputation: 20 }
 };
+
+export function getTrainerConfig(merchantName) {
+  const entry = TRAINING_EXPERTS[merchantName];
+  if (!entry) return null;
+  if (Array.isArray(entry)) {
+    return { skills: entry, reqReputation: 10, evil: false };
+  }
+  return {
+    skills: entry.skills || [],
+    reqReputation: typeof entry.reqReputation === 'number' ? entry.reqReputation : 10,
+    evil: !!entry.evil
+  };
+}
 
 export const ADVENTURE_TRAINING_SLOTS = {
   elemental_crucible: 1,

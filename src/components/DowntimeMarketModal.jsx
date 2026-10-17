@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TAVERNS, EXCLUSIVE_STOCK, TRAINING_EXPERTS } from '../data/downtimeMerchants';
+import { TAVERNS, EXCLUSIVE_STOCK, TRAINING_EXPERTS, getTrainerConfig } from '../data/downtimeMerchants';
 import { ADVENTURE_ECONOMY_METADATA } from '../data/adventureEconomy';
 import { GENERIC_ITEM_VALUE_BY_NAME, coinValue } from '../data/economy';
 import { ADVENTURES_LIST } from '../data/adventures';
@@ -551,7 +551,7 @@ export default function DowntimeMarketModal({
                     📦 Stronghold Stash
                   </button>
 
-                  {TRAINING_EXPERTS[selectedMerchant.name] && (
+                  {getTrainerConfig(selectedMerchant.name) && (
                     <button
                       onClick={() => setActiveTab('train')}
                       className={`px-4 py-2 border-b-2 text-3xs font-bold transition-all cursor-pointer ${
@@ -921,63 +921,147 @@ export default function DowntimeMarketModal({
                       )}
 
                       {/* TRAINING TAB */}
-                      {activeTab === 'train' && (
-                        <div className="flex flex-col gap-4">
-                          <div className="p-4 rounded-lg bg-amber-955/10 border border-amber-500/20 flex justify-between items-center">
-                            <div>
-                              <h4 className="text-3xs font-serif font-black text-amber-300">🎓 Guild Training</h4>
-                              <p className="text-[10px] text-slate-400 mt-1">Study specialized skills under {selectedMerchant.name}. Success is guaranteed, costs 100 cp per skill level, and advances time by 24 hours (fully resting HP/Fatigue).</p>
+                      {activeTab === 'train' && (() => {
+                        const trainerConfig = getTrainerConfig(selectedMerchant.name);
+                        const skills = trainerConfig?.skills || [];
+                        const reqRep = trainerConfig?.reqReputation ?? 10;
+                        const isEvil = !!trainerConfig?.evil;
+                        const meetsRep = isEvil ? (currentRelation <= reqRep) : (currentRelation >= reqRep);
+                        const availableTrainings = character.availableTrainings ?? character.trainingSlots ?? 0;
+                        const walletCp = (character.currency?.gp || 0) * 100 + (character.currency?.sp || 0) * 10 + (character.currency?.cp || 0);
+
+                        return (
+                          <div className="flex flex-col gap-4">
+                            <div className="p-4 rounded-lg bg-amber-955/10 border border-amber-500/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                              <div>
+                                <h4 className="text-3xs font-serif font-black text-amber-300 flex items-center gap-1.5">
+                                  <span>🎓 Master Tutelage</span>
+                                  {isEvil && <span className="text-4xs px-1.5 py-0.5 rounded bg-red-950/80 border border-red-800 text-red-300 font-sans font-bold">Underworld Mentor</span>}
+                                </h4>
+                                <p className="text-[10px] text-slate-400 mt-1 max-w-lg leading-relaxed">
+                                  Train under-leveled skills up to Rank 3 (Journeyman). Training costs gold and requires active study time plus equal downtime integration. HP & Fatigue are fully restored upon completion.
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="px-3 py-1.5 bg-amber-950/40 border border-amber-800/40 text-[10px] font-extrabold text-amber-300 rounded shadow-inner whitespace-nowrap">
+                                  Banked Sessions: {availableTrainings}
+                                </div>
+                              </div>
                             </div>
-                            <div className="px-3 py-2 bg-amber-950/40 border border-amber-800/40 text-[10px] font-extrabold text-amber-300 rounded shadow-inner">
-                              Banked Slots: {character.trainingSlots || 0}
-                            </div>
+
+                            {/* Reputation Requirement Status Banner */}
+                            {!meetsRep && (
+                              <div className="p-3 bg-red-955/20 border border-red-500/30 rounded-lg text-3xs text-red-300 flex items-center gap-2">
+                                <span className="text-base">🔒</span>
+                                <div>
+                                  <span className="font-bold">Tutelage Locked:</span>{' '}
+                                  {isEvil
+                                    ? `${selectedMerchant.name} refuses lawful characters and requires an Outlaw / Criminal Infamy of ≤ ${reqRep} (Your current standing: ${currentRelation >= 0 ? '+' : ''}${currentRelation}).`
+                                    : `${selectedMerchant.name} only teaches trusted allies and requires a minimum standing of +${reqRep} (Your current standing: ${currentRelation >= 0 ? '+' : ''}${currentRelation}).`}
+                                </div>
+                              </div>
+                            )}
+
+                            {skills.length === 0 ? (
+                              <div className="text-center py-6 text-slate-500 text-3xs italic">This merchant does not offer specialized training.</div>
+                            ) : (
+                              <div className="grid grid-cols-1 gap-3">
+                                {skills.map(skillId => {
+                                  const skill = SKILLS_LIST.find(s => s.id === skillId) || { name: skillId, desc: "Special training." };
+                                  const rank = character.skills?.[skillId] || 0;
+                                  const targetRank = rank + 1;
+                                  const isMaxTrainerRank = rank >= 3;
+
+                                  // Cost calculation
+                                  let baseCostCp = 1000;
+                                  if (targetRank === 2) baseCostCp = 2500;
+                                  else if (targetRank === 3) baseCostCp = 5000;
+
+                                  const absRel = Math.abs(currentRelation);
+                                  let discountPercent = 0;
+                                  if (absRel >= 80) discountPercent = 25;
+                                  else if (absRel >= 50) discountPercent = 15;
+                                  else if (absRel >= 11) discountPercent = 5;
+
+                                  const finalCostCp = Math.max(1, Math.round(baseCostCp * (1 - discountPercent / 100)));
+                                  const canAfford = walletCp >= finalCostCp;
+                                  const hasBanked = availableTrainings > 0;
+
+                                  // Time: studyDays = targetRank^2, downtimeDays = targetRank^2, totalDays = 2 * targetRank^2
+                                  const studyDays = targetRank * targetRank;
+                                  const totalDays = 2 * studyDays;
+
+                                  const dieSteps = ['Untrained', '+1d2', '+2d2', '+3d2', '+4d2', '+5d2'];
+                                  const currentDie = dieSteps[rank] || `+${rank}d2`;
+                                  const targetDie = dieSteps[targetRank] || `+${targetRank}d2`;
+
+                                  return (
+                                    <div key={skillId} className="p-4 rounded-lg border border-slate-850 bg-slate-950/20 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                                      <div>
+                                        <div className="flex items-center gap-2">
+                                          <h5 className="text-2xs font-extrabold text-amber-200 capitalize">{skill.name}</h5>
+                                          <span className="text-[9px] text-slate-500">
+                                            (Rank {rank}/5 • {currentDie})
+                                          </span>
+                                          {discountPercent > 0 && (
+                                            <span className="text-5xs font-bold text-emerald-400 border border-emerald-900 bg-emerald-950/30 px-1.5 py-0.5 rounded">
+                                              {discountPercent}% Rep Discount
+                                            </span>
+                                          )}
+                                        </div>
+                                        <p className="text-[10px] text-slate-450 mt-1 max-w-md">{skill.desc}</p>
+                                        {!isMaxTrainerRank && (
+                                          <div className="text-5xs text-slate-500 mt-1.5 flex items-center gap-2">
+                                            <span>Target: <strong className="text-amber-300 font-mono">{targetDie}</strong></span>
+                                            <span>•</span>
+                                            <span>Study: <strong className="text-slate-350">{studyDays}d</strong></span>
+                                            <span>•</span>
+                                            <span>Downtime: <strong className="text-slate-350">{studyDays}d</strong></span>
+                                            <span>•</span>
+                                            <span>Total Elapsed: <strong className="text-amber-300 font-mono">{totalDays} days</strong></span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+                                        {isMaxTrainerRank ? (
+                                          <div className="text-right">
+                                            <span className="text-4xs font-bold text-amber-400 uppercase border border-amber-950 bg-amber-950/20 px-2 py-1 rounded block">
+                                              Cap Reached (Rank {rank}/5)
+                                            </span>
+                                            <span className="text-5xs text-slate-500 mt-0.5 block">Higher ranks require quest crucibles</span>
+                                          </div>
+                                        ) : (
+                                          <>
+                                            <span className="font-mono text-3xs font-extrabold text-amber-400 whitespace-nowrap">
+                                              {formatCoins(finalCostCp)}
+                                            </span>
+                                            <button
+                                              onClick={() => {
+                                                trainSkillWithMerchant(selectedMerchant.name, skillId);
+                                                setInteractMessage(`Successfully completed ${studyDays} days of ${skill.name} training under ${selectedMerchant.name} (Rank ${targetRank}), followed by ${studyDays} days of downtime integration. Total elapsed time: ${totalDays} days. Cost: ${formatCoins(finalCostCp)}. HP and fatigue fully restored!`);
+                                              }}
+                                              disabled={!meetsRep || !hasBanked || !canAfford}
+                                              className="px-3.5 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 text-3xs font-extrabold cursor-pointer transition-colors disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed whitespace-nowrap"
+                                              title={
+                                                !meetsRep ? "Reputation requirement not met." :
+                                                !hasBanked ? "No banked training sessions! Complete adventures to earn sessions." :
+                                                !canAfford ? "Cannot afford this training cost." :
+                                                `Train ${skill.name} to Rank ${targetRank}`
+                                              }
+                                            >
+                                              Train Rank {targetRank}
+                                            </button>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
-
-                          {(!TRAINING_EXPERTS[selectedMerchant.name] || TRAINING_EXPERTS[selectedMerchant.name].length === 0) ? (
-                            <div className="text-center py-6 text-slate-500 text-3xs italic">This merchant does not offer specialized training.</div>
-                          ) : (
-                            <div className="grid grid-cols-1 gap-3">
-                              {TRAINING_EXPERTS[selectedMerchant.name].map(skillId => {
-                                const skill = SKILLS_LIST.find(s => s.id === skillId) || { name: skillId, desc: "Special training." };
-                                const rank = character.skills?.[skillId] || 0;
-                                const costCp = (rank + 1) * 100;
-                                const walletCp = character.currency?.gp * 100 + character.currency?.sp * 10 + character.currency?.cp;
-                                const canAfford = walletCp >= costCp;
-                                const hasSlots = (character.trainingSlots || 0) > 0;
-
-                                return (
-                                  <div key={skillId} className="p-4 rounded-lg border border-slate-850 bg-slate-950/20 flex justify-between items-center">
-                                    <div>
-                                      <h5 className="text-2xs font-extrabold text-amber-200 capitalize">{skill.name} <span className="text-[9px] text-slate-500 ml-1.5">(Current Rank: {rank}/5)</span></h5>
-                                      <p className="text-[10px] text-slate-450 mt-1 max-w-md">{skill.desc}</p>
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                      {rank >= 5 ? (
-                                        <span className="text-4xs font-bold text-emerald-450 uppercase border border-emerald-950 bg-emerald-950/20 px-2 py-1 rounded">Max Rank (5)</span>
-                                      ) : (
-                                        <>
-                                          <span className="font-mono text-3xs font-extrabold text-amber-400">{formatCoins(costCp)}</span>
-                                          <button
-                                            onClick={() => {
-                                              trainSkillWithMerchant(selectedMerchant.name, skillId);
-                                              setInteractMessage(`Successfully trained ${skill.name} to Rank ${rank + 1}! It cost ${formatCoins(costCp)} and advanced game time by 24 hours. HP and fatigue fully restored.`);
-                                            }}
-                                            disabled={!hasSlots || !canAfford}
-                                            className="px-3.5 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 text-3xs font-extrabold cursor-pointer transition-colors disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed"
-                                            title={!hasSlots ? "No training slots left! Complete adventures to earn more." : !canAfford ? "Cannot afford this training cost." : `Train ${skill.name}`}
-                                          >
-                                            Train Rank {rank + 1}
-                                          </button>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       {/* Interaction Feedback Log */}
                       {interactMessage && (

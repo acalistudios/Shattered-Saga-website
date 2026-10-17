@@ -2254,9 +2254,9 @@ export default function PlayScreen({
                     <div className="text-lg font-black text-emerald-300">+{milestoneRewards.skillPoints}</div>
                     <div className="text-4xs uppercase text-slate-400 font-bold">Skill Points</div>
                   </div>
-                  <div className="rounded bg-amber-950/35 border border-amber-700/30 p-2 text-center">
-                    <div className="text-lg font-black text-amber-300">+{milestoneRewards.trainingSlots}</div>
-                    <div className="text-4xs uppercase text-slate-400 font-bold">Training</div>
+                  <div className="rounded bg-amber-955/35 border border-amber-700/30 p-2 text-center">
+                    <div className="text-lg font-black text-amber-300">+{milestoneRewards.availableTrainings ?? milestoneRewards.trainingSlots}</div>
+                    <div className="text-4xs uppercase text-slate-400 font-bold">Downtime Training</div>
                   </div>
                   <div className="rounded bg-slate-900 border border-slate-800 p-2 text-center">
                     <div className="text-lg font-black text-slate-200">+{milestoneRewards.baseCurrencyCp}</div>

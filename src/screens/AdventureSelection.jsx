@@ -291,19 +291,6 @@ export default function AdventureSelection({
   };
 
   const handleEmbarkWithWarning = (adventureId, isReplay) => {
-    const unusedSlots = character?.trainingSlots || 0;
-    if (unusedSlots > 2) {
-      const excess = unusedSlots - 2;
-      if (!window.confirm(`Warning: You have ${unusedSlots} unused training slots. You can only bank up to 2 training slots between adventures. Starting this quest now will waste ${excess} training slot(s). Do you wish to embark anyway?`)) {
-        return;
-      }
-    }
-    if (onUpdateCharacterStats) {
-      onUpdateCharacterStats(prev => ({
-        ...prev,
-        trainingSlots: Math.min(2, prev.trainingSlots || 0)
-      }));
-    }
     onSelectAdventure(adventureId, isReplay);
   };
 
@@ -384,10 +371,10 @@ export default function AdventureSelection({
               </div>
             </div>
             
-            {character.trainingSlots > 0 && (
-              <div className="px-2.5 py-2 rounded bg-amber-950/40 border border-amber-800/40 text-[10px] font-extrabold text-amber-300 flex items-center gap-1.5 shadow-sm" title="Available Training Slots">
+            {(character.availableTrainings ?? character.trainingSlots ?? 0) > 0 && (
+              <div className="px-2.5 py-2 rounded bg-amber-955/40 border border-amber-800/40 text-[10px] font-extrabold text-amber-300 flex items-center gap-1.5 shadow-sm" title="Banked Downtime Training Sessions">
                 <span>🎓</span>
-                <span>Training: {character.trainingSlots}</span>
+                <span>Trainings: {character.availableTrainings ?? character.trainingSlots}</span>
               </div>
             )}
 
