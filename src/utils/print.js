@@ -3,12 +3,12 @@ import { calculateWeightAndVolume } from './items';
 import { SKILLS_LIST, ELEMENTS_LIST, PROFESSIONS_LIST, ATTRIBUTE_LIST } from '../data/gms';
 import { getCompanionById } from '../data/companions';
 
-const ELEMENTAL_ABILITIES = {
-  fire: { name: 'Cinderbreath', effect: 'Cone of flame (2d6 fire/blunt damage split or ignite hazard)' },
-  earth: { name: 'Stone Mantle', effect: 'Skin of living stone (+1d6 armor soak for 3 rounds)' },
-  air: { name: 'Gale Flash', effect: 'Blinding spiral of wind/dust (disorients foe for 2 rounds)' },
-  water: { name: 'Tide Mend', effect: 'Heals 1d6+2 HP, stops Bleeding Tier 1/2, cleanses poison' },
-  aether: { name: 'Threadstep', effect: 'Teleport 15 yds along aether thread, escape restraint, or save roll' }
+export const ELEMENTAL_ABILITIES = {
+  fire: { name: 'Cinderbreath', icon: '🔥', effect: 'Cone of flame (2d6 fire/blunt damage split or ignite hazard)' },
+  earth: { name: 'Stone Mantle', icon: '⛰️', effect: 'Skin of living stone (+1d6 armor soak for 3 rounds)' },
+  air: { name: 'Gale Flash', icon: '🌪️', effect: 'Blinding spiral of wind/dust (disorients foe for 2 rounds)' },
+  water: { name: 'Tide Mend', icon: '🌊', effect: 'Heals 1d6+2 HP, stops Bleeding Tier 1/2, cleanses poison' },
+  aether: { name: 'Threadstep', icon: '✨', effect: 'Teleport 15 yds along aether thread, escape restraint, or save roll' }
 };
 
 function getStepDie(val) {

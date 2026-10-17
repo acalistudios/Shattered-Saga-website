@@ -171,7 +171,7 @@ export const ATTAINABLE_REWARD_ITEMS = {
     affinity: 'water',
     reset: 'rest',
     charges: 1,
-    baseEffect: 'Breathe underwater for one scene once per rest; +1 Survival or Sailing in water hazards.',
+    baseEffect: 'Breathe underwater for one scene once per rest; +1 Survival or Athletics in water hazards.',
     affinityEffect: 'Water affinity: extend the underwater breathing to close allies in the same scene.',
     allowedAdventureIds: ['sunken_spire'],
   }),

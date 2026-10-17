@@ -66,14 +66,14 @@ export const KEYSTONE_SHARDS = [
     lore: 'Pulled from the drowned sanctuaries of the abyssal shelf, this fluid crystalline shard preserves ancient memory and revitalizes the healing tides.',
     resonance: {
       perkName: 'Tidal Surge & Mend',
-      perkDesc: 'Recovers +1 HP and staunches 1 tier of bleeding every 2 hours of elapsed time (+4 bonus HP and full bleed recovery over an 8-hour rest, plus ongoing trickle during exploration), +2 to aquatic checks.',
+      perkDesc: 'Recovers +1 HP and staunches 1 tier of bleeding every 2 hours of elapsed time (+4 bonus HP and full bleed recovery over an 8-hour rest, plus ongoing trickle during exploration), +1 to Athletics and Survival checks.',
       periodicHealHpPer2Hours: 1,
       periodicStaunchBleedPer2Hours: 1,
       restHpBonus: 4,
       restBleedStaunch: 4,
       skillBonuses: {
-        swimming: 2,
-        athletics_aquatic: 2
+        athletics: 1,
+        survival: 1
       }
     }
   },

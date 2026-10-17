@@ -148,8 +148,8 @@ export function applyCompanionCampfireDuty(character, companionId) {
     }
 
     case 'silas_hound': {
-      // +10 extra fatigue recovery
-      updatedStats.fatigue = Math.max(0, (updatedStats.fatigue || 0) - 10);
+      // +10 extra fatigue recovery (restores stamina towards maxFatigue)
+      updatedStats.fatigue = Math.min(updatedStats.maxFatigue || 15, (updatedStats.fatigue || 0) + 10);
       dutyMessage = '*Silas curls beside your bedroll, his deep canine warmth soothing your weary muscles. Recovered an extra 10 Fatigue!*';
       return {
         character: { ...character, stats: updatedStats, progression: updatedProgression },

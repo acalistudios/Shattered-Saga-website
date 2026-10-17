@@ -101,8 +101,8 @@ describe('Keystone Shards Data Model', () => {
     expect(mods.periodicStaunchBleedPer2Hours).toBe(1);
     expect(mods.restHpBonus).toBe(4);
     expect(mods.restBleedStaunch).toBe(4);
-    expect(mods.skillBonuses.swimming).toBe(2);
-    expect(mods.skillBonuses.athletics_aquatic).toBe(2);
+    expect(mods.skillBonuses.athletics).toBe(1);
+    expect(mods.skillBonuses.survival).toBe(1);
   });
 
   it('correctly calculates Air Shard (Zephyr Stride) stat modifiers', () => {
@@ -178,9 +178,8 @@ describe('Keystone Shards Data Model', () => {
     expect(mods.restBleedStaunch).toBe(4);
     expect(mods.skillBonuses).toMatchObject({
       intimidation: 1,
-      athletics: 1,
-      swimming: 2,
-      athletics_aquatic: 2,
+      athletics: 2,
+      survival: 1,
       acrobatics: 1,
       lore: 1,
       languages: 1

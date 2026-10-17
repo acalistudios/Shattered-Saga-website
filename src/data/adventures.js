@@ -656,7 +656,7 @@ const BASE_ADVENTURES_LIST = [
     items: ['Lost Archive Scroll', 'Amulet of Tide-Taming', 'Water-Breathing Elixir'],
     itemsDetail: [
       { name: 'Lost Archive Scroll', desc: 'A waterproof scroll tube containing elven records on planar static cycles.', properties: 'Major lore reward. Grants campaign secrets and can justify a Lore or Languages skill point when those skills were used.' },
-      { name: 'Amulet of Tide-Taming', desc: 'A blue-green shell amulet strung on silver wire, cold as deep current when danger rises.', properties: 'Water-aspected relic. Breathe underwater for one scene once per rest and gain +1 to Survival or Sailing in water hazards. Water-affinity PCs can extend underwater breathing to close allies in the same scene.' },
+      { name: 'Amulet of Tide-Taming', desc: 'A blue-green shell amulet strung on silver wire, cold as deep current when danger rises.', properties: 'Water-aspected relic. Breathe underwater for one scene once per rest and gain +1 to Survival or Athletics in water hazards. Water-affinity PCs can extend underwater breathing to close allies in the same scene.' },
       { name: 'Water-Breathing Elixir', desc: 'A cool glass vial smelling of mint, salt, and kelp.', properties: 'Consumable. Grants water breathing for one hour; does not restore Fatigue or SP.' }
     ],
     settings: ['Flooded Library Entrance', 'Hall of Forgotten Runes', 'Tidal Siphon Junction', 'Planar Archives Sanctuary'],

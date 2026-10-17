@@ -32,10 +32,10 @@ describe('Campfire Interludes & Companion Duties', () => {
     expect(message).toContain('+2 Temporary HP barrier');
   });
 
-  it('applies Silas hearth vigil reducing fatigue', () => {
-    const character = { stats: { hp: 10, fatigue: 40 }, progression: {} };
+  it('applies Silas hearth vigil restoring fatigue stamina', () => {
+    const character = { stats: { hp: 10, fatigue: 2, maxFatigue: 15 }, progression: {} };
     const { character: updated, message } = applyCompanionCampfireDuty(character, 'silas');
-    expect(updated.stats.fatigue).toBe(30);
+    expect(updated.stats.fatigue).toBe(12);
     expect(message).toContain('Recovered an extra 10 Fatigue');
   });
 

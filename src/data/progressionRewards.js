@@ -266,7 +266,7 @@ export const ADVENTURE_REWARD_MODELS = {
         requires: ['tame_tides'],
         itemIds: ['Amulet of Tide-Taming'],
         affinity: 'water',
-        baseEffect: 'Breathe underwater for one scene once per rest; +1 Survival or Sailing in water hazards.',
+        baseEffect: 'Breathe underwater for one scene once per rest; +1 Survival or Athletics in water hazards.',
         affinityEffect: 'Water affinity extends underwater breathing to close allies in the same scene.',
       }),
     ],

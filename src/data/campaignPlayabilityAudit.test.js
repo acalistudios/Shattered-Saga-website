@@ -51,9 +51,9 @@ const ARCHETYPES = {
   },
 };
 
-// Canonical 35-Skill classification
+// Canonical 36-Skill classification
 const PHYSICAL_SKILLS = new Set([
-  'heavy_weapons', 'light_weapons', 'brawling', 'athletics', 'acrobatics', 'blocking', 'thrown_weapons', 'marksmanship', 'escapology'
+  'heavy_weapons', 'light_weapons', 'brawling', 'athletics', 'acrobatics', 'blocking', 'thrown_weapons', 'marksmanship', 'escapology', 'stealth'
 ]);
 const MENTAL_SKILLS = new Set([
   'lore', 'languages', 'insight', 'perception', 'arcane_drawing', 'arcane_shaping',

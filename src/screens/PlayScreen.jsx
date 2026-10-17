@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { SKILLS_LIST, ATTRIBUTE_LIST } from '../data/gms';
-import { printCharacterSheet, printAdventureLog } from '../utils/print';
+import { printCharacterSheet, printAdventureLog, ELEMENTAL_ABILITIES } from '../utils/print';
 import { signCharacter } from '../utils/secureHash';
 import { ADVENTURES_LIST } from '../data/adventures';
 import { getDifficultyScaling, applyChoiceDifficultyScaling } from '../data/difficultyScaling';
@@ -555,13 +555,25 @@ export default function PlayScreen({
             <div>
               <div className="flex justify-between items-center text-3xs mb-1 font-semibold">
                 <span className="text-slate-400">Health Points</span>
-                <span className="text-rose-400">{character.stats.hp} / {character.stats.maxHp}</span>
+                <span className="text-rose-400">
+                  {character.stats.hp} / {character.stats.maxHp}
+                  {(character.stats?.tempHp || 0) > 0 && (
+                    <span className="text-amber-400 font-bold ml-1.5">(+{character.stats.tempHp} Barrier)</span>
+                  )}
+                </span>
               </div>
-              <div className="w-full h-1.5 rounded-full bg-slate-950 border border-slate-900 overflow-hidden">
+              <div className="w-full h-1.5 rounded-full bg-slate-950 border border-slate-900 overflow-hidden flex">
                 <div
-                  className="h-full bg-rose-500 rounded-full"
-                  style={{ width: `${(character.stats.hp / character.stats.maxHp) * 100}%` }}
+                  className="h-full bg-rose-500 rounded-l-full"
+                  style={{ width: `${Math.min(100, (character.stats.hp / character.stats.maxHp) * 100)}%` }}
                 />
+                {(character.stats?.tempHp || 0) > 0 && (
+                  <div
+                    className="h-full bg-amber-400 animate-pulse"
+                    style={{ width: `${Math.min(100 - (character.stats.hp / character.stats.maxHp) * 100, (character.stats.tempHp / character.stats.maxHp) * 100)}%` }}
+                    title={`Barrier: ${character.stats.tempHp} temp HP`}
+                  />
+                )}
               </div>
             </div>
 
@@ -665,6 +677,39 @@ export default function PlayScreen({
                 ))}
               </div>
             </div>
+
+            {/* Signature Elemental Ability Card */}
+            {character.stats?.elementalAbility && (() => {
+              const elemKey = (character.stats.elementalAbility || '').toLowerCase();
+              const ability = ELEMENTAL_ABILITIES[elemKey];
+              if (!ability) return null;
+              const isUsed = Boolean(character.stats.elementalAbilityUsed);
+
+              return (
+                <div className="border-t border-slate-900/60 pt-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-3xs uppercase tracking-widest text-slate-400 font-bold flex items-center gap-1">
+                      <span>{ability.icon}</span> Signature Elemental Ability
+                    </span>
+                    <span className={`text-4xs px-1.5 py-0.5 rounded font-extrabold uppercase border ${
+                      isUsed 
+                        ? 'bg-slate-900 text-slate-500 border-slate-800' 
+                        : 'bg-emerald-950/40 text-emerald-400 border-emerald-500/40 animate-pulse'
+                    }`}>
+                      {isUsed ? 'Expended (Rest to Recharge)' : 'Ready'}
+                    </span>
+                  </div>
+                  <div className="p-2 rounded bg-slate-950/80 border border-slate-850">
+                    <div className="text-2xs font-bold text-amber-300 font-serif mb-0.5">
+                      {ability.name}
+                    </div>
+                    <div className="text-3xs text-slate-400 leading-tight">
+                      {ability.effect}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Active Keystone Resonances Card */}
@@ -1151,10 +1196,12 @@ export default function PlayScreen({
                       </div>
                     </div>
                   </div>
-                  <div className="flex justify-between items-center bg-slate-950/50 p-1.5 rounded border border-slate-900">
-                    <span className="text-slate-400">Fate Coins</span>
-                    <strong className="text-indigo-400">{character.currency?.fateCoins ?? 0}</strong>
-                  </div>
+                  {(character.currency?.fateCoins || 0) > 0 && (
+                    <div className="flex justify-between items-center bg-slate-950/50 p-1.5 rounded border border-slate-900">
+                      <span className="text-slate-400">Fate Coins</span>
+                      <strong className="text-indigo-400">{character.currency.fateCoins}</strong>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center bg-slate-950/50 p-1.5 rounded border border-slate-900">
                     <span className="text-slate-400">Morality Vector</span>
                     <strong className={character.morality > 0 ? "text-emerald-450" : character.morality < 0 ? "text-rose-455" : "text-slate-450"}>
@@ -1165,112 +1212,108 @@ export default function PlayScreen({
               )}
             </div>
 
-            {/* Storage Vault Collapsible Accordion */}
-            <div className="rounded border border-slate-800 bg-slate-950/45 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setIsStorageOpen(!isStorageOpen)}
-                className="w-full px-4 py-2.5 bg-slate-900/60 hover:bg-slate-900 text-left flex justify-between items-center text-2xs uppercase tracking-widest text-slate-355 font-bold transition-all"
-              >
-                <span>Storage Vault</span>
-                <span>{isStorageOpen ? '▼' : '▶'}</span>
-              </button>
-              {isStorageOpen && (
-                <div className="p-3 bg-slate-950/60 border-t border-slate-900">
-                  <ul className="space-y-1 text-2xs text-slate-350 font-medium">
-                    {(character.storage || []).map((item, idx) => (
-                      <li key={idx} className="flex items-center gap-2 capitalize">
-                        <span className="w-1 h-1 rounded-full bg-amber-500/65" />
-                        {item}
-                      </li>
-                    ))}
-                    {(character.storage || []).length === 0 && (
-                      <li className="text-3xs text-slate-550 italic">Vault is empty.</li>
-                    )}
-                  </ul>
-                </div>
-              )}
-            </div>
+            {/* Storage Vault Collapsible Accordion (only shown when storage has items) */}
+            {(character.storage || []).length > 0 && (
+              <div className="rounded border border-slate-800 bg-slate-950/45 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsStorageOpen(!isStorageOpen)}
+                  className="w-full px-4 py-2.5 bg-slate-900/60 hover:bg-slate-900 text-left flex justify-between items-center text-2xs uppercase tracking-widest text-slate-355 font-bold transition-all"
+                >
+                  <span>Storage Vault</span>
+                  <span>{isStorageOpen ? '▼' : '▶'}</span>
+                </button>
+                {isStorageOpen && (
+                  <div className="p-3 bg-slate-950/60 border-t border-slate-900">
+                    <ul className="space-y-1 text-2xs text-slate-350 font-medium">
+                      {(character.storage || []).map((item, idx) => (
+                        <li key={idx} className="flex items-center gap-2 capitalize">
+                          <span className="w-1 h-1 rounded-full bg-amber-500/65" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
 
-            {/* Strongholds Collapsible Accordion */}
-            <div className="rounded border border-slate-800 bg-slate-950/45 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setIsStrongholdsOpen(!isStrongholdsOpen)}
-                className="w-full px-4 py-2.5 bg-slate-900/60 hover:bg-slate-900 text-left flex justify-between items-center text-2xs uppercase tracking-widest text-slate-350 font-bold transition-all"
-              >
-                <span>Strongholds</span>
-                <span>{isStrongholdsOpen ? '▼' : '▶'}</span>
-              </button>
-              {isStrongholdsOpen && (
-                <div className="p-3 bg-slate-950/60 border-t border-slate-900">
-                  <ul className="space-y-1 text-2xs text-slate-350 font-medium">
-                    {(character.strongholds || []).map((base, idx) => (
-                      <li key={idx} className="flex items-center gap-2 capitalize">
-                        <span className="w-1.5 h-1.5 border border-amber-500/40 rounded-sm" />
-                        {base}
-                      </li>
-                    ))}
-                    {(character.strongholds || []).length === 0 && (
-                      <li className="text-3xs text-slate-550 italic">No strongholds.</li>
-                    )}
-                  </ul>
-                </div>
-              )}
-            </div>
+            {/* Strongholds Collapsible Accordion (only shown when strongholds exist) */}
+            {(character.strongholds || []).filter(s => s && s.toLowerCase() !== 'none').length > 0 && (
+              <div className="rounded border border-slate-800 bg-slate-950/45 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsStrongholdsOpen(!isStrongholdsOpen)}
+                  className="w-full px-4 py-2.5 bg-slate-900/60 hover:bg-slate-900 text-left flex justify-between items-center text-2xs uppercase tracking-widest text-slate-350 font-bold transition-all"
+                >
+                  <span>Strongholds</span>
+                  <span>{isStrongholdsOpen ? '▼' : '▶'}</span>
+                </button>
+                {isStrongholdsOpen && (
+                  <div className="p-3 bg-slate-950/60 border-t border-slate-900">
+                    <ul className="space-y-1 text-2xs text-slate-350 font-medium">
+                      {(character.strongholds || []).filter(s => s && s.toLowerCase() !== 'none').map((base, idx) => (
+                        <li key={idx} className="flex items-center gap-2 capitalize">
+                          <span className="w-1.5 h-1.5 border border-amber-500/40 rounded-sm" />
+                          {base}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
 
-            {/* Relationships Collapsible Accordion */}
-            <div className="rounded border border-slate-800 bg-slate-950/45 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setIsRelationshipsOpen(!isRelationshipsOpen)}
-                className="w-full px-4 py-2.5 bg-slate-900/60 hover:bg-slate-900 text-left flex justify-between items-center text-2xs uppercase tracking-widest text-slate-350 font-bold transition-all"
-              >
-                <span>Relationships</span>
-                <span>{isRelationshipsOpen ? '▼' : '▶'}</span>
-              </button>
-              {isRelationshipsOpen && (
-                <div className="p-3 bg-slate-950/60 border-t border-slate-900 space-y-1.5 text-2xs font-semibold">
-                  {Object.keys(character.relationships || {}).map((npc) => (
-                    <div key={npc} className="flex justify-between items-center border-b border-slate-900 pb-1">
-                      <span className="text-slate-355">{npc}</span>
-                      <span className="px-1.5 py-0.5 rounded bg-slate-900 text-emerald-450 text-3xs font-extrabold uppercase">
-                        {character.relationships[npc]}
-                      </span>
-                    </div>
-                  ))}
-                  {Object.keys(character.relationships || {}).length === 0 && (
-                    <p className="text-3xs text-slate-550 italic">No notable relationships.</p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Narrative Scars Collapsible Accordion */}
-            <div className="rounded border border-slate-800 bg-slate-950/45 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setIsScarsOpen(!isScarsOpen)}
-                className="w-full px-4 py-2.5 bg-slate-900/60 hover:bg-slate-900 text-left flex justify-between items-center text-2xs uppercase tracking-widest text-slate-355 font-bold transition-all"
-              >
-                <span>Narrative Scars</span>
-                <span>{isScarsOpen ? '▼' : '▶'}</span>
-              </button>
-              {isScarsOpen && (
-                <div className="p-3 bg-slate-950/60 border-t border-slate-900">
-                  <ul className="space-y-1.5 text-3xs text-rose-350 leading-relaxed font-semibold">
-                    {(character.scars?.notes || []).map((scar, idx) => (
-                      <li key={idx} className="border-b border-slate-900/50 pb-1 font-medium">
-                        ⚠️ {scar}
-                      </li>
+            {/* Relationships Collapsible Accordion (only shown when relationships exist) */}
+            {Object.keys(character.relationships || {}).length > 0 && (
+              <div className="rounded border border-slate-800 bg-slate-950/45 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsRelationshipsOpen(!isRelationshipsOpen)}
+                  className="w-full px-4 py-2.5 bg-slate-900/60 hover:bg-slate-900 text-left flex justify-between items-center text-2xs uppercase tracking-widest text-slate-350 font-bold transition-all"
+                >
+                  <span>Relationships</span>
+                  <span>{isRelationshipsOpen ? '▼' : '▶'}</span>
+                </button>
+                {isRelationshipsOpen && (
+                  <div className="p-3 bg-slate-950/60 border-t border-slate-900 space-y-1.5 text-2xs font-semibold">
+                    {Object.keys(character.relationships || {}).map((npc) => (
+                      <div key={npc} className="flex justify-between items-center border-b border-slate-900 pb-1">
+                        <span className="text-slate-355">{npc}</span>
+                        <span className="px-1.5 py-0.5 rounded bg-slate-900 text-emerald-450 text-3xs font-extrabold uppercase">
+                          {character.relationships[npc]}
+                        </span>
+                      </div>
                     ))}
-                    {(character.scars?.notes || []).length === 0 && (
-                      <li className="text-slate-550 italic">No scars. You are pristine.</li>
-                    )}
-                  </ul>
-                </div>
-              )}
-            </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Narrative Scars Collapsible Accordion (only shown when scars exist) */}
+            {(character.scars?.notes || []).length > 0 && (
+              <div className="rounded border border-slate-800 bg-slate-950/45 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsScarsOpen(!isScarsOpen)}
+                  className="w-full px-4 py-2.5 bg-slate-900/60 hover:bg-slate-900 text-left flex justify-between items-center text-2xs uppercase tracking-widest text-slate-355 font-bold transition-all"
+                >
+                  <span>Narrative Scars</span>
+                  <span>{isScarsOpen ? '▼' : '▶'}</span>
+                </button>
+                {isScarsOpen && (
+                  <div className="p-3 bg-slate-950/60 border-t border-slate-900">
+                    <ul className="space-y-1.5 text-3xs text-rose-350 leading-relaxed font-semibold">
+                      {(character.scars?.notes || []).map((scar, idx) => (
+                        <li key={idx} className="border-b border-slate-900/50 pb-1 font-medium">
+                          ⚠️ {scar}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
         </div>

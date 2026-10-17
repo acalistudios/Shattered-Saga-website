@@ -28,6 +28,7 @@ export const ITEMS_DATABASE = {
   'Champion Maul +2': { weight: 9.0, volume: 6.0, slot: 'hand', subslot: 'large', properties: '+2 Heavy Weapons, 1d10+1 blunt. Earth affinity knocks prone on critical hit.' },
   'Frostfire Glaive +3': { weight: 8.5, volume: 6.0, slot: 'hand', subslot: 'large', properties: '+3 Heavy Weapons, 1d10 edged or piercing. Once per rest, add +3 elemental damage; Water affinity may slow instead of damaging.' },
   'Dawnbound Sickle +3': { weight: 2.0, volume: 1.5, slot: 'hand', subslot: 'medium', properties: '+3 Light Weapons, 1d6 edged. Strong against roots, vines, famine spirits, and pact-bound growth; Earth affinity grants rooted resistance once per rest.' },
+  "Kaelen's Tempered Sledge": { weight: 7.0, volume: 4.5, slot: 'hand', subslot: 'large', properties: 'Heavy Weapon +1; deals devastating crushing blows; grants +1 to Athletics and Smithing checks.' },
   'Torch': { weight: 1.0, volume: 1.0, slot: 'hand', subslot: 'small', properties: 'Illuminates dark areas, inflicts fire damage' },
   'Wooden Shield': { weight: 5.0, volume: 3.5, slot: 'hand', subslot: 'large', properties: 'Basic shield' },
   'Iron Greatsword': { weight: 9.0, volume: 6.0, slot: 'hand', subslot: 'large', properties: 'Two-handed heavy weapon' },
@@ -42,7 +43,8 @@ export const ITEMS_DATABASE = {
   'Saint Orra\'s Veil +3': { weight: 0.2, volume: 0.5, slot: 'head', properties: '+3 Insight or Divine Communion when judging truth, possession, doubles, or reflected identities. Aether affinity sees through one illusion, possession, or false double once per rest.' },
   'Demon-Cult Amulet': { weight: 0.5, volume: 0.5, slot: 'neck', properties: 'Amulet of shadow' },
   'Living Thorn Charm': { weight: 0.3, volume: 0.4, slot: 'neck', properties: '+1 Survival, Tracking, or Animal Rapport in forests and wild growth. Earth affinity identifies safe forage and clean water without a check.' },
-  'Amulet of Tide-Taming': { weight: 0.5, volume: 0.5, slot: 'neck', properties: 'Breathe underwater for one scene once per rest; +1 Survival or Sailing in water hazards. Water affinity extends breathing to close allies.' },
+  'Amulet of Tide-Taming': { weight: 0.5, volume: 0.5, slot: 'neck', properties: 'Breathe underwater for one scene once per rest; +1 Survival or Athletics in water hazards. Water affinity extends breathing to close allies.' },
+  "Silas's Bone Fang": { weight: 0.2, volume: 0.2, slot: 'neck', properties: 'Grants +1 to Animal Rapport and all rolls involving animals.' },
   'Blessed Bell Clapper': { weight: 0.8, volume: 0.6, slot: 'neck', properties: 'Once per rest, restore full Divine SP or stabilize all dying allies in the scene. Aether affinity repels undead for one round.' },
   'Frostfire Heart': { weight: 1.0, volume: 1.0, slot: 'neck', properties: 'Once per rest, choose Flame Stance or Frost Stance for one scene. Water affinity grants party cold ward during Frost Stance.' },
   'Leather Armor': { weight: 12.0, volume: 6.0, slot: 'body', desc: 'Light leather padding.' },
@@ -79,7 +81,10 @@ export const ITEMS_DATABASE = {
   'Masterwork Tool Kit +2': { weight: 5.0, volume: 4.0, slot: 'backpack', properties: '+2 Crafting and +2 Smithing checks when equipped or unpacked. Air affinity completes one field repair in half time once per rest.' },
   'Boiling Sea Charter': { weight: 0.1, volume: 0.1, desc: 'A maritime chart containing navigation offsets to sail safely through the Boiling Sea planar storms. Consumed on use.' },
   'Everwarm Elixir': { weight: 0.5, volume: 0.5, desc: 'An alchemical elixir that raises body temperature, shielding the drinker from absolute-zero freezing winds. Consumed on use.' },
-  'Siren Glass Charm': { weight: 0.2, volume: 0.2, desc: 'A protective elven charm that resonates to disrupt the hypnotic frequencies of Siren songs. Consumed on use.' }
+  'Siren Glass Charm': { weight: 0.2, volume: 0.2, desc: 'A protective elven charm that resonates to disrupt the hypnotic frequencies of Siren songs. Consumed on use.' },
+  "Skritt's Lockpick Shim": { weight: 0.1, volume: 0.1, properties: 'Grants +1 to Thievery and Trapping checks.' },
+  'Clockwork Mainspring': { weight: 0.3, volume: 0.3, properties: 'Grants +1 to Crafting and Arcane Drawing checks.' },
+  'Consecrated Healing Draught': { weight: 0.5, volume: 0.5, properties: "One-use miracle draught: Cleanses poison, disease, all bleeding tiers, and restores 6 HP. Confers Sister Maren's Benediction: +1 to social checks with local NPCs." }
 };
 
 // Clean name helper (e.g. "Rations (5)" -> "Rations")
@@ -180,7 +185,7 @@ export function getItemDetails(itemName) {
     weight = 1.5; volume = 1.0; slot = 'hand'; subslot = 'small';
   } else if (nameLower.includes('shortsword') || nameLower.includes('rapier') || nameLower.includes('cutlass') || nameLower.includes('hatchet')) {
     weight = 3.0; volume = 2.0; slot = 'hand'; subslot = 'medium';
-  } else if (nameLower.includes('sword') || nameLower.includes('greatsword') || nameLower.includes('axe') || nameLower.includes('warhammer') || nameLower.includes('spear') || nameLower.includes('glaive') || nameLower.includes('halberd')) {
+  } else if (nameLower.includes('sword') || nameLower.includes('greatsword') || nameLower.includes('axe') || nameLower.includes('warhammer') || nameLower.includes('hammer') || nameLower.includes('sledge') || nameLower.includes('maul') || nameLower.includes('spear') || nameLower.includes('glaive') || nameLower.includes('halberd')) {
     weight = 6.0; volume = 4.0; slot = 'hand'; subslot = 'large';
   } else if (nameLower.includes('bow') || nameLower.includes('crossbow')) {
     weight = 3.5; volume = 3.0; slot = 'hand'; subslot = 'large';
@@ -198,7 +203,7 @@ export function getItemDetails(itemName) {
     weight = 1.0; volume = 1.0; slot = 'hands';
   } else if (nameLower.includes('ring')) {
     weight = 0.1; volume = 0.1; slot = 'ring';
-  } else if (nameLower.includes('amulet') || nameLower.includes('necklace') || nameLower.includes('pendant')) {
+  } else if (nameLower.includes('amulet') || nameLower.includes('necklace') || nameLower.includes('pendant') || nameLower.includes('talisman') || nameLower.includes('fang') || nameLower.includes('charm')) {
     weight = 0.3; volume = 0.5; slot = 'neck';
   } else if (nameLower.includes('backpack') || nameLower.includes('pack')) {
     weight = 3.0; volume = 0; slot = 'backpack';
@@ -206,8 +211,10 @@ export function getItemDetails(itemName) {
     weight = 1.0; volume = 1.0; slot = 'hip';
   } else if (nameLower.includes('quiver')) {
     weight = 1.0; volume = 1.5; slot = 'hip';
-  } else if (nameLower.includes('potion') || nameLower.includes('elixir') || nameLower.includes('flask') || nameLower.includes('vial') || nameLower.includes('brew')) {
+  } else if (nameLower.includes('potion') || nameLower.includes('elixir') || nameLower.includes('flask') || nameLower.includes('vial') || nameLower.includes('brew') || nameLower.includes('draught')) {
     weight = 0.5; volume = 0.5;
+  } else if (nameLower.includes('shim') || nameLower.includes('lockpick')) {
+    weight = 0.1; volume = 0.1;
   } else if (nameLower.includes('ration') || nameLower.includes('food')) {
     weight = 0.5; volume = 0.5;
   }

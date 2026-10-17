@@ -352,6 +352,7 @@ const DEFAULT_CHARACTER = {
   stats: { 
     hp: 10, 
     maxHp: 10, 
+    tempHp: 0,
     level: 1, 
     fatigue: 15, 
     maxFatigue: 15, 
@@ -395,10 +396,10 @@ const DEFAULT_CHARACTER = {
   daysWithoutFood: 0,
   scars: { maxHpPenalty: 0, notes: [] },
   portraitUrl: null,
-  storage: ["Tent", "Cooking Pot"],
+  storage: [],
   currency: { gp: 100, sp: 0, cp: 0, gold: 100, fateCoins: 0 },
-  strongholds: ["None"],
-  relationships: { "Sylas the Wise": "Friendly" },
+  strongholds: [],
+  relationships: {},
   localEconomy: {
     decay: {},
     regionDecay: {},
@@ -445,7 +446,8 @@ export function validateCharacterSchema(raw) {
     skills,
     stats: {
       ...DEFAULT_CHARACTER.stats,
-      ...(raw.stats || {})
+      ...(raw.stats || {}),
+      tempHp: Math.max(0, Number(raw.stats?.tempHp) || 0)
     },
     currency: {
       ...DEFAULT_CHARACTER.currency,
@@ -1208,10 +1210,10 @@ export default function useGameState() {
       scars: { maxHpPenalty: 0, notes: [] },
       portraitUrl: creationData.portraitUrl || null,
       portraitSeed: creationData.portraitSeed || null,
-      storage: ["Tent", "Cooking Pot"],
+      storage: [],
       currency: { gold: startingGold, fateCoins: 0 },
-      strongholds: ["None"],
-      relationships: { "Sylas the Wise": "Friendly" },
+      strongholds: [],
+      relationships: {},
       skillPoints: 0,
       progression: {
         levelHpBonus: 0,
@@ -1498,7 +1500,7 @@ export default function useGameState() {
       let isBandage = nameLower.includes('bandage');
       let isHealerKit = nameLower.includes("healer's kit") || nameLower.includes("healer's satchel");
       let isHerb = nameLower.includes('herb') || nameLower.includes('poultice');
-      let isPotion = nameLower.includes('potion') || nameLower.includes('elixir') || nameLower.includes('flask') || nameLower.includes('vial') || nameLower.includes('brew');
+      let isPotion = nameLower.includes('potion') || nameLower.includes('elixir') || nameLower.includes('flask') || nameLower.includes('vial') || nameLower.includes('brew') || nameLower.includes('draught');
 
       if (isBandage || isHealerKit || isHerb || isPotion) {
         let itemPattern = '';
@@ -1961,7 +1963,7 @@ export default function useGameState() {
           secondaryRoll: rollDetails.secondaryRoll,
           skillRanks,
           skillRoll: rollDetails.skillRoll,
-          roleplayModifier: totalModifier,
+          roleplayModifier: totalRoleplayModifier,
           playerTotal: rollDetails.playerTotal,
           resistanceBase: rollDetails.resistanceBase,
           resistanceTotal: rollDetails.resistanceTotal,
@@ -3035,8 +3037,19 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
         // Apply net damage
         let nextHp = updated.stats.hp;
+        let nextTempHp = updated.stats.tempHp || 0;
         if (totalNetDamage > 0) {
-          nextHp = Math.max(-5, nextHp - totalNetDamage);
+          if (nextTempHp > 0) {
+            if (nextTempHp >= totalNetDamage) {
+              nextTempHp -= totalNetDamage;
+            } else {
+              const remainder = totalNetDamage - nextTempHp;
+              nextTempHp = 0;
+              nextHp = Math.max(-5, nextHp - remainder);
+            }
+          } else {
+            nextHp = Math.max(-5, nextHp - totalNetDamage);
+          }
         }
         if (totalHeal > 0) {
           const maxHp = updated.stats.maxHp || 10;
@@ -3060,6 +3073,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         updated.stats = {
           ...updated.stats,
           hp: nextHp,
+          tempHp: nextTempHp,
           bleedingTier: currentBleed,
           deathCountdown: nextDeathCountdown
         };
@@ -3613,10 +3627,34 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         nextEvents.push(`Awakened Granite Bastion keystone resonance (+${keystoneHpDelta} Max HP).`);
       }
 
+      // Restore confiscated gear (e.g. from captivity adventures like Saltblood Mines)
+      let nextConfiscatedGear = [...(prev.confiscatedGear || [])];
+      if (nextConfiscatedGear.length > 0) {
+        nextConfiscatedGear.forEach(item => {
+          if (item) nextInventory.push(item);
+        });
+        nextEvents.push(`Recovered confiscated belongings (${nextConfiscatedGear.length} items) from the supply depot.`);
+        nextConfiscatedGear = [];
+      }
+
+      // Synchronize Quest Log: move completed adventure to completed_quests
+      const finishedAdv = ADVENTURES_LIST.find(a => a.id === activeAdventureId);
+      const finishedAdvName = finishedAdv?.name || activeAdventureId;
+      let nextActiveQuests = [...(prev.active_quests || [])].filter(
+        q => q !== finishedAdvName && q !== 'Explore the High Fantasy Realm' && q !== 'Embark on the High Fantasy Adventure'
+      );
+      let nextCompletedQuests = [...(prev.completed_quests || [])];
+      if (finishedAdvName && !nextCompletedQuests.includes(finishedAdvName)) {
+        nextCompletedQuests.push(finishedAdvName);
+      }
+
       return {
         ...prev,
         attributes: nextAttributes,
         inventory: nextInventory,
+        confiscatedGear: nextConfiscatedGear,
+        active_quests: nextActiveQuests,
+        completed_quests: nextCompletedQuests,
         completed_adventures: nextCompletedAdventures,
         skillPoints: (prev.skillPoints || 0) + (isFirstCompletion ? skillPointsAwarded : 0),
         progression: nextProgression,
@@ -3745,6 +3783,15 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         hip_left_sheathed: null, hip_right_sheathed: null
       };
 
+      // Synchronize Quest Log with active adventure name
+      const adventureName = adventure?.name || adventureId;
+      const prevActiveQuests = (prev.active_quests || []).filter(
+        q => q !== 'Explore the High Fantasy Realm' && q !== 'Embark on the High Fantasy Adventure'
+      );
+      const nextActiveQuests = prevActiveQuests.includes(adventureName)
+        ? prevActiveQuests
+        : [...prevActiveQuests, adventureName];
+
       // Captivity adventures (e.g. Saltblood Mines) strip the player of all gear on start.
       // Everything is moved into `confiscatedGear` so it is never lost — it can be
       // recovered later (Supply Depot) or returned by the GM via [add_item] tags.
@@ -3758,6 +3805,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           inventory: [],
           equipment: emptyEquipment,
           confiscatedGear: [...(prev.confiscatedGear || []), ...stashed],
+          active_quests: nextActiveQuests,
           is_free_roaming: isFreeRoam,
           companions: [],
           stats: {
@@ -3842,6 +3890,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         inventory: nextInventory,
         equipment: nextEquipment,
         progression: nextProgression,
+        active_quests: nextActiveQuests,
         storyEvents: openingBoons.length > 0
           ? [...(prev.storyEvents || []), `Opening Reward Claimed: ${openingItems.join(', ')}`]
           : prev.storyEvents,
@@ -4398,10 +4447,21 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       updated.inventory = finalInventory;
       updated.daysWithoutFood = finalDaysWithoutFood;
 
-      // Update HP
+      // Update HP & Temp HP
       let nextHp = prev.stats.hp;
+      let nextTempHp = prev.stats.tempHp || 0;
       if (netDamage > 0) {
-        nextHp = Math.max(-5, nextHp - netDamage);
+        if (nextTempHp > 0) {
+          if (nextTempHp >= netDamage) {
+            nextTempHp -= netDamage;
+          } else {
+            const remainder = netDamage - nextTempHp;
+            nextTempHp = 0;
+            nextHp = Math.max(-5, nextHp - remainder);
+          }
+        } else {
+          nextHp = Math.max(-5, nextHp - netDamage);
+        }
       }
 
       // Update Bleeding
@@ -4425,6 +4485,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       updated.stats = {
         ...prev.stats,
         hp: nextHp,
+        tempHp: nextTempHp,
         bleedingTier: currentBleed,
         deathCountdown: nextDeathCountdown,
         defenseCount: defenseCount + 1,
@@ -4726,7 +4787,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     let isBandage = nameLower.includes('bandage');
     let isHealerKit = nameLower.includes("healer's kit") || nameLower.includes("healer's satchel");
     let isHerb = nameLower.includes('herb') || nameLower.includes('poultice');
-    let isPotion = nameLower.includes('potion') || nameLower.includes('elixir') || nameLower.includes('flask') || nameLower.includes('vial') || nameLower.includes('brew');
+    let isPotion = nameLower.includes('potion') || nameLower.includes('elixir') || nameLower.includes('flask') || nameLower.includes('vial') || nameLower.includes('brew') || nameLower.includes('draught');
 
     if (!isBandage && !isHealerKit && !isHerb && !isPotion) {
       setApiError("This item cannot be used directly.");

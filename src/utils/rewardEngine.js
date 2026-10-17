@@ -196,8 +196,9 @@ export function getPassiveRewardSkillBonus(character, skillId) {
     let itemBonus = 0;
     if (lower.includes("saint orra's veil +3") && ['insight', 'divine_communion'].includes(skillId)) itemBonus = 3;
     else if (lower.includes('masterwork tool kit +2') && ['crafting', 'smithing'].includes(skillId)) itemBonus = 2;
-    else if (lower.includes('amulet of tide-taming') && ['survival', 'sailing'].includes(skillId)) itemBonus = 1;
+    else if (lower.includes('amulet of tide-taming') && ['survival', 'athletics'].includes(skillId)) itemBonus = 1;
     else if (lower.includes('living thorn charm') && ['survival', 'tracking', 'animal_rapport'].includes(skillId)) itemBonus = 1;
+    else if (lower.includes("kaelen's tempered sledge") && ['athletics', 'smithing'].includes(skillId)) itemBonus = 1;
 
     if (itemBonus > 0) {
       bonus += itemBonus;
@@ -252,6 +253,10 @@ export function getRewardWeaponProfile(weaponName, character, enemy = null, acti
   if (lower.includes('champion maul +2')) {
     dice = '1d10+1';
     skill = 'heavy_weapons';
+  } else if (lower.includes("kaelen's tempered sledge")) {
+    dice = '1d10';
+    skill = 'heavy_weapons';
+    attackBonus = Math.max(attackBonus, 1);
   } else if (lower.includes('frostfire glaive +3')) {
     dice = '1d10';
     skill = 'heavy_weapons';
