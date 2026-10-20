@@ -367,8 +367,10 @@ export default function DowntimeMarketModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-4xl w-full h-[620px] shadow-2xl flex flex-col overflow-hidden relative font-sans text-slate-100">
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 md:p-4">
+      {/* Phones get the full dynamic viewport height; the fixed 620px desktop
+          height overflowed short screens and left no room once stacked. */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-4xl w-full h-[calc(100dvh-1rem)] md:h-[620px] shadow-2xl flex flex-col overflow-hidden relative font-sans text-slate-100">
         
         {/* Header */}
         <div className="bg-slate-950 p-4 border-b border-slate-850 flex justify-between items-center">
@@ -387,11 +389,13 @@ export default function DowntimeMarketModal({
           </button>
         </div>
 
-        {/* Outer Layout Grid */}
-        <div className="flex-1 flex overflow-hidden">
-          
+        {/* Outer Layout Grid. Stacks below md: side-by-side, the fixed 240px
+            sidebar left the merchant panel ~100px wide on a 375px phone, which
+            clipped every price and hid the Skill Training buttons entirely. */}
+        <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
+
           {/* Sidebar - Trade Hubs & Merchant List */}
-          <div className="w-60 bg-slate-950/65 border-r border-slate-850 p-4 flex flex-col gap-4 overflow-y-auto">
+          <div className="w-full md:w-60 shrink-0 max-h-[30%] md:max-h-none bg-slate-950/65 border-b md:border-b-0 md:border-r border-slate-850 p-3 md:p-4 flex flex-col gap-4 overflow-y-auto">
             
             {/* Hubs Selector */}
             <div>
@@ -470,13 +474,13 @@ export default function DowntimeMarketModal({
           </div>
 
           {/* Main Panel */}
-          <div className="flex-1 flex flex-col bg-slate-900/40 overflow-hidden">
-            
+          <div className="flex-1 min-h-0 flex flex-col bg-slate-900/40 overflow-hidden">
+
             {selectedMerchant ? (
-              <div className="flex-1 flex flex-col overflow-hidden p-6">
-                
+              <div className="flex-1 min-h-0 flex flex-col overflow-y-auto md:overflow-hidden p-3 md:p-6">
+
                 {/* Merchant Bio & Relation Banner */}
-                <div className="bg-slate-950/80 border border-slate-850 rounded-xl p-4 mb-4 flex justify-between items-center relative">
+                <div className="bg-slate-950/80 border border-slate-850 rounded-xl p-3 md:p-4 mb-3 md:mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 relative">
                   <div>
                     <h3 className="text-base font-extrabold text-amber-300 font-serif flex items-center gap-1.5">
                       {selectedMerchant.name}
@@ -490,7 +494,7 @@ export default function DowntimeMarketModal({
                   </div>
                   
                   {/* Reputation Badge */}
-                  <div className="text-right border-l border-slate-850 pl-6">
+                  <div className="sm:text-right sm:border-l border-slate-850 sm:pl-6 shrink-0">
                     <span className="text-6xs text-slate-500 font-bold uppercase tracking-wider block">Relationship</span>
                     <span className={`text-sm font-black font-serif block mt-0.5 ${rankColor}`}>
                       {relationRank}
@@ -502,7 +506,7 @@ export default function DowntimeMarketModal({
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-slate-800 mb-4 gap-1">
+                <div className="flex border-b border-slate-800 mb-3 md:mb-4 gap-1 overflow-x-auto shrink-0">
                   {!selectedMerchant.isTavern && (
                     <>
                       <button
@@ -564,7 +568,10 @@ export default function DowntimeMarketModal({
                 </div>
 
                 {/* Tab Contents */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+                {/* Desktop scrolls just the tab body; on phones the whole panel
+                    scrolls instead, since the banner and tabs above left this
+                    nested scroller ~60px tall at 375x812. */}
+                <div className="md:flex-1 md:min-h-0 md:overflow-y-auto custom-scrollbar pr-2">
                   
                   {isBanned ? (
                     <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-red-955/20 border border-red-500/20 rounded-xl">
