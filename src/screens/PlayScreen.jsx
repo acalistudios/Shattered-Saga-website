@@ -9,6 +9,7 @@ import storage from '../utils/storage';
 import { calculateWeightAndVolume, getItemDetails, getItemSlot } from '../utils/items';
 import AccountStatusPills from '../components/AccountStatusPills';
 import ResurrectionModal from '../components/ResurrectionModal';
+import { stripEngineTags } from '../utils/playerInput';
 import { getToken } from '../utils/authApi';
 import { skillRankCost } from '../data/progressionRewards';
 import { getCompanionById } from '../data/companions';
@@ -290,9 +291,12 @@ export default function PlayScreen({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!inputText.trim() || isLoading) return;
-    
-    let formattedText = inputText.trim();
+    // Strip engine control tags before anything else: the player's text goes to
+    // the model verbatim, and an echoed [add_gold: …] would be honoured.
+    const sanitizedInput = stripEngineTags(inputText);
+    if (!sanitizedInput || isLoading) return;
+
+    let formattedText = sanitizedInput;
     if (inputMode === 'say') {
       if (!formattedText.startsWith('"') && !formattedText.startsWith('“')) {
         formattedText = `"${formattedText}"`;
@@ -405,7 +409,7 @@ export default function PlayScreen({
       ? Math.min(1, rank)
       : 0;
 
-    onSendAction(choice.text, choice.skill || null, choice.difficulty || 'professional', suggestedSpSpend);
+    onSendAction(stripEngineTags(choice.text), choice.skill || null, choice.difficulty || 'professional', suggestedSpSpend);
     setInputText('');
     setSkillFocus('');
     setDifficulty('professional');
