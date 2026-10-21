@@ -38,6 +38,7 @@ import {
 import { getDivineInterventionItem } from '../data/resurrection';
 import { resolveGearRecovery } from '../data/gearRecovery';
 import { getGameHourStamp, getAdventureStartClock } from '../utils/rewardEngine';
+import { resolveCombatTarget } from '../utils/combatTarget';
 import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../utils/authApi';
 import { consumeRationFromInventory, resolveRest } from '../utils/restEngine';
 import { canDeferNarrationCosts, createPreparedNarrationTurn } from '../utils/narrationTurn';
@@ -2435,6 +2436,9 @@ GM Instructions for automated tags:
 - Unlock elemental ability: [elemental_ability_unlock: fire|earth|air|water|aether]
 - Mark elemental ability as spent when used: [elemental_ability_used]
 - Record only known reward objectives/endings for the current adventure: [objective_complete: objective_id], [ending_selected: ending_id]
+- When an enemy strikes at the player, do NOT narrate the hit landing or the player's injury. Emit the attack and let the engine roll the player's defense and apply damage: [enemy_attack: Attacker Name | attack dice | vs Dodge or Block | dmg damage dice | damage type], e.g. [enemy_attack: Saltblood Guard | 2d6 | vs Block | dmg 1d6 | blunt]. One tag per attack.
+- When a fight ends for any reason — the foe is defeated, subdued, surrenders, or the player escapes or leaves the area — emit [combat_end].
+- When the adventure's story reaches its conclusion (the player has achieved or decisively failed its central goal and the adventure is over), emit [milestone: adventure_complete] exactly once, alongside the matching [ending_selected: ending_id] if one fits. This is the only way the adventure is recorded as completed; never emit it mid-adventure.
 - Do not award permanent skill ranks, skill points, attribute increases, major gear, gems, premium turns, or permanent abilities through freeform narration. Milestone rewards are engine-controlled.
 Ensure all tags are formatted exactly as shown. Always describe the narrative event corresponding to the tags.
 `;
@@ -2576,9 +2580,18 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       cleanedText = cleanedText.replace(addCompanionRegex, '').trim();
 
       // 2. Combat start / end tags
-      const combatStartRegex = /\[combat_start\]/gi;
-      const combatStartTriggered = combatStartRegex.test(cleanedText);
+      // [combat_start] may name its target: [combat_start: Saltblood Guard].
+      const combatStartRegex = /\[combat_start(?::\s*([^\]]*))?\]/gi;
+      const combatStartMatch = [...cleanedText.matchAll(combatStartRegex)];
+      const combatStartTriggered = combatStartMatch.length > 0;
+      const combatStartTarget = (combatStartMatch.find(m => m[1]?.trim())?.[1] || '').trim();
       cleanedText = cleanedText.replace(combatStartRegex, '').trim();
+
+      // Detect the completion tag here, with the other tags, and strip it so it
+      // never shows in the narration. It is acted on later in this handler.
+      const milestoneTagRegex = /\[milestone:\s*([^\]]+)\]/gi;
+      const milestoneReached = milestoneTagRegex.test(cleanedText);
+      cleanedText = cleanedText.replace(milestoneTagRegex, '').trim();
 
       const combatEndRegex = /\[(?:combat_end|victory)\]/gi;
       const combatEndTriggered = combatEndRegex.test(cleanedText);
@@ -2620,23 +2633,25 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       }
 
       // Initialize activeEnemy if starting combat or attacks received
-      if ((combatStartTriggered || parsedEnemyAttacks.length > 0) && !activeEnemy) {
+      // A placeholder foe (started without a resolvable name) is upgraded as soon
+      // as the GM names a real NPC in an [enemy_attack].
+      const upgradingPlaceholder = activeEnemy?.isPlaceholder && parsedEnemyAttacks.length > 0;
+      if ((combatStartTriggered || parsedEnemyAttacks.length > 0) && (!activeEnemy || upgradingPlaceholder)) {
         const activeAdv = ADVENTURES_LIST.find(a => a.id === activeAdventureId);
-        let targetName = parsedEnemyAttacks.length > 0 ? parsedEnemyAttacks[0].name.trim() : "";
-        let foundNpc = null;
-        
-        if (targetName) {
-          foundNpc = activeAdv?.npcs?.find(npc => npc.name.toLowerCase() === targetName.toLowerCase());
-        } else if (activeAdv?.npcs) {
-          // Look for npc mentioned in text
-          for (const npc of activeAdv.npcs) {
-            if ((npc.stats?.HP || npc.HP) && cleanedText.toLowerCase().includes(npc.name.toLowerCase())) {
-              foundNpc = npc;
-              break;
-            }
-          }
-        }
-        
+        let targetName = parsedEnemyAttacks.length > 0 ? parsedEnemyAttacks[0].name.trim() : combatStartTarget;
+        // Never guess an ally from a name mention; see utils/combatTarget.js.
+        const foundNpc = resolveCombatTarget({
+          npcs: activeAdv?.npcs || [],
+          explicitName: targetName,
+          text: cleanedText,
+          companionIds: (character?.companions || []).map(c => c?.id || c?.name || c),
+        });
+        // Upgrading with an unknown name changes nothing: keep the current foe and
+        // its damage rather than rebuilding a fresh full-HP placeholder.
+        const skipUpgrade = upgradingPlaceholder && !foundNpc;
+        // Carry damage already dealt to the placeholder over to the real NPC.
+        const damageTaken = upgradingPlaceholder ? Math.max(0, (activeEnemy.maxHp || 0) - (activeEnemy.hp || 0)) : 0;
+
         const scaling = activeAdv ? getDifficultyScaling(character, activeAdv, foundNpc) : { hpMultiplier: 1.0, attackModifier: 0, defenseModifier: 0, band: 'expected' };
 
         if (foundNpc) {
@@ -2655,7 +2670,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
           setActiveEnemy({
             name: foundNpc.name,
-            hp: scaledHp,
+            hp: Math.max(1, scaledHp - damageTaken),
             maxHp: scaledHp,
             armorSoak: armorSoak,
             defenses: foundNpcStats.defenses || foundNpc.defenses || { dodge: '10', block: '10' },
@@ -2666,12 +2681,14 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
               defenseModifier: scaling.defenseModifier
             }
           });
-        } else {
+        } else if (!skipUpgrade) {
           const baseHp = 20;
           const scaledHp = Math.round(baseHp * scaling.hpMultiplier);
 
           setActiveEnemy({
             name: targetName || "Hostile Foe",
+            // Unnamed: eligible to be upgraded by a later named [enemy_attack].
+            isPlaceholder: !targetName,
             hp: scaledHp,
             maxHp: scaledHp,
             armorSoak: '1d3',
@@ -2900,6 +2917,18 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       cleanedText += combatNotice + tagsFeedback;
 
       if (newLocation) {
+        // Leaving the room with no combat activity this turn ends the fight.
+        // The GM reliably omits [combat_end] when a fight ends non-lethally
+        // (escape, pin, surrender); in the 2026-10-20 playtest a guard stayed
+        // the active enemy three rooms later and blocked a genuinely new foe
+        // from becoming the target.
+        const leftRoom = newLocation !== currentLocation;
+        if (leftRoom && activeEnemy && !combatStartTriggered && parsedEnemyAttacks.length === 0) {
+          setActiveEnemy(null);
+          setCombatStance(null);
+          setCounterOpportunities(null);
+          setEnemyAttacksQueue([]);
+        }
         setCurrentLocation(newLocation);
       }
 
@@ -3140,9 +3169,20 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         });
 
         let nextInventory = [...updated.inventory];
+        // Items the GM "adds" that are actually the player's confiscated gear are
+        // RETURNED from confiscatedGear, not minted. Otherwise reclaiming a sword
+        // mid-adventure left a second copy to be restored on completion.
+        const nextConfiscated = [...(updated.confiscatedGear || [])];
         parsedItemsToAdd.forEach(item => {
-          nextInventory.push(item);
+          const idx = nextConfiscated.findIndex(c => c.toLowerCase() === item.toLowerCase());
+          if (idx !== -1) {
+            nextInventory.push(nextConfiscated[idx]);
+            nextConfiscated.splice(idx, 1);
+          } else {
+            nextInventory.push(item);
+          }
         });
+        updated.confiscatedGear = nextConfiscated;
         parsedItemsToRemove.forEach(item => {
           const idx = nextInventory.findIndex(i => i.toLowerCase() === item.toLowerCase());
           if (idx !== -1) {
@@ -3403,9 +3443,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       }
 
       // Check if adventure step is completed (milestone check in GM text)
-      const milestoneMatch = cleanedText.match(/\[milestone:\s*([^\]]+)\]/i);
-      
-      if (milestoneMatch) {
+      if (milestoneReached) {
         // Trigger the upgrade screen for completing an adventure step!
         setIsUpgradeScreenVisible(true);
       } else {
