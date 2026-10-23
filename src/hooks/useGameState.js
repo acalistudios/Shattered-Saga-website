@@ -5,10 +5,10 @@ import { calculateWeightAndVolume, getItemDetails } from '../utils/items';
 import { generateCompletion, executeOpposedCheck, rollDie, rollAttributePrimary, rollAttributeSecondary, rollSkillRanks } from '../utils/ai';
 import { ADVENTURES_LIST } from '../data/adventures';
 import { checkSafetyViolation, getGMStrikeWarning, getGMSternWarning, calculateLockoutExpiry, isGloballyBanned } from '../utils/safety';
-import { generateMerchantStock, ADVENTURE_TRAINING_SLOTS, TAVERNS, getTrainerConfig } from '../data/downtimeMerchants';
+import { generateMerchantStock, TAVERNS, getTrainerConfig } from '../data/downtimeMerchants';
 import { ADVENTURE_ECONOMY_METADATA } from '../data/adventureEconomy';
 import { getDifficultyScaling } from '../data/difficultyScaling';
-import { getAdventureRewardModel, levelHpGain, skillRankCost, SKILL_RANK_CAP } from '../data/progressionRewards';
+import { getAdventureRewardModel, levelHpGain, skillRankCost, SKILL_RANK_CAP, TRAININGS_PER_ADVENTURE } from '../data/progressionRewards';
 import { getRewardItemByName } from '../data/rewardItems';
 import {
   DEFAULT_PROGRESSION,
@@ -39,6 +39,7 @@ import { getDivineInterventionItem } from '../data/resurrection';
 import { resolveGearRecovery } from '../data/gearRecovery';
 import { getGameHourStamp, getAdventureStartClock } from '../utils/rewardEngine';
 import { resolveCombatTarget } from '../utils/combatTarget';
+import { filterGmItemGrants, filterGmCurrencyChanges, isElementalUnlockAllowed } from '../utils/rewardPolicy';
 import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../utils/authApi';
 import { consumeRationFromInventory, resolveRest } from '../utils/restEngine';
 import { canDeferNarrationCosts, createPreparedNarrationTurn } from '../utils/narrationTurn';
@@ -2271,6 +2272,7 @@ ${(activeAdventure.itemsDetail || []).map(item => {
   const propStr = item.properties ? ` [Properties: ${item.properties}]` : '';
   return `- ${item.name}: ${item.desc}${propStr}`;
 }).join('\n')}
+Items you may hand over with [add_item] in this adventure (exact names; anything else is ignored): ${(activeAdventure.items || []).join(', ') || 'none'}.
 
 [ADVENTURE ECONOMY]
 Currency: 10 cp = 1 sp, 10 sp = 1 gp, so 1 gp = 100 cp. Treat copper value as the authoritative price and display gold/silver/copper naturally in narration.
@@ -2427,17 +2429,17 @@ Completed Quests:
 ${(character.completed_quests || []).map(q => `- ${q}`).join('\n')}
 
 GM Instructions for automated tags:
-- Issue or deduct gold: [add_gold: X], [remove_gold: X]
-- Issue or deduct currency: [currency: +/-N cp|sp|gp]
-- Issue or deduct items: [add_item: Item Name], [remove_item: Item Name]
+- You never grant rewards: no gold, currency, or items of your own invention. Rewards are predefined and paid by the engine when the adventure completes.
+- Charge the player when the story costs them something: [remove_gold: X], [currency: -N cp|sp|gp]
+- Hand over an item only when the player physically obtains one of this adventure's items named in "Items you may hand over" above, or recovers their own confiscated gear: [add_item: Exact Item Name]. Anything else is ignored. Remove items the player loses or uses up: [remove_item: Item Name]
 - Adjust quests: [add_quest: Description], [complete_quest: Description], [remove_quest: Description]
 - Apply damage or healing: [damage: X], [heal: X]
 - Rest/Advance day: [advance_day]
-- Unlock elemental ability: [elemental_ability_unlock: fire|earth|air|water|aether]
+- Unlock elemental ability (Elemental Crucible only, the character's own element only): [elemental_ability_unlock: fire|earth|air|water|aether]
 - Mark elemental ability as spent when used: [elemental_ability_used]
 - Record only known reward objectives/endings for the current adventure: [objective_complete: objective_id], [ending_selected: ending_id]
 - When an enemy strikes at the player, do NOT narrate the hit landing or the player's injury. Emit the attack and let the engine roll the player's defense and apply damage: [enemy_attack: Attacker Name | attack dice | vs Dodge or Block | dmg damage dice | damage type], e.g. [enemy_attack: Saltblood Guard | 2d6 | vs Block | dmg 1d6 | blunt]. One tag per attack.
-- When a fight ends for any reason — the foe is defeated, subdued, surrenders, or the player escapes or leaves the area — emit [combat_end].
+- A fight follows the player from room to room: the foe pursues. Emit [combat_end] only when the fight truly ends — the foe is defeated, subdued, bound, surrenders, or flees, or the player escapes in a way that stops the pursuit (locking a door behind them, blocking the passage, losing them). Merely moving to another room does not end a fight.
 - When the adventure's story reaches its conclusion (the player has achieved or decisively failed its central goal and the adventure is over), emit [milestone: adventure_complete] exactly once, alongside the matching [ending_selected: ending_id] if one fits. This is the only way the adventure is recorded as completed; never emit it mid-adventure.
 - Do not award permanent skill ranks, skill points, attribute increases, major gear, gems, premium turns, or permanent abilities through freeform narration. Milestone rewards are engine-controlled.
 Ensure all tags are formatted exactly as shown. Always describe the narrative event corresponding to the tags.
@@ -2729,8 +2731,18 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       }
 
       // 5. Item adjustments
+      // The GM does not hand out rewards (see utils/rewardPolicy.js): only this
+      // adventure's authored items and the player's own confiscated gear pass.
+      const gmGrantsBlocked = [];
       const addItemRegex = /\[add_item:\s*([^\]]+)\]/gi;
-      const itemsToAdd = [...cleanedText.matchAll(addItemRegex)].map(m => m[1].trim());
+      const itemGrantPolicy = filterGmItemGrants({
+        items: [...cleanedText.matchAll(addItemRegex)].map(m => m[1].trim()),
+        adventureItems: ADVENTURES_LIST.find(a => a.id === activeAdventureId)?.items || [],
+        confiscatedGear: character?.confiscatedGear || [],
+        inventory: character?.inventory || [],
+      });
+      const itemsToAdd = itemGrantPolicy.allowed;
+      itemGrantPolicy.blocked.forEach(item => gmGrantsBlocked.push(`item "${item}"`));
       cleanedText = cleanedText.replace(addItemRegex, '').trim();
 
       const removeItemRegex = /\[remove_item:\s*([^\]]+)\]/gi;
@@ -2739,14 +2751,19 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
       // 6. Currency adjustments
       const currencyRegex = /\[currency:\s*([+-]?\d+)\s*(cp|sp|gp)\]/gi;
-      const currencyMatches = [...cleanedText.matchAll(currencyRegex)].map(m => ({
+      // The GM may charge the player (tolls, bribes) but never pay them.
+      const currencyPolicy = filterGmCurrencyChanges([...cleanedText.matchAll(currencyRegex)].map(m => ({
         amount: parseInt(m[1], 10),
         unit: m[2].toLowerCase()
-      }));
+      })));
+      const currencyMatches = currencyPolicy.allowed;
+      currencyPolicy.blocked.forEach(c => gmGrantsBlocked.push(`currency +${c.amount} ${c.unit}`));
       cleanedText = cleanedText.replace(currencyRegex, '').trim();
 
       const addGoldRegex = /\[add_gold:\s*(\d+)\]/gi;
-      const goldToAdd = [...cleanedText.matchAll(addGoldRegex)].reduce((acc, m) => acc + parseInt(m[1], 10), 0);
+      const blockedGold = [...cleanedText.matchAll(addGoldRegex)].reduce((acc, m) => acc + parseInt(m[1], 10), 0);
+      if (blockedGold > 0) gmGrantsBlocked.push(`gold +${blockedGold}`);
+      const goldToAdd = 0;
       cleanedText = cleanedText.replace(addGoldRegex, '').trim();
 
       const removeGoldRegex = /\[remove_gold:\s*(\d+)\]/gi;
@@ -2780,7 +2797,13 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
       // 12. Elemental ability unlock/use
       const elementalUnlockRegex = /\[elemental_ability_unlock:\s*(air|earth|fire|water|aether)\]/gi;
-      const elementalUnlockMatches = [...cleanedText.matchAll(elementalUnlockRegex)].map(m => m[1].toLowerCase());
+      const elementalUnlockMatches = [...cleanedText.matchAll(elementalUnlockRegex)]
+        .map(m => m[1].toLowerCase())
+        .filter(element => {
+          const ok = isElementalUnlockAllowed({ element, characterElement: character?.element, activeAdventureId });
+          if (!ok) gmGrantsBlocked.push(`elemental ability "${element}"`);
+          return ok;
+        });
       cleanedText = cleanedText.replace(elementalUnlockRegex, '').trim();
 
       const elementalUsedRegex = /\[elemental_ability_used\]/gi;
@@ -2917,18 +2940,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       cleanedText += combatNotice + tagsFeedback;
 
       if (newLocation) {
-        // Leaving the room with no combat activity this turn ends the fight.
-        // The GM reliably omits [combat_end] when a fight ends non-lethally
-        // (escape, pin, surrender); in the 2026-10-20 playtest a guard stayed
-        // the active enemy three rooms later and blocked a genuinely new foe
-        // from becoming the target.
-        const leftRoom = newLocation !== currentLocation;
-        if (leftRoom && activeEnemy && !combatStartTriggered && parsedEnemyAttacks.length === 0) {
-          setActiveEnemy(null);
-          setCombatStance(null);
-          setCounterOpportunities(null);
-          setEnemyAttacksQueue([]);
-        }
+        // Fights deliberately follow the player between rooms (Hans,
+        // 2026-10-21): a foe pursues unless the player escapes or hinders it,
+        // and only then does the GM end the fight with [combat_end].
         setCurrentLocation(newLocation);
       }
 
@@ -3309,6 +3323,12 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
             `Ignored unauthorized skill_up tag(s): ${skillUpMatches.join(', ')}`
           ];
         }
+        if (gmGrantsBlocked.length > 0) {
+          updated.storyEvents = [
+            ...(updated.storyEvents || []),
+            `Ignored GM reward grant(s): ${gmGrantsBlocked.join(', ')}`
+          ];
+        }
 
         // Status condition additions
         const newStatuses = [];
@@ -3510,7 +3530,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
       const rewardModel = getAdventureRewardModel(activeAdventureId);
       const guaranteedRewards = rewardModel?.guaranteedRewards || null;
-      const slotsAwarded = guaranteedRewards?.trainingSlots ?? ADVENTURE_TRAINING_SLOTS[activeAdventureId] ?? 1;
+      // One banked training session per adventure, every adventure (Hans,
+      // 2026-10-21). Not per-adventure table values: Saltblood used to grant 2.
+      const slotsAwarded = TRAININGS_PER_ADVENTURE;
       const skillPointsAwarded = guaranteedRewards?.skillPoints ?? 2;
       const baseCurrencyCp = guaranteedRewards?.baseCurrencyCp ?? 0;
       const nextLevel = (prev.stats.level || 1) + (isFirstCompletion ? 1 : 0);

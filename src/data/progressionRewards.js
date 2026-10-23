@@ -34,11 +34,15 @@ export const currencyFromCp = (currencyCp = 0) => ({
   value: coinValue(currencyCp),
 });
 
-const guaranteed = (wave, trainingSlots, baseCurrencyCp) => ({
+// Every adventure banks exactly ONE training session on first completion
+// (Hans, 2026-10-21). Unused sessions stay banked indefinitely.
+export const TRAININGS_PER_ADVENTURE = 1;
+
+const guaranteed = (wave, baseCurrencyCp) => ({
   levelUps: 1,
   skillPoints: skillPointsForWave(wave),
-  availableTrainings: trainingSlots,
-  trainingSlots,
+  availableTrainings: TRAININGS_PER_ADVENTURE,
+  trainingSlots: TRAININGS_PER_ADVENTURE,
   baseCurrencyCp,
 });
 
@@ -81,7 +85,7 @@ export const ADVENTURE_REWARD_MODELS = {
     recommendedLevelRange: [1, 2],
     maxCurrencyBudgetCp: 90,
     maxGearQuality: '+1 situational',
-    guaranteedRewards: guaranteed(1, 2, 30),
+    guaranteedRewards: guaranteed(1, 30),
     recommendedSpecialRewards: [
       reward({
         id: 'voss_crest_armament',
@@ -103,7 +107,7 @@ export const ADVENTURE_REWARD_MODELS = {
     recommendedLevelRange: [1, 3],
     maxCurrencyBudgetCp: 120,
     maxGearQuality: 'mundane',
-    guaranteedRewards: guaranteed(1, 2, 30),
+    guaranteedRewards: guaranteed(1, 30),
     recommendedSpecialRewards: [
       reward({
         id: 'liberator_of_redvein',
@@ -131,7 +135,7 @@ export const ADVENTURE_REWARD_MODELS = {
     recommendedLevelRange: [2, 3],
     maxCurrencyBudgetCp: 90,
     maxGearQuality: 'crafted',
-    guaranteedRewards: guaranteed(2, 1, 25),
+    guaranteedRewards: guaranteed(2, 25),
     recommendedSpecialRewards: [
       reward({
         id: 'spider_silk_lining',
@@ -151,7 +155,7 @@ export const ADVENTURE_REWARD_MODELS = {
     recommendedLevelRange: [2, 3],
     maxCurrencyBudgetCp: 100,
     maxGearQuality: 'minor_charm',
-    guaranteedRewards: guaranteed(2, 2, 30),
+    guaranteedRewards: guaranteed(2, 30),
     recommendedSpecialRewards: [
       reward({
         id: 'living_thorn_charm',
@@ -171,7 +175,7 @@ export const ADVENTURE_REWARD_MODELS = {
     recommendedLevelRange: [3, 4],
     maxCurrencyBudgetCp: 150,
     maxGearQuality: 'utility_gear',
-    guaranteedRewards: guaranteed(2, 2, 50),
+    guaranteedRewards: guaranteed(2, 50),
     recommendedSpecialRewards: [
       reward({
         id: 'glass_thorn_dagger',
@@ -194,7 +198,7 @@ export const ADVENTURE_REWARD_MODELS = {
     recommendedLevelRange: [3, 4],
     maxCurrencyBudgetCp: 75,
     maxGearQuality: 'relic_ability',
-    guaranteedRewards: guaranteed(2, 1, 0),
+    guaranteedRewards: guaranteed(2, 0),
     recommendedSpecialRewards: [
       reward({
         id: 'awakened_font',
@@ -214,7 +218,7 @@ export const ADVENTURE_REWARD_MODELS = {
     recommendedLevelRange: [4, 5],
     maxCurrencyBudgetCp: 300,
     maxGearQuality: '+1 weapon',
-    guaranteedRewards: guaranteed(3, 2, 100),
+    guaranteedRewards: guaranteed(3, 100),
     recommendedSpecialRewards: [
       reward({
         id: 'black_crown_longbow',
@@ -236,7 +240,7 @@ export const ADVENTURE_REWARD_MODELS = {
     recommendedLevelRange: [4, 5],
     maxCurrencyBudgetCp: 150,
     maxGearQuality: 'divine_charm',
-    guaranteedRewards: guaranteed(3, 2, 20),
+    guaranteedRewards: guaranteed(3, 20),
     recommendedSpecialRewards: [
       reward({
         id: 'blessed_bell_clapper',
@@ -258,7 +262,7 @@ export const ADVENTURE_REWARD_MODELS = {
     recommendedLevelRange: [5, 7],
     maxCurrencyBudgetCp: 200,
     maxGearQuality: 'minor_relic',
-    guaranteedRewards: guaranteed(4, 2, 50),
+    guaranteedRewards: guaranteed(4, 50),
     recommendedSpecialRewards: [
       reward({
         id: 'amulet_of_tide_taming',
@@ -280,7 +284,7 @@ export const ADVENTURE_REWARD_MODELS = {
     recommendedLevelRange: [5, 7],
     maxCurrencyBudgetCp: 250,
     maxGearQuality: 'minor_relic',
-    guaranteedRewards: guaranteed(4, 2, 50),
+    guaranteedRewards: guaranteed(4, 50),
     recommendedSpecialRewards: [
       reward({
         id: 'pearl_memory_scale',
@@ -302,7 +306,7 @@ export const ADVENTURE_REWARD_MODELS = {
     recommendedLevelRange: [6, 8],
     maxCurrencyBudgetCp: 350,
     maxGearQuality: 'utility_core',
-    guaranteedRewards: guaranteed(4, 2, 100),
+    guaranteedRewards: guaranteed(4, 100),
     recommendedSpecialRewards: [
       reward({
         id: 'chrono_scholar',
@@ -322,7 +326,7 @@ export const ADVENTURE_REWARD_MODELS = {
     recommendedLevelRange: [6, 8],
     maxCurrencyBudgetCp: 400,
     maxGearQuality: '+2 relic weapon or shield',
-    guaranteedRewards: guaranteed(4, 1, 100),
+    guaranteedRewards: guaranteed(4, 100),
     recommendedSpecialRewards: [
       reward({
         id: 'forge_heart_armament',
@@ -345,7 +349,7 @@ export const ADVENTURE_REWARD_MODELS = {
     recommendedLevelRange: [7, 8],
     maxCurrencyBudgetCp: 300,
     maxGearQuality: '+1 relic or light weapon',
-    guaranteedRewards: guaranteed(4, 1, 50),
+    guaranteedRewards: guaranteed(4, 50),
     recommendedSpecialRewards: [
       reward({
         id: 'saintly_conviction',
@@ -376,7 +380,7 @@ export const ADVENTURE_REWARD_MODELS = {
     recommendedLevelRange: [8, 10],
     maxCurrencyBudgetCp: 400,
     maxGearQuality: '+2 weapon',
-    guaranteedRewards: guaranteed(5, 3, 120),
+    guaranteedRewards: guaranteed(5, 120),
     recommendedSpecialRewards: [
       reward({
         id: 'champion_maul_plus_2',
@@ -396,7 +400,7 @@ export const ADVENTURE_REWARD_MODELS = {
     recommendedLevelRange: [8, 10],
     maxCurrencyBudgetCp: 500,
     maxGearQuality: '+2 tool',
-    guaranteedRewards: guaranteed(5, 3, 150),
+    guaranteedRewards: guaranteed(5, 150),
     recommendedSpecialRewards: [
       reward({
         id: 'masterwork_tool_kit_plus_2',
@@ -416,7 +420,7 @@ export const ADVENTURE_REWARD_MODELS = {
     recommendedLevelRange: [9, 10],
     maxCurrencyBudgetCp: 600,
     maxGearQuality: '+2 bow',
-    guaranteedRewards: guaranteed(5, 2, 150),
+    guaranteedRewards: guaranteed(5, 150),
     recommendedSpecialRewards: [
       reward({
         id: 'sky_stalker_composite_bow_plus_2',
@@ -449,7 +453,7 @@ export const ADVENTURE_REWARD_MODELS = {
     recommendedLevelRange: [9, 10],
     maxCurrencyBudgetCp: 700,
     maxGearQuality: 'major_relic',
-    guaranteedRewards: guaranteed(5, 3, 200),
+    guaranteedRewards: guaranteed(5, 200),
     recommendedSpecialRewards: [
       reward({
         id: 'frostfire_heart',
@@ -482,7 +486,7 @@ export const ADVENTURE_REWARD_MODELS = {
     recommendedLevelRange: [10, 12],
     maxCurrencyBudgetCp: 500,
     maxGearQuality: '+2 or rare +3 pact relic',
-    guaranteedRewards: guaranteed(6, 1, 50),
+    guaranteedRewards: guaranteed(6, 50),
     openingRewards: [
       reward({
         id: 'dawnbound_sickle_plus_3',
