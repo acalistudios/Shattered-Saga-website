@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TAVERNS, EXCLUSIVE_STOCK, TRAINING_EXPERTS, getTrainerConfig } from '../data/downtimeMerchants';
+import { TAVERNS, EXCLUSIVE_STOCK, getTrainerConfig } from '../data/downtimeMerchants';
 import { ADVENTURE_ECONOMY_METADATA } from '../data/adventureEconomy';
 import { GENERIC_ITEM_VALUE_BY_NAME, coinValue } from '../data/economy';
 import { ADVENTURES_LIST } from '../data/adventures';

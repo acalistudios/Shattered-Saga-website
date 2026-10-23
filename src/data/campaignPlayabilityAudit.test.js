@@ -2,7 +2,7 @@ import { describe, it } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ADVENTURES_LIST } from './adventures';
-import { ADVENTURE_PROGRESSION_METADATA, ADVENTURE_CHOICE_DIFFICULTY_CURVES } from './adventureProgression';
+import { ADVENTURE_PROGRESSION_METADATA } from './adventureProgression';
 import { SKILLS_LIST } from './gms';
 import {
   rollAttributePrimary,
@@ -131,7 +131,7 @@ describe('18-Adventure Campaign Playability and Challenge Audit', () => {
         const choices = adventure.settingChoices[room] || [];
         const roomData = {
           name: room,
-          choices: choices.map((c, idx) => {
+          choices: choices.map((c) => {
             const cat = getSkillCategory(c.skill);
             report.summary.skillCategoryCounts[cat] = (report.summary.skillCategoryCounts[cat] || 0) + 1;
             return {
@@ -167,7 +167,7 @@ describe('18-Adventure Campaign Playability and Challenge Audit', () => {
       }
 
       // Calculate aggregate pass rate for each archetype across all rooms of this adventure
-      for (const [archKey, sim] of Object.entries(advData.archetypeSimulations)) {
+      for (const sim of Object.values(advData.archetypeSimulations)) {
         const rates = sim.roomPassRates.map(r => r.winRate);
         sim.averageOptimalPassRate = Math.round(rates.reduce((a, b) => a + b, 0) / rates.length);
         sim.minRoomPassRate = Math.min(...rates);
@@ -176,7 +176,6 @@ describe('18-Adventure Campaign Playability and Challenge Audit', () => {
       // 3. Audit Bosses & Major Threat NPCs
       const bossNpcs = (adventure.npcs || []).filter(npc => {
         const role = (npc.role || '').toLowerCase();
-        const desc = (npc.desc || '').toLowerCase();
         return (
           role.includes('boss') ||
           role.includes('demon') ||

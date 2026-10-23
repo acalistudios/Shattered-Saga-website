@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
-import { COMPANIONS } from '../data/companions';
+import { useState } from 'react';
 import { getCompanionCampfireInfo } from '../data/campfireInterludes';
 
-export default function CampfireModal({
+// Hooks must not sit behind the isOpen early return (rules-of-hooks): React
+// would see a different hook count when the modal opens and throw. The body
+// mounts fresh on each open, so initial selections still reset as before.
+export default function CampfireModal({ isOpen, ...props }) {
+  return isOpen ? <CampfireModalBody {...props} /> : null;
+}
+
+function CampfireModalBody({
   character,
-  isOpen,
   onClose,
   onConfirmRest,
 }) {
-  if (!isOpen) return null;
-
   const companionsList = (character?.companions || [])
     .map(id => getCompanionCampfireInfo(id))
     .filter(Boolean);

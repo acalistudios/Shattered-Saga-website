@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { getKeystoneStatus, getKeystoneCount, isTier4Unlocked } from '../data/keystoneShards';
 
-export default function KeystoneFontTracker({ character, sandboxMode = false, onSelectAdventure }) {
+export default function KeystoneFontTracker({ character, sandboxMode = false }) {
   const shards = getKeystoneStatus(character);
   const count = getKeystoneCount(character);
   const tier4Unlocked = isTier4Unlocked(character, sandboxMode);

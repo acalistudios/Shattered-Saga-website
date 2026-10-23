@@ -10,7 +10,7 @@ describe('Downtime Training System & Trainer Roster', () => {
   });
 
   it('enforces that NO trainer teaches more than 2 skills', () => {
-    for (const [trainerName, entry] of Object.entries(TRAINING_EXPERTS)) {
+    for (const [trainerName] of Object.entries(TRAINING_EXPERTS)) {
       const config = getTrainerConfig(trainerName);
       expect(config, `Trainer ${trainerName} should resolve config`).not.toBeNull();
       expect(config.skills.length, `Trainer ${trainerName} must not teach more than 2 skills`).toBeLessThanOrEqual(2);
@@ -24,7 +24,7 @@ describe('Downtime Training System & Trainer Roster', () => {
       skillToTrainers[skillId] = [];
     }
 
-    for (const [trainerName, entry] of Object.entries(TRAINING_EXPERTS)) {
+    for (const [trainerName] of Object.entries(TRAINING_EXPERTS)) {
       // Skip legacy aliases to prevent double counting
       if (['Arena Quartermaster', 'Silas', 'Thomas'].includes(trainerName)) continue;
       const config = getTrainerConfig(trainerName);
@@ -42,7 +42,7 @@ describe('Downtime Training System & Trainer Roster', () => {
   });
 
   it('enforces that lawful trainers require at least +10 reputation and evil trainers require <= -10 reputation', () => {
-    for (const [trainerName, entry] of Object.entries(TRAINING_EXPERTS)) {
+    for (const [trainerName] of Object.entries(TRAINING_EXPERTS)) {
       if (['Arena Quartermaster', 'Silas', 'Thomas'].includes(trainerName)) continue;
       const config = getTrainerConfig(trainerName);
       if (config.evil) {

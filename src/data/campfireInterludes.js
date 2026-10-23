@@ -113,7 +113,7 @@ export function applyCompanionCampfireDuty(character, companionId) {
 
   const updatedStats = { ...character.stats };
   const updatedProgression = { ...(character.progression || {}) };
-  let dutyMessage = '';
+  let dutyMessage;
 
   switch (normId) {
     case 'skritt_goblin': {

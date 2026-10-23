@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COMPANIONS, getCompanionById, getCompanionForSkill, calculateCompanionSkillBonus } from './companions';
+import { COMPANIONS, getCompanionForSkill, calculateCompanionSkillBonus } from './companions';
 import { SKILLS_LIST } from './gms';
 
 const validSkills = new Set(SKILLS_LIST.map(s => s.id));

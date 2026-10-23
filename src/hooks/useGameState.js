@@ -43,9 +43,9 @@ import { filterGmItemGrants, filterGmCurrencyChanges, isElementalUnlockAllowed }
 import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../utils/authApi';
 import { consumeRationFromInventory, resolveRest } from '../utils/restEngine';
 import { canDeferNarrationCosts, createPreparedNarrationTurn } from '../utils/narrationTurn';
-import { getCompanionById, getCompanionForSkill, getPartingBoon } from '../data/companions';
+import { getCompanionById, getCompanionForSkill } from '../data/companions';
 import { applyCompanionCampfireDuty } from '../data/campfireInterludes';
-import { getKeystoneStatModifiers, getActiveKeystoneResonances } from '../data/keystoneShards';
+import { getKeystoneStatModifiers } from '../data/keystoneShards';
 
 function addCopperToCurrency(currency = {}, amountCp = 0) {
   const currentCp = (currency.gp || currency.gold || 0) * 100 + (currency.sp || 0) * 10 + (currency.cp || 0);

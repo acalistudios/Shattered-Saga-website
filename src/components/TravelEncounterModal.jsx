@@ -18,7 +18,7 @@ export default function TravelEncounterModal({
   const [selectedApproach, setSelectedApproach] = useState(null);
   const [rollResult, setRollResult] = useState(null);
   const [outcomeApplied, setOutcomeApplied] = useState(false);
-  const [tollPaid, setTollPaid] = useState(0);
+  const [, setTollPaid] = useState(0);
 
   if (!encounter || !character) return null;
 

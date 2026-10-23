@@ -1,6 +1,6 @@
 import { signCharacter, compressCharacter } from './secureHash';
 import { calculateWeightAndVolume } from './items';
-import { SKILLS_LIST, ELEMENTS_LIST, PROFESSIONS_LIST, ATTRIBUTE_LIST } from '../data/gms';
+import { SKILLS_LIST, ELEMENTS_LIST, PROFESSIONS_LIST } from '../data/gms';
 import { getCompanionById } from '../data/companions';
 
 export const ELEMENTAL_ABILITIES = {
@@ -732,6 +732,8 @@ export function printCharacterSheet(character) {
                 ${questsHtml}
                 <li style="margin-top: 4px;"><span class="label">Allies & Companions:</span></li>
                 ${compsHtml}
+                <li style="margin-top: 4px;"><span class="label">Relationships:</span></li>
+                ${relationsHtml}
                 <li style="margin-top: 4px;"><span class="label">Backpack Inventory:</span></li>
                 ${invHtml}
                 <li style="margin-top: 4px;"><span class="label">Narrative Scars & Boons:</span></li>
