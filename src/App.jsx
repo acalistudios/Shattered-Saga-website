@@ -1045,7 +1045,11 @@ function App() {
             onOpenSettings={() => setIsSettingsOpen(true)}
             onOpenAccount={handleOpenAccount}
             closeUpgradeScreen={closeUpgradeScreen}
-            executeMilestoneUpgrades={executeMilestoneUpgrades}
+            executeMilestoneUpgrades={() => {
+              // Completing an adventure ends it; return to the map.
+              executeMilestoneUpgrades();
+              setScreen('adventure_selection');
+            }}
             spendSkillPoints={spendSkillPoints}
             claimPendingRewardChoice={claimPendingRewardChoice}
             pendingResurrection={pendingResurrection}

@@ -387,7 +387,7 @@ export default function CharacterCreation({
         <AccountStatusPills gems={gems} userProfile={userProfile} onOpenAccount={onOpenAccount} />
       </div>
 
-      <form onSubmit={handleSubmit} className="flex-1 space-y-8 py-2">
+      <form onSubmit={handleSubmit} className="flex-1 space-y-8 pt-2 pb-24">
         
         {/* Stage 1: Identity & Age & Element */}
         <div className={`grid gap-6 ${isDesktopLayout ? 'grid-cols-3' : 'grid-cols-1'}`}>

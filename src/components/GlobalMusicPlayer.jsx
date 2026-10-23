@@ -1,7 +1,18 @@
 import { useState } from 'react';
 
+const MINIMIZED_KEY = 'shattered_saga_player_minimized';
+
 export default function GlobalMusicPlayer({ audio, activeAdventureId }) {
-  const [isMinimized, setIsMinimized] = useState(false);
+  // Starts minimized: expanded, this fixed panel sat over bottom-right buttons
+  // (e.g. "Awaken the Chronicle" at 1024x768), so a click toggled the music
+  // instead. The player's own choice is remembered.
+  const [isMinimized, setIsMinimizedState] = useState(() => {
+    try { return localStorage.getItem(MINIMIZED_KEY) !== 'false'; } catch { return true; }
+  });
+  const setIsMinimized = (value) => {
+    setIsMinimizedState(value);
+    try { localStorage.setItem(MINIMIZED_KEY, String(value)); } catch { /* storage unavailable */ }
+  };
 
   if (!audio || !audio.currentTrack) return null;
 

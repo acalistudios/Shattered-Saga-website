@@ -3746,6 +3746,18 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     // Reset tally & close screen
     setSkillTally({});
     setIsUpgradeScreenVisible(false);
+
+    // The adventure is over: leave it. Previously activeAdventureId stayed set,
+    // so "Play" re-entered the finished adventure with its stale suggested
+    // actions. The pre-adventure backup is discarded too — it exists to undo a
+    // forfeited run, and restoring it now would erase the rewards just paid.
+    setActiveAdventureId(null);
+    setCurrentLocation('');
+    setActiveEnemy(null);
+    setCombatStance(null);
+    setCounterOpportunities(null);
+    setEnemyAttacksQueue([]);
+    storage.remove(`slot_${activeSlotIndex}_pre_adventure_character`);
   };
 
   const importCharacter = (importedChar) => {
