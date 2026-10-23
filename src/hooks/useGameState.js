@@ -3668,7 +3668,10 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
               nextEvents.push(`Earned +${amount} local reputation with ${boon.reputation.faction} from ${comp.name}'s parting favor.`);
               if (Array.isArray(boon.reputation.merchants)) {
                 boon.reputation.merchants.forEach(mName => {
-                  nextRelationships[mName] = Math.min(100, (nextRelationships[mName] || 0) + amount);
+                  // A favour improves STANDING; underworld merchants (e.g. Old
+                  // Salk, in Kaelen's boon) count negative reputation as good.
+                  const delta = getTrainerConfig(mName)?.evil ? -amount : amount;
+                  nextRelationships[mName] = Math.max(-100, Math.min(100, (nextRelationships[mName] || 0) + delta));
                 });
               }
             }

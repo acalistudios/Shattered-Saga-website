@@ -28,6 +28,13 @@ export default function DowntimeMarketModal({
 
   const relationships = character.localEconomy?.relationships || {};
   const currentRelation = selectedMerchant ? (relationships[selectedMerchant.name] || 0) : 0;
+  // Underworld mentors (Old Salk, Candle Nix, ...) favour outlaws: for them a
+  // NEGATIVE reputation is good standing. The shop used the raw number, so a
+  // character Old Salk would train at -15 was "Hostile" with a markup there,
+  // and at -30 was banned from his shop. `standing` is reputation as THIS
+  // merchant sees it; training checks the raw value against its own rule.
+  const isUnderworldMerchant = !!(selectedMerchant && getTrainerConfig(selectedMerchant.name)?.evil);
+  const standing = isUnderworldMerchant ? -currentRelation : currentRelation;
 
   // Trigger price recovery on modal load
   useEffect(() => {
@@ -39,7 +46,7 @@ export default function DowntimeMarketModal({
   // Lazy-initialize merchant stock when selected merchant changes
   useEffect(() => {
     if (isOpen && selectedMerchant && !selectedMerchant.isTavern) {
-      initializeMerchantStock(selectedMerchant.name, currentRelation);
+      initializeMerchantStock(selectedMerchant.name, standing);
     }
   }, [isOpen, selectedMerchant]);
 
@@ -123,24 +130,24 @@ export default function DowntimeMarketModal({
     setSelectedMerchant(merchantsList[0]);
   }
 
-  const isBanned = currentRelation <= -30;
+  const isBanned = standing <= -30;
 
   // Determine relationship rank label
   let relationRank = 'Neutral';
   let rankColor = 'text-slate-400';
-  if (currentRelation <= -30) {
+  if (standing <= -30) {
     relationRank = 'Banned 🔒';
     rankColor = 'text-red-500 font-extrabold';
-  } else if (currentRelation <= -11) {
+  } else if (standing <= -11) {
     relationRank = 'Hostile';
     rankColor = 'text-red-400';
-  } else if (currentRelation >= 80) {
+  } else if (standing >= 80) {
     relationRank = 'Allied';
     rankColor = 'text-emerald-400 font-extrabold';
-  } else if (currentRelation >= 50) {
+  } else if (standing >= 50) {
     relationRank = 'Respected';
     rankColor = 'text-amber-400';
-  } else if (currentRelation >= 11) {
+  } else if (standing >= 11) {
     relationRank = 'Friendly';
     rankColor = 'text-emerald-500';
   }
@@ -178,7 +185,7 @@ export default function DowntimeMarketModal({
 
     // Buy price modifier is -0.2% per relationship point
     // Combine relations discount factor and morality factor
-    const discountFactor = (1 - (currentRelation * 0.002)) - moralityFactor;
+    const discountFactor = (1 - (standing * 0.002)) - moralityFactor;
     let finalPrice = Math.max(1, Math.round(baseCp * discountFactor));
     
     // Clamp to ensure it doesn't fall below sell price
@@ -221,7 +228,7 @@ export default function DowntimeMarketModal({
 
     // Base sell rate is 50%
     // Relation modifier is +0.25% per relationship point
-    const relationFactor = 0.50 + (currentRelation * 0.0025) + moralityFactor;
+    const relationFactor = 0.50 + (standing * 0.0025) + moralityFactor;
     
     // Decay factors
     const mercDecayMap = character.localEconomy?.decay?.[selectedMerchant?.name] || {};
@@ -289,7 +296,7 @@ export default function DowntimeMarketModal({
       // 3. Add rare exclusive items based on relationship
       const rareItems = EXCLUSIVE_STOCK[selectedMerchant.name] || [];
       rareItems.forEach(rare => {
-        if (currentRelation >= rare.reqRelationship) {
+        if (standing >= rare.reqRelationship) {
           if (!merchantStock.find(mItem => mItem.name === rare.item)) {
             merchantStock.push({
               name: rare.item,
@@ -303,6 +310,15 @@ export default function DowntimeMarketModal({
     }
   }
 
+  // Interactions change STANDING with this merchant. For underworld merchants
+  // that means moving reputation the other way: a gift or good chat pushes it
+  // negative (deeper in their circle), and being caught stealing pushes it
+  // positive. Before this, getting caught robbing Old Salk (-40) unlocked his
+  // outlaw tutelage.
+  const adjustStanding = (delta) => {
+    adjustMerchantRelationship(selectedMerchant.name, isUnderworldMerchant ? -delta : delta);
+  };
+
   // Handle interaction actions
   const handleChat = () => {
     if (isBanned) return;
@@ -312,11 +328,11 @@ export default function DowntimeMarketModal({
     const totalRoll = roll + charisma;
     
     if (totalRoll >= 12) {
-      adjustMerchantRelationship(selectedMerchant.name, 2);
-      setInteractMessage(`Success! You engage in pleasant conversation and compliment their wares. (Roll: ${totalRoll} vs 12). Relationship +2.`);
+      adjustStanding(2);
+      setInteractMessage(`Success! You engage in pleasant conversation and compliment their wares. (Roll: ${totalRoll} vs 12). Standing +2.`);
     } else {
-      adjustMerchantRelationship(selectedMerchant.name, -1);
-      setInteractMessage(`Oops! You accidentally say something awkward and annoy them. (Roll: ${totalRoll} vs 12). Relationship -1.`);
+      adjustStanding(-1);
+      setInteractMessage(`Oops! You accidentally say something awkward and annoy them. (Roll: ${totalRoll} vs 12). Standing -1.`);
     }
   };
 
@@ -335,9 +351,9 @@ export default function DowntimeMarketModal({
 
     // Consume the item
     character.inventory.splice(itemIdx, 1);
-    adjustMerchantRelationship(selectedMerchant.name, points);
+    adjustStanding(points);
 
-    setInteractMessage(`You gift a ${giftItemName} to ${selectedMerchant.name}. They accept it warmly! Relationship +${points}.`);
+    setInteractMessage(`You gift a ${giftItemName} to ${selectedMerchant.name}. They accept it warmly! Standing +${points}.`);
     setGiftItemName('');
   };
 
@@ -361,8 +377,8 @@ export default function DowntimeMarketModal({
       setInteractMessage(`Success! You slide a ${randomItem.name} into your pack without anyone noticing. (Roll: ${totalRoll} vs 15).`);
     } else {
       // Busted! Huge relationship penalty
-      adjustMerchantRelationship(selectedMerchant.name, -40);
-      setInteractMessage(`Caught! The merchant calls you a thief and kicks you out! (Roll: ${totalRoll} vs 15). Relationship -40.`);
+      adjustStanding(-40);
+      setInteractMessage(`Caught! The merchant calls you a thief and kicks you out! (Roll: ${totalRoll} vs 15). Standing -40.`);
     }
   };
 
@@ -578,7 +594,7 @@ export default function DowntimeMarketModal({
                       <span className="text-4xl mb-3">🔒</span>
                       <h4 className="text-red-400 font-serif font-black text-sm">Access Denied</h4>
                       <p className="text-3xs text-slate-400 mt-2 max-w-sm leading-relaxed">
-                        Your reputation with {selectedMerchant.name} is too low ({currentRelation}). They have banned you from their shop, refuse to speak with you, and will refuse any gifts.
+                        {isUnderworldMerchant ? `${selectedMerchant.name} wants nothing to do with someone so lawful (reputation ${currentRelation >= 0 ? "+" : ""}${currentRelation}).` : `Your reputation with ${selectedMerchant.name} is too low (${currentRelation}).`} They have banned you from their shop, refuse to speak with you, and will refuse any gifts.
                       </p>
                     </div>
                   ) : (
@@ -614,7 +630,7 @@ export default function DowntimeMarketModal({
                                     <div className="text-[10px] text-slate-400 mt-0.5 space-y-0.5">
                                       <div>Listed: {formatCoins(baseCost)}</div>
                                       <div className="flex gap-2 text-[9px] text-slate-500 font-mono">
-                                        <span>Standing: {currentRelation > 0 ? '-' : currentRelation < 0 ? '+' : ''}{Math.round(Math.abs(currentRelation) * 0.2)}%</span>
+                                        <span>Standing: {standing > 0 ? '-' : standing < 0 ? '+' : ''}{Math.round(Math.abs(standing) * 0.2)}%</span>
                                         {cost > baseCost && <span className="text-red-400/80">Penalty: +{Math.round(((cost / baseCost) - 1) * 100)}%</span>}
                                         {cost < baseCost && <span className="text-emerald-400/80">Discount: -{Math.round((1 - (cost / baseCost)) * 100)}%</span>}
                                       </div>
@@ -691,7 +707,7 @@ export default function DowntimeMarketModal({
                                           }
                                         }
 
-                                        const relationFactor = 0.50 + (currentRelation * 0.0025) + moralityFactor;
+                                        const relationFactor = 0.50 + (standing * 0.0025) + moralityFactor;
                                         const mercDecayMap = character.localEconomy?.decay?.[selectedMerchant?.name] || {};
                                         const itemDecayCount = mercDecayMap[invItem] || 0;
                                         const regDecayMap = character.localEconomy?.regionDecay?.[selectedHubId] || {};
@@ -702,9 +718,9 @@ export default function DowntimeMarketModal({
                                         return (
                                           <div className="flex flex-wrap gap-x-2 text-[9px] text-slate-500 font-mono">
                                             <span>Base: 50%</span>
-                                            {currentRelation !== 0 && (
-                                              <span className={currentRelation > 0 ? "text-emerald-500/80" : "text-red-500/80"}>
-                                                Rep: {currentRelation > 0 ? '+' : ''}{Math.round(currentRelation * 0.25)}%
+                                            {standing !== 0 && (
+                                              <span className={standing > 0 ? "text-emerald-500/80" : "text-red-500/80"}>
+                                                Rep: {standing > 0 ? '+' : ''}{Math.round(standing * 0.25)}%
                                               </span>
                                             )}
                                             {moralityFactor !== 0 && (
