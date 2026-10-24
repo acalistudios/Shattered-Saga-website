@@ -7,7 +7,8 @@ import { WORLD_REGIONS, MAP_NODES, MAP_IMAGES, REGION_TRANSIT_CHALLENGES } from 
 import AccountStatusPills from '../components/AccountStatusPills';
 import TravelEncounterModal from '../components/TravelEncounterModal';
 import KeystoneFontTracker from '../components/KeystoneFontTracker';
-import { getRandomTravelEncounter } from '../data/travelEncounters';
+import { getRandomTravelEncounter, TRAVEL_ENCOUNTERS } from '../data/travelEncounters';
+import { pendingPatrolEncounterFor } from '../utils/patrolEngine';
 import { ADVENTURE_PROGRESSION_METADATA } from '../data/adventureProgression';
 import { getAdventurePowerBand } from '../data/difficultyScaling';
 import { isTier4Unlocked, getKeystoneCount } from '../data/keystoneShards';
@@ -106,7 +107,8 @@ export default function AdventureSelection({
   unlockRegion,
   consumeItem,
   onExportSaveFile,
-  onOpenAccount
+  onOpenAccount,
+  onPatrolDeath
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
   const completedAdventures = character?.completed_adventures || [];
@@ -129,7 +131,9 @@ export default function AdventureSelection({
 
   const handleStartRoadPatrol = () => {
     const targetRegion = mapLevel === 'world' ? selectedRegionId : mapLevel;
-    const encounter = getRandomTravelEncounter(targetRegion);
+    // If a foe on this region's roads took your gear, the patrol finds them.
+    const huntedId = pendingPatrolEncounterFor(character, targetRegion);
+    const encounter = (huntedId && TRAVEL_ENCOUNTERS.find(e => e.id === huntedId)) || getRandomTravelEncounter(targetRegion);
     setActiveTravelEncounter(encounter);
   };
 
@@ -1236,6 +1240,10 @@ export default function AdventureSelection({
           character={character}
           onClose={() => setActiveTravelEncounter(null)}
           onUpdateCharacterStats={onUpdateCharacterStats}
+          onPatrolDeath={(encounterId, regionId) => {
+            setActiveTravelEncounter(null);
+            onPatrolDeath?.(encounterId, regionId);
+          }}
         />
       )}
 

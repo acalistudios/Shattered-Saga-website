@@ -42,6 +42,7 @@ import { resolveCombatTarget } from '../utils/combatTarget';
 import { filterGmItemGrants, filterGmCurrencyChanges, isElementalUnlockAllowed } from '../utils/rewardPolicy';
 import { claimDepot, isAtDepot, settleConfiscatedOnCompletion, shouldConfiscateOnEntry } from '../utils/depotEngine';
 import { getSupplyDepot } from '../data/supplyDepot';
+import { PATROL_FOES, patrolGearRecovery } from '../utils/patrolEngine';
 import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../utils/authApi';
 import { consumeRationFromInventory, resolveRest } from '../utils/restEngine';
 import { canDeferNarrationCosts, createPreparedNarrationTurn } from '../utils/narrationTurn';
@@ -4912,7 +4913,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
    * Death: offer the way back. A divine-intervention item, if carried, is spent
    * here instead and skips the penalties entirely — that is what it is sold for.
    */
-  const beginResurrection = () => {
+  // `death` overrides who killed the player and where. Adventure deaths use the
+  // active enemy and adventure; patrol deaths pass their own foe and region.
+  const beginResurrection = (death = {}) => {
     const carried = [
       ...Object.values(character.equipment || {}).filter(Boolean),
       ...(character.inventory || []),
@@ -4947,8 +4950,18 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     setPendingResurrection({
       choices: rollResurrectionAttributeChoices(character),
       sites: getAvailableResurrectionSites(character.completed_adventures || []),
-      killerName: activeEnemy?.name || '',
-      adventureId: activeAdventureId || null,
+      killerName: death.killerName ?? (activeEnemy?.name || ''),
+      adventureId: death.adventureId !== undefined ? death.adventureId : (activeAdventureId || null),
+      patrol: death.patrol || null,
+    });
+  };
+
+  /** Died on a Road Patrol: same resurrection, with road-based gear recovery. */
+  const beginPatrolDeath = (encounterId, regionId) => {
+    beginResurrection({
+      killerName: PATROL_FOES[encounterId]?.name || 'Road Ambusher',
+      adventureId: null,
+      patrol: { encounterId, regionId },
     });
   };
 
@@ -5015,17 +5028,39 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     if (!pendingResurrection) return;
     const diedAtHours = getGameHourStamp(character.stats?.day, character.stats?.hour);
 
-    updateCharacterStats(prev => applyResurrection(prev, {
-      attributeId,
-      site,
-      adventureId: pendingResurrection.adventureId,
-      killerName: pendingResurrection.killerName,
-      diedAtHours,
-    }));
+    const patrol = pendingResurrection.patrol;
+    updateCharacterStats(prev => {
+      const risen = applyResurrection(prev, {
+        attributeId,
+        site,
+        adventureId: pendingResurrection.adventureId,
+        killerName: pendingResurrection.killerName,
+        diedAtHours,
+      });
+      if (!patrol) return risen;
+      // Patrol roads have no authored map, so the generic recovery is null;
+      // record a road-based one so the gear can be won back on that road.
+      const lostGear = [
+        ...Object.values(prev.equipment || {}).filter(Boolean),
+        ...(prev.inventory || []),
+      ];
+      return {
+        ...risen,
+        progression: {
+          ...risen.progression,
+          pendingGearRecovery: {
+            ...patrolGearRecovery({ encounterId: patrol.encounterId, regionId: patrol.regionId, diedAtHours }),
+            items: lostGear,
+          },
+        },
+      };
+    });
 
-    const recovery = pendingResurrection.adventureId
-      ? resolveGearRecovery(pendingResurrection.adventureId, pendingResurrection.killerName)
-      : null;
+    const recovery = patrol
+      ? patrolGearRecovery({ encounterId: patrol.encounterId, regionId: patrol.regionId, diedAtHours })
+      : pendingResurrection.adventureId
+        ? resolveGearRecovery(pendingResurrection.adventureId, pendingResurrection.killerName)
+        : null;
     const gearText = recovery
       ? recovery.carries
         ? ` Your gear was taken by ${recovery.killer}, last seen near ${recovery.location}. Find them before the trail goes cold.`
@@ -6076,6 +6111,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     character,
     pendingResurrection,
     beginResurrection,
+    beginPatrolDeath,
     completeResurrection,
     returnToInterruptedAdventure,
     initializeMerchantStock,

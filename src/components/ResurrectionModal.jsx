@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { resolveGearRecovery } from '../data/gearRecovery';
+import { patrolGearRecovery } from '../utils/patrolEngine';
 
 // Deliberately not dismissable: there is no "cancel" for dying. The player must
 // choose what the return costs before play continues.
@@ -21,9 +22,12 @@ export default function ResurrectionModal({ pendingResurrection, character, onCo
 
   if (!pendingResurrection) return null;
 
-  const { choices = [], sites = [], adventureId, killerName } = pendingResurrection;
+  const { choices = [], sites = [], adventureId, killerName, patrol } = pendingResurrection;
   const site = sites.find(s => s.adventureId === siteId) || null;
-  const recovery = adventureId ? resolveGearRecovery(adventureId, killerName) : null;
+  // Patrol deaths have no authored map: the gear is won back on that road.
+  const recovery = patrol
+    ? patrolGearRecovery({ encounterId: patrol.encounterId, regionId: patrol.regionId, diedAtHours: 0 })
+    : adventureId ? resolveGearRecovery(adventureId, killerName) : null;
   const repeatDeath = (character?.progression?.resurrectionCount || 0) > 0;
   // A site is always required. An attribute is only required when one was offered
   // — a character with nothing left to lose still has to choose where to wake.
@@ -149,7 +153,14 @@ export default function ResurrectionModal({ pendingResurrection, character, onCo
                 Your Gear
               </h4>
               <p className="text-slate-300">
-                {recovery.carries ? (
+                {patrol ? (
+                  <>
+                    {recovery.carries
+                      ? <><span className="font-bold text-amber-300">{recovery.killer}</span> took it.</>
+                      : <>It lies on the road where the <span className="font-bold text-amber-300">{recovery.killer}</span> brought you down.</>}{' '}
+                    Patrol the same region again: you will meet them, and beating them wins it back.
+                  </>
+                ) : recovery.carries ? (
                   <>
                     <span className="font-bold text-amber-300">{recovery.killer}</span> took
                     it. Last seen near <span className="font-bold">{recovery.location}</span>.

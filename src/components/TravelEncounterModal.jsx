@@ -2,6 +2,17 @@ import { useState } from 'react';
 import { executeOpposedCheck } from '../utils/ai';
 import { SKILLS_LIST } from '../data/gms';
 import { getCompanionForSkill } from '../data/companions';
+import {
+  applyPatrolCosts, rollPatrolLoot, resolvePatrolFailure, retreatPursuitDamage,
+  addLootToInventory, PATROL_HOURS, PATROL_FOES,
+} from '../utils/patrolEngine';
+import { recoverGear } from '../utils/resurrectionEngine';
+
+// Each approach's authored failure damage ("... inflicting 5 HP damage").
+const failDamageOf = (approach) => {
+  const m = String(approach?.failDesc || '').match(/(\d+)\s*HP/i);
+  return m ? Number(m[1]) : 4;
+};
 
 /**
  * Interactive Travel & Roadside Combat Encounter Modal.
@@ -13,12 +24,12 @@ export default function TravelEncounterModal({
   encounter,
   character,
   onClose,
-  onUpdateCharacterStats
+  onUpdateCharacterStats,
+  onPatrolDeath
 }) {
   const [selectedApproach, setSelectedApproach] = useState(null);
   const [rollResult, setRollResult] = useState(null);
   const [outcomeApplied, setOutcomeApplied] = useState(false);
-  const [, setTollPaid] = useState(0);
 
   if (!encounter || !character) return null;
 
@@ -27,6 +38,9 @@ export default function TravelEncounterModal({
   const currentGp = character.currency?.gp ?? character.currency?.gold ?? 0;
   const currentSp = character.currency?.sp ?? 0;
   const currentCp = character.currency?.cp ?? 0;
+  // This road's foe is holding the gear you lost here: beating it recovers it.
+  const pendingRecovery = character.progression?.pendingGearRecovery;
+  const huntingOwnGear = !!pendingRecovery && pendingRecovery.patrolEncounterId === encounter.id;
 
   // Find skill info and character capability for a given skill ID
   const getSkillMeta = (skillId) => {
@@ -94,83 +108,92 @@ export default function TravelEncounterModal({
     const isDiplomacy = approach.id === 'diplomatic_parley' || approach.id === 'corsair_bribe' || approach.id === 'mountain_intimidation' || approach.id === 'ration_bargain' || approach.id === 'gladiator_code' || approach.id === 'pack_negotiate' || approach.id === 'medical_triage_parley' || approach.id === 'planar_bargain';
     const isNarrowDiplomacy = isDiplomacy && isSuccess && margin <= 2;
 
-    let appliedToll = 0;
-    if (isNarrowDiplomacy) {
-      const tollCost = approach.tollCost || 10;
-      appliedToll = Math.min(currentGp, tollCost);
-      setTollPaid(appliedToll);
-    }
+    // Roll everything ONCE here so the screen shows exactly what is applied.
+    const appliedToll = isNarrowDiplomacy ? Math.min(currentGp, approach.tollCost || 10) : 0;
+    const loot = isSuccess && !isNarrowDiplomacy ? rollPatrolLoot(approach.rewards) : null;
+    const failDamage = failDamageOf(approach);
+    const failure = isSuccess ? null : resolvePatrolFailure({ hp: currentHp, damage: failDamage, margin });
+    const stolenGold = !isSuccess && isDiplomacy ? Math.min(currentGp, 15) : 0;
+    const recovers = isSuccess && huntingOwnGear;
 
     setRollResult({
       ...opposedCheck,
+      mode: 'approach',
       isSuccess,
       isNarrowDiplomacy,
       appliedToll,
       approach,
+      loot,
+      failDamage,
+      died: !!failure?.died,
+      stolenGold,
+      recovers,
       companion: meta.companion,
       companionBonus: meta.companionBonus
     });
 
-    // Apply stats changes
     if (onUpdateCharacterStats && !outcomeApplied) {
       setOutcomeApplied(true);
       onUpdateCharacterStats(prev => {
-        const nextStats = { ...prev.stats };
-        const nextCurrency = { ...prev.currency };
-        const nextProgression = { ...prev.progression };
-        const nextInventory = [...(prev.inventory || [])];
+        // Every patrol costs time and fatigue, and crossing midnight eats a
+        // ration: that is what stops patrols being an unlimited grind.
+        let next = applyPatrolCosts(prev);
+        const currency = { ...next.currency };
+        const gp = currency.gp ?? currency.gold ?? 0;
+        let morality = next.morality || 0;
 
         if (isSuccess) {
           if (isNarrowDiplomacy) {
-            // Narrow diplomatic win: pay toll, gain reputation & morality
-            const currGold = nextCurrency.gp ?? nextCurrency.gold ?? 0;
-            const remainingGold = Math.max(0, currGold - appliedToll);
-            nextCurrency.gp = remainingGold;
-            nextCurrency.gold = remainingGold;
-            nextProgression.reputation = (nextProgression.reputation || 0) + (approach.rewards?.reputation || 10);
-            nextProgression.morality = (nextProgression.morality || 0) + 1;
+            currency.gp = currency.gold = Math.max(0, gp - appliedToll);
+            morality += 1;
           } else {
-            // Full win: rewards
-            const rew = approach.rewards || {};
-            if (rew.gold) {
-              const currGold = nextCurrency.gp ?? nextCurrency.gold ?? 0;
-              nextCurrency.gp = currGold + rew.gold;
-              nextCurrency.gold = currGold + rew.gold;
-            }
-            if (rew.reputation) {
-              nextProgression.reputation = (nextProgression.reputation || 0) + rew.reputation;
-            }
-            if (rew.morality) {
-              nextProgression.morality = (nextProgression.morality || 0) + rew.morality;
-            }
-            if (rew.items && Array.isArray(rew.items)) {
-              rew.items.forEach(it => {
-                if (nextInventory.length < 20) {
-                  nextInventory.push(it);
-                }
-              });
-            }
+            currency.gp = currency.gold = gp + loot.gold;
+            morality += loot.morality;
+            next = { ...next, inventory: addLootToInventory(next.inventory, loot.items) };
           }
+          if (recovers) next = recoverGear(next);
         } else {
-          // Failure: suffer damage and potential loss of gold
-          const damage = 4;
-          nextStats.hp = Math.max(1, (nextStats.hp || 10) - damage);
-
-          if (isDiplomacy) {
-            const stolenGold = Math.min(nextCurrency.gp ?? nextCurrency.gold ?? 0, 15);
-            const remainingGold = Math.max(0, (nextCurrency.gp ?? nextCurrency.gold ?? 0) - stolenGold);
-            nextCurrency.gp = remainingGold;
-            nextCurrency.gold = remainingGold;
-          }
+          next = { ...next, stats: { ...next.stats, hp: failure.hp } };
+          if (stolenGold) currency.gp = currency.gold = Math.max(0, gp - stolenGold);
         }
 
-        return {
-          ...prev,
-          stats: nextStats,
-          currency: nextCurrency,
-          progression: nextProgression,
-          inventory: nextInventory
-        };
+        // Morality lives on the character (it drives prices and GM tone). It
+        // used to be written to progression.morality, which nothing reads.
+        return { ...next, currency, morality: Math.max(-100, Math.min(100, morality)) };
+      });
+    }
+
+    if (failure?.died && onPatrolDeath) onPatrolDeath(encounter.id, encounter.region);
+  };
+
+  // Retreat is a roll, not a free exit (Hans 2026-09-08): fail and the foe
+  // gives chase, costing part of the failure damage before you get clear.
+  const handleRetreat = () => {
+    if (rollResult) return;
+    const retreatApproach = { skill: 'athletics', fallbackSkill: 'acrobatics', difficulty: 'novice' };
+    const meta = getEffectiveSkillData(retreatApproach);
+    const check = executeOpposedCheck({
+      skillName: meta.skill.name,
+      primaryAttr: meta.primaryAttr,
+      primaryScore: meta.primaryScore,
+      secondaryAttr: meta.secondaryAttr,
+      secondaryScore: meta.secondaryScore,
+      skillRanks: meta.ranks,
+      difficulty: 'novice',
+      roleplayModifier: meta.companionBonus
+    });
+    const escaped = check.success || check.tie;
+    const worstDamage = Math.max(...encounter.approaches.map(failDamageOf));
+    const pursuit = escaped ? 0 : retreatPursuitDamage(worstDamage);
+
+    setRollResult({ ...check, mode: 'retreat', isSuccess: escaped, pursuit, approach: { id: 'retreat' }, companion: meta.companion, companionBonus: meta.companionBonus });
+
+    if (onUpdateCharacterStats && !outcomeApplied) {
+      setOutcomeApplied(true);
+      onUpdateCharacterStats(prev => {
+        const next = applyPatrolCosts(prev);
+        // Being run down while fleeing hurts but never kills.
+        return pursuit ? { ...next, stats: { ...next.stats, hp: Math.max(1, (next.stats.hp ?? 10) - pursuit) } } : next;
       });
     }
   };
@@ -210,6 +233,11 @@ export default function TravelEncounterModal({
             "{encounter.intro}"
           </div>
 
+          {!rollResult && huntingOwnGear && (
+            <div className="mb-4 p-3 rounded border border-emerald-500/40 bg-emerald-955/20 text-3xs text-emerald-200">
+              🎒 This is the {PATROL_FOES[encounter.id]?.name || 'band'} that took your gear. Beat them to get it back.
+            </div>
+          )}
           {!rollResult ? (
             /* Choose Tactical Approach */
             <div>
@@ -335,15 +363,23 @@ export default function TravelEncounterModal({
                 <h4 className="font-serif font-extrabold text-sm mb-1.5 flex items-center gap-2">
                   <span>{rollResult.isSuccess ? '⚔️' : '⚠️'}</span>
                   <span>
-                    {rollResult.isSuccess
-                      ? (rollResult.isNarrowDiplomacy ? 'Toll Paid for Safe Passage' : rollResult.approach.winTitle)
-                      : 'Ambush Overwhelms Your Position'}
+                    {rollResult.mode === 'retreat'
+                      ? (rollResult.isSuccess ? 'You Slip Away' : 'Run Down While Fleeing')
+                      : rollResult.died
+                        ? 'You Fall on the Road'
+                        : rollResult.isSuccess
+                          ? (rollResult.isNarrowDiplomacy ? 'Toll Paid for Safe Passage' : rollResult.approach.winTitle)
+                          : 'Ambush Overwhelms Your Position'}
                   </span>
                 </h4>
                 <p className="text-3xs leading-relaxed text-slate-300">
-                  {rollResult.isSuccess
-                    ? (rollResult.isNarrowDiplomacy ? rollResult.approach.narrowWinDesc : rollResult.approach.winDesc)
-                    : rollResult.approach.failDesc}
+                  {rollResult.mode === 'retreat'
+                    ? (rollResult.isSuccess
+                      ? 'You break from the road and lose them in the rough country. No spoils, but no wounds either.'
+                      : `They give chase and catch you before you get clear: ${rollResult.pursuit} HP of damage before you finally escape.`)
+                    : rollResult.isSuccess
+                      ? (rollResult.isNarrowDiplomacy ? rollResult.approach.narrowWinDesc : rollResult.approach.winDesc)
+                      : rollResult.approach.failDesc}
                 </p>
               </div>
 
@@ -354,15 +390,26 @@ export default function TravelEncounterModal({
                 </span>
 
                 <div className="flex flex-wrap gap-2 text-3xs">
-                  {rollResult.isSuccess ? (
+                  <span className="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-slate-400">
+                    ⏳ {PATROL_HOURS} hours on the road · fatigue spent
+                  </span>
+                  {rollResult.recovers && (
+                    <span className="px-2 py-1 rounded bg-slate-950 border border-emerald-500/40 text-emerald-300">
+                      🎒 Recovered the gear you lost on this road
+                    </span>
+                  )}
+                  {rollResult.mode === 'retreat' ? (
+                    !rollResult.isSuccess && (
+                      <span className="px-2 py-1 rounded bg-slate-950 border border-red-500/30 text-red-400">
+                        ❤️ Caught fleeing: -{rollResult.pursuit} HP
+                      </span>
+                    )
+                  ) : rollResult.isSuccess ? (
                     <>
                       {rollResult.isNarrowDiplomacy ? (
                         <>
                           <span className="px-2 py-1 rounded bg-slate-950 border border-red-500/30 text-red-400">
                             💰 Toll Paid: -{rollResult.appliedToll} Gold
-                          </span>
-                          <span className="px-2 py-1 rounded bg-slate-950 border border-emerald-500/30 text-emerald-400">
-                            ⭐ Reputation: +10
                           </span>
                           <span className="px-2 py-1 rounded bg-slate-950 border border-blue-500/30 text-blue-400">
                             ⚖️ Morality: +1
@@ -370,22 +417,17 @@ export default function TravelEncounterModal({
                         </>
                       ) : (
                         <>
-                          {rollResult.approach.rewards?.gold > 0 && (
+                          {rollResult.loot?.gold > 0 && (
                             <span className="px-2 py-1 rounded bg-slate-950 border border-amber-500/30 text-amber-400">
-                              💰 Gold Looted: +{rollResult.approach.rewards.gold}g
+                              💰 Gold Looted: +{rollResult.loot.gold}g
                             </span>
                           )}
-                          {rollResult.approach.rewards?.reputation > 0 && (
-                            <span className="px-2 py-1 rounded bg-slate-950 border border-emerald-500/30 text-emerald-400">
-                              ⭐ Reputation: +{rollResult.approach.rewards.reputation}
-                            </span>
-                          )}
-                          {rollResult.approach.rewards?.morality > 0 && (
+                          {rollResult.loot?.morality > 0 && (
                             <span className="px-2 py-1 rounded bg-slate-950 border border-blue-500/30 text-blue-400">
-                              ⚖️ Morality: +{rollResult.approach.rewards.morality}
+                              ⚖️ Morality: +{rollResult.loot.morality}
                             </span>
                           )}
-                          {rollResult.approach.rewards?.items?.map((it, idx) => (
+                          {rollResult.loot?.items?.map((it, idx) => (
                             <span key={idx} className="px-2 py-1 rounded bg-slate-950 border border-purple-500/30 text-purple-300">
                               🎁 Loot: {it}
                             </span>
@@ -396,11 +438,11 @@ export default function TravelEncounterModal({
                   ) : (
                     <>
                       <span className="px-2 py-1 rounded bg-slate-950 border border-red-500/30 text-red-400">
-                        ❤️ Damage Taken: -4 HP
+                        ❤️ Damage Taken: -{rollResult.failDamage} HP{rollResult.died ? ' — fatal' : ''}
                       </span>
-                      {rollResult.approach.id.includes('parley') && (
+                      {rollResult.stolenGold > 0 && (
                         <span className="px-2 py-1 rounded bg-slate-950 border border-red-500/30 text-red-400">
-                          💰 Gold Stolen: -{Math.min(currentGp, 15)}g
+                          💰 Gold Stolen: -{rollResult.stolenGold}g
                         </span>
                       )}
                     </>
@@ -428,11 +470,11 @@ export default function TravelEncounterModal({
         {!rollResult && (
           <div className="bg-slate-900 border-t border-slate-800 px-6 py-3 flex justify-between items-center">
             <span className="text-4xs text-slate-500 italic">
-              Careful tactics and skill choice increase your odds of survival.
+              Fleeing is an Athletics roll. Fail, and they run you down.
             </span>
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleRetreat}
               className="px-4 py-1.5 rounded bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-400 text-3xs font-bold uppercase tracking-wider cursor-pointer"
             >
               Flee & Retreat

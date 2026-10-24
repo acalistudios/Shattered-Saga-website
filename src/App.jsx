@@ -6,6 +6,7 @@ import Splash from './screens/Splash';
 import CharacterCreation from './screens/CharacterCreation';
 import AdventureSelection from './screens/AdventureSelection';
 import PlayScreen from './screens/PlayScreen';
+import ResurrectionModal from './components/ResurrectionModal';
 // GMSelection screen removed: the game now uses a single neutral narrator.
 import AccountScreen from './screens/AccountScreen';
 import SettingsModal from './components/SettingsModal';
@@ -102,6 +103,7 @@ function App() {
     claimPendingRewardChoice,
     pendingResurrection,
     beginResurrection,
+    beginPatrolDeath,
     completeResurrection,
     returnToInterruptedAdventure,
     activeEnemy,
@@ -984,6 +986,7 @@ function App() {
           <AdventureSelection
             character={character}
             userProfile={userProfile}
+            onPatrolDeath={beginPatrolDeath}
             onSelectAdventure={handleSelectAdventure}
             onBack={() => setScreen('splash')}
             gems={gems}
@@ -1165,6 +1168,15 @@ function App() {
           renderContent()
         )}
         <GlobalMusicPlayer audio={audio} activeAdventureId={activeAdventureId} />
+        {/* PlayScreen renders its own; this covers deaths off the play screen,
+            such as dying on a Road Patrol from the map. */}
+        {screen !== 'play' && (
+          <ResurrectionModal
+            pendingResurrection={pendingResurrection}
+            character={character}
+            onConfirm={completeResurrection}
+          />
+        )}
       </div>
     </div>
   );
