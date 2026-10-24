@@ -40,6 +40,8 @@ import { resolveGearRecovery } from '../data/gearRecovery';
 import { getGameHourStamp, getAdventureStartClock } from '../utils/rewardEngine';
 import { resolveCombatTarget } from '../utils/combatTarget';
 import { filterGmItemGrants, filterGmCurrencyChanges, isElementalUnlockAllowed } from '../utils/rewardPolicy';
+import { claimDepot, isAtDepot, settleConfiscatedOnCompletion, shouldConfiscateOnEntry } from '../utils/depotEngine';
+import { getSupplyDepot } from '../data/supplyDepot';
 import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../utils/authApi';
 import { consumeRationFromInventory, resolveRest } from '../utils/restEngine';
 import { canDeferNarrationCosts, createPreparedNarrationTurn } from '../utils/narrationTurn';
@@ -2273,6 +2275,7 @@ ${(activeAdventure.itemsDetail || []).map(item => {
   return `- ${item.name}: ${item.desc}${propStr}`;
 }).join('\n')}
 Items you may hand over with [add_item] in this adventure (exact names; anything else is ignored): ${(activeAdventure.items || []).join(', ') || 'none'}.
+${getSupplyDepot(activeAdventureId) ? `CONFISCATED GEAR: the player's gear was taken on capture and is held in the ${getSupplyDepot(activeAdventureId).location}. It comes back ONLY if the player reaches that room — the engine returns it automatically when you emit [location: ${getSupplyDepot(activeAdventureId).location}]; never [add_item] it. If the adventure ends without the player going there, the gear is lost for good. Early on, have a prisoner (Sera, Kael or Old Bram) mention where the gear is kept and that unclaimed belongings get sold off, without forcing the player to go.` : ''}
 
 [ADVENTURE ECONOMY]
 Currency: 10 cp = 1 sp, 10 sp = 1 gp, so 1 gp = 100 cp. Treat copper value as the authoritative price and display gold/silver/copper naturally in narration.
@@ -2738,7 +2741,6 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const itemGrantPolicy = filterGmItemGrants({
         items: [...cleanedText.matchAll(addItemRegex)].map(m => m[1].trim()),
         adventureItems: ADVENTURES_LIST.find(a => a.id === activeAdventureId)?.items || [],
-        confiscatedGear: character?.confiscatedGear || [],
         inventory: character?.inventory || [],
       });
       const itemsToAdd = itemGrantPolicy.allowed;
@@ -2937,7 +2939,21 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         tagsFeedback += `\n\n[Elemental Ability Used: refreshes after an 8-hour rest with rations.]`;
       }
 
-      cleanedText += combatNotice + tagsFeedback;
+      // Reaching a confiscation depot returns the player's gear (plus, on the
+      // first visit, other prisoners' belongings). Engine-decided; the GM is
+      // told to narrate it, never to grant it. Applied in the character update
+      // below so it cannot race other changes from this turn.
+      let depotClaimNotice = '';
+      let pendingDepotClaim = null;
+      if (newLocation && isAtDepot(activeAdventureId, newLocation)) {
+        const depotResult = claimDepot(character, activeAdventureId);
+        if (depotResult.recovered.length > 0 || depotResult.found.length > 0) {
+          depotClaimNotice = `\n\n[Supply Depot: ${depotResult.recovered.length ? `Recovered your gear: ${depotResult.recovered.join(', ')}.` : 'Your own gear is already recovered.'}${depotResult.found.length ? ` Also found among other prisoners' belongings: ${depotResult.found.join(', ')}.` : ''}]`;
+          pendingDepotClaim = depotResult;
+        }
+      }
+
+      cleanedText += combatNotice + tagsFeedback + depotClaimNotice;
 
       if (newLocation) {
         // Fights deliberately follow the player between rooms (Hans,
@@ -3182,21 +3198,24 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           }
         });
 
-        let nextInventory = [...updated.inventory];
-        // Items the GM "adds" that are actually the player's confiscated gear are
-        // RETURNED from confiscatedGear, not minted. Otherwise reclaiming a sword
-        // mid-adventure left a second copy to be restored on completion.
-        const nextConfiscated = [...(updated.confiscatedGear || [])];
-        parsedItemsToAdd.forEach(item => {
-          const idx = nextConfiscated.findIndex(c => c.toLowerCase() === item.toLowerCase());
-          if (idx !== -1) {
-            nextInventory.push(nextConfiscated[idx]);
-            nextConfiscated.splice(idx, 1);
-          } else {
-            nextInventory.push(item);
-          }
-        });
-        updated.confiscatedGear = nextConfiscated;
+        // Only this adventure's authored items reach here (rewardPolicy).
+        // Confiscated gear comes back solely through the depot claim below.
+        let nextInventory = [...updated.inventory, ...parsedItemsToAdd];
+        if (pendingDepotClaim) {
+          // Apply exactly what was announced (same roll), moving the player's
+          // gear out of confiscatedGear rather than copying it.
+          const held = [...(updated.confiscatedGear || [])];
+          pendingDepotClaim.recovered.forEach(item => {
+            const idx = held.findIndex(c => c.toLowerCase() === item.toLowerCase());
+            if (idx !== -1) { nextInventory.push(held[idx]); held.splice(idx, 1); }
+          });
+          nextInventory.push(...pendingDepotClaim.found);
+          updated.confiscatedGear = held;
+          updated.progression = {
+            ...(updated.progression || {}),
+            depotClaimed: { ...(updated.progression?.depotClaimed || {}), [activeAdventureId]: true },
+          };
+        }
         parsedItemsToRemove.forEach(item => {
           const idx = nextInventory.findIndex(i => i.toLowerCase() === item.toLowerCase());
           if (idx !== -1) {
@@ -3694,14 +3713,13 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         nextEvents.push(`Awakened Granite Bastion keystone resonance (+${keystoneHpDelta} Max HP).`);
       }
 
-      // Restore confiscated gear (e.g. from captivity adventures like Saltblood Mines)
-      let nextConfiscatedGear = [...(prev.confiscatedGear || [])];
-      if (nextConfiscatedGear.length > 0) {
-        nextConfiscatedGear.forEach(item => {
-          if (item) nextInventory.push(item);
-        });
-        nextEvents.push(`Recovered confiscated belongings (${nextConfiscatedGear.length} items) from the supply depot.`);
-        nextConfiscatedGear = [];
+      // Confiscated gear is no longer handed back on completion: it is recovered
+      // only by reaching the depot. Gear never recovered is forfeit (or held at
+      // the depot for a free-roam return, per DEPOT_RECLAIM_ON_RETURN).
+      const settled = settleConfiscatedOnCompletion(prev);
+      const nextConfiscatedGear = settled.character.confiscatedGear || [];
+      if (settled.lost.length > 0) {
+        nextEvents.push(`Left behind in the supply depot and lost for good: ${settled.lost.join(', ')}.`);
       }
 
       // Synchronize Quest Log: move completed adventure to completed_quests
@@ -3872,10 +3890,11 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         ? prevActiveQuests
         : [...prevActiveQuests, adventureName];
 
-      // Captivity adventures (e.g. Saltblood Mines) strip the player of all gear on start.
-      // Everything is moved into `confiscatedGear` so it is never lost — it can be
-      // recovered later (Supply Depot) or returned by the GM via [add_item] tags.
-      if (adventure?.stripEquipment) {
+      // Captivity adventures (e.g. Saltblood Mines) strip the player of all gear on
+      // start. It is held in `confiscatedGear` and recovered ONLY by reaching the
+      // depot (utils/depotEngine.js). Free-roam returns are not captivity, so
+      // they never strip again — previously revisiting Saltblood took everything.
+      if (shouldConfiscateOnEntry(adventure, isFreeRoam)) {
         const stashed = [
           ...(prev.inventory || []),
           ...Object.values(prev.equipment || {}).filter(Boolean)

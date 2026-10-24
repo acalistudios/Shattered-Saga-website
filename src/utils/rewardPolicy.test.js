@@ -21,11 +21,10 @@ describe('filterGmItemGrants', () => {
     expect(r.allowed).toEqual([]);
   });
 
-  it('returns confiscated gear instead of minting a copy', () => {
-    const r = filterGmItemGrants({ items: ['steel sword'], adventureItems: saltbloodItems, confiscatedGear: ['Steel Sword', 'Iron Shield'] });
-    expect(r.allowed).toEqual(['Steel Sword']);
-    expect(r.returned).toEqual(['Steel Sword']);
-    expect(r.remainingConfiscated).toEqual(['Iron Shield']);
+  it('does not return confiscated gear — only the depot does', () => {
+    const r = filterGmItemGrants({ items: ['Steel Sword'], adventureItems: saltbloodItems });
+    expect(r.allowed).toEqual([]);
+    expect(r.blocked).toEqual(['Steel Sword']);
   });
 
   it('grants an authored item only once', () => {

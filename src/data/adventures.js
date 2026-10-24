@@ -318,7 +318,7 @@ const BASE_ADVENTURES_LIST = [
       {
         name: 'Sera',
         role: 'Former Guard Captain',
-        desc: 'A captured guard captain nursing an injury, looking for a real escape plan.',
+        desc: 'A captured guard captain nursing an injury, looking for a real escape plan. Knows the guards lock prisoners\' weapons and packs in the Supply Depot, and will urge the player not to flee without them: anything left there is sold off for good.',
         stats: {
           HP: 11,
           attributes: { Power: 4, Coordination: 3, Vigor: 3, Willpower: 4, Intellect: 2, Charisma: 3, Attunement: 1, Empathy: 2 },
@@ -333,7 +333,7 @@ const BASE_ADVENTURES_LIST = [
       {
         name: 'Old Bram',
         role: 'Scholar prisoner',
-        desc: 'A scholar studying the redvein ore and its long-term effects.',
+        desc: 'A scholar studying the redvein ore and its long-term effects. Overheard Threx say unclaimed prisoner belongings in the Supply Depot are sold off once a batch is processed.',
         stats: {
           HP: 8,
           attributes: { Power: 1, Coordination: 2, Vigor: 1, Willpower: 4, Intellect: 5, Charisma: 2, Attunement: 3, Empathy: 3 },
@@ -348,7 +348,7 @@ const BASE_ADVENTURES_LIST = [
       {
         name: 'Kael',
         role: 'Young Thief',
-        desc: 'A street thief who knows the mine layout and patrol gaps.',
+        desc: 'A street thief who knows the mine layout and patrol gaps, including the back way into the Supply Depot where confiscated gear is racked. He saw where they put the player\'s things.',
         stats: {
           HP: 12,
           attributes: { Power: 2, Coordination: 4, Vigor: 2, Willpower: 2, Intellect: 3, Charisma: 3, Attunement: 1, Empathy: 2 },

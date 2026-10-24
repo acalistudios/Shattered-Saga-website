@@ -4,8 +4,9 @@
 // are predefined — the reward tables pay out on adventure completion, and the
 // only things the GM may put in the player's hands mid-adventure are:
 //   - items AUTHORED for the current adventure (adventures.js `items`), each
-//     at most once, e.g. Threx's Ledger in the Saltblood Mines; and
-//   - the player's own confiscated gear, returned rather than copied.
+//     at most once, e.g. Threx's Ledger in the Saltblood Mines.
+// Confiscated gear is NOT returned here: it comes back only when the player
+// reaches the depot (utils/depotEngine.js, Hans 2026-10-23 "option C").
 // Gold and currency can only be taken away by the GM (bribes, tolls,
 // purchases), never granted. Anything else is dropped and logged.
 //
@@ -14,28 +15,15 @@
 
 const norm = (s) => String(s || '').toLowerCase().trim();
 
-/**
- * Split GM [add_item] grants into allowed and blocked.
- * Returns which allowed items come back from confiscated gear, so the caller
- * can move them instead of minting copies.
- */
-export function filterGmItemGrants({ items = [], adventureItems = [], confiscatedGear = [], inventory = [] } = {}) {
+/** Split GM [add_item] grants into allowed and blocked. */
+export function filterGmItemGrants({ items = [], adventureItems = [], inventory = [] } = {}) {
   const authored = new Map(adventureItems.map(i => [norm(i), i]));
-  const confiscated = [...confiscatedGear];
   const owned = new Set(inventory.map(norm));
   const allowed = [];
-  const returned = [];
   const blocked = [];
 
   for (const raw of items) {
     const key = norm(raw);
-    const cIdx = confiscated.findIndex(c => norm(c) === key);
-    if (cIdx !== -1) {
-      returned.push(confiscated[cIdx]);
-      allowed.push(confiscated[cIdx]);
-      confiscated.splice(cIdx, 1);
-      continue;
-    }
     if (authored.has(key) && !owned.has(key)) {
       const canonical = authored.get(key);
       allowed.push(canonical);
@@ -45,7 +33,7 @@ export function filterGmItemGrants({ items = [], adventureItems = [], confiscate
     blocked.push(raw);
   }
 
-  return { allowed, returned, blocked, remainingConfiscated: confiscated };
+  return { allowed, blocked };
 }
 
 /** The GM may charge the player, never pay them. Keeps only deductions. */
