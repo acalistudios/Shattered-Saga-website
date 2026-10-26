@@ -4,6 +4,7 @@ import { GMS, SAGA_ENGINES, BASE_SYSTEM_PROMPT, SKILLS_LIST, PROFESSIONS_LIST, E
 import { calculateWeightAndVolume, getItemDetails } from '../utils/items';
 import { generateCompletion, executeOpposedCheck, rollDie, rollAttributePrimary, rollAttributeSecondary, rollSkillRanks } from '../utils/ai';
 import { ADVENTURES_LIST } from '../data/adventures';
+import { getAdventureById } from '../data/adventureLookup';
 import { checkSafetyViolation, getGMStrikeWarning, getGMSternWarning, calculateLockoutExpiry, isGloballyBanned } from '../utils/safety';
 import { generateMerchantStock, TAVERNS, getTrainerConfig } from '../data/downtimeMerchants';
 import { ADVENTURE_ECONOMY_METADATA } from '../data/adventureEconomy';
@@ -42,7 +43,10 @@ import { resolveCombatTarget } from '../utils/combatTarget';
 import { filterGmItemGrants, filterGmCurrencyChanges, isElementalUnlockAllowed } from '../utils/rewardPolicy';
 import { claimDepot, isAtDepot, settleConfiscatedOnCompletion, shouldConfiscateOnEntry } from '../utils/depotEngine';
 import { getSupplyDepot } from '../data/supplyDepot';
-import { PATROL_FOES, patrolGearRecovery } from '../utils/patrolEngine';
+import {
+  PATROL_FOES, patrolGearRecovery, isPatrolId, patrolEncounterIdOf, patrolIdFor, beginPatrol, markPatrolFought,
+  normalizePatrolOutcome, rollPatrolOutcomeLoot, finishPatrol as applyPatrolFinish, describePatrolResult, FLEE_PURSUIT_FRACTION,
+} from '../utils/patrolEngine';
 import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../utils/authApi';
 import { consumeRationFromInventory, resolveRest } from '../utils/restEngine';
 import { canDeferNarrationCosts, createPreparedNarrationTurn } from '../utils/narrationTurn';
@@ -2230,7 +2234,7 @@ export default function useGameState() {
     // 2. Prepare system instructions
     let systemPrompt = BASE_SYSTEM_PROMPT + activeGm.promptOverride;
 
-    const activeAdventure = ADVENTURES_LIST.find(a => a.id === activeAdventureId);
+    const activeAdventure = getAdventureById(activeAdventureId);
     let relContext = '';
     if (activeAdventure) {
       const rels = character.localEconomy?.relationships || {};
@@ -2381,6 +2385,18 @@ This session is in a peaceful, roleplay-centric "Free Roam" mode.
 - The local residents are friendly and welcoming, recognizing the player as their champion.
 - The player can rest at local taverns/strongholds to recover fatigue/HP, trade items, buy rations, or talk to NPCs.
 - Focus on low-stakes adventure, training, resting, and character relationships. Do not force high-threat combat scenarios unless the player seeks out wild beasts, dangerous dungeons, or explicitly asks for trouble.
+`;
+    }
+
+    if (activeAdventure?.isPatrol) {
+      const hunted = character.progression?.pendingGearRecovery?.patrolEncounterId === activeAdventure.patrolEncounterId;
+      systemPrompt += `\n\n[MODE: ROAD PATROL]
+This is a short roadside ambush on a patrol between adventures, not an adventure. One scene, resolved in about six exchanges. Run it like any adventure encounter: the player decides what to do, you call for checks, and enemy strikes go through [enemy_attack]. The engine tracks ${activeAdventure.npcs[0].name} in combat; treat the rest of the band as narrative (they break when their leader falls or yields).
+${hunted ? `This is the band that killed the player on this road and took their gear. ${activeAdventure.npcs[0].name} has it. Make that recognisable, but do not hand it over: the engine returns it if the player wins.\n` : ''}End the patrol by emitting exactly one of these, once, when it is truly over:
+- [patrol_end: victory] — the band is defeated, routed, or surrenders after a fight.
+- [patrol_end: parley] — the player talks, bribes, or intimidates their way past without a fight.
+- [patrol_end: escaped] — the player gets away.
+The engine pays the predefined spoils and reports them; never name loot or amounts yourself. Never emit [milestone: adventure_complete], [objective_complete] or [ending_selected] on a patrol.
 `;
     }
 
@@ -2596,8 +2612,14 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       // Detect the completion tag here, with the other tags, and strip it so it
       // never shows in the narration. It is acted on later in this handler.
       const milestoneTagRegex = /\[milestone:\s*([^\]]+)\]/gi;
-      const milestoneReached = milestoneTagRegex.test(cleanedText);
+      const onPatrol = isPatrolId(activeAdventureId);
+      // A patrol is never an adventure completion, whatever the GM emits.
+      const milestoneReached = milestoneTagRegex.test(cleanedText) && !onPatrol;
       cleanedText = cleanedText.replace(milestoneTagRegex, '').trim();
+
+      const patrolEndRegex = /\[patrol_end:\s*([^\]]*)\]/gi;
+      const patrolEndClaim = [...cleanedText.matchAll(patrolEndRegex)][0]?.[1] ?? null;
+      cleanedText = cleanedText.replace(patrolEndRegex, '').trim();
 
       const combatEndRegex = /\[(?:combat_end|victory)\]/gi;
       const combatEndTriggered = combatEndRegex.test(cleanedText);
@@ -2637,13 +2659,17 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       if (parsedEnemyAttacks.length > 0) {
         setEnemyAttacksQueue(prev => [...prev, ...parsedEnemyAttacks]);
       }
+      // Only a patrol that came to blows can end in victory.
+      if (onPatrol && (combatStartTriggered || parsedEnemyAttacks.length > 0 || activeEnemy)) {
+        setCharacter(prev => markPatrolFought(prev));
+      }
 
       // Initialize activeEnemy if starting combat or attacks received
       // A placeholder foe (started without a resolvable name) is upgraded as soon
       // as the GM names a real NPC in an [enemy_attack].
       const upgradingPlaceholder = activeEnemy?.isPlaceholder && parsedEnemyAttacks.length > 0;
       if ((combatStartTriggered || parsedEnemyAttacks.length > 0) && (!activeEnemy || upgradingPlaceholder)) {
-        const activeAdv = ADVENTURES_LIST.find(a => a.id === activeAdventureId);
+        const activeAdv = getAdventureById(activeAdventureId);
         let targetName = parsedEnemyAttacks.length > 0 ? parsedEnemyAttacks[0].name.trim() : combatStartTarget;
         // Never guess an ally from a name mention; see utils/combatTarget.js.
         const foundNpc = resolveCombatTarget({
@@ -2741,7 +2767,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const addItemRegex = /\[add_item:\s*([^\]]+)\]/gi;
       const itemGrantPolicy = filterGmItemGrants({
         items: [...cleanedText.matchAll(addItemRegex)].map(m => m[1].trim()),
-        adventureItems: ADVENTURES_LIST.find(a => a.id === activeAdventureId)?.items || [],
+        adventureItems: getAdventureById(activeAdventureId)?.items || [],
         inventory: character?.inventory || [],
       });
       const itemsToAdd = itemGrantPolicy.allowed;
@@ -3410,6 +3436,22 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         return updated;
       });
 
+      // The GM says the patrol is over; the engine decides what that pays.
+      const activePatrol = character.progression?.activePatrol;
+      if (onPatrol && patrolEndClaim !== null && activePatrol) {
+        const fought = activePatrol.fought || combatStartTriggered || parsedEnemyAttacks.length > 0 || !!activeEnemy;
+        const outcome = normalizePatrolOutcome(patrolEndClaim, { fought });
+        const loot = rollPatrolOutcomeLoot(activePatrol.encounterId, outcome);
+        const pending = character.progression?.pendingGearRecovery;
+        const recovered = outcome === 'victory' && pending?.patrolEncounterId === activePatrol.encounterId ? (pending.items || []) : [];
+        setCharacter(prev => applyPatrolFinish(prev, { outcome, loot }).character);
+        cleanedText += `\n\n${describePatrolResult({ outcome, loot, recovered })}`;
+        setActiveEnemy(null);
+        setCombatStance(null);
+        setCounterOpportunities(null);
+        setEnemyAttacksQueue([]);
+      }
+
       if (roleplayChange !== 0) {
         setNextRollModifier(roleplayChange);
         setLastRoleplayEvent({
@@ -3724,7 +3766,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       }
 
       // Synchronize Quest Log: move completed adventure to completed_quests
-      const finishedAdv = ADVENTURES_LIST.find(a => a.id === activeAdventureId);
+      const finishedAdv = getAdventureById(activeAdventureId);
       const finishedAdvName = finishedAdv?.name || activeAdventureId;
       let nextActiveQuests = [...(prev.active_quests || [])].filter(
         q => q !== finishedAdvName && q !== 'Explore the High Fantasy Realm' && q !== 'Embark on the High Fantasy Adventure'
@@ -3829,6 +3871,11 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
   };
 
   const quitActiveAdventure = () => {
+    // Walking off a patrol is fleeing it, not forfeiting an adventure.
+    if (isPatrolId(activeAdventureId)) {
+      leavePatrol();
+      return;
+    }
     // Clear dropped items state for this slot
     if (activeAdventureId) {
       setDroppedItems(prev => {
@@ -3852,6 +3899,70 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     setWarningMessage(null);
     setApiError(null);
     setCharacter(prev => ({ ...prev, is_free_roaming: false, companions: [] }));
+  };
+
+  /**
+   * Set out on a Road Patrol: a short GM-run scene on the play screen. Unlike
+   * an adventure start nothing is refilled, re-equipped or backed up; the
+   * fatigue cost is paid now and the rest when it ends (utils/patrolEngine.js).
+   */
+  const startPatrol = (encounterId) => {
+    if (activeAdventureId) return false;
+    const patrolId = patrolIdFor(encounterId);
+    const adventure = getAdventureById(patrolId);
+    if (!adventure) return false;
+    const hunted = character.progression?.pendingGearRecovery?.patrolEncounterId === encounterId;
+
+    setCharacter(prev => beginPatrol(prev, encounterId));
+    setActiveAdventureId(patrolId);
+    setActiveGmId('narrator');
+    setCurrentLocation(adventure.settings[0]);
+    setActiveEnemy(null);
+    setCombatStance(null);
+    setCounterOpportunities(null);
+    setEnemyAttacksQueue([]);
+    setHistory([{
+      role: 'model',
+      content: `${adventure.startingPrompt}${hunted ? `\n\n*You know that silhouette. ${adventure.npcs[0].name} is the one who left you for dead on this road, and your gear is still with them.*` : ''}\n\n*What do you do?*`,
+      imagePrompt: null,
+      imageUrl: null,
+      checkDetails: null,
+    }]);
+    setJournal({ storySoFar: 'A patrol on the roads between adventures.', recentTurns: [] });
+    setHandoffState(null);
+    setSkillTally({});
+    setWarningMessage(null);
+    setApiError(null);
+    return true;
+  };
+
+  /**
+   * Leave a patrol for the map. If it never ended (the player walked away),
+   * that is an escape: no spoils, and if a fight was on they run you down.
+   */
+  const leavePatrol = () => {
+    if (!isPatrolId(activeAdventureId)) return;
+    if (character.progression?.activePatrol) {
+      const pursuitDamage = activeEnemy
+        ? Math.max(1, Math.round((character.stats?.maxHp || 10) * FLEE_PURSUIT_FRACTION))
+        : 0;
+      setCharacter(prev => applyPatrolFinish(prev, { outcome: 'escaped', loot: null, pursuitDamage }).character);
+    }
+    setDroppedItems(prev => {
+      const next = { ...prev };
+      delete next[activeAdventureId];
+      return next;
+    });
+    setActiveAdventureId(null);
+    setCurrentLocation('');
+    setHistory([]);
+    setJournal({ storySoFar: '', recentTurns: [] });
+    setActiveEnemy(null);
+    setCombatStance(null);
+    setCounterOpportunities(null);
+    setEnemyAttacksQueue([]);
+    setSkillTally({});
+    setApiError(null);
   };
 
   const startAdventure = (adventureId, gmId, startingPrompt, isFreeRoam = false) => {
@@ -4227,7 +4338,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
       // Add to dropped items for the current active room/location
       if (activeAdventureId) {
-        const activeAdventure = ADVENTURES_LIST.find(a => a.id === activeAdventureId);
+        const activeAdventure = getAdventureById(activeAdventureId);
         const loc = currentLocation || activeAdventure?.settings?.[0] || 'Unknown';
         setDroppedItems(prevDrops => {
           const advDrops = prevDrops[activeAdventureId] || {};
@@ -4252,7 +4363,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
   const pickUpItem = (itemName) => {
     if (!activeAdventureId) return;
-    const activeAdventure = ADVENTURES_LIST.find(a => a.id === activeAdventureId);
+    const activeAdventure = getAdventureById(activeAdventureId);
     const loc = currentLocation || activeAdventure?.settings?.[0] || 'Unknown';
 
     setDroppedItems(prevDrops => {
@@ -4947,21 +5058,19 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       return;
     }
 
+    // Dying on a patrol: there is no adventure to return to, and the gear is
+    // won back on that road (utils/patrolEngine.js).
+    const patrolEncounterId = patrolEncounterIdOf(activeAdventureId);
+    const patrol = death.patrol || (patrolEncounterId
+      ? { encounterId: patrolEncounterId, regionId: getAdventureById(activeAdventureId)?.region || null }
+      : null);
+
     setPendingResurrection({
       choices: rollResurrectionAttributeChoices(character),
       sites: getAvailableResurrectionSites(character.completed_adventures || []),
-      killerName: death.killerName ?? (activeEnemy?.name || ''),
-      adventureId: death.adventureId !== undefined ? death.adventureId : (activeAdventureId || null),
-      patrol: death.patrol || null,
-    });
-  };
-
-  /** Died on a Road Patrol: same resurrection, with road-based gear recovery. */
-  const beginPatrolDeath = (encounterId, regionId) => {
-    beginResurrection({
-      killerName: PATROL_FOES[encounterId]?.name || 'Road Ambusher',
-      adventureId: null,
-      patrol: { encounterId, regionId },
+      killerName: death.killerName ?? (patrol ? PATROL_FOES[patrol.encounterId]?.name : activeEnemy?.name) ?? '',
+      adventureId: patrol ? null : death.adventureId !== undefined ? death.adventureId : (activeAdventureId || null),
+      patrol,
     });
   };
 
@@ -5048,6 +5157,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         ...risen,
         progression: {
           ...risen.progression,
+          activePatrol: null,
           pendingGearRecovery: {
             ...patrolGearRecovery({ encounterId: patrol.encounterId, regionId: patrol.regionId, diedAtHours }),
             items: lostGear,
@@ -6111,7 +6221,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     character,
     pendingResurrection,
     beginResurrection,
-    beginPatrolDeath,
+    startPatrol,
+    leavePatrol,
     completeResurrection,
     returnToInterruptedAdventure,
     initializeMerchantStock,

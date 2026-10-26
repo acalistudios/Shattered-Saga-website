@@ -5,7 +5,6 @@ import { getItemDetails } from '../utils/items';
 import { coinValue } from '../data/economy';
 import { WORLD_REGIONS, MAP_NODES, MAP_IMAGES, REGION_TRANSIT_CHALLENGES } from '../data/cartography';
 import AccountStatusPills from '../components/AccountStatusPills';
-import TravelEncounterModal from '../components/TravelEncounterModal';
 import KeystoneFontTracker from '../components/KeystoneFontTracker';
 import { getRandomTravelEncounter, TRAVEL_ENCOUNTERS } from '../data/travelEncounters';
 import { pendingPatrolEncounterFor } from '../utils/patrolEngine';
@@ -108,7 +107,7 @@ export default function AdventureSelection({
   consumeItem,
   onExportSaveFile,
   onOpenAccount,
-  onPatrolDeath
+  onStartPatrol
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
   const completedAdventures = character?.completed_adventures || [];
@@ -127,14 +126,13 @@ export default function AdventureSelection({
   const [transitRollResult, setTransitRollResult] = useState(null);
   const [transitMessage, setTransitMessage] = useState('');
 
-  const [activeTravelEncounter, setActiveTravelEncounter] = useState(null);
-
   const handleStartRoadPatrol = () => {
     const targetRegion = mapLevel === 'world' ? selectedRegionId : mapLevel;
     // If a foe on this region's roads took your gear, the patrol finds them.
     const huntedId = pendingPatrolEncounterFor(character, targetRegion);
     const encounter = (huntedId && TRAVEL_ENCOUNTERS.find(e => e.id === huntedId)) || getRandomTravelEncounter(targetRegion);
-    setActiveTravelEncounter(encounter);
+    // Played out on the play screen with the GM, like an adventure encounter.
+    if (encounter) onStartPatrol?.(encounter.id);
   };
 
   const rollDie = (s) => Math.floor(Math.random() * s) + 1;
@@ -1234,18 +1232,6 @@ export default function AdventureSelection({
         </div>
       )}
 
-      {activeTravelEncounter && (
-        <TravelEncounterModal
-          encounter={activeTravelEncounter}
-          character={character}
-          onClose={() => setActiveTravelEncounter(null)}
-          onUpdateCharacterStats={onUpdateCharacterStats}
-          onPatrolDeath={(encounterId, regionId) => {
-            setActiveTravelEncounter(null);
-            onPatrolDeath?.(encounterId, regionId);
-          }}
-        />
-      )}
 
       {/* Footer info */}
       <div className="mt-6 flex justify-center text-4xs text-slate-550 border-t border-slate-900 pt-3 text-center">

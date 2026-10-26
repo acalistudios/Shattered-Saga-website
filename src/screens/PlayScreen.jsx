@@ -3,6 +3,7 @@ import { SKILLS_LIST, ATTRIBUTE_LIST } from '../data/gms';
 import { printCharacterSheet, printAdventureLog, ELEMENTAL_ABILITIES } from '../utils/print';
 import { signCharacter } from '../utils/secureHash';
 import { ADVENTURES_LIST } from '../data/adventures';
+import { getAdventureById } from '../data/adventureLookup';
 import { getDifficultyScaling, applyChoiceDifficultyScaling } from '../data/difficultyScaling';
 import { PRESET_METADATA } from '../data/portraits';
 import storage from '../utils/storage';
@@ -156,6 +157,7 @@ export default function PlayScreen({
   canRetryLastAction,
   onQuitAdventure,
   onExitAdventure,
+  onLeavePatrol,
   activeAdventureId,
   onUpdatePortrait,
   gems,
@@ -347,6 +349,15 @@ export default function PlayScreen({
   };
 
   const handleQuitAdventure = () => {
+    if (isPatrol) {
+      const flee = window.confirm(
+        activeEnemy
+          ? "Flee the patrol?\n\nYou get no spoils, and they run you down as you go: you lose a quarter of your max HP (it cannot kill you)."
+          : "Leave the patrol?\n\nYou get no spoils. The time and fatigue are already spent."
+      );
+      if (flee) onLeavePatrol();
+      return;
+    }
     const confirmQuit = window.confirm(
       "Are you sure you want to forfeit your active adventure?\n\nQuitting will wipe current campaign progress, forfeit one random inventory item, and lose half of your gold."
     );
@@ -379,7 +390,10 @@ export default function PlayScreen({
   const sessionToken = getToken() || storage.get('supabase_session_token');
   const energyBalance = userProfile ? userProfile.energy_balance : null;
   const energyIsCritical = sessionToken ? (energyBalance !== null && energyBalance <= 10) : (gmEnergies[activeGm.id] <= 20);
-  const activeAdventure = ADVENTURES_LIST.find((a) => a.id === activeAdventureId);
+  const activeAdventure = getAdventureById(activeAdventureId);
+  const isPatrol = !!activeAdventure?.isPatrol;
+  // The GM ended the patrol and the engine paid out: only the way home is left.
+  const patrolOver = isPatrol && !character.progression?.activePatrol && character.stats.hp > -5;
   const milestoneRewards = activeAdventure?.rewardModel?.guaranteedRewards || {
     skillPoints: 2,
     trainingSlots: 1,
@@ -1341,7 +1355,7 @@ export default function PlayScreen({
             onClick={handleQuitAdventure}
             className="w-full py-1.5 px-3 rounded text-3xs uppercase tracking-wider font-bold border border-amber-900/30 text-amber-500 bg-amber-955/10 hover:bg-amber-950/30 hover:border-amber-700 hover:text-amber-450 cursor-pointer text-center"
           >
-            Forfeit Adventure (Lose Gold & Random Item)
+            {isPatrol ? 'Flee the Patrol (No Spoils)' : 'Forfeit Adventure (Lose Gold & Random Item)'}
           </button>
           <button
             onClick={onResetGame}
@@ -1611,7 +1625,22 @@ export default function PlayScreen({
             </button>
           </div>
         )}
-        {character.stats.hp <= -5 ? (
+        {patrolOver ? (
+          <div className="border-t border-slate-900 p-6 bg-slate-950 flex flex-col items-center justify-center gap-3 text-center">
+            <span className="text-3xl">🛡️</span>
+            <h3 className="text-sm font-extrabold uppercase font-serif text-amber-400 tracking-wider">Patrol Over</h3>
+            <p className="text-2xs text-slate-400 max-w-xs leading-relaxed">
+              The road is quiet again. Your spoils are in your pack.
+            </p>
+            <button
+              type="button"
+              onClick={onLeavePatrol}
+              className="px-5 py-2 rounded font-black text-3xs uppercase tracking-widest bg-amber-600 hover:bg-amber-500 text-slate-950 cursor-pointer"
+            >
+              Return to the Map
+            </button>
+          </div>
+        ) : character.stats.hp <= -5 ? (
           <div className="border-t border-rose-950 p-6 bg-rose-950/10 flex flex-col items-center justify-center gap-3 text-center">
             <span className="text-3xl">💀</span>
             <h3 className="text-sm font-extrabold uppercase font-serif text-red-500 tracking-wider">You Have Died</h3>
