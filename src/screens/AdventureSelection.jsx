@@ -5,10 +5,9 @@ import { getItemDetails } from '../utils/items';
 import { coinValue } from '../data/economy';
 import { WORLD_REGIONS, MAP_NODES, MAP_IMAGES, REGION_TRANSIT_CHALLENGES } from '../data/cartography';
 import AccountStatusPills from '../components/AccountStatusPills';
-import TravelEncounterModal from '../components/TravelEncounterModal';
 import KeystoneFontTracker from '../components/KeystoneFontTracker';
 import { getRandomTravelEncounter, TRAVEL_ENCOUNTERS } from '../data/travelEncounters';
-import { pendingPatrolEncounterFor } from '../utils/patrolEngine';
+import { pendingPatrolEncounterFor, canBeginPatrol, getPatrolAllowance, PATROL_FATIGUE, PATROL_HOURS } from '../utils/patrolEngine';
 import { getMapReadiness } from '../utils/mapReadiness';
 import { ADVENTURE_PROGRESSION_METADATA } from '../data/adventureProgression';
 import { getAdventurePowerBand } from '../data/difficultyScaling';
@@ -109,12 +108,16 @@ export default function AdventureSelection({
   consumeItem,
   onExportSaveFile,
   onOpenAccount,
-  onPatrolDeath
+  onStartPatrol
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
   const completedAdventures = character?.completed_adventures || [];
   
-  const { hp: currentHp, minTravelHp, canTravel: isHealthSufficientForTravel, canPatrol } = getMapReadiness(character);
+  const { hp: currentHp, minTravelHp, fatigue, canTravel: isHealthSufficientForTravel } = getMapReadiness(character);
+  const canPatrol = canBeginPatrol(character);
+  const patrolAllowance = getPatrolAllowance(character);
+  const fatiguePenalty = Math.floor(Math.max(0, -fatigue) * 2);
+  const patrolPenalty = Math.floor(Math.max(0, PATROL_FATIGUE - fatigue) * 2);
 
   const [viewMode, setViewMode] = useState('map'); // 'map' or 'list'
   const [mapLevel, setMapLevel] = useState('world'); // 'world' or 'region1'
@@ -125,15 +128,14 @@ export default function AdventureSelection({
   const [transitRollResult, setTransitRollResult] = useState(null);
   const [transitMessage, setTransitMessage] = useState('');
 
-  const [activeTravelEncounter, setActiveTravelEncounter] = useState(null);
-
   const handleStartRoadPatrol = () => {
     if (!canPatrol) return;
     const targetRegion = mapLevel === 'world' ? selectedRegionId : mapLevel;
     // If a foe on this region's roads took your gear, the patrol finds them.
     const huntedId = pendingPatrolEncounterFor(character, targetRegion);
     const encounter = (huntedId && TRAVEL_ENCOUNTERS.find(e => e.id === huntedId)) || getRandomTravelEncounter(targetRegion);
-    setActiveTravelEncounter(encounter);
+    // Played out on the play screen with the GM, like an adventure encounter.
+    if (encounter) onStartPatrol?.(encounter.id);
   };
 
   const rollDie = (s) => Math.floor(Math.random() * s) + 1;
@@ -358,6 +360,10 @@ export default function AdventureSelection({
         <AccountStatusPills gems={gems} userProfile={userProfile} onOpenAccount={onOpenAccount} compact />
         
         {/* Character Summary Badge & Stash Button */}
+        {character && <div className="text-xs text-amber-200 border border-slate-700 rounded px-3 py-2" role="status">
+          <div>Fatigue: {fatigue.toFixed(1)} / {character.stats.maxFatigue ?? 15} · Check penalty: -{fatiguePenalty}</div>
+          <div>Patrols: {patrolAllowance.remaining}/{patrolAllowance.limit} · Cost: {PATROL_FATIGUE} fatigue, at least {PATROL_HOURS}h · After departure penalty: -{patrolPenalty}</div>
+        </div>}
         {character && (
           <div className="flex items-center gap-2">
             <div className="hidden sm:flex items-center gap-3 bg-slate-900/60 border border-slate-850 rounded-lg p-2">
@@ -419,7 +425,7 @@ export default function AdventureSelection({
               onClick={handleStartRoadPatrol}
               disabled={!canPatrol}
               className="px-3 py-2 rounded bg-gradient-to-r from-red-950/80 to-slate-900 border border-red-500/40 hover:border-red-400 text-xs font-bold text-amber-300 hover:text-amber-200 cursor-pointer transition-all flex items-center gap-1.5 shadow-sm"
-              title={canPatrol ? 'Patrol the highway for bandit ambushes and travel combat encounters' : 'Recover HP and fatigue in town before patrolling'}
+              title={canPatrol ? 'Patrol the highway; allowance resets after completing an adventure' : patrolAllowance.remaining === 0 ? 'Complete an adventure to replenish patrols' : 'Recover HP and fatigue in town before patrolling'}
               style={!canPatrol ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
             >
               <span>⚔️</span>
@@ -1237,18 +1243,6 @@ export default function AdventureSelection({
         </div>
       )}
 
-      {activeTravelEncounter && (
-        <TravelEncounterModal
-          encounter={activeTravelEncounter}
-          character={character}
-          onClose={() => setActiveTravelEncounter(null)}
-          onUpdateCharacterStats={onUpdateCharacterStats}
-          onPatrolDeath={(encounterId, regionId) => {
-            setActiveTravelEncounter(null);
-            onPatrolDeath?.(encounterId, regionId);
-          }}
-        />
-      )}
 
       {/* Footer info */}
       <div className="mt-6 flex justify-center text-4xs text-slate-550 border-t border-slate-900 pt-3 text-center">

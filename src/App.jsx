@@ -103,7 +103,8 @@ function App() {
     claimPendingRewardChoice,
     pendingResurrection,
     beginResurrection,
-    beginPatrolDeath,
+    startPatrol,
+    leavePatrol,
     completeResurrection,
     returnToInterruptedAdventure,
     activeEnemy,
@@ -861,6 +862,7 @@ function App() {
   };
 
   const handleQuitAdventure = () => {
+    // On a patrol this is fleeing it (see leavePatrol in useGameState).
     quitActiveAdventure();
     setScreen('adventure_selection');
   };
@@ -986,7 +988,9 @@ function App() {
           <AdventureSelection
             character={character}
             userProfile={userProfile}
-            onPatrolDeath={beginPatrolDeath}
+            onStartPatrol={(encounterId) => {
+              if (startPatrol(encounterId)) setScreen('play');
+            }}
             onSelectAdventure={handleSelectAdventure}
             onBack={() => setScreen('splash')}
             gems={gems}
@@ -1064,6 +1068,10 @@ function App() {
             canRetryLastAction={canRetryLastAction}
             onQuitAdventure={handleQuitAdventure}
             onExitAdventure={handleExitAdventure}
+            onLeavePatrol={() => {
+              leavePatrol();
+              setScreen('adventure_selection');
+            }}
             activeAdventureId={activeAdventureId}
             onUpdatePortrait={updateCharacterPortrait}
             onEatRation={eatRation}

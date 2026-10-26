@@ -212,12 +212,15 @@ Every opposed check pits your step dice against the challenge resistance:
 - **Darkness & Torches:** Pitch darkness imposes -4 penalty. Torches illuminate 15 yards (normal melee), but distant targets beyond light circle suffer -2 dim-light penalty.
 - **Highway Travel & Road Patrols:**
   - High roads between settlements are troubled by outlaws, brigands, and monsters. Players may engage in roadside combat via the **"⚔️ Road Patrol"** action on the campaign map or during region transit.
-  - Each encounter features 5 tactical approaches:
+  - Patrols are GM-run scenes with freeform actions rather than one-roll menus. One attempt is available before the first completed adventure; each newly completed adventure replaces the allowance with two attempts, non-bankable. Starting spends an attempt even if you flee or die. Resting never replenishes attempts.
+  - Setting out costs 3 fatigue and each patrol lasts at least four hours. Wounded or exhausted characters must recover before patrolling; unlocked region maps remain accessible. Negative fatigue applies a check penalty of floor(2 × fatigue deficit).
+  - Gold is capped at 2 gp per character level, maximum 20 gp, and never exceeds authored spoils. Consumables and a 25% chance of one gear item accompany eligible outcomes; fleeing grants no spoils.
+  - Possible tactical approaches include:
     - *Archery & Stealth:* Extra surprise damage, snipes leaders, breaks bandit nerve, loots bows and rations.
     - *Heavy Melee & Shield Wall:* Frontline charges, breaks barricades, parries boulders, loots cleavers and shields.
     - *Arcane Spell Shaping:* Kinetic shockwaves and firestorms (`arcane_shaping`), scatters raiders, loots aether shards.
     - *Divine Holy Smiting:* Righteous radiance (`divine_manifestation`), forces repentance, loots holy water and earns morality.
-    - *Diplomatic Parleys & Tolls:* High-margin wins give free passage with no gold lost; narrow wins talk bandits down in exchange for a modest road toll (10–15g); failures result in stolen coin and trauma.
+    - *Diplomatic Parleys:* Talk, intimidate, or bargain for passage; the engine determines predefined parley spoils rather than allowing narrated currency grants.
 - **Companions & Teamwork Assists:**
   - Solo adventurers can recruit allies across the campaign (e.g. *Skritt the Goblin Scout* in Ashveil Keep, *Kaelen Iron-Breaker* in Saltblood Mines, *Silas the Timber-Hound* in Blackroot Hollow, *Sister Maren* in Merrin Abbey, *Cog-Tail the Brass Familiar* in Clockwork Conservatory).
   - Active companions provide an automatic **+1 Teamwork Assist bonus** to player skill checks matching their specialized training.
