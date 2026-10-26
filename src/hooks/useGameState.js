@@ -523,7 +523,9 @@ const DEFAULT_SAFETY_STATE = {
 };
 
 export default function useGameState() {
-  const activeSlotIndex = storage.get('active_slot_index', 1);
+  // Slot handlers reload the app. Until then this mounted character must keep
+  // writing to its original slot, even after the next slot is selected in storage.
+  const [activeSlotIndex] = useState(() => storage.get('active_slot_index', 1));
 
   const [userProfile, setUserProfile] = useState(null);
 
