@@ -14,6 +14,40 @@ import { consumeRationFromInventory } from './restEngine';
 import { TRAVEL_ENCOUNTERS } from '../data/travelEncounters';
 import { getMapReadiness } from './mapReadiness';
 import { isGearTrailCold } from './resurrectionEngine';
+import { SKILLS_LIST } from '../data/gms';
+
+const ROAD_APPROACHES = [
+  { skill: 'athletics', text: 'Reach defensible ground before the ambushers surround me', difficulty: 'professional' },
+  { skill: 'stealth', text: 'Slip out of sight and approach from cover', difficulty: 'novice' },
+  { skill: 'perception', text: 'Look for an opening in the ambushers\' formation', difficulty: 'novice' },
+  { skill: 'insight', text: 'Read the leader\'s intentions before committing to an approach', difficulty: 'novice' },
+  { skill: 'survival', text: 'Use the terrain to find a safer route past the ambush', difficulty: 'professional' },
+  { skill: 'tracking', text: 'Trace the ambushers\' route to identify their escape path', difficulty: 'professional' },
+];
+
+/** Sample three distinct relevant skills, without mutating authored encounters. */
+export function selectPatrolChoices(encounterId, rng = Math.random) {
+  const encounter = TRAVEL_ENCOUNTERS.find(e => e.id === encounterId);
+  if (!encounter) return [];
+  const validSkills = new Set(SKILLS_LIST.map(skill => skill.id));
+  const pool = [...encounter.approaches.map(a => ({
+    skill: a.skill, text: a.actionDesc, difficulty: a.difficulty,
+  })), ...ROAD_APPROACHES];
+  const distinct = [...new Map(pool.filter(c => validSkills.has(c.skill)).map(c => [c.skill, c])).values()];
+  const choices = [];
+  while (choices.length < 3 && distinct.length) {
+    const index = Math.min(distinct.length - 1, Math.floor(rng() * distinct.length));
+    choices.push(distinct.splice(index, 1)[0]);
+  }
+  return choices;
+}
+
+/** Old in-progress saves get a stable fallback, never random draws during render. */
+export function getPatrolChoices(character) {
+  const active = character?.progression?.activePatrol;
+  if (!active) return [];
+  return active.choices ?? selectPatrolChoices(active.encounterId, () => 0.5);
+}
 
 export const PATROL_HOURS = 4;
 export const PATROL_FATIGUE = 3;
@@ -195,7 +229,7 @@ export function addLootToInventory(inventory = [], items = []) {
 const hourStamp = (stats = {}) => ((stats.day || 1) - 1) * 24 + (stats.hour || 0);
 
 /** Setting out on patrol: spend the fatigue and remember when and where it began. */
-export function beginPatrol(character, encounterId) {
+export function beginPatrol(character, encounterId, choices = selectPatrolChoices(encounterId)) {
   const encounter = TRAVEL_ENCOUNTERS.find(e => e.id === encounterId);
   if (!encounter || !canBeginPatrol(character)) return character;
   const allowance = getPatrolAllowance(character);
@@ -211,6 +245,7 @@ export function beginPatrol(character, encounterId) {
         regionId: encounter?.region || null,
         startedAtHours: hourStamp(character.stats),
         fought: false,
+        choices,
       },
       lastPatrolResult: null,
     },

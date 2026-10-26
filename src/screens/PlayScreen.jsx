@@ -16,6 +16,7 @@ import { skillRankCost } from '../data/progressionRewards';
 import { getCompanionById } from '../data/companions';
 import { getActiveKeystoneResonances } from '../data/keystoneShards';
 import CampfireModal from '../components/CampfireModal';
+import { getPatrolChoices } from '../utils/patrolEngine';
 
 
 
@@ -401,7 +402,7 @@ export default function PlayScreen({
   };
   const activeRoom = currentLocation || activeAdventure?.settings?.[0] || null;
   const activeRoomChoices = activeRoom
-    ? (activeAdventure?.settingChoices?.[activeRoom] || []).map(choice => {
+    ? (isPatrol ? getPatrolChoices(character) : (activeAdventure?.settingChoices?.[activeRoom] || [])).map(choice => {
         const scaling = activeAdventure ? getDifficultyScaling(character, activeAdventure) : null;
         const scaledDifficulty = applyChoiceDifficultyScaling(choice.difficulty, scaling);
         return {
