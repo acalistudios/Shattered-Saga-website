@@ -118,6 +118,9 @@ export default function AdventureSelection({
   const patrolAllowance = getPatrolAllowance(character);
   const fatiguePenalty = Math.floor(Math.max(0, -fatigue) * 2);
   const patrolPenalty = Math.floor(Math.max(0, PATROL_FATIGUE - fatigue) * 2);
+  const patrolUnavailableReason = patrolAllowance.remaining === 0
+    ? 'Maximum patrols completed. Complete an adventure to reset.'
+    : !canPatrol ? 'Rest in town to recover HP and fatigue before patrolling.' : '';
 
   const [viewMode, setViewMode] = useState('map'); // 'map' or 'list'
   const [mapLevel, setMapLevel] = useState('world'); // 'world' or 'region1'
@@ -311,8 +314,8 @@ export default function AdventureSelection({
     <div className="flex-1 flex flex-col justify-between p-6 max-w-6xl mx-auto w-full overflow-y-auto custom-scrollbar">
       
       {/* Top Header */}
-      <div className="flex items-center justify-between border-b border-amber-500/20 pb-4 mb-4">
-        <div className="flex items-center gap-3">
+      <div className="campaign-header border-b border-amber-500/20 pb-4 mb-4">
+        <div className="campaign-header-heading flex items-center gap-3">
           {onBack && (
             <button
               onClick={onBack}
@@ -338,7 +341,7 @@ export default function AdventureSelection({
         </div>
 
         {/* View Toggle */}
-        <div className="flex bg-slate-950 p-0.5 rounded border border-slate-850">
+        <div className="campaign-view-toggle flex bg-slate-950 p-0.5 rounded border border-slate-850">
           <button
             onClick={() => setViewMode('map')}
             className={`px-3 py-1 rounded text-5xs uppercase tracking-wider font-extrabold transition-all cursor-pointer ${
@@ -357,15 +360,20 @@ export default function AdventureSelection({
           </button>
         </div>
 
-        <AccountStatusPills gems={gems} userProfile={userProfile} onOpenAccount={onOpenAccount} compact />
+        <div className="campaign-account-status">
+          <AccountStatusPills gems={gems} userProfile={userProfile} onOpenAccount={onOpenAccount} compact />
+        </div>
         
         {/* Character Summary Badge & Stash Button */}
-        {character && <div className="text-xs text-amber-200 border border-slate-700 rounded px-3 py-2" role="status">
-          <div>Fatigue: {fatigue.toFixed(1)} / {character.stats.maxFatigue ?? 15} · Check penalty: -{fatiguePenalty}</div>
-          <div>Patrols: {patrolAllowance.remaining}/{patrolAllowance.limit} · Cost: {PATROL_FATIGUE} fatigue, at least {PATROL_HOURS}h · After departure penalty: -{patrolPenalty}</div>
+        {character && <div className="campaign-travel-status text-xs text-amber-200" role="status" aria-label="Travel status">
+          <span>Fatigue: <strong>{fatigue.toFixed(1)} / {character.stats.maxFatigue ?? 15}</strong></span>
+          <span>Check penalty: <strong>{fatiguePenalty ? `-${fatiguePenalty}` : '0'}</strong></span>
+          <span>Patrols remaining: <strong>{patrolAllowance.remaining} / {patrolAllowance.limit}</strong></span>
+          <span>Patrol cost: <strong>{PATROL_FATIGUE} fatigue, {PATROL_HOURS}h minimum</strong></span>
+          <span>Penalty after patrol: <strong>{patrolPenalty ? `-${patrolPenalty}` : '0'}</strong></span>
         </div>}
         {character && (
-          <div className="flex items-center gap-2">
+          <div className="campaign-header-actions flex items-center gap-2">
             <div className="hidden sm:flex items-center gap-3 bg-slate-900/60 border border-slate-850 rounded-lg p-2">
               {character.portraitUrl && (
                 <div className="w-10 h-10 rounded border border-amber-500/20 overflow-hidden bg-slate-950">
@@ -420,17 +428,21 @@ export default function AdventureSelection({
               <span>Market</span>
             </button>
 
+            <div className="campaign-patrol-control">
             <button
               type="button"
               onClick={handleStartRoadPatrol}
               disabled={!canPatrol}
               className="px-3 py-2 rounded bg-gradient-to-r from-red-950/80 to-slate-900 border border-red-500/40 hover:border-red-400 text-xs font-bold text-amber-300 hover:text-amber-200 cursor-pointer transition-all flex items-center gap-1.5 shadow-sm"
-              title={canPatrol ? 'Patrol the highway; allowance resets after completing an adventure' : patrolAllowance.remaining === 0 ? 'Complete an adventure to replenish patrols' : 'Recover HP and fatigue in town before patrolling'}
+              aria-describedby={patrolUnavailableReason ? 'patrol-unavailable-reason' : undefined}
+              title={canPatrol ? 'Patrol the highway; allowance resets after completing an adventure' : patrolUnavailableReason}
               style={!canPatrol ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
             >
               <span>⚔️</span>
               <span>Road Patrol</span>
             </button>
+            {patrolUnavailableReason && <p id="patrol-unavailable-reason" className="campaign-patrol-reason">{patrolUnavailableReason}</p>}
+            </div>
 
             {onExportSaveFile && (
               <button
@@ -806,6 +818,7 @@ export default function AdventureSelection({
                               <button
                                 onClick={handleStartRoadPatrol}
                                 disabled={!canPatrol}
+                                aria-describedby={patrolUnavailableReason ? 'region-patrol-unavailable-reason' : undefined}
                                 className="w-full py-2 bg-slate-900 hover:bg-slate-850 border border-amber-500/30 hover:border-amber-500/60 text-amber-300 rounded text-3xs font-bold uppercase tracking-wider cursor-pointer transition-all text-center flex items-center justify-center gap-1.5"
                                 title="Engage in road travel encounters within this region"
                                 style={!canPatrol ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
@@ -813,6 +826,7 @@ export default function AdventureSelection({
                                 <span>⚔️</span>
                                 <span>Patrol Region Roads</span>
                               </button>
+                              {patrolUnavailableReason && <p id="region-patrol-unavailable-reason" className="campaign-patrol-reason">{patrolUnavailableReason}</p>}
                             </div>
                           ) : storyUnlocked && !travelUnlocked ? (
                             <button

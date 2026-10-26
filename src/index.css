@@ -148,6 +148,48 @@ select option {
   color: #e2e8f0 !important; /* text-slate-200 */
 }
 
+/* Separate navigation/actions from travel status so neither can squeeze into a column. */
+.campaign-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  letter-spacing: 0;
+}
+.campaign-header-heading { flex: 1 1 360px; min-width: 0; flex-wrap: wrap; }
+.campaign-header-heading > div { flex: 1 1 200px; min-width: 0; }
+.campaign-header-heading h1 { font-size: 24px; overflow-wrap: anywhere; }
+.campaign-header-heading p { font-size: 11px; letter-spacing: 0; }
+.campaign-view-toggle { flex: 0 0 auto; }
+.campaign-view-toggle button { white-space: nowrap; letter-spacing: 0; }
+.campaign-account-status { flex: 0 1 auto; max-width: 100%; }
+.campaign-account-status span { white-space: nowrap; }
+.campaign-header-actions { flex: 1 1 100%; flex-wrap: wrap; align-items: flex-start; }
+.campaign-header-actions > * { flex-shrink: 0; max-width: 100%; }
+.campaign-header-actions button { white-space: nowrap; }
+.campaign-travel-status {
+  order: 1;
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  border-top: 1px solid #334155;
+  padding-top: 12px;
+  line-height: 1.5;
+}
+.campaign-travel-status > span { white-space: nowrap; }
+.campaign-patrol-control { display: flex; flex-direction: column; gap: 6px; width: 240px; }
+.campaign-patrol-control > button { align-self: flex-start; }
+.campaign-patrol-reason { font-size: 12px; line-height: 1.5; color: #fde68a; margin: 0; }
+@media (max-width: 640px) {
+  .campaign-header { gap: 12px; }
+  .campaign-header-heading { flex-basis: 100%; }
+  .campaign-account-status { flex: 1 1 100%; }
+  .campaign-account-status > * { justify-content: flex-start; }
+  .campaign-travel-status { gap: 8px 16px; }
+}
+
 /* Now Playing scrolling marquee animation */
 @keyframes marquee {
   0% { transform: translateX(100%); }
