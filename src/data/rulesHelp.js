@@ -270,9 +270,9 @@ export const GAME_RULES_SECTIONS = [
         title: 'Road Patrols & Highway Hazards',
         content: [
           'Between adventures or during transit across dangerous frontiers, outlaws, brigands, and monsters roam the high roads.',
-          'Click "⚔️ Road Patrol" from the campaign map at any time to patrol highways for bandit ambushes and test your combat tactics.',
-          'Each roadside encounter presents 5 distinct tactical approaches: Archery/Stealth (+extra surprise damage), Heavy Melee Charges / Shield Walls, Arcane Shockwaves, Divine Smites, and Diplomatic Parleys with tolls.',
-          'Defeating roadside hazards awards looted weapons, rations, coins, reputation, and morality bonuses. Narrow diplomatic successes let you talk highwaymen down in exchange for a modest road toll (10-15g).'
+          'One patrol is available before your first completed adventure. Each newly completed adventure replaces your allowance with two patrols; unused patrols do not bank. Resting does not replenish the allowance.',
+          'A patrol is a GM-run scene: choose your own actions, fight, negotiate, or escape. Setting out costs 3 fatigue; at least four hours pass. You must have positive fatigue and sufficient HP to start. Negative fatigue imposes a check penalty of floor(2 × fatigue deficit).',
+          'Patrol spoils are engine-defined: consumables, a chance of one gear item, and gold capped at 2 gp per character level (maximum 20 gp), never above the authored reward. Escaping pays no spoils. Unlocked region maps remain accessible for recovery.'
         ]
       },
       {

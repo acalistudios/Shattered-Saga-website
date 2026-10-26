@@ -1,6 +1,6 @@
 /** Opening an unlocked map is not travel: recovery services must stay reachable. */
 export function getMapReadiness(character = {}) {
-  const stats = character.stats || {};
+  const stats = character?.stats || {};
   const hp = stats.hp ?? 10;
   const maxHp = stats.maxHp ?? 10;
   const fatigue = stats.fatigue ?? stats.maxFatigue ?? 15;

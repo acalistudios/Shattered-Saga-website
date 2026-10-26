@@ -4,18 +4,39 @@
 //
 // A patrol is a short scene the GM runs on the play screen like any adventure
 // encounter: the player acts turn by turn, the engine resolves checks and
-// combat. It is NOT an adventure start: nothing is refilled. It self-limits
-// through the survival systems instead of a cooldown: fatigue is spent on
+// combat. It is NOT an adventure start: nothing is refilled. A non-bankable
+// between-adventure allowance limits repeat attempts; fatigue is spent on
 // setting out, at least PATROL_HOURS pass, and crossing midnight eats a ration.
 // Rewards are predefined (the GM never grants them): currency, consumables and
 // only a CHANCE of better gear. Death uses the normal resurrection flow, and a
 // foe that kills you keeps your gear until you meet them on that road again.
 import { consumeRationFromInventory } from './restEngine';
 import { TRAVEL_ENCOUNTERS } from '../data/travelEncounters';
+import { getMapReadiness } from './mapReadiness';
+import { isGearTrailCold } from './resurrectionEngine';
 
 export const PATROL_HOURS = 4;
 export const PATROL_FATIGUE = 3;
 export const PATROL_GEAR_CHANCE = 0.25;
+export const INITIAL_PATROL_ALLOWANCE = 1;
+export const PATROLS_AFTER_ADVENTURE = 2;
+
+/** A completed adventure replaces the allowance; unused patrols never accumulate. */
+export function getPatrolAllowance(character) {
+  const completions = new Set(character?.completed_adventures || []).size;
+  const limit = completions ? PATROLS_AFTER_ADVENTURE : INITIAL_PATROL_ALLOWANCE;
+  const saved = character?.progression?.patrolAllowance;
+  const used = saved?.completions === completions ? Math.max(0, saved.used || 0) : 0;
+  return { completions, limit, used, remaining: Math.max(0, limit - used) };
+}
+
+export function canBeginPatrol(character) {
+  return getMapReadiness(character).canPatrol && getPatrolAllowance(character).remaining > 0
+    && !character?.progression?.activePatrol;
+}
+
+// Poor roadside bands cannot pay adventure-sized rewards, even on later roads.
+export const patrolGoldCap = (level = 1) => Math.min(20, Math.max(1, Math.floor(level)) * 2);
 // Abandoning a patrol mid-fight: they run you down for this share of max HP
 // (never lethal) before you get clear.
 export const FLEE_PURSUIT_FRACTION = 0.25;
@@ -176,12 +197,15 @@ const hourStamp = (stats = {}) => ((stats.day || 1) - 1) * 24 + (stats.hour || 0
 /** Setting out on patrol: spend the fatigue and remember when and where it began. */
 export function beginPatrol(character, encounterId) {
   const encounter = TRAVEL_ENCOUNTERS.find(e => e.id === encounterId);
+  if (!encounter || !canBeginPatrol(character)) return character;
+  const allowance = getPatrolAllowance(character);
   const spent = applyPatrolCosts(character, 0, PATROL_FATIGUE);
   return {
     ...spent,
     is_free_roaming: false,
     progression: {
       ...(spent.progression || {}),
+      patrolAllowance: { completions: allowance.completions, used: allowance.used + 1 },
       activePatrol: {
         encounterId,
         regionId: encounter?.region || null,
@@ -213,13 +237,14 @@ export function normalizePatrolOutcome(claimed, { fought }) {
 }
 
 /** Roll the predefined spoils for an outcome. Escaping pays nothing. */
-export function rollPatrolOutcomeLoot(encounterId, outcome, rng = Math.random) {
+export function rollPatrolOutcomeLoot(encounterId, outcome, rng = Math.random, level = 1) {
   const encounter = TRAVEL_ENCOUNTERS.find(e => e.id === encounterId);
   if (!encounter || outcome === 'escaped') return { gold: 0, items: [], morality: 0 };
   const pool = encounter.approaches.filter(a => (outcome === 'parley') === isParleyApproach(a));
   if (pool.length === 0) return { gold: 0, items: [], morality: 0 };
   const approach = pool[Math.floor(rng() * pool.length) % pool.length];
-  return rollPatrolLoot(approach.rewards, rng);
+  const loot = rollPatrolLoot(approach.rewards, rng);
+  return { ...loot, gold: Math.min(loot.gold, patrolGoldCap(level)) };
 }
 
 /**
@@ -254,7 +279,8 @@ export function finishPatrol(character, { outcome, loot, pursuitDamage = 0 }) {
   // Beating the band that killed you on this road wins your gear back.
   const pending = next.progression?.pendingGearRecovery;
   let recovered = [];
-  if (outcome === 'victory' && pending?.patrolEncounterId === active.encounterId) {
+  if (outcome === 'victory' && pending?.patrolEncounterId === active.encounterId
+    && pending.patrolRegion === active.regionId && !isGearTrailCold(next, hourStamp(next.stats))) {
     recovered = pending.items || [];
     next = {
       ...next,

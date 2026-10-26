@@ -3,7 +3,7 @@ import {
   applyPatrolCosts, rollPatrolLoot, patrolGearRecovery, pendingPatrolEncounterFor,
   isConsumable, addLootToInventory, buildPatrolAdventure, patrolIdFor, isPatrolId,
   beginPatrol, markPatrolFought, normalizePatrolOutcome, rollPatrolOutcomeLoot, finishPatrol,
-  PATROL_HOURS, PATROL_FATIGUE, PATROL_FOES,
+  PATROL_HOURS, PATROL_FATIGUE, PATROL_FOES, canBeginPatrol, getPatrolAllowance, patrolGoldCap,
 } from './patrolEngine';
 import { TRAVEL_ENCOUNTERS } from '../data/travelEncounters';
 
@@ -119,9 +119,9 @@ describe('patrol as a played encounter', () => {
   });
 
   it('setting out spends fatigue but not time, and refills nothing', () => {
-    const c = beginPatrol(traveller({ stats: { day: 3, hour: 10, fatigue: 9, maxFatigue: 15, hp: 7, maxHp: 20 } }), 'highway_bandit_ambush');
+    const c = beginPatrol(traveller({ stats: { day: 3, hour: 10, fatigue: 9, maxFatigue: 15, hp: 12, maxHp: 20 } }), 'highway_bandit_ambush');
     expect(c.stats.fatigue).toBe(9 - PATROL_FATIGUE);
-    expect(c.stats.hp).toBe(7);
+    expect(c.stats.hp).toBe(12);
     expect(c.stats.hour).toBe(10);
     expect(c.progression.activePatrol).toMatchObject({ encounterId: 'highway_bandit_ambush', regionId: 'region1', startedAtHours: 58, fought: false });
   });
@@ -135,7 +135,7 @@ describe('patrol as a played encounter', () => {
   it('escaping pays nothing; parley pays from the talking approach', () => {
     expect(rollPatrolOutcomeLoot('highway_bandit_ambush', 'escaped')).toEqual({ gold: 0, items: [], morality: 0 });
     const parley = TRAVEL_ENCOUNTERS[0].approaches.find(a => a.id === 'diplomatic_parley');
-    expect(rollPatrolOutcomeLoot('highway_bandit_ambush', 'parley', () => 0.99).gold).toBe(parley.rewards.gold);
+    expect(rollPatrolOutcomeLoot('highway_bandit_ambush', 'parley', () => 0.99).gold).toBe(Math.min(parley.rewards.gold, 2));
   });
 
   it('finishing tops the clock up to the patrol length, pays spoils and clears the patrol', () => {
@@ -157,7 +157,8 @@ describe('patrol as a played encounter', () => {
   });
 
   it('fleeing mid-fight hurts but never kills', () => {
-    const c = beginPatrol(traveller({ stats: { day: 3, hour: 10, fatigue: 15, hp: 3, maxHp: 20 } }), 'highway_bandit_ambush');
+    const started = beginPatrol(traveller(), 'highway_bandit_ambush');
+    const c = { ...started, stats: { ...started.stats, hp: 3 } };
     expect(finishPatrol(c, { outcome: 'escaped', loot: null, pursuitDamage: 5 }).character.stats.hp).toBe(1);
   });
 
@@ -170,5 +171,58 @@ describe('patrol as a played encounter', () => {
     expect(won.character.progression.pendingGearRecovery).toBeNull();
     const fled = finishPatrol(c, { outcome: 'escaped', loot: null });
     expect(fled.character.progression.pendingGearRecovery).toBeTruthy();
+  });
+
+  it('cannot recover an expired trail or a trail from another region', () => {
+    const pending = { ...patrolGearRecovery({ encounterId: 'highway_bandit_ambush', regionId: 'region1', diedAtHours: 0 }), items: ['Dagger'] };
+    for (const p of [{ ...pending, coldAtHours: 62 }, { ...pending, patrolRegion: 'region2' }]) {
+      const c = beginPatrol(traveller({ progression: { pendingGearRecovery: p } }), 'highway_bandit_ambush');
+      expect(finishPatrol(c, { outcome: 'victory', loot: null }).recovered).toEqual([]);
+    }
+  });
+});
+
+describe('non-bankable patrol allowance', () => {
+  const finish = c => finishPatrol(c, { outcome: 'escaped', loot: null }).character;
+  it('allows one before the first adventure and persists exhaustion of the allowance', () => {
+    const c = finish(beginPatrol(traveller(), 'highway_bandit_ambush'));
+    const loaded = JSON.parse(JSON.stringify(c));
+    expect(getPatrolAllowance(loaded).remaining).toBe(0);
+    expect(canBeginPatrol(loaded)).toBe(false);
+    expect(beginPatrol(loaded, 'highway_bandit_ambush')).toBe(loaded);
+  });
+  it('resets to two, never adds unused patrols, after distinct completed adventures', () => {
+    let c = { ...traveller(), completed_adventures: ['ashveil_keep'] };
+    expect(getPatrolAllowance(c).remaining).toBe(2);
+    c = finish(beginPatrol(c, 'highway_bandit_ambush'));
+    expect(getPatrolAllowance(c).remaining).toBe(1);
+    c = { ...c, completed_adventures: ['ashveil_keep', 'saltblood_mines'] };
+    expect(getPatrolAllowance(c).remaining).toBe(2);
+    c = finish(beginPatrol(c, 'highway_bandit_ambush'));
+    c = finish(beginPatrol(c, 'highway_bandit_ambush'));
+    expect(getPatrolAllowance(c).remaining).toBe(0);
+  });
+  it('cannot stack starts or reset allowance by resting or changing regions', () => {
+    const c = beginPatrol(traveller(), 'highway_bandit_ambush');
+    expect(beginPatrol(c, 'harvest_vale_scavengers')).toBe(c);
+    const rested = { ...finish(c), stats: { ...c.stats, fatigue: 15 } };
+    expect(canBeginPatrol(rested)).toBe(false);
+  });
+  it('rejects invalid encounters and exhausted or wounded characters without costs', () => {
+    for (const stats of [{ hp: 20, fatigue: 0 }, { hp: 1, fatigue: 15 }]) {
+      const c = traveller({ stats: { maxHp: 20, ...stats } });
+      expect(beginPatrol(c, 'highway_bandit_ambush')).toBe(c);
+    }
+    const c = traveller();
+    expect(beginPatrol(c, 'missing')).toBe(c);
+  });
+  it('caps gold sharply at level one across every encounter and scales conservatively', () => {
+    for (const e of TRAVEL_ENCOUNTERS) {
+      for (const outcome of ['victory', 'parley']) {
+        expect(rollPatrolOutcomeLoot(e.id, outcome, () => 0, 1).gold).toBeLessThanOrEqual(2);
+      }
+    }
+    expect(patrolGoldCap(5)).toBe(10);
+    expect(patrolGoldCap(20)).toBe(20);
   });
 });

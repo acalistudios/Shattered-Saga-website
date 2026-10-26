@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   rollResurrectionAttributeChoices,
   applyResurrection,
+  collectCarriedGear,
   isUndead,
   getNpcReactionPenalty,
   getUndeadSocialPenalty,
@@ -29,6 +30,14 @@ const character = (over = {}) => ({
   stats: { hp: -5, day: 2, hour: 4.0, bleedingTier: 2, deathCountdown: 0 },
   progression: {},
   ...over,
+});
+
+describe('carried gear snapshots', () => {
+  it('does not duplicate equipment references, but preserves genuinely owned copies', () => {
+    const c = { inventory: ['Dagger', 'Dagger', 'Rations (2)'], equipment: { hand_right: 'Dagger', hand_left: 'Dagger', backpack: 'Small Backpack' } };
+    expect(collectCarriedGear(c)).toEqual(['Dagger', 'Dagger', 'Rations (2)', 'Small Backpack']);
+    expect(c.inventory).toHaveLength(3);
+  });
 });
 
 describe('attribute choices', () => {

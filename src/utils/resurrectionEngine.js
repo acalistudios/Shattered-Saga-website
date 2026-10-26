@@ -35,6 +35,19 @@ export function rollResurrectionAttributeChoices(character, rng = Math.random) {
 
 export const isUndead = (character) => !!character?.progression?.undead;
 
+/** Equipment references carried items; count overlapping inventory copies only once. */
+export function collectCarriedGear(character) {
+  const items = [...(character.inventory || [])];
+  const available = new Map();
+  for (const item of items) available.set(item, (available.get(item) || 0) + 1);
+  for (const item of Object.values(character.equipment || {}).filter(Boolean)) {
+    const copies = available.get(item) || 0;
+    if (copies > 0) available.set(item, copies - 1);
+    else items.push(item);
+  }
+  return items;
+}
+
 export const getNpcReactionPenalty = (character) =>
   Number(character?.progression?.npcReactionPenalty) || 0;
 
@@ -72,10 +85,7 @@ export function applyResurrection(character, {
   const npcReactionPenalty = Math.max(getNpcReactionPenalty(character), penalty);
 
   const recovery = adventureId ? resolveGearRecovery(adventureId, killerName) : null;
-  const lostGear = [
-    ...Object.values(character.equipment || {}).filter(Boolean),
-    ...(character.inventory || []),
-  ];
+  const lostGear = collectCarriedGear(character);
 
   return {
     ...character,

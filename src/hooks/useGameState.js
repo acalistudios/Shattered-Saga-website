@@ -28,6 +28,7 @@ import {
 import {
   rollResurrectionAttributeChoices,
   applyResurrection,
+  collectCarriedGear,
   getUndeadSocialPenalty,
   isUndead,
   getAvailableResurrectionSites,
@@ -45,7 +46,7 @@ import { claimDepot, isAtDepot, settleConfiscatedOnCompletion, shouldConfiscateO
 import { getSupplyDepot } from '../data/supplyDepot';
 import {
   PATROL_FOES, patrolGearRecovery, isPatrolId, patrolEncounterIdOf, patrolIdFor, beginPatrol, markPatrolFought,
-  normalizePatrolOutcome, rollPatrolOutcomeLoot, finishPatrol as applyPatrolFinish, describePatrolResult, FLEE_PURSUIT_FRACTION,
+  normalizePatrolOutcome, rollPatrolOutcomeLoot, finishPatrol as applyPatrolFinish, describePatrolResult, FLEE_PURSUIT_FRACTION, canBeginPatrol,
 } from '../utils/patrolEngine';
 import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../utils/authApi';
 import { consumeRationFromInventory, resolveRest } from '../utils/restEngine';
@@ -3441,7 +3442,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       if (onPatrol && patrolEndClaim !== null && activePatrol) {
         const fought = activePatrol.fought || combatStartTriggered || parsedEnemyAttacks.length > 0 || !!activeEnemy;
         const outcome = normalizePatrolOutcome(patrolEndClaim, { fought });
-        const loot = rollPatrolOutcomeLoot(activePatrol.encounterId, outcome);
+        const loot = rollPatrolOutcomeLoot(activePatrol.encounterId, outcome, Math.random, character.stats.level);
         const pending = character.progression?.pendingGearRecovery;
         const recovered = outcome === 'victory' && pending?.patrolEncounterId === activePatrol.encounterId ? (pending.items || []) : [];
         setCharacter(prev => applyPatrolFinish(prev, { outcome, loot }).character);
@@ -3907,7 +3908,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
    * fatigue cost is paid now and the rest when it ends (utils/patrolEngine.js).
    */
   const startPatrol = (encounterId) => {
-    if (activeAdventureId) return false;
+    if (activeAdventureId || !canBeginPatrol(character)) return false;
     const patrolId = patrolIdFor(encounterId);
     const adventure = getAdventureById(patrolId);
     if (!adventure) return false;
@@ -5149,10 +5150,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       if (!patrol) return risen;
       // Patrol roads have no authored map, so the generic recovery is null;
       // record a road-based one so the gear can be won back on that road.
-      const lostGear = [
-        ...Object.values(prev.equipment || {}).filter(Boolean),
-        ...(prev.inventory || []),
-      ];
+      const lostGear = collectCarriedGear(prev);
       return {
         ...risen,
         progression: {
