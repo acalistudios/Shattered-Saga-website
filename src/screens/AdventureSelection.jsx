@@ -8,6 +8,7 @@ import AccountStatusPills from '../components/AccountStatusPills';
 import KeystoneFontTracker from '../components/KeystoneFontTracker';
 import { getRandomTravelEncounter, TRAVEL_ENCOUNTERS } from '../data/travelEncounters';
 import { pendingPatrolEncounterFor } from '../utils/patrolEngine';
+import { getMapReadiness } from '../utils/mapReadiness';
 import { ADVENTURE_PROGRESSION_METADATA } from '../data/adventureProgression';
 import { getAdventurePowerBand } from '../data/difficultyScaling';
 import { isTier4Unlocked, getKeystoneCount } from '../data/keystoneShards';
@@ -112,10 +113,7 @@ export default function AdventureSelection({
   const isDesktopLayout = layoutMode === 'desktop';
   const completedAdventures = character?.completed_adventures || [];
   
-  const currentHp = character?.stats?.hp || 10;
-  const maxHp = character?.stats?.maxHp || 10;
-  const minTravelHp = Math.min(maxHp, Math.max(10, Math.floor(maxHp * 0.5)));
-  const isHealthSufficientForTravel = currentHp >= minTravelHp;
+  const { hp: currentHp, minTravelHp, canTravel: isHealthSufficientForTravel, canPatrol } = getMapReadiness(character);
 
   const [viewMode, setViewMode] = useState('map'); // 'map' or 'list'
   const [mapLevel, setMapLevel] = useState('world'); // 'world' or 'region1'
@@ -127,6 +125,7 @@ export default function AdventureSelection({
   const [transitMessage, setTransitMessage] = useState('');
 
   const handleStartRoadPatrol = () => {
+    if (!canPatrol) return;
     const targetRegion = mapLevel === 'world' ? selectedRegionId : mapLevel;
     // If a foe on this region's roads took your gear, the patrol finds them.
     const huntedId = pendingPatrolEncounterFor(character, targetRegion);
@@ -416,8 +415,10 @@ export default function AdventureSelection({
             <button
               type="button"
               onClick={handleStartRoadPatrol}
+              disabled={!canPatrol}
               className="px-3 py-2 rounded bg-gradient-to-r from-red-950/80 to-slate-900 border border-red-500/40 hover:border-red-400 text-xs font-bold text-amber-300 hover:text-amber-200 cursor-pointer transition-all flex items-center gap-1.5 shadow-sm"
-              title="Patrol the highway for bandit ambushes and travel combat encounters"
+              title={canPatrol ? 'Patrol the highway for bandit ambushes and travel combat encounters' : 'Recover HP and fatigue in town before patrolling'}
+              style={!canPatrol ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
             >
               <span>⚔️</span>
               <span>Road Patrol</span>
@@ -518,7 +519,7 @@ export default function AdventureSelection({
                       selectRegion(reg.id);
                     }}
                     onDoubleClick={() => {
-                      if (storyUnlocked && travelUnlocked && isHealthSufficientForTravel) {
+                      if (storyUnlocked && travelUnlocked) {
                         setMapLevel(reg.id);
                       }
                     }}
@@ -773,11 +774,11 @@ export default function AdventureSelection({
 
                         {/* Actions Block */}
                         <div className="mt-4 pt-4 border-t border-slate-800/80">
-                          {!isHealthSufficientForTravel && storyUnlocked ? (
+                          {!isHealthSufficientForTravel && storyUnlocked && !travelUnlocked ? (
                             <>
                               <div className="p-3 bg-red-955/20 border border-red-500/25 text-red-300 rounded-lg text-3xs mb-3 leading-relaxed">
                                 <span className="font-extrabold block mb-1">⚠️ WOUNDED / EXHAUSTED</span>
-                                You are too weak to travel between regions. You must have at least <strong className="text-red-200">{minTravelHp} HP</strong> (current: {currentHp} HP). Stay at Dermot's Hearthstone Inn (or other taverns) or use healing herbs/poultices to recover.
+                                You are too weak to travel between regions. You need positive fatigue and at least <strong className="text-red-200">{minTravelHp} HP</strong> (current: {currentHp} HP). Enter an unlocked region to visit a tavern, or use healing herbs/poultices to recover.
                               </div>
                               <button
                                 disabled
@@ -796,8 +797,10 @@ export default function AdventureSelection({
                               </button>
                               <button
                                 onClick={handleStartRoadPatrol}
+                                disabled={!canPatrol}
                                 className="w-full py-2 bg-slate-900 hover:bg-slate-850 border border-amber-500/30 hover:border-amber-500/60 text-amber-300 rounded text-3xs font-bold uppercase tracking-wider cursor-pointer transition-all text-center flex items-center justify-center gap-1.5"
                                 title="Engage in road travel encounters within this region"
+                                style={!canPatrol ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
                               >
                                 <span>⚔️</span>
                                 <span>Patrol Region Roads</span>
