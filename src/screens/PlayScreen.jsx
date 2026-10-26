@@ -7,7 +7,7 @@ import { getAdventureById } from '../data/adventureLookup';
 import { getDifficultyScaling, applyChoiceDifficultyScaling } from '../data/difficultyScaling';
 import { PRESET_METADATA } from '../data/portraits';
 import storage from '../utils/storage';
-import { calculateWeightAndVolume, getItemDetails, getItemSlot } from '../utils/items';
+import { calculateWeightAndVolume, getItemDetails, getItemSlot, getEquippedDefenseGear } from '../utils/items';
 import AccountStatusPills from '../components/AccountStatusPills';
 import ResurrectionModal from '../components/ResurrectionModal';
 import { stripEngineTags } from '../utils/playerInput';
@@ -1670,8 +1670,7 @@ export default function PlayScreen({
               const attack = enemyAttacksQueue[0];
               const defenseCount = character.stats.defenseCount || 0;
               const activePenalty = defenseCount * -2;
-              const shieldName = character.equipment?.shield;
-              const weaponName = character.equipment?.weapon;
+              const { shieldName, weaponName } = getEquippedDefenseGear(character.equipment);
               
               return (
                 <div className="space-y-3">

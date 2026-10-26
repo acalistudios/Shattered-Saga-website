@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import storage from '../utils/storage';
 import { GMS, SAGA_ENGINES, BASE_SYSTEM_PROMPT, SKILLS_LIST, PROFESSIONS_LIST, ELEMENTS_LIST } from '../data/gms';
-import { calculateWeightAndVolume, getItemDetails } from '../utils/items';
+import { calculateWeightAndVolume, getItemDetails, getEquippedDefenseGear } from '../utils/items';
 import { generateCompletion, executeOpposedCheck, rollDie, rollAttributePrimary, rollAttributeSecondary, rollSkillRanks } from '../utils/ai';
 import { ADVENTURES_LIST } from '../data/adventures';
 import { getAdventureById } from '../data/adventureLookup';
@@ -4454,23 +4454,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       }
     }
 
-    // Enforce weapon or shield requirement for blocking
-    const rightItem = character.equipment?.hand_right;
-    const leftItem = character.equipment?.hand_left;
-    const rightDetails = rightItem ? getItemDetails(rightItem) : null;
-    const leftDetails = leftItem ? getItemDetails(leftItem) : null;
-
-    const isWeapon = (details) => {
-      if (!details) return false;
-      const nameLower = (details.name || '').toLowerCase();
-      if (nameLower.includes('shield') || nameLower.includes('buckler')) return false;
-      return details.slot === 'hand';
-    };
-
-    const weaponName = isWeapon(rightDetails) ? rightItem : (isWeapon(leftDetails) ? leftItem : null);
-    
-    const shieldName = (rightItem && (rightItem.toLowerCase().includes('shield') || rightItem.toLowerCase().includes('buckler'))) ? rightItem :
-                       ((leftItem && (leftItem.toLowerCase().includes('shield') || leftItem.toLowerCase().includes('buckler'))) ? leftItem : null);
+    // The UI and engine must agree whether a held item permits block/parry.
+    const { weaponName, shieldName } = getEquippedDefenseGear(character.equipment);
 
     if (defenseSkillId === 'blocking' && !weaponName && !shieldName) {
       setApiError("You cannot block without a weapon or shield equipped! Please choose Acrobatics to dodge.");

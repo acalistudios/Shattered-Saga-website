@@ -348,3 +348,12 @@ export function getItemSlot(itemName) {
   const details = getItemDetails(itemName);
   return details.slot;
 }
+
+/** Use carried hand slots, not inventory or obsolete weapon/shield aliases. */
+export function getEquippedDefenseGear(equipment = {}) {
+  const hands = [equipment?.hand_right, equipment?.hand_left].filter(Boolean);
+  const isShield = name => /shield|buckler/i.test(name);
+  const weaponName = hands.find(name => !isShield(name) && getItemDetails(name).slot === 'hand') || null;
+  const shieldName = hands.find(isShield) || null;
+  return { weaponName, shieldName };
+}
