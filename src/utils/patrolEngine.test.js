@@ -4,8 +4,41 @@ import {
   isConsumable, addLootToInventory, buildPatrolAdventure, patrolIdFor, isPatrolId,
   beginPatrol, markPatrolFought, normalizePatrolOutcome, rollPatrolOutcomeLoot, finishPatrol,
   PATROL_HOURS, PATROL_FATIGUE, PATROL_FOES, canBeginPatrol, getPatrolAllowance, patrolGoldCap,
+  selectPatrolChoices, getPatrolChoices,
 } from './patrolEngine';
 import { TRAVEL_ENCOUNTERS } from '../data/travelEncounters';
+import { SKILLS_LIST } from '../data/gms';
+
+describe('random patrol skill suggestions', () => {
+  it.each(TRAVEL_ENCOUNTERS)('$id offers three distinct canonical skill checks', encounter => {
+    const choices = selectPatrolChoices(encounter.id, () => 0.6);
+    expect(choices).toHaveLength(3);
+    expect(new Set(choices.map(c => c.skill)).size).toBe(3);
+    for (const choice of choices) {
+      expect(SKILLS_LIST.some(s => s.id === choice.skill)).toBe(true);
+      expect(['novice', 'professional', 'veteran', 'legendary']).toContain(choice.difficulty);
+      expect(choice.text.length).toBeGreaterThan(10);
+    }
+  });
+  it('different draws vary skills without changing encounter data', () => {
+    const before = JSON.stringify(TRAVEL_ENCOUNTERS);
+    const id = 'highway_bandit_ambush';
+    expect(selectPatrolChoices(id, () => 0).map(c => c.skill)).not.toEqual(selectPatrolChoices(id, () => 0.99).map(c => c.skill));
+    expect(selectPatrolChoices(id, () => 0.99).some(c => ['tracking', 'survival', 'insight'].includes(c.skill))).toBe(true);
+    expect(JSON.stringify(TRAVEL_ENCOUNTERS)).toBe(before);
+  });
+  it('stores the draw for reload and later turns, with a stable legacy fallback', () => {
+    const choices = selectPatrolChoices('highway_bandit_ambush', () => 0.9);
+    const c = beginPatrol(traveller(), 'highway_bandit_ambush', choices);
+    expect(getPatrolChoices(JSON.parse(JSON.stringify(c)))).toEqual(choices);
+    expect(getPatrolChoices(markPatrolFought(c))).toEqual(choices);
+    const old = { progression: { activePatrol: { encounterId: 'highway_bandit_ambush' } } };
+    expect(getPatrolChoices(old)).toEqual(getPatrolChoices(old));
+    expect(getPatrolChoices(old)).toHaveLength(3);
+    expect(getPatrolChoices({})).toEqual([]);
+    expect(selectPatrolChoices('unknown')).toEqual([]);
+  });
+});
 
 const traveller = (over = {}) => ({
   stats: { day: 3, hour: 10, fatigue: 15, maxFatigue: 15, hp: 20, maxHp: 20 },

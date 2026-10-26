@@ -7,7 +7,7 @@ import { getAdventureById } from '../data/adventureLookup';
 import { getDifficultyScaling, applyChoiceDifficultyScaling } from '../data/difficultyScaling';
 import { PRESET_METADATA } from '../data/portraits';
 import storage from '../utils/storage';
-import { calculateWeightAndVolume, getItemDetails, getItemSlot } from '../utils/items';
+import { calculateWeightAndVolume, getItemDetails, getItemSlot, getEquippedDefenseGear } from '../utils/items';
 import AccountStatusPills from '../components/AccountStatusPills';
 import ResurrectionModal from '../components/ResurrectionModal';
 import { stripEngineTags } from '../utils/playerInput';
@@ -16,6 +16,7 @@ import { skillRankCost } from '../data/progressionRewards';
 import { getCompanionById } from '../data/companions';
 import { getActiveKeystoneResonances } from '../data/keystoneShards';
 import CampfireModal from '../components/CampfireModal';
+import { getPatrolChoices } from '../utils/patrolEngine';
 
 
 
@@ -401,7 +402,7 @@ export default function PlayScreen({
   };
   const activeRoom = currentLocation || activeAdventure?.settings?.[0] || null;
   const activeRoomChoices = activeRoom
-    ? (activeAdventure?.settingChoices?.[activeRoom] || []).map(choice => {
+    ? (isPatrol ? getPatrolChoices(character) : (activeAdventure?.settingChoices?.[activeRoom] || [])).map(choice => {
         const scaling = activeAdventure ? getDifficultyScaling(character, activeAdventure) : null;
         const scaledDifficulty = applyChoiceDifficultyScaling(choice.difficulty, scaling);
         return {
@@ -1670,8 +1671,7 @@ export default function PlayScreen({
               const attack = enemyAttacksQueue[0];
               const defenseCount = character.stats.defenseCount || 0;
               const activePenalty = defenseCount * -2;
-              const shieldName = character.equipment?.shield;
-              const weaponName = character.equipment?.weapon;
+              const { shieldName, weaponName } = getEquippedDefenseGear(character.equipment);
               
               return (
                 <div className="space-y-3">

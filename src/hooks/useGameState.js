@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import storage from '../utils/storage';
 import { GMS, SAGA_ENGINES, BASE_SYSTEM_PROMPT, SKILLS_LIST, PROFESSIONS_LIST, ELEMENTS_LIST } from '../data/gms';
-import { calculateWeightAndVolume, getItemDetails } from '../utils/items';
+import { calculateWeightAndVolume, getItemDetails, getEquippedDefenseGear } from '../utils/items';
 import { generateCompletion, executeOpposedCheck, rollDie, rollAttributePrimary, rollAttributeSecondary, rollSkillRanks } from '../utils/ai';
 import { ADVENTURES_LIST } from '../data/adventures';
 import { getAdventureById } from '../data/adventureLookup';
@@ -46,7 +46,7 @@ import { claimDepot, isAtDepot, settleConfiscatedOnCompletion, shouldConfiscateO
 import { getSupplyDepot } from '../data/supplyDepot';
 import {
   PATROL_FOES, patrolGearRecovery, isPatrolId, patrolEncounterIdOf, patrolIdFor, beginPatrol, markPatrolFought,
-  normalizePatrolOutcome, rollPatrolOutcomeLoot, finishPatrol as applyPatrolFinish, describePatrolResult, FLEE_PURSUIT_FRACTION, canBeginPatrol,
+  normalizePatrolOutcome, rollPatrolOutcomeLoot, finishPatrol as applyPatrolFinish, describePatrolResult, FLEE_PURSUIT_FRACTION, canBeginPatrol, getPatrolChoices, selectPatrolChoices,
 } from '../utils/patrolEngine';
 import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../utils/authApi';
 import { consumeRationFromInventory, resolveRest } from '../utils/restEngine';
@@ -523,7 +523,9 @@ const DEFAULT_SAFETY_STATE = {
 };
 
 export default function useGameState() {
-  const activeSlotIndex = storage.get('active_slot_index', 1);
+  // Slot handlers reload the app. Until then this mounted character must keep
+  // writing to its original slot, even after the next slot is selected in storage.
+  const [activeSlotIndex] = useState(() => storage.get('active_slot_index', 1));
 
   const [userProfile, setUserProfile] = useState(null);
 
@@ -2393,6 +2395,9 @@ This session is in a peaceful, roleplay-centric "Free Roam" mode.
       const hunted = character.progression?.pendingGearRecovery?.patrolEncounterId === activeAdventure.patrolEncounterId;
       systemPrompt += `\n\n[MODE: ROAD PATROL]
 This is a short roadside ambush on a patrol between adventures, not an adventure. One scene, resolved in about six exchanges. Run it like any adventure encounter: the player decides what to do, you call for checks, and enemy strikes go through [enemy_attack]. The engine tracks ${activeAdventure.npcs[0].name} in combat; treat the rest of the band as narrative (they break when their leader falls or yields).
+The engine selected these three suggested approaches for this patrol (not exclusive actions):
+${getPatrolChoices(character).map(c => `- ${c.text} [${c.skill}, ${c.difficulty}]`).join('\n')}
+Respect the engine's supplied check result when the player uses a suggestion; do not substitute a different skill or reroll. Freeform actions remain available.
 ${hunted ? `This is the band that killed the player on this road and took their gear. ${activeAdventure.npcs[0].name} has it. Make that recognisable, but do not hand it over: the engine returns it if the player wins.\n` : ''}End the patrol by emitting exactly one of these, once, when it is truly over:
 - [patrol_end: victory] — the band is defeated, routed, or surrenders after a fight.
 - [patrol_end: parley] — the player talks, bribes, or intimidates their way past without a fight.
@@ -3914,7 +3919,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     if (!adventure) return false;
     const hunted = character.progression?.pendingGearRecovery?.patrolEncounterId === encounterId;
 
-    setCharacter(prev => beginPatrol(prev, encounterId));
+    // Draw once in the event, not in an updater React may replay.
+    const choices = selectPatrolChoices(encounterId);
+    setCharacter(prev => beginPatrol(prev, encounterId, choices));
     setActiveAdventureId(patrolId);
     setActiveGmId('narrator');
     setCurrentLocation(adventure.settings[0]);
@@ -4454,23 +4461,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       }
     }
 
-    // Enforce weapon or shield requirement for blocking
-    const rightItem = character.equipment?.hand_right;
-    const leftItem = character.equipment?.hand_left;
-    const rightDetails = rightItem ? getItemDetails(rightItem) : null;
-    const leftDetails = leftItem ? getItemDetails(leftItem) : null;
-
-    const isWeapon = (details) => {
-      if (!details) return false;
-      const nameLower = (details.name || '').toLowerCase();
-      if (nameLower.includes('shield') || nameLower.includes('buckler')) return false;
-      return details.slot === 'hand';
-    };
-
-    const weaponName = isWeapon(rightDetails) ? rightItem : (isWeapon(leftDetails) ? leftItem : null);
-    
-    const shieldName = (rightItem && (rightItem.toLowerCase().includes('shield') || rightItem.toLowerCase().includes('buckler'))) ? rightItem :
-                       ((leftItem && (leftItem.toLowerCase().includes('shield') || leftItem.toLowerCase().includes('buckler'))) ? leftItem : null);
+    // The UI and engine must agree whether a held item permits block/parry.
+    const { weaponName, shieldName } = getEquippedDefenseGear(character.equipment);
 
     if (defenseSkillId === 'blocking' && !weaponName && !shieldName) {
       setApiError("You cannot block without a weapon or shield equipped! Please choose Acrobatics to dodge.");
