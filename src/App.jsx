@@ -77,6 +77,7 @@ function App() {
     canRetryLastAction,
     startAdventure,
     userProfile,
+    profileStatus,
     fetchUserProfile,
     eatRation,
     restCharacter,
@@ -128,8 +129,11 @@ function App() {
 
   const handleOpenAccount = (options = {}) => {
     const section = typeof options === 'string' ? options : options.section;
-    setPrevScreen(screen);
+    if (screen !== 'account') setPrevScreen(screen);
     setAccountInitialSection(section || 'overview');
+    if (options.message) setAccountNotice(options.message);
+    if (section) storage.set('account_return_section', section);
+    if (screen !== 'account') storage.set('account_return_screen', screen);
     if (options.reason === 'insufficient_gems') {
       setAccountNotice(options.message || 'You need more gems for that purchase. Buy a gem pack here, then return to continue.');
     }
@@ -230,8 +234,9 @@ function App() {
     if (!outcome) return;
 
     window.history.replaceState(null, '', window.location.pathname);
-    setPrevScreen('splash');
-    setAccountInitialSection('store');
+    const returnScreen = storage.get('account_return_screen');
+    setPrevScreen(['play', 'adventure_selection'].includes(returnScreen) ? returnScreen : 'splash');
+    setAccountInitialSection(storage.get('account_return_section') === 'subscriptions' ? 'subscriptions' : 'store');
     setScreen('account');
 
     if (outcome === 'success') {
@@ -263,8 +268,9 @@ function App() {
     if (!authError && !authLinked && !authSuccess) return;
 
     window.history.replaceState(null, '', window.location.pathname);
-    setPrevScreen('splash');
-    setAccountInitialSection(authError ? 'support' : 'overview');
+    const returnScreen = storage.get('account_return_screen');
+    setPrevScreen(['play', 'adventure_selection'].includes(returnScreen) ? returnScreen : 'splash');
+    setAccountInitialSection(authError ? 'support' : storage.get('account_return_section') === 'subscriptions' ? 'subscriptions' : 'overview');
     setScreen('account');
 
     if (authError === 'account_not_linked') {
@@ -665,7 +671,13 @@ function App() {
 
   const handleCreateCharacter = (charDetails) => {
     createCharacter(charDetails);
-    setScreen('adventure_selection');
+    // Choose a play plan before the first adventure; free play remains available.
+    setPrevScreen('adventure_selection');
+    setAccountInitialSection('subscriptions');
+    setAccountNotice('Your character is ready. Choose Free, BYOK Supporter, or a premium plan to begin.');
+    storage.set('account_return_screen', 'adventure_selection');
+    storage.set('account_return_section', 'subscriptions');
+    setScreen('account');
   };
 
   const handleSelectAdventure = (adventureId, isFreeRoam = false) => {
@@ -759,6 +771,7 @@ function App() {
       setUsername(usernameVal);
       setIsLoggedIn(true);
       setSandboxMode(false);
+      await fetchUserProfile();
       window.dispatchEvent(new Event('shattered_auth_update'));
       return { success: true };
     }
@@ -1012,6 +1025,9 @@ function App() {
           <AccountScreen
             onBack={() => setScreen(prevScreen)}
             initialSection={accountInitialSection}
+            onEmailPasswordAuth={handleEmailPasswordAuth}
+            onSocialLogin={handleSocialLogin}
+            profileStatus={profileStatus}
             notice={accountNotice}
             onClearNotice={() => setAccountNotice(null)}
             settings={settings}
@@ -1112,6 +1128,7 @@ function App() {
           setSandboxMode={setSandboxMode}
           userProfile={userProfile}
           fetchUserProfile={fetchUserProfile}
+          onOpenAccount={(options) => { setIsSettingsOpen(false); handleOpenAccount(options); }}
         />
 
         <DowntimeMarketModal

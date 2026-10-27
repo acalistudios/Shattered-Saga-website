@@ -147,6 +147,7 @@ const BASE_ADVENTURES_LIST = [
   },
   {
     id: 'ashveil_keep',
+    narrativeDestinations: ["Martha's Provisions", "Vance's Forge", 'Ashveil Keep', 'Ashveil Village', 'keep gate', 'hill road', 'graveyard'],
     name: 'Ashveil Keep',
     desc: 'Investigate the three missing children last seen walking toward the looming gothic ruins of Ashveil Keep at dawn. Uncover Lord Aldric Voss\'s ancient vigil and deal with the demonic shadow of Malachar.',
     element: 'air',
@@ -2090,5 +2091,7 @@ export const ADVENTURES_LIST = BASE_ADVENTURES_LIST.map((adventure) => ({
   rewardModel: ADVENTURE_REWARD_MODELS[adventure.id] || null,
   ...(ADVENTURE_SETTING_METADATA[adventure.id] || {}),
   ...(ADVENTURE_ECONOMY_METADATA[adventure.id] || {}),
+  // Preview the adventure's opening scene, not its suggested GM's portrait.
+  artwork: ADVENTURE_SETTING_METADATA[adventure.id]?.settingImages?.[adventure.settings?.[0]] || adventure.artwork,
   music: ADVENTURE_MUSIC[adventure.id] || null,
 })).sort((a, b) => (a.progression?.campaignOrder || 999) - (b.progression?.campaignOrder || 999));

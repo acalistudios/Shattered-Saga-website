@@ -528,13 +528,15 @@ export default function useGameState() {
   const [activeSlotIndex] = useState(() => storage.get('active_slot_index', 1));
 
   const [userProfile, setUserProfile] = useState(null);
+  const [profileStatus, setProfileStatus] = useState(isBackendConfigured ? 'checking' : 'guest');
 
   const fetchUserProfile = useCallback(async () => {
     // Better Auth backend: read tier + energy from the Worker's /api/me.
     if (isBackendConfigured) {
-      const me = await fetchMe();
-      setUserProfile(
-        me
+      setProfileStatus('checking');
+      try {
+        const me = await fetchMe();
+        const profile = me
           ? {
               id: me.id,
               email: me.email,
@@ -547,9 +549,14 @@ export default function useGameState() {
               unlocked_slots: me.unlocked_slots,
               linked_providers: me.linked_providers || [],
             }
-          : null
-      );
-      return;
+          : null;
+        setUserProfile(profile);
+        setProfileStatus(profile ? 'authenticated' : 'guest');
+        return profile;
+      } catch {
+        setProfileStatus('error');
+        return null;
+      }
     }
 
     const sessionToken = storage.get('supabase_session_token');
@@ -6261,6 +6268,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     setActiveAdventureId,
     startAdventure,
     userProfile,
+    profileStatus,
     fetchUserProfile,
     toggleEquip,
     equipItem,

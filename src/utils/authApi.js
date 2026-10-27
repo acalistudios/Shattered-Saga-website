@@ -151,11 +151,17 @@ export async function fetchMe() {
   const t = getToken();
   const headers = {};
   if (t) headers.Authorization = `Bearer ${t}`;
-  const res = await fetch(`${API_URL}/api/me`, {
+  let res = await fetch(`${API_URL}/api/me`, {
     headers,
     credentials: 'include',
   });
-  if (!res.ok) return null;
+  // A stale password token must not hide a valid OAuth cookie session.
+  if (res.status === 401 && t) {
+    res = await fetch(`${API_URL}/api/me`, { credentials: 'include', headers: {} });
+    if (res.ok) clearToken();
+  }
+  if (res.status === 401) return null;
+  if (!res.ok) throw new Error('Unable to verify your account right now. Please retry.');
   return res.json();
 }
 

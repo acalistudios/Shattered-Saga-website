@@ -861,8 +861,8 @@ export default function AdventureSelection({
                   <div>
                     {/* Banner Image */}
                     {selectedAdventure.artwork && (
-                      <div className="h-28 rounded-lg overflow-hidden border border-slate-800 bg-slate-950 mb-4">
-                        <img src={selectedAdventure.artwork} alt={selectedAdventure.name} className="w-full h-full object-cover opacity-80" />
+                      <div className="rounded-lg overflow-hidden border border-slate-800 bg-slate-950 mb-4">
+                        <img src={selectedAdventure.artwork} alt={selectedAdventure.name} className="w-full h-auto block" />
                       </div>
                     )}
 
@@ -887,9 +887,6 @@ export default function AdventureSelection({
                         </span>
                         <span className="px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-300">
                           Level {selectedAdventure.rewardModel?.recommendedLevelRange?.join('-')}
-                        </span>
-                        <span className="px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-400">
-                          {selectedAdventure.progression.combatExpectation}
                         </span>
                       </div>
                     )}
@@ -922,6 +919,16 @@ export default function AdventureSelection({
                         </div>
                       )}
                     </div>
+
+                    {unlockState.unlocked && (
+                      <button
+                        type="button"
+                        onClick={() => handleEmbarkWithWarning(selectedAdventure.id, isCompleted)}
+                        className="quest-quick-launch"
+                      >
+                        {isCompleted ? 'Visit Area / Rest' : 'Embark on Quest'} <span aria-hidden="true">→</span>
+                      </button>
+                    )}
 
                     <p className="text-3xs text-slate-355 leading-relaxed mb-4">
                       {selectedAdventure.backstory || selectedAdventure.desc}
@@ -1058,12 +1065,12 @@ export default function AdventureSelection({
                   }`}
                 >
                   {/* Artwork Banner */}
-                  <div className="h-32 relative bg-slate-950 w-full overflow-hidden flex items-center justify-center border-b border-slate-800/65">
+                  <div className="relative bg-slate-950 w-full overflow-hidden flex items-center justify-center border-b border-slate-800/65">
                     {adv.artwork ? (
                       <img
                         src={adv.artwork}
                         alt={adv.name}
-                        className="w-full h-full object-cover opacity-70"
+                        className="w-full h-auto block"
                       />
                     ) : (
                       <div className="text-slate-600 font-bold uppercase tracking-widest text-4xs">No Imagery</div>
