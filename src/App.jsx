@@ -14,6 +14,7 @@ import DowntimeMarketModal from './components/DowntimeMarketModal';
 import GlobalMusicPlayer from './components/GlobalMusicPlayer';
 import { ADVENTURES_LIST } from './data/adventures';
 import { isGloballyBanned } from './utils/safety';
+import { spendGemBalance, usesServerGems } from './utils/gemLedger';
 import storage from './utils/storage';
 import {
   isBackendConfigured,
@@ -544,25 +545,23 @@ function App() {
   // Spend a single gem. When the backend is configured the debit happens
   // server-side (atomic, cannot be forged); the local branch is guests only.
   const handleSpendGem = async (amount = 1, reason = 'in-game') => {
-    if (isBackendConfigured && getToken()) {
-      const remaining = await spendGems(amount, reason);
-      if (remaining === null) {
-        handleOpenAccount({ section: 'store', reason: 'insufficient_gems' });
-        return false; // insufficient, offline, or rejected
-      }
-      setGems(remaining);
-      return true;
+    const result = await spendGemBalance({
+      backendConfigured: isBackendConfigured,
+      token: getToken(),
+      profile: userProfile,
+      amount,
+      gems,
+      spendRemote: (n) => spendGems(n, reason),
+    });
+    if (!result.ok) {
+      handleOpenAccount({ section: 'store', reason: 'insufficient_gems' });
+      return false; // insufficient, offline, or rejected
     }
-    if (gems >= amount) {
-      const newGems = gems - amount;
-      setGems(newGems);
-      if (username) {
-        storage.set(`shattered_gems_${username}`, newGems.toString());
-      }
-      return true;
+    setGems(result.gems);
+    if (!result.server && username) {
+      storage.set(`shattered_gems_${username}`, result.gems.toString());
     }
-    handleOpenAccount({ section: 'store', reason: 'insufficient_gems' });
-    return false;
+    return true;
   };
 
   const handleLoadSlot = (slotIndex) => {
@@ -602,7 +601,7 @@ function App() {
   // Unlock a save slot. The server owns both the price and the balance check, so
   // the cost argument is only used for the guest/local fallback path.
   const handleUnlockSlot = async (slotIndex, cost) => {
-    if (isBackendConfigured && getToken()) {
+    if (usesServerGems({ backendConfigured: isBackendConfigured, token: getToken(), profile: userProfile })) {
       const res = await unlockSlot(slotIndex);
       if (!res?.ok) {
         handleOpenAccount({ section: 'store', reason: 'insufficient_gems' });
