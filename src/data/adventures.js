@@ -147,6 +147,7 @@ const BASE_ADVENTURES_LIST = [
   },
   {
     id: 'ashveil_keep',
+    narrativeDestinations: ["Martha's Provisions", "Vance's Forge", 'Ashveil Keep', 'Ashveil Village', 'keep gate', 'hill road', 'graveyard'],
     name: 'Ashveil Keep',
     desc: 'Investigate the three missing children last seen walking toward the looming gothic ruins of Ashveil Keep at dawn. Uncover Lord Aldric Voss\'s ancient vigil and deal with the demonic shadow of Malachar.',
     element: 'air',
@@ -769,7 +770,7 @@ const BASE_ADVENTURES_LIST = [
     itemsDetail: [
       { name: 'Focal Static Core', desc: 'A floating sapphire knot of light where several destiny threads cross.', properties: 'Can restore 3 Arcane SP once per adventure if stabilized, power a ward for one scene, or become a risky artifact that causes gravity anomalies when overused.' },
       { name: 'Sky-Stalker Composite Bow +2', desc: 'A recurved bow of pale skywood with a string that hums in strong wind.', properties: 'Air-aspected +2 ranged weapon. Deals 1d8+1 piercing and requires arrows. Air-affinity PCs ignore wind, height, and unstable footing penalties.' },
-      { name: 'Starfall Bowstring +3', desc: 'A silver-black bowstring spun from a falling-star filament and wrapped around a bone shuttle.', properties: 'Air-aspected +3 bow upgrade. Upgrades one bow to +3. Once per rest, an arrow can strike an incorporeal, flying, or astral target normally; Air-affinity PCs also ignore cover with this shot.' },
+      { name: 'Starfall Bowstring +3', desc: 'A silver-black bowstring spun from a falling-star filament and wrapped around a bone shuttle.', properties: 'Air-aspected bow upgrade. The player installs it on one bow, permanently (the engine handles this; never narrate it as automatic): the bow becomes +3 plus half its own bonus, rounded up. Once per rest, an arrow can strike an incorporeal, flying, or astral target normally; Air-affinity PCs also ignore cover with this shot.' },
       { name: 'Astral Gravity Compass', desc: 'A brass compass whose needle points toward the safest down.', properties: 'Grants +1 to Tracking, Survival, or Attunement checks involving gravity anomalies, floating routes, or unstable bridges.' }
     ],
     settings: ['Windrunner Sky-Bridges', 'Floating Leyline Isles', 'Gravity Siphon Spires', 'Astral Focal Altar'],
@@ -2090,5 +2091,7 @@ export const ADVENTURES_LIST = BASE_ADVENTURES_LIST.map((adventure) => ({
   rewardModel: ADVENTURE_REWARD_MODELS[adventure.id] || null,
   ...(ADVENTURE_SETTING_METADATA[adventure.id] || {}),
   ...(ADVENTURE_ECONOMY_METADATA[adventure.id] || {}),
+  // Preview the adventure's opening scene, not its suggested GM's portrait.
+  artwork: ADVENTURE_SETTING_METADATA[adventure.id]?.settingImages?.[adventure.settings?.[0]] || adventure.artwork,
   music: ADVENTURE_MUSIC[adventure.id] || null,
 })).sort((a, b) => (a.progression?.campaignOrder || 999) - (b.progression?.campaignOrder || 999));

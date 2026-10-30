@@ -14,6 +14,7 @@ import DowntimeMarketModal from './components/DowntimeMarketModal';
 import GlobalMusicPlayer from './components/GlobalMusicPlayer';
 import { ADVENTURES_LIST } from './data/adventures';
 import { isGloballyBanned } from './utils/safety';
+import { spendGemBalance, usesServerGems } from './utils/gemLedger';
 import storage from './utils/storage';
 import {
   isBackendConfigured,
@@ -24,8 +25,10 @@ import {
   fetchMe,
   getToken,
 } from './utils/authApi';
+import { buyWithLocalGems } from './data/gemStore';
 import {
   spendGems,
+  buyStoreItem,
   unlockSlot,
   queueSync,
   queueImmediateSync,
@@ -77,6 +80,7 @@ function App() {
     canRetryLastAction,
     startAdventure,
     userProfile,
+    profileStatus,
     fetchUserProfile,
     eatRation,
     restCharacter,
@@ -92,6 +96,8 @@ function App() {
     enemyAttacksQueue,
     resolveEnemyAttack,
     useInventoryItem,
+    installBowstring,
+    performRite,
     triggerPriceRecovery,
     buyItemFromMerchant,
     sellItemToMerchant,
@@ -105,6 +111,9 @@ function App() {
     beginResurrection,
     startPatrol,
     leavePatrol,
+    startArenaBout,
+    leaveArena,
+    reclaimDepotGear,
     completeResurrection,
     returnToInterruptedAdventure,
     activeEnemy,
@@ -128,8 +137,11 @@ function App() {
 
   const handleOpenAccount = (options = {}) => {
     const section = typeof options === 'string' ? options : options.section;
-    setPrevScreen(screen);
+    if (screen !== 'account') setPrevScreen(screen);
     setAccountInitialSection(section || 'overview');
+    if (options.message) setAccountNotice(options.message);
+    if (section) storage.set('account_return_section', section);
+    if (screen !== 'account') storage.set('account_return_screen', screen);
     if (options.reason === 'insufficient_gems') {
       setAccountNotice(options.message || 'You need more gems for that purchase. Buy a gem pack here, then return to continue.');
     }
@@ -230,8 +242,9 @@ function App() {
     if (!outcome) return;
 
     window.history.replaceState(null, '', window.location.pathname);
-    setPrevScreen('splash');
-    setAccountInitialSection('store');
+    const returnScreen = storage.get('account_return_screen');
+    setPrevScreen(['play', 'adventure_selection'].includes(returnScreen) ? returnScreen : 'splash');
+    setAccountInitialSection(storage.get('account_return_section') === 'subscriptions' ? 'subscriptions' : 'store');
     setScreen('account');
 
     if (outcome === 'success') {
@@ -263,8 +276,9 @@ function App() {
     if (!authError && !authLinked && !authSuccess) return;
 
     window.history.replaceState(null, '', window.location.pathname);
-    setPrevScreen('splash');
-    setAccountInitialSection(authError ? 'support' : 'overview');
+    const returnScreen = storage.get('account_return_screen');
+    setPrevScreen(['play', 'adventure_selection'].includes(returnScreen) ? returnScreen : 'splash');
+    setAccountInitialSection(authError ? 'support' : storage.get('account_return_section') === 'subscriptions' ? 'subscriptions' : 'overview');
     setScreen('account');
 
     if (authError === 'account_not_linked') {
@@ -538,25 +552,43 @@ function App() {
   // Spend a single gem. When the backend is configured the debit happens
   // server-side (atomic, cannot be forged); the local branch is guests only.
   const handleSpendGem = async (amount = 1, reason = 'in-game') => {
-    if (isBackendConfigured && getToken()) {
-      const remaining = await spendGems(amount, reason);
-      if (remaining === null) {
-        handleOpenAccount({ section: 'store', reason: 'insufficient_gems' });
-        return false; // insufficient, offline, or rejected
-      }
-      setGems(remaining);
-      return true;
+    const result = await spendGemBalance({
+      backendConfigured: isBackendConfigured,
+      token: getToken(),
+      profile: userProfile,
+      amount,
+      gems,
+      spendRemote: (n) => spendGems(n, reason),
+    });
+    if (!result.ok) {
+      handleOpenAccount({ section: 'store', reason: 'insufficient_gems' });
+      return false; // insufficient, offline, or rejected
     }
-    if (gems >= amount) {
-      const newGems = gems - amount;
-      setGems(newGems);
-      if (username) {
-        storage.set(`shattered_gems_${username}`, newGems.toString());
-      }
-      return true;
+    setGems(result.gems);
+    if (!result.server && username) {
+      storage.set(`shattered_gems_${username}`, result.gems.toString());
     }
-    handleOpenAccount({ section: 'store', reason: 'insufficient_gems' });
-    return false;
+    return true;
+  };
+
+  // A4 gem store. Signed-in players buy through the server, which prices the
+  // item; guests spend their local balance. The item goes into the active
+  // character's pack.
+  const handleBuyStoreItem = async (itemId) => {
+    if (!character?.name) {
+      return { ok: false, message: 'Load or create a character first: the item goes into their pack.' };
+    }
+    let result;
+    if (usesServerGems({ backendConfigured: isBackendConfigured, token: getToken(), profile: userProfile })) {
+      result = await buyStoreItem(itemId);
+    } else {
+      result = buyWithLocalGems(itemId, gems);
+      if (result && username) storage.set(`shattered_gems_${username}`, result.gems.toString());
+    }
+    if (!result) return { ok: false, message: 'Not enough gems, or the store could not be reached. No gems were spent.' };
+    setGems(result.gems);
+    updateCharacterStats(prev => ({ ...prev, inventory: [...(prev.inventory || []), result.item] }));
+    return { ok: true, message: `${result.item} added to ${character.name}'s pack.` };
   };
 
   const handleLoadSlot = (slotIndex) => {
@@ -596,7 +628,7 @@ function App() {
   // Unlock a save slot. The server owns both the price and the balance check, so
   // the cost argument is only used for the guest/local fallback path.
   const handleUnlockSlot = async (slotIndex, cost) => {
-    if (isBackendConfigured && getToken()) {
+    if (usesServerGems({ backendConfigured: isBackendConfigured, token: getToken(), profile: userProfile })) {
       const res = await unlockSlot(slotIndex);
       if (!res?.ok) {
         handleOpenAccount({ section: 'store', reason: 'insufficient_gems' });
@@ -665,7 +697,13 @@ function App() {
 
   const handleCreateCharacter = (charDetails) => {
     createCharacter(charDetails);
-    setScreen('adventure_selection');
+    // Choose a play plan before the first adventure; free play remains available.
+    setPrevScreen('adventure_selection');
+    setAccountInitialSection('subscriptions');
+    setAccountNotice('Your character is ready. Choose Free, BYOK Supporter, or a premium plan to begin.');
+    storage.set('account_return_screen', 'adventure_selection');
+    storage.set('account_return_section', 'subscriptions');
+    setScreen('account');
   };
 
   const handleSelectAdventure = (adventureId, isFreeRoam = false) => {
@@ -759,6 +797,7 @@ function App() {
       setUsername(usernameVal);
       setIsLoggedIn(true);
       setSandboxMode(false);
+      await fetchUserProfile();
       window.dispatchEvent(new Event('shattered_auth_update'));
       return { success: true };
     }
@@ -991,6 +1030,10 @@ function App() {
             onStartPatrol={(encounterId) => {
               if (startPatrol(encounterId)) setScreen('play');
             }}
+            onStartArena={(bracketId) => {
+              if (startArenaBout(bracketId)) setScreen('play');
+            }}
+            onReclaimDepot={reclaimDepotGear}
             onSelectAdventure={handleSelectAdventure}
             onBack={() => setScreen('splash')}
             gems={gems}
@@ -1012,6 +1055,9 @@ function App() {
           <AccountScreen
             onBack={() => setScreen(prevScreen)}
             initialSection={accountInitialSection}
+            onEmailPasswordAuth={handleEmailPasswordAuth}
+            onSocialLogin={handleSocialLogin}
+            profileStatus={profileStatus}
             notice={accountNotice}
             onClearNotice={() => setAccountNotice(null)}
             settings={settings}
@@ -1029,6 +1075,8 @@ function App() {
             gems={gems}
             setGems={setGems}
             initialAuthError={accountAuthError}
+            onBuyStoreItem={handleBuyStoreItem}
+            activeCharacterName={character?.name || ''}
           />
         )}
 
@@ -1068,6 +1116,10 @@ function App() {
             canRetryLastAction={canRetryLastAction}
             onQuitAdventure={handleQuitAdventure}
             onExitAdventure={handleExitAdventure}
+            onLeaveArena={() => {
+              leaveArena();
+              setScreen('adventure_selection');
+            }}
             onLeavePatrol={() => {
               leavePatrol();
               setScreen('adventure_selection');
@@ -1091,6 +1143,8 @@ function App() {
             enemyAttacksQueue={enemyAttacksQueue}
             onResolveEnemyAttack={resolveEnemyAttack}
             onUseInventoryItem={useInventoryItem}
+            onInstallBowstring={installBowstring}
+            onPerformRite={performRite}
             activeEnemy={activeEnemy}
             counterOpportunities={counterOpportunities}
             combatStance={combatStance}
@@ -1112,6 +1166,7 @@ function App() {
           setSandboxMode={setSandboxMode}
           userProfile={userProfile}
           fetchUserProfile={fetchUserProfile}
+          onOpenAccount={(options) => { setIsSettingsOpen(false); handleOpenAccount(options); }}
         />
 
         <DowntimeMarketModal

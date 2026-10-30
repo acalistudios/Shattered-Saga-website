@@ -195,6 +195,27 @@ export async function spendGems(amount, reason = '') {
   }
 }
 
+/**
+ * Buy a gem-store item. The server prices it by id (api-worker/src/store.ts).
+ * Returns { gems, item } on success, or null if refused or offline.
+ */
+export async function buyStoreItem(itemId) {
+  if (!canSync()) return null;
+  try {
+    const res = await fetch(`${API_URL}/api/store/buy`, {
+      method: 'POST',
+      headers: authHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ itemId }),
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    return typeof d.gems === 'number' && typeof d.item === 'string' ? { gems: d.gems, item: d.item } : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Unlock a save slot with gems (server validates cost and balance). */
 export async function unlockSlot(slotIndex) {
   if (!canSync()) return null;

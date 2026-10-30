@@ -7,6 +7,7 @@ import {
   NPC_REACTION_PENALTY_FIRST,
   NPC_REACTION_PENALTY_REPEAT,
   getAvailableResurrectionSites,
+  UNDEATH_CURE_ITEM,
 } from '../data/resurrection';
 import { resolveGearRecovery, ADVENTURE_GEAR_RECOVERY } from '../data/gearRecovery';
 
@@ -293,6 +294,16 @@ export function cureUndeath(character) {
     ...character,
     progression: { ...character.progression, undead: false, npcReactionPenalty: 0 },
   };
+}
+
+/** Perform the Rite from the pack: consumes one and cures. No-op if not undead or none carried. */
+export function performQuietReturn(character) {
+  if (!isUndead(character)) return character;
+  const inventory = [...(character.inventory || [])];
+  const idx = inventory.findIndex(i => String(i).toLowerCase() === UNDEATH_CURE_ITEM.toLowerCase());
+  if (idx === -1) return character;
+  inventory.splice(idx, 1);
+  return { ...cureUndeath(character), inventory };
 }
 
 export { getAvailableResurrectionSites };

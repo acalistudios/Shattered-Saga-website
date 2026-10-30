@@ -168,6 +168,8 @@ describe('undead social penalty', () => {
     expect(getUndeadSocialPenalty(c, 'deception')).toBe(1);
     expect(getUndeadSocialPenalty(c, 'lockpicking')).toBe(0);
     expect(getUndeadSocialPenalty(c, 'heavy_weapons')).toBe(0);
+    // A6 (Hans, 2026-10-28): the risen are no worse at frightening people.
+    expect(getUndeadSocialPenalty(c, 'intimidation')).toBe(0);
   });
 
   it('does not apply to the living', () => {
@@ -474,5 +476,25 @@ describe('divine intervention items', () => {
 
   it('ignores ordinary items', () => {
     expect(getDivineInterventionItem('Rations (3)')).toBeNull();
+  });
+});
+
+describe('performing the Rite of Quiet Return (A4)', () => {
+  it('consumes one Rite and cures, without refunding the attribute', async () => {
+    const { performQuietReturn } = await import('./resurrectionEngine');
+    const risen = { attributes: { vigor: 2 }, inventory: ['Rite of Quiet Return', 'Rations (1)'], progression: { undead: true, npcReactionPenalty: 1 } };
+    const cured = performQuietReturn(risen);
+    expect(cured.progression.undead).toBe(false);
+    expect(cured.progression.npcReactionPenalty).toBe(0);
+    expect(cured.inventory).toEqual(['Rations (1)']);
+    expect(cured.attributes.vigor).toBe(2);
+  });
+
+  it('does nothing for the living or without a Rite', async () => {
+    const { performQuietReturn } = await import('./resurrectionEngine');
+    const living = { inventory: ['Rite of Quiet Return'], progression: {} };
+    expect(performQuietReturn(living)).toBe(living);
+    const noRite = { inventory: [], progression: { undead: true } };
+    expect(performQuietReturn(noRite)).toBe(noRite);
   });
 });

@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { createAuth, type Env } from "./auth";
 import { generate, type Attempt, type HistoryMsg } from "./provider";
 import { registerSaveRoutes, readGemState } from "./saves";
+import { registerStoreRoutes } from "./store";
 import { registerBillingRoutes } from "./billing";
 
 // Provider cascade per tier: primary OpenAI, then Anthropic, then Google.
@@ -251,6 +252,12 @@ app.post("/api/ads/claim", async (c) => {
 
 // Cloud save slots + gem spending. Shares the same session check as everything else.
 registerSaveRoutes(app, async (c) => {
+  const session = await authFor(c).api.getSession({ headers: c.req.raw.headers });
+  return session ? { id: session.user.id } : null;
+});
+
+// Gem store: the server prices every item (store.ts).
+registerStoreRoutes(app, async (c) => {
   const session = await authFor(c).api.getSession({ headers: c.req.raw.headers });
   return session ? { id: session.user.id } : null;
 });

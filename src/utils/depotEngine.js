@@ -1,11 +1,17 @@
 // Pure rules for confiscated-gear depots. See src/data/supplyDepot.js.
 import { getSupplyDepot, DEPOT_MUNDANE_COUNT, DEPOT_GOOD_DIE } from '../data/supplyDepot';
+import { getItemDetails } from './items';
 
-// Whether gear left behind can be reclaimed by returning to a completed
-// adventure in free-roam. false = strict "depot or nothing": completing the
-// adventure without reaching the depot forfeits the gear. (Pending Hans's
-// call, 2026-10-23; flipping this is the whole change.)
-export const DEPOT_RECLAIM_ON_RETURN = false;
+// Whether gear left behind at completion stays held at the depot (A9, Hans
+// 2026-10-30) instead of being forfeit. Held gear is released by the depot's
+// quartermaster for a fee that grows with every day it waits, and is sold off
+// after DEPOT_HOLD_DAYS. The 6 + 1d2 bonus finds come only from reaching the
+// depot during the adventure.
+export const DEPOT_RECLAIM_ON_RETURN = true;
+export const DEPOT_BASE_FEE_CP = 200;      // 2 gp
+export const DEPOT_DAILY_FEE_CP = 100;     // + 1 gp per in-game day held
+export const DEPOT_FEE_VALUE_CAP = 0.5;    // never more than half the gear's value
+export const DEPOT_HOLD_DAYS = 30;
 
 const norm = (s) => String(s || '').toLowerCase().trim();
 
@@ -58,13 +64,90 @@ export function claimDepot(character, adventureId, rng = Math.random) {
 }
 
 /**
- * The adventure ended. Under strict rules, gear never recovered is forfeit.
- * With DEPOT_RECLAIM_ON_RETURN it stays held at the depot for a later visit.
+ * The adventure ended. Gear never recovered moves to the depot's hold
+ * (progression.depotHold) for the quartermaster to release later; with
+ * reclaimOnReturn = false it is forfeit instead.
  */
-export function settleConfiscatedOnCompletion(character, reclaimOnReturn = DEPOT_RECLAIM_ON_RETURN) {
+export function settleConfiscatedOnCompletion(character, reclaimOnReturn = DEPOT_RECLAIM_ON_RETURN, { adventureId = null, day = 1 } = {}) {
   const lost = [...(character.confiscatedGear || [])];
-  if (lost.length === 0 || reclaimOnReturn) return { character, lost: [] };
-  return { character: { ...character, confiscatedGear: [] }, lost };
+  if (lost.length === 0) return { character, lost: [], held: [] };
+  if (!reclaimOnReturn) return { character: { ...character, confiscatedGear: [] }, lost, held: [] };
+  const previous = character.progression?.depotHold;
+  const hold = {
+    adventureId: previous?.adventureId || adventureId,
+    items: [...(previous?.items || []), ...lost],
+    heldSinceDay: previous?.heldSinceDay ?? day,
+  };
+  return {
+    character: { ...character, confiscatedGear: [], progression: { ...(character.progression || {}), depotHold: hold } },
+    lost: [],
+    held: lost,
+  };
+}
+
+const coinCpOf = (currency = {}) => (currency.gp ?? currency.gold ?? 0) * 100 + (currency.sp || 0) * 10 + (currency.cp || 0);
+const withCoinCp = (currency = {}, total) => {
+  const gp = Math.floor(total / 100);
+  return { ...currency, gp, sp: Math.floor((total % 100) / 10), cp: total % 10, gold: gp };
+};
+const itemValueCp = (item) => getItemDetails(item)?.valueCp || 0;
+
+/**
+ * What the quartermaster holds and what he charges today. null when nothing is
+ * held. expired = held past DEPOT_HOLD_DAYS and sold off.
+ */
+export function getDepotHold(character, valueOf = itemValueCp) {
+  const hold = character?.progression?.depotHold;
+  if (!hold?.items?.length) return null;
+  const today = character?.stats?.day ?? 1;
+  const daysHeld = Math.max(0, today - (hold.heldSinceDay ?? today));
+  const valueCp = hold.items.reduce((sum, item) => sum + valueOf(item), 0);
+  const feeCp = Math.min(DEPOT_BASE_FEE_CP + DEPOT_DAILY_FEE_CP * daysHeld, Math.round(valueCp * DEPOT_FEE_VALUE_CAP));
+  return {
+    ...hold,
+    daysHeld,
+    valueCp,
+    feeCp: Math.max(0, feeCp),
+    daysLeft: Math.max(0, DEPOT_HOLD_DAYS - daysHeld),
+    expired: daysHeld > DEPOT_HOLD_DAYS,
+  };
+}
+
+/**
+ * Pay the quartermaster and take the held gear back. Gear held too long is
+ * gone: the hold is cleared with nothing returned. Returns the same character
+ * when the player cannot pay.
+ */
+export function reclaimDepotHold(character, valueOf = itemValueCp) {
+  const hold = getDepotHold(character, valueOf);
+  if (!hold) return { character, recovered: [], paidCp: 0, expired: false };
+  const cleared = { ...(character.progression || {}), depotHold: null };
+  if (hold.expired) {
+    return {
+      character: {
+        ...character,
+        progression: cleared,
+        storyEvents: [...(character.storyEvents || []), `The depot quartermaster sold off your held gear: ${hold.items.join(', ')}.`],
+      },
+      recovered: [],
+      paidCp: 0,
+      expired: true,
+    };
+  }
+  const coin = coinCpOf(character.currency);
+  if (coin < hold.feeCp) return { character, recovered: [], paidCp: 0, expired: false };
+  return {
+    character: {
+      ...character,
+      currency: withCoinCp(character.currency, coin - hold.feeCp),
+      inventory: [...(character.inventory || []), ...hold.items],
+      progression: cleared,
+      storyEvents: [...(character.storyEvents || []), `Reclaimed held gear from the depot quartermaster: ${hold.items.join(', ')}.`],
+    },
+    recovered: hold.items,
+    paidCp: hold.feeCp,
+    expired: false,
+  };
 }
 
 /** Free-roam returns are not captivity: never strip the player again. */

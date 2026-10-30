@@ -36,18 +36,25 @@ import {
   recoverGear,
   resolveGearTrailTick,
   applyGearTrailTick,
+  performQuietReturn,
 } from '../utils/resurrectionEngine';
-import { getDivineInterventionItem } from '../data/resurrection';
+import { getDivineInterventionItem, getCompletionGifts, UNDEATH_CURE_ITEM } from '../data/resurrection';
 import { resolveGearRecovery } from '../data/gearRecovery';
 import { getGameHourStamp, getAdventureStartClock } from '../utils/rewardEngine';
+import { installStarfallBowstring, strungBowName, STARFALL_BOWSTRING } from '../utils/bowstring';
 import { resolveCombatTarget } from '../utils/combatTarget';
 import { filterGmItemGrants, filterGmCurrencyChanges, isElementalUnlockAllowed } from '../utils/rewardPolicy';
-import { claimDepot, isAtDepot, settleConfiscatedOnCompletion, shouldConfiscateOnEntry } from '../utils/depotEngine';
+import { claimDepot, isAtDepot, settleConfiscatedOnCompletion, shouldConfiscateOnEntry, reclaimDepotHold } from '../utils/depotEngine';
 import { getSupplyDepot } from '../data/supplyDepot';
+import { claimTreasureFind, formatCoin, TREASURE_FINDS_PER_ADVENTURE } from '../data/payouts';
 import {
   PATROL_FOES, patrolGearRecovery, isPatrolId, patrolEncounterIdOf, patrolIdFor, beginPatrol, markPatrolFought,
   normalizePatrolOutcome, rollPatrolOutcomeLoot, finishPatrol as applyPatrolFinish, describePatrolResult, FLEE_PURSUIT_FRACTION, canBeginPatrol, getPatrolChoices, selectPatrolChoices,
 } from '../utils/patrolEngine';
+import {
+  isArenaId, arenaIdFor, beginArenaBout, markArenaFought, normalizeArenaOutcome,
+  finishArenaBout, describeArenaResult, canEnterArena,
+} from '../utils/arenaEngine';
 import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../utils/authApi';
 import { consumeRationFromInventory, resolveRest } from '../utils/restEngine';
 import { canDeferNarrationCosts, createPreparedNarrationTurn } from '../utils/narrationTurn';
@@ -528,13 +535,15 @@ export default function useGameState() {
   const [activeSlotIndex] = useState(() => storage.get('active_slot_index', 1));
 
   const [userProfile, setUserProfile] = useState(null);
+  const [profileStatus, setProfileStatus] = useState(isBackendConfigured ? 'checking' : 'guest');
 
   const fetchUserProfile = useCallback(async () => {
     // Better Auth backend: read tier + energy from the Worker's /api/me.
     if (isBackendConfigured) {
-      const me = await fetchMe();
-      setUserProfile(
-        me
+      setProfileStatus('checking');
+      try {
+        const me = await fetchMe();
+        const profile = me
           ? {
               id: me.id,
               email: me.email,
@@ -547,9 +556,14 @@ export default function useGameState() {
               unlocked_slots: me.unlocked_slots,
               linked_providers: me.linked_providers || [],
             }
-          : null
-      );
-      return;
+          : null;
+        setUserProfile(profile);
+        setProfileStatus(profile ? 'authenticated' : 'guest');
+        return profile;
+      } catch {
+        setProfileStatus('error');
+        return null;
+      }
     }
 
     const sessionToken = storage.get('supabase_session_token');
@@ -2283,7 +2297,7 @@ ${(activeAdventure.itemsDetail || []).map(item => {
   return `- ${item.name}: ${item.desc}${propStr}`;
 }).join('\n')}
 Items you may hand over with [add_item] in this adventure (exact names; anything else is ignored): ${(activeAdventure.items || []).join(', ') || 'none'}.
-${getSupplyDepot(activeAdventureId) ? `CONFISCATED GEAR: the player's gear was taken on capture and is held in the ${getSupplyDepot(activeAdventureId).location}. It comes back ONLY if the player reaches that room — the engine returns it automatically when you emit [location: ${getSupplyDepot(activeAdventureId).location}]; never [add_item] it. If the adventure ends without the player going there, the gear is lost for good. Early on, have a prisoner (Sera, Kael or Old Bram) mention where the gear is kept and that unclaimed belongings get sold off, without forcing the player to go.` : ''}
+${getSupplyDepot(activeAdventureId) ? `CONFISCATED GEAR: the player's gear was taken on capture and is held in the ${getSupplyDepot(activeAdventureId).location}. It comes back ONLY if the player reaches that room — the engine returns it automatically when you emit [location: ${getSupplyDepot(activeAdventureId).location}]; never [add_item] it. If the adventure ends without the player going there, the depot's quartermaster keeps it and later sells it back for a fee that grows by the day, until he sells it off for good. Early on, have a prisoner (Sera, Kael or Old Bram) mention where the gear is kept and that unclaimed belongings cost dearly to buy back and are eventually sold off, without forcing the player to go.` : ''}
 
 [ADVENTURE ECONOMY]
 Currency: 10 cp = 1 sp, 10 sp = 1 gp, so 1 gp = 100 cp. Treat copper value as the authoritative price and display gold/silver/copper naturally in narration.
@@ -2296,7 +2310,7 @@ Trade Rules: Merchants sell at listed value and buy relevant categories at 50% o
 ${activeAdventure.progression ? `[PROGRESSION & BALANCE]
 Campaign Order: ${activeAdventure.progression.campaignOrder}. Tier ${activeAdventure.progression.tier}. Recommended Level: ${activeAdventure.rewardModel?.recommendedLevelRange?.join('-') || 'Unlisted'}. Threat Profile: ${activeAdventure.progression.threatProfile}. Combat Expectation: ${activeAdventure.progression.combatExpectation}.
 Difficulty Notes: ${activeAdventure.progression.difficultyNotes}
-Reward Budget: ${activeAdventure.rewardModel?.guaranteedRewards?.skillPoints || 2} spendable skill points, ${activeAdventure.rewardModel?.guaranteedRewards?.trainingSlots || 1} training slots, max gear ${activeAdventure.rewardModel?.maxGearQuality || 'story appropriate'}, max total currency ${activeAdventure.rewardModel?.maxCurrencyBudgetCp || 'story appropriate'} cp, permanent unlock: ${activeAdventure.rewardModel?.permanentUnlock || 'none'}.
+Reward Budget: ${activeAdventure.rewardModel?.guaranteedRewards?.skillPoints || 2} spendable skill points, ${activeAdventure.rewardModel?.guaranteedRewards?.trainingSlots || 1} training slots, max gear ${activeAdventure.rewardModel?.maxGearQuality || 'story appropriate'}, coin found in play: up to ${TREASURE_FINDS_PER_ADVENTURE} [treasure_found] finds (the engine sets the amounts), permanent unlock: ${activeAdventure.rewardModel?.permanentUnlock || 'none'}.
 ` : ''}
 
 ${activeAdventure.rewardModel ? `[ENGINE-AUTHORITATIVE REWARD MODEL]
@@ -2406,6 +2420,16 @@ The engine pays the predefined spoils and reports them; never name loot or amoun
 `;
     }
 
+    if (activeAdventure?.isArena) {
+      systemPrompt += `\n\n[MODE: ARENA BOUT]
+This is a single bout in the Iron Colosseum arena, between adventures, not an adventure. One opponent: ${activeAdventure.npcs[0].name}. The bout is fought to yield, not to the death, before a roaring crowd. Run it like any adventure fight: the player decides what to do, you call for checks, and every strike at the player goes through [enemy_attack]. Do not narrate the player's defeat yourself: if the player drops, the engine ends the bout.
+End the bout by emitting exactly one of these, once, when it is truly over:
+- [arena_end: victory] — the opponent is beaten, yields, or cannot fight on.
+- [arena_end: defeat] — the player yields.
+The engine pays the purse and reports it; never name amounts yourself. Never emit [milestone: adventure_complete], [objective_complete] or [ending_selected] in the arena.
+`;
+    }
+
     // Pass the player's full character sheet to the system prompt!
     systemPrompt += `\n\n[PLAYER CHARACTER SHEET]
 Name: ${character.name}
@@ -2455,8 +2479,9 @@ Completed Quests:
 ${(character.completed_quests || []).map(q => `- ${q}`).join('\n')}
 
 GM Instructions for automated tags:
-- You never grant rewards: no gold, currency, or items of your own invention. Rewards are predefined and paid by the engine when the adventure completes.
+- You never grant rewards: no gold, currency, or items of your own invention. Rewards are predefined and paid by the engine when the adventure completes; coin found along the way is marked with [treasure_found] and the engine sets the amount.
 - Charge the player when the story costs them something: [remove_gold: X], [currency: -N cp|sp|gp]
+- When the player finds or takes coin or treasure on an adventure (a purse, a strongbox, a hoard), emit [treasure_found] once for that find and do not name an amount; the engine pays it and reports it. At most ${TREASURE_FINDS_PER_ADVENTURE} finds per adventure; save them for finds that matter. Never on patrols or in the arena.
 - Hand over an item only when the player physically obtains one of this adventure's items named in "Items you may hand over" above, or recovers their own confiscated gear: [add_item: Exact Item Name]. Anything else is ignored. Remove items the player loses or uses up: [remove_item: Item Name]
 - Adjust quests: [add_quest: Description], [complete_quest: Description], [remove_quest: Description]
 - Apply damage or healing: [damage: X], [heal: X]
@@ -2619,13 +2644,18 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       // never shows in the narration. It is acted on later in this handler.
       const milestoneTagRegex = /\[milestone:\s*([^\]]+)\]/gi;
       const onPatrol = isPatrolId(activeAdventureId);
-      // A patrol is never an adventure completion, whatever the GM emits.
-      const milestoneReached = milestoneTagRegex.test(cleanedText) && !onPatrol;
+      const onArena = isArenaId(activeAdventureId);
+      // A patrol or arena bout is never an adventure completion, whatever the GM emits.
+      const milestoneReached = milestoneTagRegex.test(cleanedText) && !onPatrol && !onArena;
       cleanedText = cleanedText.replace(milestoneTagRegex, '').trim();
 
       const patrolEndRegex = /\[patrol_end:\s*([^\]]*)\]/gi;
       const patrolEndClaim = [...cleanedText.matchAll(patrolEndRegex)][0]?.[1] ?? null;
       cleanedText = cleanedText.replace(patrolEndRegex, '').trim();
+
+      const arenaEndRegex = /\[arena_end:\s*([^\]]*)\]/gi;
+      const arenaEndClaim = [...cleanedText.matchAll(arenaEndRegex)][0]?.[1] ?? null;
+      cleanedText = cleanedText.replace(arenaEndRegex, '').trim();
 
       const combatEndRegex = /\[(?:combat_end|victory)\]/gi;
       const combatEndTriggered = combatEndRegex.test(cleanedText);
@@ -2668,6 +2698,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       // Only a patrol that came to blows can end in victory.
       if (onPatrol && (combatStartTriggered || parsedEnemyAttacks.length > 0 || activeEnemy)) {
         setCharacter(prev => markPatrolFought(prev));
+      }
+      if (onArena && (combatStartTriggered || parsedEnemyAttacks.length > 0 || activeEnemy)) {
+        setCharacter(prev => markArenaFought(prev));
       }
 
       // Initialize activeEnemy if starting combat or attacks received
@@ -2794,6 +2827,15 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const currencyMatches = currencyPolicy.allowed;
       currencyPolicy.blocked.forEach(c => gmGrantsBlocked.push(`currency +${c.amount} ${c.unit}`));
       cleanedText = cleanedText.replace(currencyRegex, '').trim();
+
+      // Coin found on an adventure (A8): the GM marks the find, the engine sets
+      // the amount from the adventure's campaign position (data/payouts.js).
+      const treasureRegex = /\[treasure_found(?::[^\]]*)?\]/gi;
+      const treasureClaimed = [...cleanedText.matchAll(treasureRegex)].length > 0;
+      cleanedText = cleanedText.replace(treasureRegex, '').trim();
+      const treasureFind = treasureClaimed && !isPatrolId(activeAdventureId) && !isArenaId(activeAdventureId)
+        ? claimTreasureFind(character, activeAdventureId, getAdventureById(activeAdventureId)?.progression?.campaignOrder)
+        : null;
 
       const addGoldRegex = /\[add_gold:\s*(\d+)\]/gi;
       const blockedGold = [...cleanedText.matchAll(addGoldRegex)].reduce((acc, m) => acc + parseInt(m[1], 10), 0);
@@ -2952,6 +2994,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       if (itemsToRemove.length > 0) tagsFeedback += `\n\n[Item Removed: ${itemsToRemove.join(', ')}]`;
       if (goldToAdd > 0) tagsFeedback += `\n\n[Gold Gained: +${goldToAdd} GP]`;
       if (goldToRemove > 0) tagsFeedback += `\n\n[Gold Lost: -${goldToRemove} GP]`;
+      if (treasureFind) tagsFeedback += `\n\n[Coin Found: +${formatCoin(treasureFind.amountCp)} (find ${treasureFind.count} of ${TREASURE_FINDS_PER_ADVENTURE})]`;
       if (currencyMatches.length > 0) {
         const text = currencyMatches.map(c => `${c.amount >= 0 ? '+' : ''}${c.amount} ${c.unit.toUpperCase()}`).join(', ');
         tagsFeedback += `\n\n[Currency Adjusted: ${text}]`;
@@ -3187,8 +3230,14 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         if (goldToAdd > 0) gp += goldToAdd;
         if (goldToRemove > 0) gp = Math.max(0, gp - goldToRemove);
 
-        let totalCp = gp * 100 + sp * 10 + cp;
+        let totalCp = gp * 100 + sp * 10 + cp + (treasureFind?.amountCp || 0);
         if (totalCp < 0) totalCp = 0;
+        if (treasureFind) {
+          updated.progression = {
+            ...(updated.progression || {}),
+            treasureFinds: { ...(updated.progression?.treasureFinds || {}), [activeAdventureId]: treasureFind.count },
+          };
+        }
 
         gp = Math.floor(totalCp / 100);
         sp = Math.floor((totalCp % 100) / 10);
@@ -3458,6 +3507,20 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         setEnemyAttacksQueue([]);
       }
 
+      // The GM says the bout is over; the engine decides whether it was won.
+      const activeArena = character.progression?.activeArena;
+      if (onArena && arenaEndClaim !== null && activeArena) {
+        const fought = activeArena.fought || combatStartTriggered || parsedEnemyAttacks.length > 0 || !!activeEnemy;
+        const outcome = normalizeArenaOutcome(arenaEndClaim, { fought });
+        const finished = finishArenaBout(character, { outcome });
+        setCharacter(prev => finishArenaBout(prev, { outcome }));
+        cleanedText += `\n\n${describeArenaResult(finished, finished.progression.lastArenaResult)}`;
+        setActiveEnemy(null);
+        setCombatStance(null);
+        setCounterOpportunities(null);
+        setEnemyAttacksQueue([]);
+      }
+
       if (roleplayChange !== 0) {
         setNextRollModifier(roleplayChange);
         setLastRoleplayEvent({
@@ -3637,6 +3700,15 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
       let nextAttributes = { ...prev.attributes };
       let nextInventory = [...(prev.inventory || [])];
+
+      // Fixed completion gifts, e.g. one Rite of Quiet Return for the abbey (A4).
+      if (isFirstCompletion) {
+        const gifts = getCompletionGifts(activeAdventureId);
+        if (gifts.length > 0) {
+          nextInventory = [...nextInventory, ...gifts];
+          nextEvents.push(`Received for completing the adventure: ${gifts.join(', ')}.`);
+        }
+      }
       let nextStats = {
         ...prev.stats,
         level: nextLevel,
@@ -3762,13 +3834,17 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         nextEvents.push(`Awakened Granite Bastion keystone resonance (+${keystoneHpDelta} Max HP).`);
       }
 
-      // Confiscated gear is no longer handed back on completion: it is recovered
-      // only by reaching the depot. Gear never recovered is forfeit (or held at
-      // the depot for a free-roam return, per DEPOT_RECLAIM_ON_RETURN).
-      const settled = settleConfiscatedOnCompletion(prev);
+      // Confiscated gear is not handed back on completion. Gear never recovered
+      // at the depot stays in its hold, for the quartermaster to release for a
+      // fee (A9, utils/depotEngine.js).
+      const settled = settleConfiscatedOnCompletion(prev, undefined, { adventureId: activeAdventureId, day: prev.stats?.day ?? 1 });
       const nextConfiscatedGear = settled.character.confiscatedGear || [];
       if (settled.lost.length > 0) {
         nextEvents.push(`Left behind in the supply depot and lost for good: ${settled.lost.join(', ')}.`);
+      }
+      if (settled.held.length > 0) {
+        nextProgression.depotHold = settled.character.progression.depotHold;
+        nextEvents.push(`Left behind in the supply depot; the quartermaster holds it for a fee: ${settled.held.join(', ')}.`);
       }
 
       // Synchronize Quest Log: move completed adventure to completed_quests
@@ -3882,6 +3958,11 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       leavePatrol();
       return;
     }
+    // Walking out of the arena is yielding the bout.
+    if (isArenaId(activeAdventureId)) {
+      leaveArena();
+      return;
+    }
     // Clear dropped items state for this slot
     if (activeAdventureId) {
       setDroppedItems(prev => {
@@ -3972,6 +4053,88 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     setSkillTally({});
     setApiError(null);
   };
+
+  /**
+   * Enter an arena bout (A16): pays the fee and fatigue, then plays on the
+   * play screen like a patrol. Nothing is refilled (utils/arenaEngine.js).
+   */
+  const startArenaBout = (bracketId) => {
+    if (activeAdventureId || !canEnterArena(character, bracketId)) return false;
+    const arenaId = arenaIdFor(bracketId);
+    const adventure = getAdventureById(arenaId);
+    if (!adventure) return false;
+
+    setCharacter(prev => beginArenaBout(prev, bracketId));
+    setActiveAdventureId(arenaId);
+    setActiveGmId('narrator');
+    setCurrentLocation(adventure.settings[0]);
+    setActiveEnemy(null);
+    setCombatStance(null);
+    setCounterOpportunities(null);
+    setEnemyAttacksQueue([]);
+    setHistory([{
+      role: 'model',
+      content: `${adventure.startingPrompt}\n\n*What do you do?*`,
+      imagePrompt: null,
+      imageUrl: null,
+      checkDetails: null,
+    }]);
+    setJournal({ storySoFar: 'A bout in the Iron Colosseum arena.', recentTurns: [] });
+    setHandoffState(null);
+    setSkillTally({});
+    setWarningMessage(null);
+    setApiError(null);
+    return true;
+  };
+
+  /** Leave the arena for the map. A bout still running is yielded: a loss. */
+  const leaveArena = () => {
+    if (!isArenaId(activeAdventureId)) return;
+    if (character.progression?.activeArena) {
+      setCharacter(prev => finishArenaBout(prev, { outcome: 'defeat' }));
+    }
+    setActiveAdventureId(null);
+    setCurrentLocation('');
+    setHistory([]);
+    setJournal({ storySoFar: '', recentTurns: [] });
+    setActiveEnemy(null);
+    setCombatStance(null);
+    setCounterOpportunities(null);
+    setEnemyAttacksQueue([]);
+    setSkillTally({});
+    setApiError(null);
+  };
+
+  /**
+   * Pay the depot quartermaster for gear held since an adventure (A9). Clears
+   * a hold that has been sold off. Returns the result for the caller to report.
+   */
+  const reclaimDepotGear = () => {
+    if (activeAdventureId) return null;
+    const result = reclaimDepotHold(character);
+    if (result.character !== character) setCharacter(result.character);
+    return result;
+  };
+
+  // Arena bouts are to yield: dropping to 0 HP loses the bout instead of
+  // dying. Watches HP itself so every damage path is covered.
+  useEffect(() => {
+    if (!isArenaId(activeAdventureId) || !character.progression?.activeArena) return;
+    if ((character.stats?.hp ?? 1) > 0) return;
+    const finished = finishArenaBout(character, { outcome: 'defeat' });
+    setCharacter(finished);
+    setActiveEnemy(null);
+    setCombatStance(null);
+    setCounterOpportunities(null);
+    setEnemyAttacksQueue([]);
+    setApiError(null);
+    setHistory(prev => [...prev, {
+      role: 'model',
+      content: `*You go down hard on the sand. The arena master's staff slams between you and your opponent: the bout is over.*\n\n${describeArenaResult(finished, finished.progression.lastArenaResult)}`,
+      checkDetails: null,
+    }]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [character.stats?.hp, activeAdventureId]);
 
   const startAdventure = (adventureId, gmId, startingPrompt, isFreeRoam = false) => {
     setActiveAdventureId(adventureId);
@@ -4786,6 +4949,30 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     // Remove attack from queue
     const nextQueue = enemyAttacksQueue.filter((_, idx) => idx !== attackIndex);
     setEnemyAttacksQueue(nextQueue);
+  };
+
+  /** A4: perform the Rite of Quiet Return from the pack. Cures undeath; the lost attribute stays lost. */
+  const performRite = () => {
+    if (performQuietReturn(character) === character) return false;
+    setCharacter(prev => performQuietReturn(prev));
+    setHistory(prev => [...prev, {
+      role: 'model',
+      content: `[${UNDEATH_CURE_ITEM} performed: you are no longer risen. The living will treat you as one of their own again. The attribute you gave up does not return.]`,
+      checkDetails: null,
+    }]);
+    return true;
+  };
+
+  /** A7: put the Starfall Bowstring on a bow, permanently (utils/bowstring.js). */
+  const installBowstring = (bowName) => {
+    if (installStarfallBowstring(character, bowName) === character) return false;
+    setCharacter(prev => installStarfallBowstring(prev, bowName));
+    setHistory(prev => [...prev, {
+      role: 'model',
+      content: `[${STARFALL_BOWSTRING} installed: your ${bowName} is now ${strungBowName(bowName)}. It cannot be removed.]`,
+      checkDetails: null,
+    }]);
+    return true;
   };
 
   const useInventoryItem = (itemName, apiKey, sandbox) => {
@@ -6213,6 +6400,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     beginResurrection,
     startPatrol,
     leavePatrol,
+    startArenaBout,
+    leaveArena,
+    reclaimDepotGear,
     completeResurrection,
     returnToInterruptedAdventure,
     initializeMerchantStock,
@@ -6261,6 +6451,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     setActiveAdventureId,
     startAdventure,
     userProfile,
+    profileStatus,
     fetchUserProfile,
     toggleEquip,
     equipItem,
@@ -6276,6 +6467,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     enemyAttacksQueue,
     resolveEnemyAttack,
     useInventoryItem,
+    installBowstring,
+    performRite,
     activeEnemy,
     setActiveEnemy,
     counterOpportunities,

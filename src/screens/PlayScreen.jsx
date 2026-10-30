@@ -17,6 +17,10 @@ import { getCompanionById } from '../data/companions';
 import { getActiveKeystoneResonances } from '../data/keystoneShards';
 import CampfireModal from '../components/CampfireModal';
 import { getPatrolChoices } from '../utils/patrolEngine';
+import { splitNarrationHighlights } from '../utils/narrationHighlights';
+import { getPlayRecovery } from '../utils/playRecovery';
+import { canTakeBowstring, isStarfallBowstring, strungBowName } from '../utils/bowstring';
+import { UNDEATH_CURE_ITEM } from '../data/resurrection';
 
 
 
@@ -37,10 +41,15 @@ function formatTime(day, hourFloat) {
   return `Day ${day}, ${hour12}:${minStr} ${ampm}`;
 }
 
-function renderMessageContent(content) {
+function renderMessageContent(content, destinations = null) {
   if (!content || typeof content !== 'string') return <span>{content}</span>;
 
   const trimmed = content.trim();
+  const renderText = (text) => destinations
+    ? splitNarrationHighlights(text, destinations).map((part, index) => part.kind === 'text'
+      ? part.text
+      : <strong key={index} className={`narration-${part.kind}`}>{part.text}</strong>)
+    : text;
   if (trimmed.startsWith('[OOC:') && trimmed.endsWith(']')) {
     const oocBody = trimmed.replace(/^\[OOC:\s*/i, '').replace(/\]$/, '').trim();
     return (
@@ -81,7 +90,7 @@ function renderMessageContent(content) {
   }
 
   if (parts.length === 0) {
-    return <span className="whitespace-pre-wrap">{content}</span>;
+    return <span className="whitespace-pre-wrap">{renderText(content)}</span>;
   }
 
   return (
@@ -89,7 +98,7 @@ function renderMessageContent(content) {
       {parts.map((p, pIdx) => {
         if (p.type === 'text') {
           return p.content.trim() ? (
-            <p key={pIdx} className="whitespace-pre-wrap">{p.content.trim()}</p>
+            <p key={pIdx} className="whitespace-pre-wrap">{renderText(p.content.trim())}</p>
           ) : null;
         }
 
@@ -159,6 +168,7 @@ export default function PlayScreen({
   onQuitAdventure,
   onExitAdventure,
   onLeavePatrol,
+  onLeaveArena,
   activeAdventureId,
   onUpdatePortrait,
   gems,
@@ -176,6 +186,8 @@ export default function PlayScreen({
   enemyAttacksQueue = [],
   onResolveEnemyAttack,
   onUseInventoryItem,
+  onInstallBowstring,
+  onPerformRite,
   activeEnemy,
   counterOpportunities,
   combatStance,
@@ -189,6 +201,7 @@ export default function PlayScreen({
   clearDiceRollLog
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
+  const recoveryAction = getPlayRecovery(apiError || '');
   const isSubscriber = ['supporter', 'adventurer', 'legend'].includes(userProfile?.subscription_tier || 'free');
   const showAdSidebar = settings?.engineTier === 'free' && !isSubscriber;
 
@@ -254,6 +267,18 @@ export default function PlayScreen({
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
+  const statsDetailsRef = useRef(null);
+  const focusedAdventureRef = useRef(null);
+
+  // Focus once when ready, never steal focus after each GM turn.
+  useEffect(() => {
+    if (!activeAdventureId || isLoading || isUpgradeScreenVisible || pendingResurrection ||
+        focusedAdventureRef.current === activeAdventureId || !inputRef.current) return;
+    focusedAdventureRef.current = activeAdventureId;
+    setInputMode('act');
+    inputRef.current.focus({ preventScroll: true });
+    inputRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [activeAdventureId, isLoading, isUpgradeScreenVisible, pendingResurrection]);
 
   // States for Level Up Portrait Refinement
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
@@ -349,7 +374,43 @@ export default function PlayScreen({
     onTriggerVisualize(customPrompt);
   };
 
+  // A7: the Starfall Bowstring goes on one bow for good, so confirm the choice.
+  const handleInstallBowstring = () => {
+    const bows = (character.inventory || []).filter(canTakeBowstring);
+    if (bows.length === 0) {
+      window.alert('You need a bow to install the Starfall Bowstring on.');
+      return;
+    }
+    let bow = bows[0];
+    if (bows.length > 1) {
+      const pick = window.prompt(
+        `Install the Starfall Bowstring on which bow? It cannot be removed.\n\n${bows.map((b, i) => `${i + 1}. ${b} → ${strungBowName(b)}`).join('\n')}\n\nEnter a number:`
+      );
+      bow = bows[Number(pick) - 1];
+      if (!bow) return;
+    } else if (!window.confirm(`Install the Starfall Bowstring on ${bow}? It becomes ${strungBowName(bow)}. This cannot be undone.`)) {
+      return;
+    }
+    onInstallBowstring?.(bow);
+  };
+
+  const isRiteItem = (item) => String(item).toLowerCase() === UNDEATH_CURE_ITEM.toLowerCase();
+  const canPerformRite = !!character.progression?.undead;
+  const handlePerformRite = () => {
+    if (window.confirm(`Perform the ${UNDEATH_CURE_ITEM}? You stop being risen and the social penalty ends. The attribute you lost does not come back.`)) {
+      onPerformRite?.();
+    }
+  };
+
   const handleQuitAdventure = () => {
+    if (isArena) {
+      if (window.confirm(
+        character.progression?.activeArena
+          ? "Yield the bout?\n\nIt counts as a loss and the entry fee is not refunded."
+          : 'Leave the arena?'
+      )) onLeaveArena();
+      return;
+    }
     if (isPatrol) {
       const flee = window.confirm(
         activeEnemy
@@ -392,9 +453,13 @@ export default function PlayScreen({
   const energyBalance = userProfile ? userProfile.energy_balance : null;
   const energyIsCritical = sessionToken ? (energyBalance !== null && energyBalance <= 10) : (gmEnergies[activeGm.id] <= 20);
   const activeAdventure = getAdventureById(activeAdventureId);
+  const narrationDestinations = [...(activeAdventure?.settings || []), ...(activeAdventure?.narrativeDestinations || [])]
+    .sort((a, b) => b.length - a.length);
   const isPatrol = !!activeAdventure?.isPatrol;
   // The GM ended the patrol and the engine paid out: only the way home is left.
   const patrolOver = isPatrol && !character.progression?.activePatrol && character.stats.hp > -5;
+  const isArena = !!activeAdventure?.isArena;
+  const arenaOver = isArena && !character.progression?.activeArena;
   const milestoneRewards = activeAdventure?.rewardModel?.guaranteedRewards || {
     skillPoints: 2,
     trainingSlots: 1,
@@ -465,7 +530,7 @@ export default function PlayScreen({
             <div className="mt-4 pt-3 border-t border-slate-900/60">
               <div className="flex justify-between items-center text-3xs font-semibold mb-1">
                 <span className="text-slate-450">
-                  {sessionToken ? 'Remaining Turns' : 'Magical Power'}
+                  {sessionToken ? 'Remaining Turns' : 'GM Energy'}
                 </span>
                 <span className={energyIsCritical ? 'text-rose-400 font-bold animate-pulse' : 'text-slate-350'}>
                   {sessionToken 
@@ -686,7 +751,7 @@ export default function PlayScreen({
 
             {/* Core Stats values */}
             <div className="border-t border-slate-900/60 pt-3">
-              <h4 className="text-3xs uppercase tracking-widest text-slate-500 font-bold mb-2">Core Stats</h4>
+              <h4 ref={statsDetailsRef} tabIndex={-1} className="text-3xs uppercase tracking-widest text-slate-500 font-bold mb-2">Core Stats</h4>
               <div className="grid grid-cols-2 gap-2 text-2xs">
                 {ATTRIBUTE_LIST.map((attr) => (
                   <div key={attr.id} className="flex justify-between bg-slate-950/50 p-1.5 rounded border border-slate-900">
@@ -921,6 +986,26 @@ export default function PlayScreen({
                       <span className="truncate">{item}</span>
                     </span>
                     <div className="flex gap-1.5 items-center flex-shrink-0">
+                      {isRiteItem(item) && canPerformRite && (
+                        <button
+                          type="button"
+                          onClick={handlePerformRite}
+                          disabled={isLoading || enemyAttacksQueue.length > 0}
+                          className="px-1.5 py-0.5 rounded bg-violet-950 text-violet-300 border border-violet-500/30 hover:bg-violet-900 text-3xs font-extrabold uppercase transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Perform
+                        </button>
+                      )}
+                      {isStarfallBowstring(item) && (
+                        <button
+                          type="button"
+                          onClick={handleInstallBowstring}
+                          disabled={isLoading || enemyAttacksQueue.length > 0}
+                          className="px-1.5 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-500/30 hover:bg-sky-900 text-3xs font-extrabold uppercase transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Install
+                        </button>
+                      )}
                       {isUsable && (
                         <button
                           type="button"
@@ -1356,7 +1441,7 @@ export default function PlayScreen({
             onClick={handleQuitAdventure}
             className="w-full py-1.5 px-3 rounded text-3xs uppercase tracking-wider font-bold border border-amber-900/30 text-amber-500 bg-amber-955/10 hover:bg-amber-950/30 hover:border-amber-700 hover:text-amber-450 cursor-pointer text-center"
           >
-            {isPatrol ? 'Flee the Patrol (No Spoils)' : 'Forfeit Adventure (Lose Gold & Random Item)'}
+            {isArena ? 'Yield the Bout (Counts as a Loss)' : isPatrol ? 'Flee the Patrol (No Spoils)' : 'Forfeit Adventure (Lose Gold & Random Item)'}
           </button>
           <button
             onClick={onResetGame}
@@ -1475,7 +1560,7 @@ export default function PlayScreen({
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
-              <span>Gear & Pack</span>
+              <span>Inventory & Gear</span>
             </button>
 
             <button
@@ -1497,6 +1582,21 @@ export default function PlayScreen({
               )}
             </button>
           </div>
+        </div>
+
+        <div className="player-vitals" role="status" aria-label="Character status">
+          <span className="vital-hp">HP <strong>{character.stats.hp} / {character.stats.maxHp}</strong>
+            {(character.stats.tempHp || 0) > 0 && ` (+${character.stats.tempHp} barrier)`}</span>
+          <span className="vital-fatigue">Fatigue <strong>{(character.stats.fatigue ?? 0).toFixed(1)} / {character.stats.maxFatigue ?? 15}</strong></span>
+          {character.stats.fatigue < 0 && <span className="vital-hp">Check penalty: -{Math.floor(Math.abs(character.stats.fatigue) * 2)}</span>}
+          {character.stats.maxArcaneSP > 0 && <span>Arcane SP <strong>{character.stats.arcaneSP} / {character.stats.maxArcaneSP}</strong></span>}
+          {character.stats.maxDivineSP > 0 && <span>Divine SP <strong>{character.stats.divineSP} / {character.stats.maxDivineSP}</strong></span>}
+          <button type="button" onClick={() => {
+            setIsStatsOpen(true);
+            statsDetailsRef.current?.focus({ preventScroll: true });
+            statsDetailsRef.current?.scrollIntoView({ block: 'nearest' });
+          }}>Character</button>
+          <button type="button" onClick={() => setIsEquipmentOpen(true)}>Inventory & Gear</button>
         </div>
 
         {/* Narrative Output area */}
@@ -1548,7 +1648,7 @@ export default function PlayScreen({
                         {turn.isManualImage && <span className="text-amber-550 lowercase italic">Materialization complete (-{activeGm.id === 'titan' ? '2K' : '10K'} power)</span>}
                       </div>
                       
-                      {renderMessageContent(turn.content)}
+                      {renderMessageContent(turn.content, narrationDestinations)}
 
                       {turn.imageUrl && (
                         <div className="mt-4 rounded-lg overflow-hidden border border-slate-800 bg-slate-950 shadow-md">
@@ -1595,13 +1695,13 @@ export default function PlayScreen({
                 >
                   Retry Last Action
                 </button>
-                {!settings.sandboxMode && (
+                {!settings.sandboxMode && recoveryAction && (
                   <button
                     type="button"
-                    onClick={onOpenSettings}
+                    onClick={() => onOpenAccount({ section: recoveryAction.section, message: apiError })}
                     className="px-3 py-1.5 rounded bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-350 text-3xs font-extrabold uppercase tracking-wider cursor-pointer transition-colors"
                   >
-                    Configure API keys ↗
+                    {recoveryAction.label} ↗
                   </button>
                 )}
               </div>
@@ -1626,7 +1726,24 @@ export default function PlayScreen({
             </button>
           </div>
         )}
-        {patrolOver ? (
+        {arenaOver ? (
+          <div className="border-t border-slate-900 p-6 bg-slate-950 flex flex-col items-center justify-center gap-3 text-center">
+            <span className="text-3xl">🏟️</span>
+            <h3 className="text-sm font-extrabold uppercase font-serif text-amber-400 tracking-wider">Bout Over</h3>
+            <p className="text-2xs text-slate-400 max-w-xs leading-relaxed">
+              {character.progression?.lastArenaResult?.outcome === 'victory'
+                ? 'The crowd is still chanting your name. Your purse is in your pack.'
+                : 'The surgeons have patched you up. There is always another bout.'}
+            </p>
+            <button
+              type="button"
+              onClick={onLeaveArena}
+              className="px-5 py-2 rounded font-black text-3xs uppercase tracking-widest bg-amber-600 hover:bg-amber-500 text-slate-950 cursor-pointer"
+            >
+              Return to the Map
+            </button>
+          </div>
+        ) : patrolOver ? (
           <div className="border-t border-slate-900 p-6 bg-slate-950 flex flex-col items-center justify-center gap-3 text-center">
             <span className="text-3xl">🛡️</span>
             <h3 className="text-sm font-extrabold uppercase font-serif text-amber-400 tracking-wider">Patrol Over</h3>
@@ -1719,7 +1836,7 @@ export default function PlayScreen({
             })()}
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className={`shrink-0 border-t border-slate-900 p-4 bg-slate-950 flex flex-col gap-2 ${isDesktopLayout ? 'max-h-[45%] overflow-y-auto' : ''}`}>
+          <form onSubmit={handleSubmit} aria-label="Your next action" className={`action-composer shrink-0 border-t border-slate-900 p-4 bg-slate-950 flex flex-col gap-2 ${isDesktopLayout ? 'max-h-[45%] overflow-y-auto' : ''}`}>
             
             {/* Active Enemy HP HUD */}
             {activeEnemy && (
@@ -2058,7 +2175,7 @@ export default function PlayScreen({
 
           {/* Input Mode Toggles & Active Roll Modifier Banner */}
           <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-            <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-lg border border-slate-850">
+            <div className="flex flex-wrap max-w-full items-center gap-1 bg-slate-900/90 p-1 rounded-lg border border-slate-850">
               <span className="text-4xs uppercase tracking-widest text-slate-500 font-bold px-1.5 select-none">
                 Mode:
               </span>
@@ -2101,6 +2218,10 @@ export default function PlayScreen({
                 <span>💡</span>
                 <span>OOC</span>
               </button>
+              <details className="ooc-help">
+                <summary aria-label="What does OOC mean?" title="What does OOC mean?">?</summary>
+                <p>Out of character: ask the GM a question about rules or the situation, rather than speaking or acting as your character.</p>
+              </details>
             </div>
 
             {nextRollModifier !== 0 && (
@@ -2120,6 +2241,7 @@ export default function PlayScreen({
           <div className="flex gap-2">
             <input
               ref={inputRef}
+              aria-label="Your action or dialogue"
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
@@ -2481,6 +2603,7 @@ export default function PlayScreen({
           </h3>
           <button
             type="button"
+            aria-label="Close inventory and gear"
             onClick={() => setIsEquipmentOpen(false)}
             className="p-1 rounded bg-slate-900 border border-slate-800 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
           >
@@ -2730,6 +2853,34 @@ export default function PlayScreen({
                                 </div>
                               )}
                             </div>
+                          )}
+
+                          {isRiteItem(item) && canPerformRite && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handlePerformRite();
+                                setActiveItemMenu(null);
+                              }}
+                              disabled={isLoading || enemyAttacksQueue.length > 0}
+                              className="px-1.5 py-0.5 rounded bg-violet-950 text-violet-300 border border-violet-500/30 hover:bg-violet-900 text-3xs font-extrabold uppercase transition-all cursor-pointer disabled:opacity-40"
+                            >
+                              Perform
+                            </button>
+                          )}
+
+                          {isStarfallBowstring(item) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleInstallBowstring();
+                                setActiveItemMenu(null);
+                              }}
+                              disabled={isLoading || enemyAttacksQueue.length > 0}
+                              className="px-1.5 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-500/30 hover:bg-sky-900 text-3xs font-extrabold uppercase transition-all cursor-pointer disabled:opacity-40"
+                            >
+                              Install
+                            </button>
                           )}
 
                           {isUsable && (

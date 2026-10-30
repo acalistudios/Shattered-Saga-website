@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import storage from '../utils/storage';
+import AccountSignIn from '../components/AccountSignIn';
+import { GEM_STORE_ITEMS } from '../data/gemStore';
 import {
   startCheckout,
   cancelSubscription,
@@ -12,6 +14,9 @@ import {
 
 export default function AccountScreen({
   onBack,
+  onEmailPasswordAuth,
+  onSocialLogin,
+  profileStatus = 'guest',
   initialSection = 'overview',
   notice = null,
   onClearNotice,
@@ -23,12 +28,22 @@ export default function AccountScreen({
   setEngineTier,
   setSandboxMode,
   onLogout,
-  isLoggedIn,
   userProfile,
   fetchUserProfile,
   gems,
   initialAuthError = '',
+  onBuyStoreItem,
+  activeCharacterName = '',
 }) {
+  const [storeBusy, setStoreBusy] = useState(null);
+  const [storeMessage, setStoreMessage] = useState(null);
+  const handleBuyStoreItem = async (entry) => {
+    if (!onBuyStoreItem) return;
+    if (!window.confirm(`Buy ${entry.item} for ${entry.gems} gems? It goes into ${activeCharacterName || 'your character'}'s pack.`)) return;
+    setStoreBusy(entry.id);
+    setStoreMessage(await onBuyStoreItem(entry.id));
+    setStoreBusy(null);
+  };
   const [billingCycle, setBillingCycle] = useState('monthly');
   
   // BYOK States
@@ -49,6 +64,7 @@ export default function AccountScreen({
   // explain themselves rather than silently doing nothing when it's off.
   const [billingEnabled, setBillingEnabled] = useState(false);
   const [activeSection, setActiveSection] = useState(initialSection || 'overview');
+  const [checkoutError, setCheckoutError] = useState('');
   const [authReportEmail, setAuthReportEmail] = useState(userProfile?.email || '');
   const [authReportMessage, setAuthReportMessage] = useState('');
   const [authReportError, setAuthReportError] = useState('');
@@ -259,42 +275,49 @@ export default function AccountScreen({
   // because the tier is read from D1. Entitlements are now applied server-side
   // from Stripe's signed webhook after payment actually succeeds.
   const handleUpgradeSubscription = async (tier) => {
-    if (!userProfile) {
-      alert('Please register or sign in to upgrade your subscription.');
-      return;
-    }
     if (!billingEnabled) {
       alert('Payments are not available yet. Please check back soon.');
       return;
     }
     setPurchaseLoading(`sub_${tier}`);
     setPurchaseSuccess(null);
+    setCheckoutError('');
     try {
+      // Cookie OAuth and password sessions use the same fresh server profile.
+      const profile = await fetchUserProfile();
+      if (!profile) {
+        setCheckoutError('Verify your account using Refresh Account or sign in below. Your selected plan is still here.');
+        setPurchaseLoading(null);
+        return;
+      }
       // Redirects to Stripe; nothing after this runs on success.
       await startCheckout({ plan: tier, cycle: billingCycle });
     } catch (err) {
       setPurchaseLoading(null);
-      alert(err.message || 'Could not start checkout. Please try again.');
+      setCheckoutError(err.message || 'Could not start checkout. Please try again.');
     }
   };
 
   // One-off packs (turn refills, gem bundles).
   const handleBuyPack = async (pack) => {
-    if (!userProfile) {
-      alert('Please register or sign in to make a purchase.');
-      return;
-    }
     if (!billingEnabled) {
       alert('Payments are not available yet. Please check back soon.');
       return;
     }
     setPurchaseLoading(pack);
     setPurchaseSuccess(null);
+    setCheckoutError('');
     try {
+      const profile = await fetchUserProfile();
+      if (!profile) {
+        setCheckoutError('Verify your account using Refresh Account or sign in below. Your purchase is still available here.');
+        setPurchaseLoading(null);
+        return;
+      }
       await startCheckout({ pack });
     } catch (err) {
       setPurchaseLoading(null);
-      alert(err.message || 'Could not start checkout. Please try again.');
+      setCheckoutError(err.message || 'Could not start checkout. Please try again.');
     }
   };
 
@@ -443,6 +466,15 @@ export default function AccountScreen({
         </div>
       </div>
 
+      <div className="mb-4 flex flex-wrap items-center gap-3 text-xs">
+        <button type="button" disabled={profileStatus === 'checking'} onClick={() => fetchUserProfile()}
+          className="px-3 py-2 border border-slate-700 rounded text-amber-300 cursor-pointer disabled:opacity-50">
+          {profileStatus === 'checking' ? 'Checking Account...' : 'Refresh Account'}
+        </button>
+        {checkoutError && <p role="alert" className="text-rose-300">{checkoutError}</p>}
+        {profileStatus === 'error' && userProfile && <p role="alert" className="text-amber-300">Account refresh failed. Showing your last verified profile; refresh before making a purchase.</p>}
+      </div>
+
       {notice && (
         <div className="mb-4 p-3 rounded bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-semibold flex items-start justify-between gap-3">
           <span>{notice}</span>
@@ -510,14 +542,12 @@ export default function AccountScreen({
               </div>
             ) : (
               <div className="text-center py-6">
-                <p className="text-xs text-slate-400 mb-4">No account active. Playing under offline Sandbox profile.</p>
-                <div className="text-xs text-amber-400 font-semibold p-2.5 rounded bg-amber-500/5 border border-amber-500/10">
-                  Open Settings Gear in top right to Sign In/Register.
-                </div>
+                <p className="text-xs text-slate-400 mb-4">{profileStatus === 'checking' ? 'Checking your account...' : profileStatus === 'error' ? 'Your account could not be verified. Refresh to retry; this does not mean you have been signed out.' : 'You are using a local character without a verified online account.'}</p>
+                {onEmailPasswordAuth && <AccountSignIn onEmailPasswordAuth={onEmailPasswordAuth} onSocialLogin={onSocialLogin} />}
               </div>
             )}
 
-            {(isLoggedIn || userProfile) && onLogout && (
+            {userProfile && onLogout && (
               <button
                 onClick={() => {
                   if (window.confirm('Log out of this account? Your local character saves stay on this device.')) {
@@ -845,6 +875,17 @@ export default function AccountScreen({
           {showSubscriptions && (
           <div>
             <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Subscription covenants</h2>
+            {['supporter', 'adventurer', 'legend'].includes(currentTier) && (
+              <button type="button" className="quest-quick-launch" onClick={() => {
+                setEngineTier(currentTier === 'supporter' ? 'byok' : 'premium');
+                setSandboxMode(false);
+                if (currentTier === 'supporter' && !Object.values(settings.byokKeys || {}).some(Boolean)) {
+                  setActiveSection('byok');
+                } else {
+                  onBack();
+                }
+              }}>Continue with {currentTier} plan →</button>
+            )}
             {currentTier === 'free' && (
               <button onClick={handleCancelRenewal} disabled={purchaseLoading !== null} className="text-xs text-slate-400 underline mb-4">
                 Cancel renewal of an existing subscription
@@ -906,9 +947,15 @@ export default function AccountScreen({
                   </ul>
                 </div>
                 {currentTier === 'free' ? (
-                  <div className="w-full text-center py-1 bg-slate-950 rounded text-4xs font-bold text-slate-500 uppercase tracking-wider">
-                    Current Covenant
-                  </div>
+                  <button type="button" className="quest-quick-launch" onClick={async () => {
+                    if (isBackendConfigured && !await fetchUserProfile()) {
+                      setCheckoutError('Sign in here to use Free play, or refresh your account if you have already signed in.');
+                      return;
+                    }
+                    setEngineTier('free');
+                    setSandboxMode(false);
+                    onBack();
+                  }}>Choose Free & Continue</button>
                 ) : (
                   <button 
                     onClick={handleCancelRenewal}
@@ -1114,6 +1161,35 @@ export default function AccountScreen({
                 </button>
               </div>
 
+            </div>
+
+            {/* A4: rites and relics, bought with gems (server-priced) */}
+            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-8 mb-1">Rites & Relics</h2>
+            <p className="text-5xs text-slate-500 mb-4">
+              {activeCharacterName
+                ? `Bought with gems. Goes into ${activeCharacterName}'s pack.`
+                : "Load or create a character first: these go into a character's pack."}
+            </p>
+            {storeMessage && (
+              <p className={`mb-3 text-3xs ${storeMessage.ok ? 'text-emerald-400' : 'text-rose-400'}`}>{storeMessage.message}</p>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {GEM_STORE_ITEMS.map(entry => (
+                <div key={entry.id} className="rounded-lg p-4 bg-slate-900 border border-slate-800/80 flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider">{entry.item}</h4>
+                    <p className="text-5xs text-slate-500 mt-1 mb-3">{entry.blurb}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleBuyStoreItem(entry)}
+                    disabled={!activeCharacterName || storeBusy !== null}
+                    className="w-full py-1.5 rounded bg-slate-950 hover:bg-slate-850 text-amber-450 border border-slate-800 font-bold text-4xs uppercase tracking-wider cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {storeBusy === entry.id ? 'Buying...' : `💎 ${entry.gems} gems`}
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
           )}

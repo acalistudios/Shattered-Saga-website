@@ -1,8 +1,9 @@
 // Confiscated-gear depots (Hans, 2026-10-23: "option C").
 //
 // In captivity adventures the guards strip the player on arrival. Their gear is
-// held in the depot and is recovered ONLY by reaching it. Finish the adventure
-// without going there and the confiscated gear is lost for good.
+// held in the depot and is recovered for free ONLY by reaching it. Finish the
+// adventure without going there and the depot's quartermaster holds it for a
+// growing fee, then sells it off (A9, utils/depotEngine.js).
 //
 // Reaching the depot also turns up other prisoners' belongings: 6 ordinary
 // items plus 1d2 better ones, drawn without repeats from the existing item

@@ -8,6 +8,7 @@ export default function SettingsModal({
   settings,
   setSandboxMode,
   userProfile,
+  onOpenAccount,
 }) {
   const [localSandbox, setLocalSandbox] = useState(settings.sandboxMode);
 
@@ -259,6 +260,8 @@ export default function SettingsModal({
         </div>
 
         {/* --- SECTION 1: SECURE ACCOUNT / DATABASE MODE --- */}
+        {onOpenAccount && <button type="button" className="quest-quick-launch"
+          onClick={() => onOpenAccount({ section: 'subscriptions' })}>Account / Subscription Plans →</button>}
         <div className="mb-6">
           <h3 className="text-xs uppercase tracking-widest text-slate-400 font-bold mb-3">
             Secure Serverless Account
@@ -340,14 +343,14 @@ export default function SettingsModal({
             /* Cloud Sync Help Notice */
             <div className="p-4 rounded-lg bg-slate-950 border border-slate-850/80 space-y-3 text-center animate-fadeIn">
               <p className="text-xs text-slate-350 leading-relaxed">
-                Cloud Sync is active. To register or sign in, please return to the main splash screen and use the account controls.
+                Sign in, choose a subscription, or manage your account without leaving your character.
               </p>
               <button
                 type="button"
-                onClick={onClose}
+                onClick={() => onOpenAccount({ section: 'subscriptions' })}
                 className="w-full py-1.5 rounded bg-slate-900 border border-slate-850/80 text-slate-300 font-bold text-3xs uppercase tracking-wider hover:text-white hover:border-slate-700 transition-colors cursor-pointer"
               >
-                Return to Splash
+                Sign In / Choose a Plan
               </button>
             </div>
           ) : (

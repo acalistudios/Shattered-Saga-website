@@ -1,4 +1,6 @@
 import { coinValue } from './economy';
+import { ADVENTURE_PROGRESSION_METADATA } from './adventureProgression';
+import { completionPayoutCp, treasureBudgetCp } from './payouts';
 
 export const SKILL_RANK_CAP = 5;
 export const NORMAL_ATTRIBUTE_CAP = 5;
@@ -515,6 +517,15 @@ export const ADVENTURE_REWARD_MODELS = {
     disallowedRewards: ['uncapped_attribute_boost', 'unlisted_major_relic'],
   },
 };
+
+// A8: completion coin and the in-adventure coin budget follow campaign
+// position (data/payouts.js), not the hand-set values above.
+for (const [adventureId, model] of Object.entries(ADVENTURE_REWARD_MODELS)) {
+  const order = ADVENTURE_PROGRESSION_METADATA[adventureId]?.campaignOrder;
+  if (!order) continue;
+  model.guaranteedRewards.baseCurrencyCp = completionPayoutCp(order);
+  model.maxCurrencyBudgetCp = treasureBudgetCp(order);
+}
 
 export const getAdventureRewardModel = (adventureId) => (
   ADVENTURE_REWARD_MODELS[adventureId] || null

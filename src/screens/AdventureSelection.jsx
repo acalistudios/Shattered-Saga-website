@@ -7,6 +7,9 @@ import { WORLD_REGIONS, MAP_NODES, MAP_IMAGES, REGION_TRANSIT_CHALLENGES } from 
 import AccountStatusPills from '../components/AccountStatusPills';
 import KeystoneFontTracker from '../components/KeystoneFontTracker';
 import { getRandomTravelEncounter, TRAVEL_ENCOUNTERS } from '../data/travelEncounters';
+import { getDepotHold, DEPOT_HOLD_DAYS } from '../utils/depotEngine';
+import { formatCoin as formatCopper } from '../data/payouts';
+import { ARENA_BRACKETS, isArenaUnlocked, isBracketOpen, arenaBlockReason, getArenaAllowance, getArenaRecord } from '../utils/arenaEngine';
 import { pendingPatrolEncounterFor, canBeginPatrol, getPatrolAllowance, PATROL_FATIGUE, PATROL_HOURS } from '../utils/patrolEngine';
 import { getMapReadiness } from '../utils/mapReadiness';
 import { ADVENTURE_PROGRESSION_METADATA } from '../data/adventureProgression';
@@ -108,7 +111,9 @@ export default function AdventureSelection({
   consumeItem,
   onExportSaveFile,
   onOpenAccount,
-  onStartPatrol
+  onStartPatrol,
+  onStartArena,
+  onReclaimDepot
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
   const completedAdventures = character?.completed_adventures || [];
@@ -118,6 +123,36 @@ export default function AdventureSelection({
   const patrolAllowance = getPatrolAllowance(character);
   const fatiguePenalty = Math.floor(Math.max(0, -fatigue) * 2);
   const patrolPenalty = Math.floor(Math.max(0, PATROL_FATIGUE - fatigue) * 2);
+  const patrolUnavailableReason = patrolAllowance.remaining === 0
+    ? 'Maximum patrols completed. Complete an adventure to reset.'
+    : !canPatrol ? 'Rest in town to recover HP and fatigue before patrolling.' : '';
+
+  // A16: the Iron Colosseum arena, open after that adventure.
+  const arenaUnlocked = isArenaUnlocked(character);
+  const arenaAllowance = getArenaAllowance(character);
+  const arenaRecord = getArenaRecord(character);
+  const [isArenaOpen, setIsArenaOpen] = useState(false);
+
+  // A9: gear left in the Saltblood depot, released by its quartermaster for a fee.
+  const depotHold = getDepotHold(character);
+  const handleDepot = () => {
+    if (!depotHold || !onReclaimDepot) return;
+    if (depotHold.expired) {
+      window.alert(`The quartermaster held your gear for ${DEPOT_HOLD_DAYS} days, then sold it off:\n\n${depotHold.items.join(', ')}`);
+      onReclaimDepot();
+      return;
+    }
+    const ok = window.confirm(
+      `The Saltblood depot quartermaster holds your confiscated gear:\n\n${depotHold.items.join(', ')}\n\n`
+      + `His fee today: ${formatCopper(depotHold.feeCp)} (2 gp, plus 1 gp for each day held, never more than half the gear is worth). `
+      + `He sells it off in ${depotHold.daysLeft} day${depotHold.daysLeft === 1 ? '' : 's'}.\n\nPay and take it back?`
+    );
+    if (!ok) return;
+    const result = onReclaimDepot();
+    if (result && result.recovered.length === 0 && !result.expired) {
+      window.alert(`You cannot pay the ${formatCopper(depotHold.feeCp)} fee yet.`);
+    }
+  };
 
   const [viewMode, setViewMode] = useState('map'); // 'map' or 'list'
   const [mapLevel, setMapLevel] = useState('world'); // 'world' or 'region1'
@@ -311,8 +346,8 @@ export default function AdventureSelection({
     <div className="flex-1 flex flex-col justify-between p-6 max-w-6xl mx-auto w-full overflow-y-auto custom-scrollbar">
       
       {/* Top Header */}
-      <div className="flex items-center justify-between border-b border-amber-500/20 pb-4 mb-4">
-        <div className="flex items-center gap-3">
+      <div className="campaign-header border-b border-amber-500/20 pb-4 mb-4">
+        <div className="campaign-header-heading flex items-center gap-3">
           {onBack && (
             <button
               onClick={onBack}
@@ -338,7 +373,7 @@ export default function AdventureSelection({
         </div>
 
         {/* View Toggle */}
-        <div className="flex bg-slate-950 p-0.5 rounded border border-slate-850">
+        <div className="campaign-view-toggle flex bg-slate-950 p-0.5 rounded border border-slate-850">
           <button
             onClick={() => setViewMode('map')}
             className={`px-3 py-1 rounded text-5xs uppercase tracking-wider font-extrabold transition-all cursor-pointer ${
@@ -357,15 +392,20 @@ export default function AdventureSelection({
           </button>
         </div>
 
-        <AccountStatusPills gems={gems} userProfile={userProfile} onOpenAccount={onOpenAccount} compact />
+        <div className="campaign-account-status">
+          <AccountStatusPills gems={gems} userProfile={userProfile} onOpenAccount={onOpenAccount} compact />
+        </div>
         
         {/* Character Summary Badge & Stash Button */}
-        {character && <div className="text-xs text-amber-200 border border-slate-700 rounded px-3 py-2" role="status">
-          <div>Fatigue: {fatigue.toFixed(1)} / {character.stats.maxFatigue ?? 15} · Check penalty: -{fatiguePenalty}</div>
-          <div>Patrols: {patrolAllowance.remaining}/{patrolAllowance.limit} · Cost: {PATROL_FATIGUE} fatigue, at least {PATROL_HOURS}h · After departure penalty: -{patrolPenalty}</div>
+        {character && <div className="campaign-travel-status text-xs text-amber-200" role="status" aria-label="Travel status">
+          <span>Fatigue: <strong>{fatigue.toFixed(1)} / {character.stats.maxFatigue ?? 15}</strong></span>
+          <span>Check penalty: <strong>{fatiguePenalty ? `-${fatiguePenalty}` : '0'}</strong></span>
+          <span>Patrols remaining: <strong>{patrolAllowance.remaining} / {patrolAllowance.limit}</strong></span>
+          <span>Patrol cost: <strong>{PATROL_FATIGUE} fatigue, {PATROL_HOURS}h minimum</strong></span>
+          <span>Penalty after patrol: <strong>{patrolPenalty ? `-${patrolPenalty}` : '0'}</strong></span>
         </div>}
         {character && (
-          <div className="flex items-center gap-2">
+          <div className="campaign-header-actions flex items-center gap-2">
             <div className="hidden sm:flex items-center gap-3 bg-slate-900/60 border border-slate-850 rounded-lg p-2">
               {character.portraitUrl && (
                 <div className="w-10 h-10 rounded border border-amber-500/20 overflow-hidden bg-slate-950">
@@ -420,17 +460,45 @@ export default function AdventureSelection({
               <span>Market</span>
             </button>
 
+            <div className="campaign-patrol-control">
             <button
               type="button"
               onClick={handleStartRoadPatrol}
               disabled={!canPatrol}
               className="px-3 py-2 rounded bg-gradient-to-r from-red-950/80 to-slate-900 border border-red-500/40 hover:border-red-400 text-xs font-bold text-amber-300 hover:text-amber-200 cursor-pointer transition-all flex items-center gap-1.5 shadow-sm"
-              title={canPatrol ? 'Patrol the highway; allowance resets after completing an adventure' : patrolAllowance.remaining === 0 ? 'Complete an adventure to replenish patrols' : 'Recover HP and fatigue in town before patrolling'}
+              aria-describedby={patrolUnavailableReason ? 'patrol-unavailable-reason' : undefined}
+              title={canPatrol ? 'Patrol the highway; allowance resets after completing an adventure' : patrolUnavailableReason}
               style={!canPatrol ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
             >
               <span>⚔️</span>
               <span>Road Patrol</span>
             </button>
+            {patrolUnavailableReason && <p id="patrol-unavailable-reason" className="campaign-patrol-reason">{patrolUnavailableReason}</p>}
+            </div>
+
+            {depotHold && (
+              <button
+                type="button"
+                onClick={handleDepot}
+                className="px-3 py-2 rounded bg-gradient-to-r from-stone-900 to-slate-900 border border-stone-500/40 hover:border-stone-300 text-xs font-bold text-stone-300 hover:text-stone-100 cursor-pointer transition-all flex items-center gap-1.5 shadow-sm"
+                title={depotHold.expired ? 'Your held gear was sold off' : `Reclaim your gear for ${formatCopper(depotHold.feeCp)}`}
+              >
+                <span>📦</span>
+                <span>{depotHold.expired ? 'Depot: Sold Off' : `Depot (${formatCopper(depotHold.feeCp)})`}</span>
+              </button>
+            )}
+
+            {arenaUnlocked && (
+              <button
+                type="button"
+                onClick={() => setIsArenaOpen(true)}
+                className="px-3 py-2 rounded bg-gradient-to-r from-amber-950/80 to-slate-900 border border-amber-500/40 hover:border-amber-400 text-xs font-bold text-amber-300 hover:text-amber-200 cursor-pointer transition-all flex items-center gap-1.5 shadow-sm"
+                title="Fight for purses in the Iron Colosseum arena"
+              >
+                <span>🏟️</span>
+                <span>Arena</span>
+              </button>
+            )}
 
             {onExportSaveFile && (
               <button
@@ -806,6 +874,7 @@ export default function AdventureSelection({
                               <button
                                 onClick={handleStartRoadPatrol}
                                 disabled={!canPatrol}
+                                aria-describedby={patrolUnavailableReason ? 'region-patrol-unavailable-reason' : undefined}
                                 className="w-full py-2 bg-slate-900 hover:bg-slate-850 border border-amber-500/30 hover:border-amber-500/60 text-amber-300 rounded text-3xs font-bold uppercase tracking-wider cursor-pointer transition-all text-center flex items-center justify-center gap-1.5"
                                 title="Engage in road travel encounters within this region"
                                 style={!canPatrol ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
@@ -813,6 +882,7 @@ export default function AdventureSelection({
                                 <span>⚔️</span>
                                 <span>Patrol Region Roads</span>
                               </button>
+                              {patrolUnavailableReason && <p id="region-patrol-unavailable-reason" className="campaign-patrol-reason">{patrolUnavailableReason}</p>}
                             </div>
                           ) : storyUnlocked && !travelUnlocked ? (
                             <button
@@ -847,8 +917,8 @@ export default function AdventureSelection({
                   <div>
                     {/* Banner Image */}
                     {selectedAdventure.artwork && (
-                      <div className="h-28 rounded-lg overflow-hidden border border-slate-800 bg-slate-950 mb-4">
-                        <img src={selectedAdventure.artwork} alt={selectedAdventure.name} className="w-full h-full object-cover opacity-80" />
+                      <div className="rounded-lg overflow-hidden border border-slate-800 bg-slate-950 mb-4">
+                        <img src={selectedAdventure.artwork} alt={selectedAdventure.name} className="w-full h-auto block" />
                       </div>
                     )}
 
@@ -873,9 +943,6 @@ export default function AdventureSelection({
                         </span>
                         <span className="px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-300">
                           Level {selectedAdventure.rewardModel?.recommendedLevelRange?.join('-')}
-                        </span>
-                        <span className="px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-400">
-                          {selectedAdventure.progression.combatExpectation}
                         </span>
                       </div>
                     )}
@@ -908,6 +975,16 @@ export default function AdventureSelection({
                         </div>
                       )}
                     </div>
+
+                    {unlockState.unlocked && (
+                      <button
+                        type="button"
+                        onClick={() => handleEmbarkWithWarning(selectedAdventure.id, isCompleted)}
+                        className="quest-quick-launch"
+                      >
+                        {isCompleted ? 'Visit Area / Rest' : 'Embark on Quest'} <span aria-hidden="true">→</span>
+                      </button>
+                    )}
 
                     <p className="text-3xs text-slate-355 leading-relaxed mb-4">
                       {selectedAdventure.backstory || selectedAdventure.desc}
@@ -1044,12 +1121,12 @@ export default function AdventureSelection({
                   }`}
                 >
                   {/* Artwork Banner */}
-                  <div className="h-32 relative bg-slate-950 w-full overflow-hidden flex items-center justify-center border-b border-slate-800/65">
+                  <div className="relative bg-slate-950 w-full overflow-hidden flex items-center justify-center border-b border-slate-800/65">
                     {adv.artwork ? (
                       <img
                         src={adv.artwork}
                         alt={adv.name}
-                        className="w-full h-full object-cover opacity-70"
+                        className="w-full h-auto block"
                       />
                     ) : (
                       <div className="text-slate-600 font-bold uppercase tracking-widest text-4xs">No Imagery</div>
@@ -1243,6 +1320,56 @@ export default function AdventureSelection({
         </div>
       )}
 
+
+      {isArenaOpen && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="arena-title">
+          <div className="w-full max-w-lg bg-slate-950 border border-amber-900/40 rounded-xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-slate-900 border-b border-amber-900/40 px-5 py-4">
+              <h3 id="arena-title" className="text-lg font-bold font-serif text-amber-400 tracking-wider">🏟️ The Iron Colosseum Arena</h3>
+              <p className="text-3xs text-slate-400 mt-1">
+                Bouts are to yield, not to the death. Entry fees are never refunded; the purse is paid only on a win. Each win opens the next bracket.
+              </p>
+              <p className="text-3xs text-slate-400 mt-1">
+                Bouts left before your next adventure: <strong className="text-slate-200">{arenaAllowance.remaining} / {arenaAllowance.limit}</strong> · Record: <strong className="text-slate-200">{arenaRecord.wins}W {arenaRecord.losses}L</strong>
+              </p>
+            </div>
+            <div className="p-5 space-y-3 overflow-y-auto">
+              {ARENA_BRACKETS.map(bracket => {
+                const reason = arenaBlockReason(character, bracket.id);
+                const open = isBracketOpen(character, bracket.id);
+                return (
+                  <div key={bracket.id} className={`p-3 rounded border ${open ? 'border-slate-700 bg-slate-900' : 'border-slate-900 bg-slate-950 opacity-60'}`}>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="font-bold text-slate-100 text-xs">{bracket.name}</span>
+                      <span className="text-3xs font-mono text-amber-400">Fee {bracket.feeGp} gp · Purse {bracket.purseGp} gp</span>
+                    </div>
+                    <p className="text-3xs text-slate-400 mt-1">vs {bracket.opponent.name}: {bracket.opponent.desc}</p>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <span className="text-4xs text-slate-500">{reason}</span>
+                      <button
+                        type="button"
+                        disabled={!!reason}
+                        onClick={() => {
+                          setIsArenaOpen(false);
+                          onStartArena?.(bracket.id);
+                        }}
+                        className="px-3 py-1.5 rounded font-black text-4xs uppercase tracking-widest bg-amber-600 hover:bg-amber-500 text-slate-950 cursor-pointer disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed"
+                      >
+                        Enter ({bracket.feeGp} gp)
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="border-t border-slate-800 px-5 py-3 flex justify-end">
+              <button type="button" onClick={() => setIsArenaOpen(false)} className="px-4 py-1.5 rounded border border-slate-700 text-slate-300 text-3xs uppercase font-bold cursor-pointer">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer info */}
       <div className="mt-6 flex justify-center text-4xs text-slate-550 border-t border-slate-900 pt-3 text-center">

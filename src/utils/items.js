@@ -1,5 +1,6 @@
 // Item database and carrying capacity calculator for Shattered Saga
 import { GENERIC_ITEM_VALUE_BY_NAME, coinValue } from '../data/economy';
+import { parseStrungBow, STARFALL_BOWSTRING } from './bowstring';
 
 export const ITEMS_DATABASE = {
   // Backpacks (Gear Slot: backpack)
@@ -24,7 +25,7 @@ export const ITEMS_DATABASE = {
   'Flame-ward Shield +2': { weight: 7.0, volume: 4.0, slot: 'hand', subslot: 'large', properties: '+2 Blocking against fire, heat, and elemental attacks; +1 Blocking otherwise; soak 1d6 + 2. Fire affinity ignores first fire damage once per 8 hours.' },
   'Sky-Stalker Bow': { weight: 3.5, volume: 3.5, slot: 'hand', subslot: 'large', properties: 'Requires arrows' },
   'Sky-Stalker Composite Bow +2': { weight: 3.5, volume: 3.5, slot: 'hand', subslot: 'large', properties: '+2 ranged combat, 1d8+1 piercing, requires arrows. Air affinity ignores wind, height, and unstable footing penalties.' },
-  'Starfall Bowstring +3': { weight: 0.2, volume: 0.2, slot: 'hand', subslot: 'small', properties: 'Upgrade one bow to +3. Once per rest, an arrow strikes an incorporeal, flying, or astral target normally; Air affinity also ignores cover.' },
+  'Starfall Bowstring +3': { weight: 0.2, volume: 0.2, slot: null, subslot: null, properties: 'Install on one bow, permanently (Install button in the inventory): the bow becomes +3 plus half its own bonus, rounded up. Once per rest, an arrow strikes an incorporeal, flying, or astral target normally; Air affinity also ignores cover.' },
   'Champion Maul +2': { weight: 9.0, volume: 6.0, slot: 'hand', subslot: 'large', properties: '+2 Heavy Weapons, 1d10+1 blunt. Earth affinity knocks prone on critical hit.' },
   'Frostfire Glaive +3': { weight: 8.5, volume: 6.0, slot: 'hand', subslot: 'large', properties: '+3 Heavy Weapons, 1d10 edged or piercing. Once per rest, add +3 elemental damage; Water affinity may slow instead of damaging.' },
   'Dawnbound Sickle +3': { weight: 2.0, volume: 1.5, slot: 'hand', subslot: 'medium', properties: '+3 Light Weapons, 1d6 edged. Strong against roots, vines, famine spirits, and pact-bound growth; Earth affinity grants rooted resistance once per rest.' },
@@ -153,7 +154,22 @@ function getGenericValue(itemName) {
 // Get weight, volume, slot and properties for any item
 export function getItemDetails(itemName) {
   if (!itemName) return { name: '', weight: 0, volume: 0, slot: null, subslot: null, properties: '', valueCp: 0, value: coinValue(0), valueCategory: 'misc' };
-  
+
+  // A Starfall-strung bow is its base bow plus the installed string.
+  const strung = parseStrungBow(itemName);
+  if (strung) {
+    const bow = getItemDetails(strung.baseName);
+    const string = getItemDetails(STARFALL_BOWSTRING);
+    const valueCp = (bow.valueCp || 0) + (string.valueCp || 0);
+    return {
+      ...bow,
+      valueCp,
+      value: coinValue(valueCp),
+      valueCategory: 'magical_weapons',
+      properties: `${bow.properties ? `${bow.properties} ` : ''}Starfall Bowstring installed (permanent): +${strung.bonus} total. Once per rest, an arrow strikes an incorporeal, flying, or astral target normally; Air affinity also ignores cover.`,
+    };
+  }
+
   const clean = cleanItemName(itemName);
   const dbMatch = ITEMS_DATABASE[itemName] || ITEMS_DATABASE[clean];
   

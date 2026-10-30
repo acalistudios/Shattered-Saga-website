@@ -38,12 +38,10 @@ export const RESURRECTION_ATTRIBUTES = [
 
 export const ATTRIBUTE_FLOOR = 1;
 
-// Social checks the risen suffer on. Intimidation is included per spec, though
-// a visibly undead character arguably ought to intimidate better — flip it by
-// removing it from this list if that reads better in play.
+// Social checks the risen suffer on. Intimidation is deliberately absent: a
+// visibly undead character frightens people more, not less (Hans, 2026-10-28).
 export const UNDEAD_SOCIAL_SKILLS = [
   'deception',
-  'intimidation',
   'leadership',
   'negotiation',
   'performance',
@@ -53,8 +51,16 @@ export const UNDEAD_SOCIAL_SKILLS = [
 export const NPC_REACTION_PENALTY_FIRST = 1;
 export const NPC_REACTION_PENALTY_REPEAT = 2;
 
-// The only way out of the undead condition, sold rather than earned.
+// The only way out of the undead condition. Sold for gems (data/gemStore.js),
+// plus one free copy for finishing The Plague Bells of Merrin Abbey (Hans,
+// 2026-10-28, A4).
 export const UNDEATH_CURE_ITEM = 'Rite of Quiet Return';
+
+// Items handed over the first time an adventure is completed.
+const COMPLETION_GIFTS = {
+  merrin_abbey_plague_bells: [UNDEATH_CURE_ITEM],
+};
+export const getCompletionGifts = (adventureId) => [...(COMPLETION_GIFTS[adventureId] || [])];
 
 // Premium "divine intervention" items, consumed at the moment of death to skip
 // resurrection entirely. Purchased, never dropped by the reward tables.

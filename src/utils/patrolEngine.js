@@ -13,6 +13,7 @@
 import { consumeRationFromInventory } from './restEngine';
 import { TRAVEL_ENCOUNTERS } from '../data/travelEncounters';
 import { getMapReadiness } from './mapReadiness';
+import { patrolCoinCapCp as nextAdventurePatrolCapCp, formatCoin } from '../data/payouts';
 import { isGearTrailCold } from './resurrectionEngine';
 import { SKILLS_LIST } from '../data/gms';
 
@@ -69,8 +70,11 @@ export function canBeginPatrol(character) {
     && !character?.progression?.activePatrol;
 }
 
-// Poor roadside bands cannot pay adventure-sized rewards, even on later roads.
-export const patrolGoldCap = (level = 1) => Math.min(20, Math.max(1, Math.floor(level)) * 2);
+// Poor roadside bands cannot pay adventure-sized rewards, even on later roads:
+// at most a tenth of the next adventure's completion payout (A8). A character's
+// level is the campaign position of their next adventure (one level per
+// completion), so the cap follows it. In copper.
+export const patrolCoinCapCp = (level = 1) => nextAdventurePatrolCapCp(level);
 // Abandoning a patrol mid-fight: they run you down for this share of max HP
 // (never lethal) before you get clear.
 export const FLEE_PURSUIT_FRACTION = 0.25;
@@ -205,7 +209,7 @@ export function rollPatrolLoot(rewards = {}, rng = Math.random) {
   if (gear.length > 0 && rng() < PATROL_GEAR_CHANCE) {
     items.push(gear[Math.floor(rng() * gear.length) % gear.length]);
   }
-  return { gold: Math.max(0, rewards.gold || 0), items, morality: rewards.morality || 0 };
+  return { coinCp: Math.max(0, rewards.gold || 0) * 100, items, morality: rewards.morality || 0 };
 }
 
 const QTY_RE = /^(.*?)\s*\((\d+)\)$/;
@@ -274,12 +278,12 @@ export function normalizePatrolOutcome(claimed, { fought }) {
 /** Roll the predefined spoils for an outcome. Escaping pays nothing. */
 export function rollPatrolOutcomeLoot(encounterId, outcome, rng = Math.random, level = 1) {
   const encounter = TRAVEL_ENCOUNTERS.find(e => e.id === encounterId);
-  if (!encounter || outcome === 'escaped') return { gold: 0, items: [], morality: 0 };
+  if (!encounter || outcome === 'escaped') return { coinCp: 0, items: [], morality: 0 };
   const pool = encounter.approaches.filter(a => (outcome === 'parley') === isParleyApproach(a));
-  if (pool.length === 0) return { gold: 0, items: [], morality: 0 };
+  if (pool.length === 0) return { coinCp: 0, items: [], morality: 0 };
   const approach = pool[Math.floor(rng() * pool.length) % pool.length];
   const loot = rollPatrolLoot(approach.rewards, rng);
-  return { ...loot, gold: Math.min(loot.gold, patrolGoldCap(level)) };
+  return { ...loot, coinCp: Math.min(loot.coinCp, patrolCoinCapCp(level)) };
 }
 
 /**
@@ -298,11 +302,13 @@ export function finishPatrol(character, { outcome, loot, pursuitDamage = 0 }) {
     next = { ...next, stats: { ...next.stats, hp: Math.max(1, (next.stats.hp ?? 1) - pursuitDamage) } };
   }
 
-  const gold = loot?.gold || 0;
+  const coinCp = loot?.coinCp || 0;
   let currency = next.currency;
-  if (gold > 0) {
-    const gp = currency?.gp ?? currency?.gold ?? 0;
-    currency = { ...(currency || {}), gp: gp + gold, gold: gp + gold };
+  if (coinCp > 0) {
+    const c = currency || {};
+    const total = (c.gp ?? c.gold ?? 0) * 100 + (c.sp || 0) * 10 + (c.cp || 0) + coinCp;
+    const gp = Math.floor(total / 100);
+    currency = { ...c, gp, sp: Math.floor((total % 100) / 10), cp: total % 10, gold: gp };
   }
   next = {
     ...next,
@@ -369,7 +375,7 @@ export function describePatrolResult({ outcome, loot, recovered = [], pursuitDam
     escaped: 'Patrol over: you got away.',
   }[outcome] || 'Patrol over.';
   const parts = [];
-  if (loot?.gold > 0) parts.push(`+${loot.gold} gp`);
+  if (loot?.coinCp > 0) parts.push(`+${formatCoin(loot.coinCp)}`);
   if (loot?.items?.length) parts.push(loot.items.join(', '));
   if (loot?.morality) parts.push(`Morality ${loot.morality > 0 ? '+' : ''}${loot.morality}`);
   const spoils = parts.length ? ` Spoils: ${parts.join(' · ')}.` : '';

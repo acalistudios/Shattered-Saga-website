@@ -3,6 +3,7 @@
 // tested without mounting a React hook. Everything here is pure — callers pass a
 // character in and get a new character (or a plain result) back.
 import { getRewardItemByName } from '../data/rewardItems';
+import { parseStrungBow, STARFALL_BOWSTRING } from './bowstring';
 
 // Canonical empty progression block. DEFAULT_CHARACTER in useGameState spreads
 // this so the two cannot drift apart.
@@ -41,6 +42,8 @@ export function getWeaponProperties(weaponName) {
 
 export function getMagicBonus(itemName) {
   if (!itemName) return 0;
+  const strung = parseStrungBow(itemName);
+  if (strung) return strung.bonus;
   const match = itemName.match(/\+(\d+)\b/);
   return match ? parseInt(match[1], 10) : 0;
 }
@@ -232,14 +235,13 @@ export function getPassiveRewardSkillBonus(character, skillId) {
   return { bonus, labels };
 }
 
-export function getRewardWeaponProfile(weaponName, character, enemy = null, activeAdventureId = null) {
+export function getRewardWeaponProfile(rawWeaponName, character, enemy = null, activeAdventureId = null) {
+  // A Starfall-strung bow keeps its own traits under the base name; the
+  // installed string sets its bonus (utils/bowstring.js).
+  const strung = parseStrungBow(rawWeaponName);
+  const weaponName = strung ? strung.baseName : rawWeaponName;
   const base = getWeaponProperties(weaponName);
   const lower = (weaponName || '').toLowerCase();
-  const equippedAndCarried = [
-    ...Object.values(character?.equipment || {}).filter(Boolean),
-    ...(character?.inventory || [])
-  ].map(itemName => itemName.toLowerCase());
-  const hasStarfallBowstring = equippedAndCarried.some(itemName => itemName.includes('starfall bowstring +3'));
   const effects = [];
   let dice = base.dice;
   let skill = base.skill;
@@ -306,14 +308,14 @@ export function getRewardWeaponProfile(weaponName, character, enemy = null, acti
     });
   }
 
-  if (hasStarfallBowstring && /\b(bow|longbow|shortbow|composite bow)\b/.test(lower)) {
-    attackBonus = Math.max(attackBonus, 3);
+  if (strung) {
+    attackBonus = strung.bonus;
     const targetText = `${activeAdventureId || ''} ${enemy?.name || ''} ${enemy?.role || ''} ${enemy?.desc || ''}`.toLowerCase();
-    if (/(astral|flying|airborne|incorporeal|spirit|wraith|ghost)/.test(targetText) && getCooldownReady(character, 'Starfall Bowstring +3', 'starfall_shot')) {
+    if (/(astral|flying|airborne|incorporeal|spirit|wraith|ghost)/.test(targetText) && getCooldownReady(character, STARFALL_BOWSTRING, 'starfall_shot')) {
       damageBonus += 3;
       effects.push({
         type: 'cooldown',
-        itemName: 'Starfall Bowstring +3',
+        itemName: STARFALL_BOWSTRING,
         effectId: 'starfall_shot',
         reset: 'rest',
         text: characterHasAffinity(character, 'air') ? '+3 starfall damage; ignores cover' : '+3 starfall damage vs astral/flying/incorporeal target'
