@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { claimDepot, isAtDepot, settleConfiscatedOnCompletion, shouldConfiscateOnEntry } from './depotEngine';
+import {
+  claimDepot, isAtDepot, settleConfiscatedOnCompletion, shouldConfiscateOnEntry, getDepotHold, reclaimDepotHold,
+  DEPOT_HOLD_DAYS,
+} from './depotEngine';
 import { SUPPLY_DEPOTS } from '../data/supplyDepot';
 
 const depot = SUPPLY_DEPOTS.saltblood_mines;
@@ -68,11 +71,59 @@ describe('settleConfiscatedOnCompletion', () => {
     expect(character.confiscatedGear).toEqual([]);
   });
 
-  it('keeps it held at the depot when return visits may reclaim', () => {
+  it('by default moves it to the depot hold, dated, instead (A9)', () => {
     const c = prisoner();
-    const { character, lost } = settleConfiscatedOnCompletion(c, true);
+    const { character, lost, held } = settleConfiscatedOnCompletion(c, undefined, { adventureId: 'saltblood_mines', day: 7 });
     expect(lost).toEqual([]);
-    expect(character.confiscatedGear).toEqual(c.confiscatedGear);
+    expect(held).toEqual(c.confiscatedGear);
+    expect(character.confiscatedGear).toEqual([]);
+    expect(character.progression.depotHold).toEqual({ adventureId: 'saltblood_mines', items: c.confiscatedGear, heldSinceDay: 7 });
+  });
+});
+
+describe('depot quartermaster (A9)', () => {
+  const value = { 'Steel Sword': 1500, 'Iron Shield': 800, Lockpicks: 200 };
+  const valueOf = (item) => value[item] || 0;
+  const held = (day, gp = 50, items = ['Steel Sword', 'Iron Shield', 'Lockpicks']) => ({
+    stats: { day },
+    currency: { gp, sp: 0, cp: 0, gold: gp },
+    inventory: ['Torch'],
+    progression: { depotHold: { adventureId: 'saltblood_mines', items, heldSinceDay: 5 } },
+  });
+
+  it('charges 2 gp plus 1 gp per day held', () => {
+    expect(getDepotHold(held(5), valueOf).feeCp).toBe(200);
+    expect(getDepotHold(held(9), valueOf).feeCp).toBe(600);
+  });
+
+  it('never charges more than half the gear is worth', () => {
+    expect(getDepotHold(held(30), valueOf).feeCp).toBe(1250);
+    expect(getDepotHold(held(9, 50, ['Lockpicks']), valueOf).feeCp).toBe(100);
+  });
+
+  it('paying returns the gear and takes the coin', () => {
+    const { character, recovered, paidCp } = reclaimDepotHold(held(9), valueOf);
+    expect(recovered).toEqual(['Steel Sword', 'Iron Shield', 'Lockpicks']);
+    expect(paidCp).toBe(600);
+    expect(character.currency).toMatchObject({ gp: 44, gold: 44 });
+    expect(character.inventory).toEqual(['Torch', 'Steel Sword', 'Iron Shield', 'Lockpicks']);
+    expect(getDepotHold(character, valueOf)).toBeNull();
+  });
+
+  it('refuses without the fee and changes nothing', () => {
+    const c = held(9, 5);
+    expect(reclaimDepotHold(c, valueOf).character).toBe(c);
+  });
+
+  it('sells the gear off after the hold period', () => {
+    const late = held(5 + DEPOT_HOLD_DAYS + 1);
+    expect(getDepotHold(late, valueOf).expired).toBe(true);
+    const { character, recovered, expired } = reclaimDepotHold(late, valueOf);
+    expect(expired).toBe(true);
+    expect(recovered).toEqual([]);
+    expect(character.inventory).toEqual(['Torch']);
+    expect(character.progression.depotHold).toBeNull();
+    expect(getDepotHold(held(5 + DEPOT_HOLD_DAYS), valueOf).expired).toBe(false);
   });
 });
 

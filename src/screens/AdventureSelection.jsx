@@ -7,6 +7,8 @@ import { WORLD_REGIONS, MAP_NODES, MAP_IMAGES, REGION_TRANSIT_CHALLENGES } from 
 import AccountStatusPills from '../components/AccountStatusPills';
 import KeystoneFontTracker from '../components/KeystoneFontTracker';
 import { getRandomTravelEncounter, TRAVEL_ENCOUNTERS } from '../data/travelEncounters';
+import { getDepotHold, DEPOT_HOLD_DAYS } from '../utils/depotEngine';
+import { formatCoin as formatCopper } from '../data/payouts';
 import { ARENA_BRACKETS, isArenaUnlocked, isBracketOpen, arenaBlockReason, getArenaAllowance, getArenaRecord } from '../utils/arenaEngine';
 import { pendingPatrolEncounterFor, canBeginPatrol, getPatrolAllowance, PATROL_FATIGUE, PATROL_HOURS } from '../utils/patrolEngine';
 import { getMapReadiness } from '../utils/mapReadiness';
@@ -110,7 +112,8 @@ export default function AdventureSelection({
   onExportSaveFile,
   onOpenAccount,
   onStartPatrol,
-  onStartArena
+  onStartArena,
+  onReclaimDepot
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
   const completedAdventures = character?.completed_adventures || [];
@@ -129,6 +132,27 @@ export default function AdventureSelection({
   const arenaAllowance = getArenaAllowance(character);
   const arenaRecord = getArenaRecord(character);
   const [isArenaOpen, setIsArenaOpen] = useState(false);
+
+  // A9: gear left in the Saltblood depot, released by its quartermaster for a fee.
+  const depotHold = getDepotHold(character);
+  const handleDepot = () => {
+    if (!depotHold || !onReclaimDepot) return;
+    if (depotHold.expired) {
+      window.alert(`The quartermaster held your gear for ${DEPOT_HOLD_DAYS} days, then sold it off:\n\n${depotHold.items.join(', ')}`);
+      onReclaimDepot();
+      return;
+    }
+    const ok = window.confirm(
+      `The Saltblood depot quartermaster holds your confiscated gear:\n\n${depotHold.items.join(', ')}\n\n`
+      + `His fee today: ${formatCopper(depotHold.feeCp)} (2 gp, plus 1 gp for each day held, never more than half the gear is worth). `
+      + `He sells it off in ${depotHold.daysLeft} day${depotHold.daysLeft === 1 ? '' : 's'}.\n\nPay and take it back?`
+    );
+    if (!ok) return;
+    const result = onReclaimDepot();
+    if (result && result.recovered.length === 0 && !result.expired) {
+      window.alert(`You cannot pay the ${formatCopper(depotHold.feeCp)} fee yet.`);
+    }
+  };
 
   const [viewMode, setViewMode] = useState('map'); // 'map' or 'list'
   const [mapLevel, setMapLevel] = useState('world'); // 'world' or 'region1'
@@ -451,6 +475,18 @@ export default function AdventureSelection({
             </button>
             {patrolUnavailableReason && <p id="patrol-unavailable-reason" className="campaign-patrol-reason">{patrolUnavailableReason}</p>}
             </div>
+
+            {depotHold && (
+              <button
+                type="button"
+                onClick={handleDepot}
+                className="px-3 py-2 rounded bg-gradient-to-r from-stone-900 to-slate-900 border border-stone-500/40 hover:border-stone-300 text-xs font-bold text-stone-300 hover:text-stone-100 cursor-pointer transition-all flex items-center gap-1.5 shadow-sm"
+                title={depotHold.expired ? 'Your held gear was sold off' : `Reclaim your gear for ${formatCopper(depotHold.feeCp)}`}
+              >
+                <span>📦</span>
+                <span>{depotHold.expired ? 'Depot: Sold Off' : `Depot (${formatCopper(depotHold.feeCp)})`}</span>
+              </button>
+            )}
 
             {arenaUnlocked && (
               <button

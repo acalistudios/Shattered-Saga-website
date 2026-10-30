@@ -113,6 +113,7 @@ function App() {
     leavePatrol,
     startArenaBout,
     leaveArena,
+    reclaimDepotGear,
     completeResurrection,
     returnToInterruptedAdventure,
     activeEnemy,
@@ -1032,6 +1033,7 @@ function App() {
             onStartArena={(bracketId) => {
               if (startArenaBout(bracketId)) setScreen('play');
             }}
+            onReclaimDepot={reclaimDepotGear}
             onSelectAdventure={handleSelectAdventure}
             onBack={() => setScreen('splash')}
             gems={gems}

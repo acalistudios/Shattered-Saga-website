@@ -3,7 +3,7 @@ import {
   applyPatrolCosts, rollPatrolLoot, patrolGearRecovery, pendingPatrolEncounterFor,
   isConsumable, addLootToInventory, buildPatrolAdventure, patrolIdFor, isPatrolId,
   beginPatrol, markPatrolFought, normalizePatrolOutcome, rollPatrolOutcomeLoot, finishPatrol,
-  PATROL_HOURS, PATROL_FATIGUE, PATROL_FOES, canBeginPatrol, getPatrolAllowance, patrolGoldCap,
+  PATROL_HOURS, PATROL_FATIGUE, PATROL_FOES, canBeginPatrol, getPatrolAllowance, patrolCoinCapCp,
   selectPatrolChoices, getPatrolChoices,
 } from './patrolEngine';
 import { TRAVEL_ENCOUNTERS } from '../data/travelEncounters';
@@ -76,9 +76,9 @@ describe('applyPatrolCosts', () => {
 describe('rollPatrolLoot', () => {
   const rewards = { gold: 20, morality: 1, items: ['Bandit Shortbow', 'Rations (2)'] };
 
-  it('always pays gold and consumables', () => {
+  it('always pays the authored coin (in copper) and consumables', () => {
     const r = rollPatrolLoot(rewards, () => 0.99);
-    expect(r.gold).toBe(20);
+    expect(r.coinCp).toBe(2000);
     expect(r.items).toEqual(['Rations (2)']);
   });
 
@@ -166,17 +166,17 @@ describe('patrol as a played encounter', () => {
   });
 
   it('escaping pays nothing; parley pays from the talking approach', () => {
-    expect(rollPatrolOutcomeLoot('highway_bandit_ambush', 'escaped')).toEqual({ gold: 0, items: [], morality: 0 });
+    expect(rollPatrolOutcomeLoot('highway_bandit_ambush', 'escaped')).toEqual({ coinCp: 0, items: [], morality: 0 });
     const parley = TRAVEL_ENCOUNTERS[0].approaches.find(a => a.id === 'diplomatic_parley');
-    expect(rollPatrolOutcomeLoot('highway_bandit_ambush', 'parley', () => 0.99).gold).toBe(Math.min(parley.rewards.gold, 2));
+    expect(rollPatrolOutcomeLoot('highway_bandit_ambush', 'parley', () => 0.99).coinCp).toBe(Math.min(parley.rewards.gold * 100, patrolCoinCapCp(1)));
   });
 
   it('finishing tops the clock up to the patrol length, pays spoils and clears the patrol', () => {
     let c = beginPatrol(traveller({ currency: { gp: 5, gold: 5 }, morality: 0 }), 'highway_bandit_ambush');
     c = { ...c, stats: { ...c.stats, hour: 11 } }; // one hour of play
-    const { character } = finishPatrol(markPatrolFought(c), { outcome: 'victory', loot: { gold: 15, items: ['Rations (1)'], morality: 1 } });
+    const { character } = finishPatrol(markPatrolFought(c), { outcome: 'victory', loot: { coinCp: 80, items: ['Rations (1)'], morality: 1 } });
     expect(character.stats.hour).toBe(10 + PATROL_HOURS);
-    expect(character.currency.gp).toBe(20);
+    expect(character.currency).toMatchObject({ gp: 5, sp: 8, gold: 5 });
     expect(character.inventory).toEqual(['Rations (3)']);
     expect(character.morality).toBe(1);
     expect(character.progression.activePatrol).toBeNull();
@@ -249,13 +249,14 @@ describe('non-bankable patrol allowance', () => {
     const c = traveller();
     expect(beginPatrol(c, 'missing')).toBe(c);
   });
-  it('caps gold sharply at level one across every encounter and scales conservatively', () => {
+  it('caps coin at a tenth of the next adventure payout: poor bandits early (A8)', () => {
     for (const e of TRAVEL_ENCOUNTERS) {
       for (const outcome of ['victory', 'parley']) {
-        expect(rollPatrolOutcomeLoot(e.id, outcome, () => 0, 1).gold).toBeLessThanOrEqual(2);
+        expect(rollPatrolOutcomeLoot(e.id, outcome, () => 0, 1).coinCp).toBeLessThanOrEqual(80);
       }
     }
-    expect(patrolGoldCap(5)).toBe(10);
-    expect(patrolGoldCap(20)).toBe(20);
+    expect(patrolCoinCapCp(1)).toBe(80);
+    expect(patrolCoinCapCp(18)).toBe(860);
+    expect(patrolCoinCapCp(5)).toBeGreaterThan(patrolCoinCapCp(1));
   });
 });

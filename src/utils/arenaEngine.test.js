@@ -54,6 +54,13 @@ describe('Arena unlock and brackets (A16)', () => {
   });
 });
 
+describe('arena economy (A8)', () => {
+  it('fees are 5/10/20/40% of the 14th payout and purses three times the fee', () => {
+    expect(ARENA_BRACKETS.map(b => b.feeGp)).toEqual([2, 5, 10, 20]);
+    expect(ARENA_BRACKETS.map(b => b.purseGp)).toEqual([6, 15, 30, 60]);
+  });
+});
+
 describe('entering a bout', () => {
   it('charges the fee and fatigue and uses one bout of the allowance', () => {
     const c = beginArenaBout(gladiator(), 'initiate');
@@ -64,12 +71,12 @@ describe('entering a bout', () => {
   });
 
   it('refuses without the fee, while exhausted, mid-patrol, or out of bouts', () => {
-    expect(arenaBlockReason(gladiator({ currency: { gp: 2 } }), 'initiate')).toMatch(/entry fee/);
+    expect(arenaBlockReason(gladiator({ currency: { gp: ARENA_BRACKETS[0].feeGp - 1 } }), 'initiate')).toMatch(/entry fee/);
     expect(canEnterArena(gladiator({ stats: { hp: 30, maxHp: 30, fatigue: 0 } }), 'initiate')).toBe(false);
     expect(canEnterArena(gladiator({ progression: { activePatrol: { encounterId: 'x' } } }), 'initiate')).toBe(false);
     const spent = gladiator({ progression: { arenaAllowance: { completions: 2, used: ARENA_BOUTS_AFTER_ADVENTURE } } });
     expect(arenaBlockReason(spent, 'initiate')).toMatch(/No bouts left/);
-    const c = gladiator({ currency: { gp: 1 } });
+    const c = gladiator({ currency: { gp: ARENA_BRACKETS[0].feeGp - 1 } });
     expect(beginArenaBout(c, 'initiate')).toBe(c);
   });
 
@@ -90,7 +97,7 @@ describe('ending a bout', () => {
   it('a win pays the purse, records it and opens the next bracket', () => {
     let c = markArenaFought(beginArenaBout(gladiator(), 'initiate'));
     c = finishArenaBout(c, { outcome: 'victory' });
-    expect(c.currency.gp).toBe(100 - 5 + 15);
+    expect(c.currency.gp).toBe(100 - ARENA_BRACKETS[0].feeGp + ARENA_BRACKETS[0].purseGp);
     expect(getArenaRecord(c)).toEqual({ highestWon: 0, wins: 1, losses: 0 });
     expect(isBracketOpen(c, 'blooded')).toBe(true);
     expect(c.progression.activeArena).toBeNull();
@@ -104,7 +111,7 @@ describe('ending a bout', () => {
     expect(c.stats.hp).toBe(1);
     expect(c.stats.bleedingTier).toBe(0);
     expect(c.stats.deathCountdown).toBeNull();
-    expect(c.currency.gp).toBe(95);
+    expect(c.currency.gp).toBe(100 - ARENA_BRACKETS[0].feeGp);
     expect(getArenaRecord(c).losses).toBe(1);
   });
 

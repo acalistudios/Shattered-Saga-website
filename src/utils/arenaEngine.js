@@ -15,6 +15,7 @@
 // engine decides what that is worth.
 import { consumeRationFromInventory } from './restEngine';
 import { getMapReadiness } from './mapReadiness';
+import { arenaFeeGp, arenaPurseGp } from '../data/payouts';
 
 export const ARENA_UNLOCK_ADVENTURE = 'iron_colosseum';
 export const ARENA_ID_PREFIX = 'arena:';
@@ -34,34 +35,35 @@ const champion = ({ name, desc, HP, power, coordination, vigor, attack, damage, 
   },
 });
 
-// Provisional numbers pending Hans's A8 economy formulas.
+// Fees and purses follow the A8 formula (data/payouts.js): 5/10/20/40% of the
+// 14th adventure's completion payout, purse three times the fee.
 export const ARENA_BRACKETS = [
   {
     id: 'initiate',
     name: 'Pit Initiates',
-    feeGp: 5,
-    purseGp: 15,
+    feeGp: arenaFeeGp(0),
+    purseGp: arenaPurseGp(0),
     opponent: champion({ name: 'Sevrin the Chain-Breaker', desc: 'A freed pit slave fighting for coin now, all elbows and grudge.', HP: 22, power: 3, coordination: 3, vigor: 3, attack: 'Weighted Chain', damage: '1d6 blunt', armor: 'Light armor soak 1d3' }),
   },
   {
     id: 'blooded',
     name: 'The Blooded',
-    feeGp: 10,
-    purseGp: 30,
+    feeGp: arenaFeeGp(1),
+    purseGp: arenaPurseGp(1),
     opponent: champion({ name: 'Marra Two-Spears', desc: 'A Redvein veteran who fights at reach and punishes anyone who closes carelessly.', HP: 30, power: 4, coordination: 4, vigor: 3, attack: 'Barbed Spear', damage: '1d8 piercing', armor: 'Medium armor soak 1d4' }),
   },
   {
     id: 'champions',
     name: "Champions' Circle",
-    feeGp: 20,
-    purseGp: 60,
+    feeGp: arenaFeeGp(2),
+    purseGp: arenaPurseGp(2),
     opponent: champion({ name: 'Old Torvald Ironhide', desc: 'Twenty years undefeated in his circle. Slow, patient, and almost impossible to hurt.', HP: 40, power: 5, coordination: 3, vigor: 5, attack: 'Tower Maul', damage: '1d10 blunt', armor: 'Heavy armor soak 1d6' }),
   },
   {
     id: 'grand',
     name: 'Grand Champion',
-    feeGp: 40,
-    purseGp: 120,
+    feeGp: arenaFeeGp(3),
+    purseGp: arenaPurseGp(3),
     opponent: champion({ name: 'The Crimson Lion', desc: 'The reigning Grand Champion of the Iron Colosseum, fast and theatrical and lethal with twin blades.', HP: 52, power: 5, coordination: 6, vigor: 4, attack: 'Twin Sabres', damage: '2d6 slashing', armor: 'Medium armor soak 1d4' }),
   },
 ];
