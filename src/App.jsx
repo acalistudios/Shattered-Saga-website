@@ -111,6 +111,8 @@ function App() {
     beginResurrection,
     startPatrol,
     leavePatrol,
+    startArenaBout,
+    leaveArena,
     completeResurrection,
     returnToInterruptedAdventure,
     activeEnemy,
@@ -1027,6 +1029,9 @@ function App() {
             onStartPatrol={(encounterId) => {
               if (startPatrol(encounterId)) setScreen('play');
             }}
+            onStartArena={(bracketId) => {
+              if (startArenaBout(bracketId)) setScreen('play');
+            }}
             onSelectAdventure={handleSelectAdventure}
             onBack={() => setScreen('splash')}
             gems={gems}
@@ -1109,6 +1114,10 @@ function App() {
             canRetryLastAction={canRetryLastAction}
             onQuitAdventure={handleQuitAdventure}
             onExitAdventure={handleExitAdventure}
+            onLeaveArena={() => {
+              leaveArena();
+              setScreen('adventure_selection');
+            }}
             onLeavePatrol={() => {
               leavePatrol();
               setScreen('adventure_selection');

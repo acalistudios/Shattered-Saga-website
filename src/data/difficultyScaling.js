@@ -10,6 +10,7 @@ const EXPLICIT_EXCLUDED_ROLES = new Set([
   'ritual_threat',
   'mythic',
   'hazard',
+  'arena', // fixed-difficulty arena brackets (utils/arenaEngine.js)
 ]);
 
 const EXCLUDED_ROLE_KEYWORDS = [

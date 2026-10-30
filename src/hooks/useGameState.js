@@ -50,6 +50,10 @@ import {
   PATROL_FOES, patrolGearRecovery, isPatrolId, patrolEncounterIdOf, patrolIdFor, beginPatrol, markPatrolFought,
   normalizePatrolOutcome, rollPatrolOutcomeLoot, finishPatrol as applyPatrolFinish, describePatrolResult, FLEE_PURSUIT_FRACTION, canBeginPatrol, getPatrolChoices, selectPatrolChoices,
 } from '../utils/patrolEngine';
+import {
+  isArenaId, arenaIdFor, beginArenaBout, markArenaFought, normalizeArenaOutcome,
+  finishArenaBout, describeArenaResult, canEnterArena,
+} from '../utils/arenaEngine';
 import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../utils/authApi';
 import { consumeRationFromInventory, resolveRest } from '../utils/restEngine';
 import { canDeferNarrationCosts, createPreparedNarrationTurn } from '../utils/narrationTurn';
@@ -2415,6 +2419,16 @@ The engine pays the predefined spoils and reports them; never name loot or amoun
 `;
     }
 
+    if (activeAdventure?.isArena) {
+      systemPrompt += `\n\n[MODE: ARENA BOUT]
+This is a single bout in the Iron Colosseum arena, between adventures, not an adventure. One opponent: ${activeAdventure.npcs[0].name}. The bout is fought to yield, not to the death, before a roaring crowd. Run it like any adventure fight: the player decides what to do, you call for checks, and every strike at the player goes through [enemy_attack]. Do not narrate the player's defeat yourself: if the player drops, the engine ends the bout.
+End the bout by emitting exactly one of these, once, when it is truly over:
+- [arena_end: victory] — the opponent is beaten, yields, or cannot fight on.
+- [arena_end: defeat] — the player yields.
+The engine pays the purse and reports it; never name amounts yourself. Never emit [milestone: adventure_complete], [objective_complete] or [ending_selected] in the arena.
+`;
+    }
+
     // Pass the player's full character sheet to the system prompt!
     systemPrompt += `\n\n[PLAYER CHARACTER SHEET]
 Name: ${character.name}
@@ -2628,13 +2642,18 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       // never shows in the narration. It is acted on later in this handler.
       const milestoneTagRegex = /\[milestone:\s*([^\]]+)\]/gi;
       const onPatrol = isPatrolId(activeAdventureId);
-      // A patrol is never an adventure completion, whatever the GM emits.
-      const milestoneReached = milestoneTagRegex.test(cleanedText) && !onPatrol;
+      const onArena = isArenaId(activeAdventureId);
+      // A patrol or arena bout is never an adventure completion, whatever the GM emits.
+      const milestoneReached = milestoneTagRegex.test(cleanedText) && !onPatrol && !onArena;
       cleanedText = cleanedText.replace(milestoneTagRegex, '').trim();
 
       const patrolEndRegex = /\[patrol_end:\s*([^\]]*)\]/gi;
       const patrolEndClaim = [...cleanedText.matchAll(patrolEndRegex)][0]?.[1] ?? null;
       cleanedText = cleanedText.replace(patrolEndRegex, '').trim();
+
+      const arenaEndRegex = /\[arena_end:\s*([^\]]*)\]/gi;
+      const arenaEndClaim = [...cleanedText.matchAll(arenaEndRegex)][0]?.[1] ?? null;
+      cleanedText = cleanedText.replace(arenaEndRegex, '').trim();
 
       const combatEndRegex = /\[(?:combat_end|victory)\]/gi;
       const combatEndTriggered = combatEndRegex.test(cleanedText);
@@ -2677,6 +2696,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       // Only a patrol that came to blows can end in victory.
       if (onPatrol && (combatStartTriggered || parsedEnemyAttacks.length > 0 || activeEnemy)) {
         setCharacter(prev => markPatrolFought(prev));
+      }
+      if (onArena && (combatStartTriggered || parsedEnemyAttacks.length > 0 || activeEnemy)) {
+        setCharacter(prev => markArenaFought(prev));
       }
 
       // Initialize activeEnemy if starting combat or attacks received
@@ -3467,6 +3489,20 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         setEnemyAttacksQueue([]);
       }
 
+      // The GM says the bout is over; the engine decides whether it was won.
+      const activeArena = character.progression?.activeArena;
+      if (onArena && arenaEndClaim !== null && activeArena) {
+        const fought = activeArena.fought || combatStartTriggered || parsedEnemyAttacks.length > 0 || !!activeEnemy;
+        const outcome = normalizeArenaOutcome(arenaEndClaim, { fought });
+        const finished = finishArenaBout(character, { outcome });
+        setCharacter(prev => finishArenaBout(prev, { outcome }));
+        cleanedText += `\n\n${describeArenaResult(finished, finished.progression.lastArenaResult)}`;
+        setActiveEnemy(null);
+        setCombatStance(null);
+        setCounterOpportunities(null);
+        setEnemyAttacksQueue([]);
+      }
+
       if (roleplayChange !== 0) {
         setNextRollModifier(roleplayChange);
         setLastRoleplayEvent({
@@ -3900,6 +3936,11 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       leavePatrol();
       return;
     }
+    // Walking out of the arena is yielding the bout.
+    if (isArenaId(activeAdventureId)) {
+      leaveArena();
+      return;
+    }
     // Clear dropped items state for this slot
     if (activeAdventureId) {
       setDroppedItems(prev => {
@@ -3990,6 +4031,77 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     setSkillTally({});
     setApiError(null);
   };
+
+  /**
+   * Enter an arena bout (A16): pays the fee and fatigue, then plays on the
+   * play screen like a patrol. Nothing is refilled (utils/arenaEngine.js).
+   */
+  const startArenaBout = (bracketId) => {
+    if (activeAdventureId || !canEnterArena(character, bracketId)) return false;
+    const arenaId = arenaIdFor(bracketId);
+    const adventure = getAdventureById(arenaId);
+    if (!adventure) return false;
+
+    setCharacter(prev => beginArenaBout(prev, bracketId));
+    setActiveAdventureId(arenaId);
+    setActiveGmId('narrator');
+    setCurrentLocation(adventure.settings[0]);
+    setActiveEnemy(null);
+    setCombatStance(null);
+    setCounterOpportunities(null);
+    setEnemyAttacksQueue([]);
+    setHistory([{
+      role: 'model',
+      content: `${adventure.startingPrompt}\n\n*What do you do?*`,
+      imagePrompt: null,
+      imageUrl: null,
+      checkDetails: null,
+    }]);
+    setJournal({ storySoFar: 'A bout in the Iron Colosseum arena.', recentTurns: [] });
+    setHandoffState(null);
+    setSkillTally({});
+    setWarningMessage(null);
+    setApiError(null);
+    return true;
+  };
+
+  /** Leave the arena for the map. A bout still running is yielded: a loss. */
+  const leaveArena = () => {
+    if (!isArenaId(activeAdventureId)) return;
+    if (character.progression?.activeArena) {
+      setCharacter(prev => finishArenaBout(prev, { outcome: 'defeat' }));
+    }
+    setActiveAdventureId(null);
+    setCurrentLocation('');
+    setHistory([]);
+    setJournal({ storySoFar: '', recentTurns: [] });
+    setActiveEnemy(null);
+    setCombatStance(null);
+    setCounterOpportunities(null);
+    setEnemyAttacksQueue([]);
+    setSkillTally({});
+    setApiError(null);
+  };
+
+  // Arena bouts are to yield: dropping to 0 HP loses the bout instead of
+  // dying. Watches HP itself so every damage path is covered.
+  useEffect(() => {
+    if (!isArenaId(activeAdventureId) || !character.progression?.activeArena) return;
+    if ((character.stats?.hp ?? 1) > 0) return;
+    const finished = finishArenaBout(character, { outcome: 'defeat' });
+    setCharacter(finished);
+    setActiveEnemy(null);
+    setCombatStance(null);
+    setCounterOpportunities(null);
+    setEnemyAttacksQueue([]);
+    setApiError(null);
+    setHistory(prev => [...prev, {
+      role: 'model',
+      content: `*You go down hard on the sand. The arena master's staff slams between you and your opponent: the bout is over.*\n\n${describeArenaResult(finished, finished.progression.lastArenaResult)}`,
+      checkDetails: null,
+    }]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [character.stats?.hp, activeAdventureId]);
 
   const startAdventure = (adventureId, gmId, startingPrompt, isFreeRoam = false) => {
     setActiveAdventureId(adventureId);
@@ -6255,6 +6367,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     beginResurrection,
     startPatrol,
     leavePatrol,
+    startArenaBout,
+    leaveArena,
     completeResurrection,
     returnToInterruptedAdventure,
     initializeMerchantStock,

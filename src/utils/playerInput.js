@@ -16,7 +16,7 @@ export const ENGINE_TAG_NAMES = [
   'complete_quest', 'currency', 'damage', 'elemental_ability_unlock',
   'elemental_ability_used', 'ending_selected', 'enemy_attack', 'event',
   'fatigue', 'heal', 'image', 'location', 'milestone', 'morality', 'npc_fact',
-  'npc_fear', 'npc_trust', 'objective_complete', 'patrol_end', 'recruit_companion',
+  'npc_fear', 'npc_trust', 'objective_complete', 'patrol_end', 'arena_end', 'recruit_companion',
   'region_fact', 'remove_gold', 'remove_item', 'remove_quest', 'rest',
   'roleplay_modifier', 'scene_end', 'skill_up', 'status', 'victory',
 ];

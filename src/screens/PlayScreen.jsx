@@ -168,6 +168,7 @@ export default function PlayScreen({
   onQuitAdventure,
   onExitAdventure,
   onLeavePatrol,
+  onLeaveArena,
   activeAdventureId,
   onUpdatePortrait,
   gems,
@@ -402,6 +403,14 @@ export default function PlayScreen({
   };
 
   const handleQuitAdventure = () => {
+    if (isArena) {
+      if (window.confirm(
+        character.progression?.activeArena
+          ? "Yield the bout?\n\nIt counts as a loss and the entry fee is not refunded."
+          : 'Leave the arena?'
+      )) onLeaveArena();
+      return;
+    }
     if (isPatrol) {
       const flee = window.confirm(
         activeEnemy
@@ -449,6 +458,8 @@ export default function PlayScreen({
   const isPatrol = !!activeAdventure?.isPatrol;
   // The GM ended the patrol and the engine paid out: only the way home is left.
   const patrolOver = isPatrol && !character.progression?.activePatrol && character.stats.hp > -5;
+  const isArena = !!activeAdventure?.isArena;
+  const arenaOver = isArena && !character.progression?.activeArena;
   const milestoneRewards = activeAdventure?.rewardModel?.guaranteedRewards || {
     skillPoints: 2,
     trainingSlots: 1,
@@ -1430,7 +1441,7 @@ export default function PlayScreen({
             onClick={handleQuitAdventure}
             className="w-full py-1.5 px-3 rounded text-3xs uppercase tracking-wider font-bold border border-amber-900/30 text-amber-500 bg-amber-955/10 hover:bg-amber-950/30 hover:border-amber-700 hover:text-amber-450 cursor-pointer text-center"
           >
-            {isPatrol ? 'Flee the Patrol (No Spoils)' : 'Forfeit Adventure (Lose Gold & Random Item)'}
+            {isArena ? 'Yield the Bout (Counts as a Loss)' : isPatrol ? 'Flee the Patrol (No Spoils)' : 'Forfeit Adventure (Lose Gold & Random Item)'}
           </button>
           <button
             onClick={onResetGame}
@@ -1715,7 +1726,24 @@ export default function PlayScreen({
             </button>
           </div>
         )}
-        {patrolOver ? (
+        {arenaOver ? (
+          <div className="border-t border-slate-900 p-6 bg-slate-950 flex flex-col items-center justify-center gap-3 text-center">
+            <span className="text-3xl">🏟️</span>
+            <h3 className="text-sm font-extrabold uppercase font-serif text-amber-400 tracking-wider">Bout Over</h3>
+            <p className="text-2xs text-slate-400 max-w-xs leading-relaxed">
+              {character.progression?.lastArenaResult?.outcome === 'victory'
+                ? 'The crowd is still chanting your name. Your purse is in your pack.'
+                : 'The surgeons have patched you up. There is always another bout.'}
+            </p>
+            <button
+              type="button"
+              onClick={onLeaveArena}
+              className="px-5 py-2 rounded font-black text-3xs uppercase tracking-widest bg-amber-600 hover:bg-amber-500 text-slate-950 cursor-pointer"
+            >
+              Return to the Map
+            </button>
+          </div>
+        ) : patrolOver ? (
           <div className="border-t border-slate-900 p-6 bg-slate-950 flex flex-col items-center justify-center gap-3 text-center">
             <span className="text-3xl">🛡️</span>
             <h3 className="text-sm font-extrabold uppercase font-serif text-amber-400 tracking-wider">Patrol Over</h3>

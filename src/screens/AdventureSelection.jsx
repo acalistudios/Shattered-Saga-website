@@ -7,6 +7,7 @@ import { WORLD_REGIONS, MAP_NODES, MAP_IMAGES, REGION_TRANSIT_CHALLENGES } from 
 import AccountStatusPills from '../components/AccountStatusPills';
 import KeystoneFontTracker from '../components/KeystoneFontTracker';
 import { getRandomTravelEncounter, TRAVEL_ENCOUNTERS } from '../data/travelEncounters';
+import { ARENA_BRACKETS, isArenaUnlocked, isBracketOpen, arenaBlockReason, getArenaAllowance, getArenaRecord } from '../utils/arenaEngine';
 import { pendingPatrolEncounterFor, canBeginPatrol, getPatrolAllowance, PATROL_FATIGUE, PATROL_HOURS } from '../utils/patrolEngine';
 import { getMapReadiness } from '../utils/mapReadiness';
 import { ADVENTURE_PROGRESSION_METADATA } from '../data/adventureProgression';
@@ -108,7 +109,8 @@ export default function AdventureSelection({
   consumeItem,
   onExportSaveFile,
   onOpenAccount,
-  onStartPatrol
+  onStartPatrol,
+  onStartArena
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
   const completedAdventures = character?.completed_adventures || [];
@@ -121,6 +123,12 @@ export default function AdventureSelection({
   const patrolUnavailableReason = patrolAllowance.remaining === 0
     ? 'Maximum patrols completed. Complete an adventure to reset.'
     : !canPatrol ? 'Rest in town to recover HP and fatigue before patrolling.' : '';
+
+  // A16: the Iron Colosseum arena, open after that adventure.
+  const arenaUnlocked = isArenaUnlocked(character);
+  const arenaAllowance = getArenaAllowance(character);
+  const arenaRecord = getArenaRecord(character);
+  const [isArenaOpen, setIsArenaOpen] = useState(false);
 
   const [viewMode, setViewMode] = useState('map'); // 'map' or 'list'
   const [mapLevel, setMapLevel] = useState('world'); // 'world' or 'region1'
@@ -443,6 +451,18 @@ export default function AdventureSelection({
             </button>
             {patrolUnavailableReason && <p id="patrol-unavailable-reason" className="campaign-patrol-reason">{patrolUnavailableReason}</p>}
             </div>
+
+            {arenaUnlocked && (
+              <button
+                type="button"
+                onClick={() => setIsArenaOpen(true)}
+                className="px-3 py-2 rounded bg-gradient-to-r from-amber-950/80 to-slate-900 border border-amber-500/40 hover:border-amber-400 text-xs font-bold text-amber-300 hover:text-amber-200 cursor-pointer transition-all flex items-center gap-1.5 shadow-sm"
+                title="Fight for purses in the Iron Colosseum arena"
+              >
+                <span>🏟️</span>
+                <span>Arena</span>
+              </button>
+            )}
 
             {onExportSaveFile && (
               <button
@@ -1264,6 +1284,56 @@ export default function AdventureSelection({
         </div>
       )}
 
+
+      {isArenaOpen && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="arena-title">
+          <div className="w-full max-w-lg bg-slate-950 border border-amber-900/40 rounded-xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-slate-900 border-b border-amber-900/40 px-5 py-4">
+              <h3 id="arena-title" className="text-lg font-bold font-serif text-amber-400 tracking-wider">🏟️ The Iron Colosseum Arena</h3>
+              <p className="text-3xs text-slate-400 mt-1">
+                Bouts are to yield, not to the death. Entry fees are never refunded; the purse is paid only on a win. Each win opens the next bracket.
+              </p>
+              <p className="text-3xs text-slate-400 mt-1">
+                Bouts left before your next adventure: <strong className="text-slate-200">{arenaAllowance.remaining} / {arenaAllowance.limit}</strong> · Record: <strong className="text-slate-200">{arenaRecord.wins}W {arenaRecord.losses}L</strong>
+              </p>
+            </div>
+            <div className="p-5 space-y-3 overflow-y-auto">
+              {ARENA_BRACKETS.map(bracket => {
+                const reason = arenaBlockReason(character, bracket.id);
+                const open = isBracketOpen(character, bracket.id);
+                return (
+                  <div key={bracket.id} className={`p-3 rounded border ${open ? 'border-slate-700 bg-slate-900' : 'border-slate-900 bg-slate-950 opacity-60'}`}>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="font-bold text-slate-100 text-xs">{bracket.name}</span>
+                      <span className="text-3xs font-mono text-amber-400">Fee {bracket.feeGp} gp · Purse {bracket.purseGp} gp</span>
+                    </div>
+                    <p className="text-3xs text-slate-400 mt-1">vs {bracket.opponent.name}: {bracket.opponent.desc}</p>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <span className="text-4xs text-slate-500">{reason}</span>
+                      <button
+                        type="button"
+                        disabled={!!reason}
+                        onClick={() => {
+                          setIsArenaOpen(false);
+                          onStartArena?.(bracket.id);
+                        }}
+                        className="px-3 py-1.5 rounded font-black text-4xs uppercase tracking-widest bg-amber-600 hover:bg-amber-500 text-slate-950 cursor-pointer disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed"
+                      >
+                        Enter ({bracket.feeGp} gp)
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="border-t border-slate-800 px-5 py-3 flex justify-end">
+              <button type="button" onClick={() => setIsArenaOpen(false)} className="px-4 py-1.5 rounded border border-slate-700 text-slate-300 text-3xs uppercase font-bold cursor-pointer">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer info */}
       <div className="mt-6 flex justify-center text-4xs text-slate-550 border-t border-slate-900 pt-3 text-center">
