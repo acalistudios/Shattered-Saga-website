@@ -132,7 +132,7 @@ export default function ResurrectionModal({ pendingResurrection, character, onCo
               <li>
                 <span className="text-red-400 font-bold">Risen.</span> You are visibly not
                 wholly living. Permanent <span className="font-mono text-red-400">-{repeatDeath ? 2 : 1}</span> to
-                Deception, Intimidation, Leadership, Negotiation and Performance.
+                Deception, Leadership, Negotiation and Performance. Intimidation is unaffected.
                 {repeatDeath && ' Returning more than once has marked you further.'}
               </li>
               <li>

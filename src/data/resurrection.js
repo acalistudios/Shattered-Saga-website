@@ -38,12 +38,10 @@ export const RESURRECTION_ATTRIBUTES = [
 
 export const ATTRIBUTE_FLOOR = 1;
 
-// Social checks the risen suffer on. Intimidation is included per spec, though
-// a visibly undead character arguably ought to intimidate better — flip it by
-// removing it from this list if that reads better in play.
+// Social checks the risen suffer on. Intimidation is deliberately absent: a
+// visibly undead character frightens people more, not less (Hans, 2026-10-28).
 export const UNDEAD_SOCIAL_SKILLS = [
   'deception',
-  'intimidation',
   'leadership',
   'negotiation',
   'performance',

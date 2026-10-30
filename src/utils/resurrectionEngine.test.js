@@ -168,6 +168,8 @@ describe('undead social penalty', () => {
     expect(getUndeadSocialPenalty(c, 'deception')).toBe(1);
     expect(getUndeadSocialPenalty(c, 'lockpicking')).toBe(0);
     expect(getUndeadSocialPenalty(c, 'heavy_weapons')).toBe(0);
+    // A6 (Hans, 2026-10-28): the risen are no worse at frightening people.
+    expect(getUndeadSocialPenalty(c, 'intimidation')).toBe(0);
   });
 
   it('does not apply to the living', () => {
