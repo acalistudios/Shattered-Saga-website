@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import storage from '../utils/storage';
 import AccountSignIn from '../components/AccountSignIn';
+import { GEM_STORE_ITEMS } from '../data/gemStore';
 import {
   startCheckout,
   cancelSubscription,
@@ -31,7 +32,18 @@ export default function AccountScreen({
   fetchUserProfile,
   gems,
   initialAuthError = '',
+  onBuyStoreItem,
+  activeCharacterName = '',
 }) {
+  const [storeBusy, setStoreBusy] = useState(null);
+  const [storeMessage, setStoreMessage] = useState(null);
+  const handleBuyStoreItem = async (entry) => {
+    if (!onBuyStoreItem) return;
+    if (!window.confirm(`Buy ${entry.item} for ${entry.gems} gems? It goes into ${activeCharacterName || 'your character'}'s pack.`)) return;
+    setStoreBusy(entry.id);
+    setStoreMessage(await onBuyStoreItem(entry.id));
+    setStoreBusy(null);
+  };
   const [billingCycle, setBillingCycle] = useState('monthly');
   
   // BYOK States
@@ -1149,6 +1161,35 @@ export default function AccountScreen({
                 </button>
               </div>
 
+            </div>
+
+            {/* A4: rites and relics, bought with gems (server-priced) */}
+            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-8 mb-1">Rites & Relics</h2>
+            <p className="text-5xs text-slate-500 mb-4">
+              {activeCharacterName
+                ? `Bought with gems. Goes into ${activeCharacterName}'s pack.`
+                : "Load or create a character first: these go into a character's pack."}
+            </p>
+            {storeMessage && (
+              <p className={`mb-3 text-3xs ${storeMessage.ok ? 'text-emerald-400' : 'text-rose-400'}`}>{storeMessage.message}</p>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {GEM_STORE_ITEMS.map(entry => (
+                <div key={entry.id} className="rounded-lg p-4 bg-slate-900 border border-slate-800/80 flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider">{entry.item}</h4>
+                    <p className="text-5xs text-slate-500 mt-1 mb-3">{entry.blurb}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleBuyStoreItem(entry)}
+                    disabled={!activeCharacterName || storeBusy !== null}
+                    className="w-full py-1.5 rounded bg-slate-950 hover:bg-slate-850 text-amber-450 border border-slate-800 font-bold text-4xs uppercase tracking-wider cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {storeBusy === entry.id ? 'Buying...' : `💎 ${entry.gems} gems`}
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
           )}

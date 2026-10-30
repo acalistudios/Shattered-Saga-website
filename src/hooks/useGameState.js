@@ -36,8 +36,9 @@ import {
   recoverGear,
   resolveGearTrailTick,
   applyGearTrailTick,
+  performQuietReturn,
 } from '../utils/resurrectionEngine';
-import { getDivineInterventionItem } from '../data/resurrection';
+import { getDivineInterventionItem, getCompletionGifts, UNDEATH_CURE_ITEM } from '../data/resurrection';
 import { resolveGearRecovery } from '../data/gearRecovery';
 import { getGameHourStamp, getAdventureStartClock } from '../utils/rewardEngine';
 import { installStarfallBowstring, strungBowName, STARFALL_BOWSTRING } from '../utils/bowstring';
@@ -3645,6 +3646,15 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
       let nextAttributes = { ...prev.attributes };
       let nextInventory = [...(prev.inventory || [])];
+
+      // Fixed completion gifts, e.g. one Rite of Quiet Return for the abbey (A4).
+      if (isFirstCompletion) {
+        const gifts = getCompletionGifts(activeAdventureId);
+        if (gifts.length > 0) {
+          nextInventory = [...nextInventory, ...gifts];
+          nextEvents.push(`Received for completing the adventure: ${gifts.join(', ')}.`);
+        }
+      }
       let nextStats = {
         ...prev.stats,
         level: nextLevel,
@@ -4794,6 +4804,18 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     // Remove attack from queue
     const nextQueue = enemyAttacksQueue.filter((_, idx) => idx !== attackIndex);
     setEnemyAttacksQueue(nextQueue);
+  };
+
+  /** A4: perform the Rite of Quiet Return from the pack. Cures undeath; the lost attribute stays lost. */
+  const performRite = () => {
+    if (performQuietReturn(character) === character) return false;
+    setCharacter(prev => performQuietReturn(prev));
+    setHistory(prev => [...prev, {
+      role: 'model',
+      content: `[${UNDEATH_CURE_ITEM} performed: you are no longer risen. The living will treat you as one of their own again. The attribute you gave up does not return.]`,
+      checkDetails: null,
+    }]);
+    return true;
   };
 
   /** A7: put the Starfall Bowstring on a bow, permanently (utils/bowstring.js). */
@@ -6298,6 +6320,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     resolveEnemyAttack,
     useInventoryItem,
     installBowstring,
+    performRite,
     activeEnemy,
     setActiveEnemy,
     counterOpportunities,

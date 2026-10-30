@@ -20,6 +20,7 @@ import { getPatrolChoices } from '../utils/patrolEngine';
 import { splitNarrationHighlights } from '../utils/narrationHighlights';
 import { getPlayRecovery } from '../utils/playRecovery';
 import { canTakeBowstring, isStarfallBowstring, strungBowName } from '../utils/bowstring';
+import { UNDEATH_CURE_ITEM } from '../data/resurrection';
 
 
 
@@ -185,6 +186,7 @@ export default function PlayScreen({
   onResolveEnemyAttack,
   onUseInventoryItem,
   onInstallBowstring,
+  onPerformRite,
   activeEnemy,
   counterOpportunities,
   combatStance,
@@ -389,6 +391,14 @@ export default function PlayScreen({
       return;
     }
     onInstallBowstring?.(bow);
+  };
+
+  const isRiteItem = (item) => String(item).toLowerCase() === UNDEATH_CURE_ITEM.toLowerCase();
+  const canPerformRite = !!character.progression?.undead;
+  const handlePerformRite = () => {
+    if (window.confirm(`Perform the ${UNDEATH_CURE_ITEM}? You stop being risen and the social penalty ends. The attribute you lost does not come back.`)) {
+      onPerformRite?.();
+    }
   };
 
   const handleQuitAdventure = () => {
@@ -965,6 +975,16 @@ export default function PlayScreen({
                       <span className="truncate">{item}</span>
                     </span>
                     <div className="flex gap-1.5 items-center flex-shrink-0">
+                      {isRiteItem(item) && canPerformRite && (
+                        <button
+                          type="button"
+                          onClick={handlePerformRite}
+                          disabled={isLoading || enemyAttacksQueue.length > 0}
+                          className="px-1.5 py-0.5 rounded bg-violet-950 text-violet-300 border border-violet-500/30 hover:bg-violet-900 text-3xs font-extrabold uppercase transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Perform
+                        </button>
+                      )}
                       {isStarfallBowstring(item) && (
                         <button
                           type="button"
@@ -2805,6 +2825,20 @@ export default function PlayScreen({
                                 </div>
                               )}
                             </div>
+                          )}
+
+                          {isRiteItem(item) && canPerformRite && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handlePerformRite();
+                                setActiveItemMenu(null);
+                              }}
+                              disabled={isLoading || enemyAttacksQueue.length > 0}
+                              className="px-1.5 py-0.5 rounded bg-violet-950 text-violet-300 border border-violet-500/30 hover:bg-violet-900 text-3xs font-extrabold uppercase transition-all cursor-pointer disabled:opacity-40"
+                            >
+                              Perform
+                            </button>
                           )}
 
                           {isStarfallBowstring(item) && (

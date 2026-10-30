@@ -25,8 +25,10 @@ import {
   fetchMe,
   getToken,
 } from './utils/authApi';
+import { buyWithLocalGems } from './data/gemStore';
 import {
   spendGems,
+  buyStoreItem,
   unlockSlot,
   queueSync,
   queueImmediateSync,
@@ -95,6 +97,7 @@ function App() {
     resolveEnemyAttack,
     useInventoryItem,
     installBowstring,
+    performRite,
     triggerPriceRecovery,
     buyItemFromMerchant,
     sellItemToMerchant,
@@ -563,6 +566,26 @@ function App() {
       storage.set(`shattered_gems_${username}`, result.gems.toString());
     }
     return true;
+  };
+
+  // A4 gem store. Signed-in players buy through the server, which prices the
+  // item; guests spend their local balance. The item goes into the active
+  // character's pack.
+  const handleBuyStoreItem = async (itemId) => {
+    if (!character?.name) {
+      return { ok: false, message: 'Load or create a character first: the item goes into their pack.' };
+    }
+    let result;
+    if (usesServerGems({ backendConfigured: isBackendConfigured, token: getToken(), profile: userProfile })) {
+      result = await buyStoreItem(itemId);
+    } else {
+      result = buyWithLocalGems(itemId, gems);
+      if (result && username) storage.set(`shattered_gems_${username}`, result.gems.toString());
+    }
+    if (!result) return { ok: false, message: 'Not enough gems, or the store could not be reached. No gems were spent.' };
+    setGems(result.gems);
+    updateCharacterStats(prev => ({ ...prev, inventory: [...(prev.inventory || []), result.item] }));
+    return { ok: true, message: `${result.item} added to ${character.name}'s pack.` };
   };
 
   const handleLoadSlot = (slotIndex) => {
@@ -1045,6 +1068,8 @@ function App() {
             gems={gems}
             setGems={setGems}
             initialAuthError={accountAuthError}
+            onBuyStoreItem={handleBuyStoreItem}
+            activeCharacterName={character?.name || ''}
           />
         )}
 
@@ -1108,6 +1133,7 @@ function App() {
             onResolveEnemyAttack={resolveEnemyAttack}
             onUseInventoryItem={useInventoryItem}
             onInstallBowstring={installBowstring}
+            onPerformRite={performRite}
             activeEnemy={activeEnemy}
             counterOpportunities={counterOpportunities}
             combatStance={combatStance}
