@@ -19,6 +19,7 @@ import CampfireModal from '../components/CampfireModal';
 import { getPatrolChoices } from '../utils/patrolEngine';
 import { splitNarrationHighlights } from '../utils/narrationHighlights';
 import { getPlayRecovery } from '../utils/playRecovery';
+import { canTakeBowstring, isStarfallBowstring, strungBowName } from '../utils/bowstring';
 
 
 
@@ -183,6 +184,7 @@ export default function PlayScreen({
   enemyAttacksQueue = [],
   onResolveEnemyAttack,
   onUseInventoryItem,
+  onInstallBowstring,
   activeEnemy,
   counterOpportunities,
   combatStance,
@@ -367,6 +369,26 @@ export default function PlayScreen({
     const textSnippet = lastNarrative.content.substring(0, 120);
     const customPrompt = `${textSnippet}, high fantasy digital art, epic scales, highly detailed`;
     onTriggerVisualize(customPrompt);
+  };
+
+  // A7: the Starfall Bowstring goes on one bow for good, so confirm the choice.
+  const handleInstallBowstring = () => {
+    const bows = (character.inventory || []).filter(canTakeBowstring);
+    if (bows.length === 0) {
+      window.alert('You need a bow to install the Starfall Bowstring on.');
+      return;
+    }
+    let bow = bows[0];
+    if (bows.length > 1) {
+      const pick = window.prompt(
+        `Install the Starfall Bowstring on which bow? It cannot be removed.\n\n${bows.map((b, i) => `${i + 1}. ${b} → ${strungBowName(b)}`).join('\n')}\n\nEnter a number:`
+      );
+      bow = bows[Number(pick) - 1];
+      if (!bow) return;
+    } else if (!window.confirm(`Install the Starfall Bowstring on ${bow}? It becomes ${strungBowName(bow)}. This cannot be undone.`)) {
+      return;
+    }
+    onInstallBowstring?.(bow);
   };
 
   const handleQuitAdventure = () => {
@@ -943,6 +965,16 @@ export default function PlayScreen({
                       <span className="truncate">{item}</span>
                     </span>
                     <div className="flex gap-1.5 items-center flex-shrink-0">
+                      {isStarfallBowstring(item) && (
+                        <button
+                          type="button"
+                          onClick={handleInstallBowstring}
+                          disabled={isLoading || enemyAttacksQueue.length > 0}
+                          className="px-1.5 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-500/30 hover:bg-sky-900 text-3xs font-extrabold uppercase transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Install
+                        </button>
+                      )}
                       {isUsable && (
                         <button
                           type="button"
@@ -2773,6 +2805,20 @@ export default function PlayScreen({
                                 </div>
                               )}
                             </div>
+                          )}
+
+                          {isStarfallBowstring(item) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleInstallBowstring();
+                                setActiveItemMenu(null);
+                              }}
+                              disabled={isLoading || enemyAttacksQueue.length > 0}
+                              className="px-1.5 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-500/30 hover:bg-sky-900 text-3xs font-extrabold uppercase transition-all cursor-pointer disabled:opacity-40"
+                            >
+                              Install
+                            </button>
                           )}
 
                           {isUsable && (

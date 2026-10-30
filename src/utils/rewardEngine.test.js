@@ -78,10 +78,15 @@ describe('attack bonuses', () => {
     expect(profile.attackBonus).toBe(1);
   });
 
-  it('upgrades a carried bow to +3 with Starfall Bowstring, without stacking', () => {
+  it('a loose Starfall Bowstring does nothing until installed (A7)', () => {
     const c = character({ element: 'earth', inventory: ['Starfall Bowstring +3'] });
-    const profile = getRewardWeaponProfile('Sky-Stalker Composite Bow +2', c);
-    expect(profile.attackBonus).toBe(3);
+    expect(getRewardWeaponProfile('Sky-Stalker Composite Bow +2', c).attackBonus).toBe(2);
+  });
+
+  it('a strung bow uses its installed bonus and keeps its own traits', () => {
+    const profile = getRewardWeaponProfile('Sky-Stalker Composite Bow +2 (Starfall-strung +4)', character({ element: 'earth' }));
+    expect(profile.attackBonus).toBe(4);
+    expect(profile.dice).toBe('1d8+1');
   });
 
   it('does not apply the bowstring to melee weapons', () => {
@@ -250,9 +255,10 @@ describe('target-specific weapon effects', () => {
   });
 
   it('fires the starfall shot only against astral-type targets', () => {
-    const c = character({ element: 'air', inventory: ['Starfall Bowstring +3'] });
-    const vsWraith = getRewardWeaponProfile('Sky-Stalker Composite Bow +2', c, { name: 'Wraith' });
-    const vsBoar = getRewardWeaponProfile('Sky-Stalker Composite Bow +2', c, { name: 'Wild Boar' });
+    const c = character({ element: 'air' });
+    const strung = 'Sky-Stalker Composite Bow +2 (Starfall-strung +4)';
+    const vsWraith = getRewardWeaponProfile(strung, c, { name: 'Wraith' });
+    const vsBoar = getRewardWeaponProfile(strung, c, { name: 'Wild Boar' });
     expect(vsWraith.effects.some(e => e.effectId === 'starfall_shot')).toBe(true);
     expect(vsBoar.effects.some(e => e.effectId === 'starfall_shot')).toBe(false);
   });

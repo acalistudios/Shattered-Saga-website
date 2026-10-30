@@ -40,6 +40,7 @@ import {
 import { getDivineInterventionItem } from '../data/resurrection';
 import { resolveGearRecovery } from '../data/gearRecovery';
 import { getGameHourStamp, getAdventureStartClock } from '../utils/rewardEngine';
+import { installStarfallBowstring, strungBowName, STARFALL_BOWSTRING } from '../utils/bowstring';
 import { resolveCombatTarget } from '../utils/combatTarget';
 import { filterGmItemGrants, filterGmCurrencyChanges, isElementalUnlockAllowed } from '../utils/rewardPolicy';
 import { claimDepot, isAtDepot, settleConfiscatedOnCompletion, shouldConfiscateOnEntry } from '../utils/depotEngine';
@@ -4795,6 +4796,18 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     setEnemyAttacksQueue(nextQueue);
   };
 
+  /** A7: put the Starfall Bowstring on a bow, permanently (utils/bowstring.js). */
+  const installBowstring = (bowName) => {
+    if (installStarfallBowstring(character, bowName) === character) return false;
+    setCharacter(prev => installStarfallBowstring(prev, bowName));
+    setHistory(prev => [...prev, {
+      role: 'model',
+      content: `[${STARFALL_BOWSTRING} installed: your ${bowName} is now ${strungBowName(bowName)}. It cannot be removed.]`,
+      checkDetails: null,
+    }]);
+    return true;
+  };
+
   const useInventoryItem = (itemName, apiKey, sandbox) => {
     if (enemyAttacksQueue.length > 0) {
       setApiError("You cannot use items while defending against an attack!");
@@ -6284,6 +6297,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     enemyAttacksQueue,
     resolveEnemyAttack,
     useInventoryItem,
+    installBowstring,
     activeEnemy,
     setActiveEnemy,
     counterOpportunities,

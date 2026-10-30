@@ -94,6 +94,7 @@ function App() {
     enemyAttacksQueue,
     resolveEnemyAttack,
     useInventoryItem,
+    installBowstring,
     triggerPriceRecovery,
     buyItemFromMerchant,
     sellItemToMerchant,
@@ -1106,6 +1107,7 @@ function App() {
             enemyAttacksQueue={enemyAttacksQueue}
             onResolveEnemyAttack={resolveEnemyAttack}
             onUseInventoryItem={useInventoryItem}
+            onInstallBowstring={installBowstring}
             activeEnemy={activeEnemy}
             counterOpportunities={counterOpportunities}
             combatStance={combatStance}
