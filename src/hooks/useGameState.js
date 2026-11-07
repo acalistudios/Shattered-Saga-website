@@ -46,6 +46,7 @@ import { resolveCombatTarget } from '../utils/combatTarget';
 import { filterGmItemGrants, filterGmCurrencyChanges, isElementalUnlockAllowed } from '../utils/rewardPolicy';
 import { claimDepot, isAtDepot, settleConfiscatedOnCompletion, shouldConfiscateOnEntry, reclaimDepotHold } from '../utils/depotEngine';
 import { getSupplyDepot } from '../data/supplyDepot';
+import { rollDiceExpression } from '../utils/dice';
 import { claimTreasureFind, formatCoin, TREASURE_FINDS_PER_ADVENTURE } from '../data/payouts';
 import {
   PATROL_FOES, patrolGearRecovery, isPatrolId, patrolEncounterIdOf, patrolIdFor, beginPatrol, markPatrolFought,
@@ -128,39 +129,6 @@ function rollAttribute(score) {
   if (score === 9) return rollDie(20) + rollDie(8);
   if (score === 10) return rollDie(20) + rollDie(10);
   return rollDie(20) + rollDie(12); // score 11+
-}
-
-function rollDiceExpression(expr) {
-  if (!expr) return 0;
-  let clean = expr.replace(/\s+/g, '').toLowerCase();
-  const terms = clean.split(/(?=[+-])/);
-  let total = 0;
-  for (let term of terms) {
-    let sign = 1;
-    if (term.startsWith('+')) {
-      term = term.slice(1);
-    } else if (term.startsWith('-')) {
-      sign = -1;
-      term = term.slice(1);
-    }
-    if (!term) continue;
-    const match = term.match(/^(\d*)d(\d+)$/);
-    if (match) {
-      const count = match[1] ? parseInt(match[1], 10) : 1;
-      const sides = parseInt(match[2], 10);
-      let rollSum = 0;
-      for (let i = 0; i < count; i++) {
-        rollSum += Math.floor(Math.random() * sides) + 1;
-      }
-      total += sign * rollSum;
-    } else {
-      const num = parseInt(term, 10);
-      if (!isNaN(num)) {
-        total += sign * num;
-      }
-    }
-  }
-  return total;
 }
 
 function getShieldSoakDie(shieldName) {

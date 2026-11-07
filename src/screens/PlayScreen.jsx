@@ -44,6 +44,9 @@ function formatTime(day, hourFloat) {
 function renderMessageContent(content, destinations = null) {
   if (!content || typeof content !== 'string') return <span>{content}</span>;
 
+  // Music cues ([tension], [hazard], [stealth_start]) stay in the stored text
+  // for useAudioPlayer, but are not for the reader.
+  content = content.replace(/[ \t]*\[(?:tension|hazard|stealth_start)\]/gi, '');
   const trimmed = content.trim();
   const renderText = (text) => destinations
     ? splitNarrationHighlights(text, destinations).map((part, index) => part.kind === 'text'
