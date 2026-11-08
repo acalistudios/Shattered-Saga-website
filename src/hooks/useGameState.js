@@ -47,7 +47,7 @@ import { filterGmItemGrants, filterGmCurrencyChanges, isElementalUnlockAllowed }
 import { claimDepot, isAtDepot, settleConfiscatedOnCompletion, shouldConfiscateOnEntry, reclaimDepotHold } from '../utils/depotEngine';
 import { getSupplyDepot } from '../data/supplyDepot';
 import { rollDiceExpression } from '../utils/dice';
-import { claimTreasureFind, formatCoin, TREASURE_FINDS_PER_ADVENTURE } from '../data/payouts';
+import { claimSearchFind, applySearchFind, formatCoin, TREASURE_FINDS_PER_ADVENTURE } from '../data/payouts';
 import {
   PATROL_FOES, patrolGearRecovery, isPatrolId, patrolEncounterIdOf, patrolIdFor, beginPatrol, markPatrolFought,
   normalizePatrolOutcome, rollPatrolOutcomeLoot, finishPatrol as applyPatrolFinish, describePatrolResult, FLEE_PURSUIT_FRACTION, canBeginPatrol, getPatrolChoices, selectPatrolChoices,
@@ -1972,6 +1972,22 @@ export default function useGameState() {
 
         // Append roll details to the player's text action for the GM to read!
         finalActionText += `\n\n${rollDetails.text}`;
+
+        // Found coin (A8): a successful search pays a find; the engine sets it.
+        const searchFind = !isPatrolId(activeAdventureId) && !isArenaId(activeAdventureId)
+          ? claimSearchFind(character, {
+            adventureId: activeAdventureId,
+            campaignOrder: getAdventureById(activeAdventureId)?.progression?.campaignOrder,
+            skillId: finalSkillFocusId,
+            success: rollDetails.success,
+            actionText,
+            location: currentLocation,
+          })
+          : null;
+        if (searchFind) {
+          setCharacter(prev => applySearchFind(prev, activeAdventureId, searchFind));
+          finalActionText += `\n\n[Coin Found: the search turns up ${formatCoin(searchFind.amountCp)} (find ${searchFind.count} of ${TREASURE_FINDS_PER_ADVENTURE}). The engine has already added it to the player's purse. Narrate where the coin was found; do not change the amount.]`;
+        }
         if (starvationPenalty > 0) {
           finalActionText += `\n\n[Notice: Player is Starving! Day ${starvationPenalty} of hunger. A -${starvationPenalty} penalty has been applied to this check.]`;
         }
@@ -2196,7 +2212,12 @@ export default function useGameState() {
       ...prev,
       inventory: finalInventory,
       daysWithoutFood: finalDaysWithoutFood,
-      progression: nextProgressionAfterTurn || prev.progression,
+      // Only the water-regen stamp changes here. Writing back the whole turn-start
+      // progression erased anything set earlier this turn (found-coin records,
+      // a consumed campfire bonus).
+      progression: nextProgressionAfterTurn === character.progression
+        ? prev.progression
+        : { ...(prev.progression || {}), lastWaterRegenHour: nextProgressionAfterTurn?.lastWaterRegenHour },
       stats: {
         ...prev.stats,
         hp: localHp,
@@ -2278,7 +2299,7 @@ Trade Rules: Merchants sell at listed value and buy relevant categories at 50% o
 ${activeAdventure.progression ? `[PROGRESSION & BALANCE]
 Campaign Order: ${activeAdventure.progression.campaignOrder}. Tier ${activeAdventure.progression.tier}. Recommended Level: ${activeAdventure.rewardModel?.recommendedLevelRange?.join('-') || 'Unlisted'}. Threat Profile: ${activeAdventure.progression.threatProfile}. Combat Expectation: ${activeAdventure.progression.combatExpectation}.
 Difficulty Notes: ${activeAdventure.progression.difficultyNotes}
-Reward Budget: ${activeAdventure.rewardModel?.guaranteedRewards?.skillPoints || 2} spendable skill points, ${activeAdventure.rewardModel?.guaranteedRewards?.trainingSlots || 1} training slots, max gear ${activeAdventure.rewardModel?.maxGearQuality || 'story appropriate'}, coin found in play: up to ${TREASURE_FINDS_PER_ADVENTURE} [treasure_found] finds (the engine sets the amounts), permanent unlock: ${activeAdventure.rewardModel?.permanentUnlock || 'none'}.
+Reward Budget: ${activeAdventure.rewardModel?.guaranteedRewards?.skillPoints || 2} spendable skill points, ${activeAdventure.rewardModel?.guaranteedRewards?.trainingSlots || 1} training slots, max gear ${activeAdventure.rewardModel?.maxGearQuality || 'story appropriate'}, coin found in play: up to ${TREASURE_FINDS_PER_ADVENTURE} finds, paid by the engine on successful searches, permanent unlock: ${activeAdventure.rewardModel?.permanentUnlock || 'none'}.
 ` : ''}
 
 ${activeAdventure.rewardModel ? `[ENGINE-AUTHORITATIVE REWARD MODEL]
@@ -2447,9 +2468,9 @@ Completed Quests:
 ${(character.completed_quests || []).map(q => `- ${q}`).join('\n')}
 
 GM Instructions for automated tags:
-- You never grant rewards: no gold, currency, or items of your own invention. Rewards are predefined and paid by the engine when the adventure completes; coin found along the way is marked with [treasure_found] and the engine sets the amount.
+- You never grant rewards: no gold, currency, or items of your own invention. Rewards are predefined and paid by the engine when the adventure completes. Coin found along the way is paid by the engine when a search succeeds; it tells you with [Coin Found: ...] in the player's message.
 - Charge the player when the story costs them something: [remove_gold: X], [currency: -N cp|sp|gp]
-- When the player finds or takes coin or treasure on an adventure (a purse, a strongbox, a hoard), emit [treasure_found] once for that find and do not name an amount; the engine pays it and reports it. At most ${TREASURE_FINDS_PER_ADVENTURE} finds per adventure; save them for finds that matter. Never on patrols or in the arena.
+- When the player's message carries [Coin Found: ...], narrate the player finding exactly that coin in a place that fits the scene. Never describe coin being found otherwise.
 - Hand over an item only when the player physically obtains one of this adventure's items named in "Items you may hand over" above, or recovers their own confiscated gear: [add_item: Exact Item Name]. Anything else is ignored. Remove items the player loses or uses up: [remove_item: Item Name]
 - Adjust quests: [add_quest: Description], [complete_quest: Description], [remove_quest: Description]
 - Apply damage or healing: [damage: X], [heal: X]
@@ -2799,11 +2820,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       // Coin found on an adventure (A8): the GM marks the find, the engine sets
       // the amount from the adventure's campaign position (data/payouts.js).
       const treasureRegex = /\[treasure_found(?::[^\]]*)?\]/gi;
-      const treasureClaimed = [...cleanedText.matchAll(treasureRegex)].length > 0;
       cleanedText = cleanedText.replace(treasureRegex, '').trim();
-      const treasureFind = treasureClaimed && !isPatrolId(activeAdventureId) && !isArenaId(activeAdventureId)
-        ? claimTreasureFind(character, activeAdventureId, getAdventureById(activeAdventureId)?.progression?.campaignOrder)
-        : null;
 
       const addGoldRegex = /\[add_gold:\s*(\d+)\]/gi;
       const blockedGold = [...cleanedText.matchAll(addGoldRegex)].reduce((acc, m) => acc + parseInt(m[1], 10), 0);
@@ -2962,7 +2979,6 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       if (itemsToRemove.length > 0) tagsFeedback += `\n\n[Item Removed: ${itemsToRemove.join(', ')}]`;
       if (goldToAdd > 0) tagsFeedback += `\n\n[Gold Gained: +${goldToAdd} GP]`;
       if (goldToRemove > 0) tagsFeedback += `\n\n[Gold Lost: -${goldToRemove} GP]`;
-      if (treasureFind) tagsFeedback += `\n\n[Coin Found: +${formatCoin(treasureFind.amountCp)} (find ${treasureFind.count} of ${TREASURE_FINDS_PER_ADVENTURE})]`;
       if (currencyMatches.length > 0) {
         const text = currencyMatches.map(c => `${c.amount >= 0 ? '+' : ''}${c.amount} ${c.unit.toUpperCase()}`).join(', ');
         tagsFeedback += `\n\n[Currency Adjusted: ${text}]`;
@@ -3198,14 +3214,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         if (goldToAdd > 0) gp += goldToAdd;
         if (goldToRemove > 0) gp = Math.max(0, gp - goldToRemove);
 
-        let totalCp = gp * 100 + sp * 10 + cp + (treasureFind?.amountCp || 0);
+        let totalCp = gp * 100 + sp * 10 + cp;
         if (totalCp < 0) totalCp = 0;
-        if (treasureFind) {
-          updated.progression = {
-            ...(updated.progression || {}),
-            treasureFinds: { ...(updated.progression?.treasureFinds || {}), [activeAdventureId]: treasureFind.count },
-          };
-        }
 
         gp = Math.floor(totalCp / 100);
         sp = Math.floor((totalCp % 100) / 10);

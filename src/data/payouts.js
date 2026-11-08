@@ -43,15 +43,50 @@ export const formatCoin = (amountCp = 0) => {
   return parts.join(' ');
 };
 
+// Found coin is the engine's call, not the GM's (Hans, 2026-11-07): left to
+// the GM it was never awarded. A successful search-type check whose action is
+// a search pays one find, at most one per location and
+// TREASURE_FINDS_PER_ADVENTURE per adventure.
+export const SEARCH_SKILLS = ['perception', 'lockpicking', 'thievery', 'appraise'];
+const SEARCH_ACTION_RE = /\b(search|searches|searching|look(?:s|ing)? (?:for|through|inside|under|behind)|loot|rummage|ransack|pry|prise|pick(?:s|ing)? the lock|unlock|open(?:s|ing)? the (?:chest|box|strongbox|desk|drawer|coffer|lockbox|safe)|purse|pouch|coin|chest|strongbox|coffer|lockbox|drawer|stash|hoard|hidden compartment|false bottom|valuables?)\b/i;
+
+export const isSearchAction = (text = '') => SEARCH_ACTION_RE.test(String(text));
+
+const normLocation = (location) => String(location || '').trim().toLowerCase();
+
 /**
- * The GM says the player found coin ([treasure_found]); the engine decides how
- * much. Paid only on a first run of the adventure and at most
- * TREASURE_FINDS_PER_ADVENTURE times. Returns null when nothing is paid.
+ * Coin for a successful search, or null. Paid only on a first run of the
+ * adventure (replays and free roam after completion find nothing).
  */
-export function claimTreasureFind(character, adventureId, campaignOrder) {
-  if (!adventureId || !campaignOrder) return null;
+export function claimSearchFind(character, { adventureId, campaignOrder, skillId, success, actionText, location }) {
+  if (!adventureId || !campaignOrder || !success) return null;
+  if (!SEARCH_SKILLS.includes(skillId) || !isSearchAction(actionText)) return null;
   if ((character?.completed_adventures || []).includes(adventureId)) return null;
   const found = character?.progression?.treasureFinds?.[adventureId] || 0;
   if (found >= TREASURE_FINDS_PER_ADVENTURE) return null;
-  return { amountCp: treasureFindCp(campaignOrder), count: found + 1 };
+  const place = normLocation(location);
+  const searched = character?.progression?.treasureLocations?.[adventureId] || [];
+  if (place && searched.includes(place)) return null;
+  return { amountCp: treasureFindCp(campaignOrder), count: found + 1, location: place };
+}
+
+/** Pay a find returned by claimSearchFind into the purse and record it. */
+export function applySearchFind(character, adventureId, find) {
+  if (!find) return character;
+  const c = character.currency || {};
+  const total = (c.gp ?? c.gold ?? 0) * 100 + (c.sp || 0) * 10 + (c.cp || 0) + find.amountCp;
+  const gp = Math.floor(total / 100);
+  const progression = character.progression || {};
+  return {
+    ...character,
+    currency: { ...c, gp, sp: Math.floor((total % 100) / 10), cp: total % 10, gold: gp },
+    progression: {
+      ...progression,
+      treasureFinds: { ...(progression.treasureFinds || {}), [adventureId]: find.count },
+      treasureLocations: {
+        ...(progression.treasureLocations || {}),
+        [adventureId]: [...(progression.treasureLocations?.[adventureId] || []), ...(find.location ? [find.location] : [])],
+      },
+    },
+  };
 }

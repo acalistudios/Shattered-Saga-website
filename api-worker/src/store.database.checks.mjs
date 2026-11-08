@@ -15,7 +15,12 @@ test('gem store: server prices, atomic debit, no overdraft', async t => {
   try {
     const db = await mf.getD1Database('DB');
     await db.exec("CREATE TABLE users(id TEXT PRIMARY KEY, gems INTEGER DEFAULT 0)");
-    await db.prepare("INSERT INTO users(id,gems) VALUES('alice',25),('bob',4)").run();
+    // Balances derive from the prices so the checks hold whatever they are:
+    // alice can afford exactly one Rite after her first; bob cannot afford a Thread.
+    const rite = STORE_ITEMS.rite_of_quiet_return.gems;
+    const thread = STORE_ITEMS.thread_of_returning.gems;
+    const aliceStart = 3 * rite - 1;
+    await db.prepare('INSERT INTO users(id,gems) VALUES(?,?),(?,?)').bind('alice', aliceStart, 'bob', thread - 1).run();
     const app = new Hono();
     registerStoreRoutes(app, async c => {
       const id = c.req.header('x-user');
@@ -34,21 +39,21 @@ test('gem store: server prices, atomic debit, no overdraft', async t => {
       assert.equal(res.status, 200);
       const body = await res.json();
       assert.equal(body.item, 'Rite of Quiet Return');
-      assert.equal(body.gems, 25 - STORE_ITEMS.rite_of_quiet_return.gems);
+      assert.equal(body.gems, aliceStart - rite);
       assert.equal(await gems('alice'), body.gems);
     });
 
     await t.test('concurrent purchases never overdraw', async () => {
-      // alice has 15: three concurrent Rites (10 each) -> exactly one succeeds.
+      // alice has 2 x rite - 1: three concurrent Rites -> exactly one succeeds.
       const results = await Promise.all([1, 2, 3].map(() => buy('alice', 'rite_of_quiet_return')));
       assert.equal(results.filter(r => r.status === 200).length, 1);
       assert.equal(results.filter(r => r.status === 402).length, 2);
-      assert.equal(await gems('alice'), 5);
+      assert.equal(await gems('alice'), rite - 1);
     });
 
     await t.test('refuses without enough gems, unknown items and anonymous callers', async () => {
       assert.equal((await buy('bob', 'thread_of_returning')).status, 402);
-      assert.equal(await gems('bob'), 4);
+      assert.equal(await gems('bob'), thread - 1);
       assert.equal((await buy('bob', 'free_gems')).status, 400);
       assert.equal((await buy(null, 'thread_of_returning')).status, 401);
     });

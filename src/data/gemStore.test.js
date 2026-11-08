@@ -16,8 +16,8 @@ describe('gem store (A4)', () => {
   });
 
   it('guests buy against their local balance and cannot go below zero', () => {
-    expect(buyWithLocalGems('thread_of_returning', 7)).toEqual({ gems: 2, item: 'Thread of Returning' });
-    expect(buyWithLocalGems('rite_of_quiet_return', 9)).toBeNull();
+    expect(buyWithLocalGems('thread_of_returning', 7)).toEqual({ gems: 4, item: 'Thread of Returning' });
+    expect(buyWithLocalGems('rite_of_quiet_return', 5)).toBeNull();
     expect(buyWithLocalGems('not_an_item', 99)).toBeNull();
   });
 

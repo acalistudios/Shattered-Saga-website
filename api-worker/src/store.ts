@@ -6,9 +6,9 @@ import type { Env } from "./auth";
 // one gem. The client copy in src/data/gemStore.js is display-only and a test
 // keeps the two tables identical.
 export const STORE_ITEMS: Record<string, { item: string; gems: number }> = {
-  rite_of_quiet_return: { item: "Rite of Quiet Return", gems: 10 },
-  breath_of_the_creator: { item: "Breath of the Creator", gems: 8 },
-  thread_of_returning: { item: "Thread of Returning", gems: 5 },
+  rite_of_quiet_return: { item: "Rite of Quiet Return", gems: 6 },
+  breath_of_the_creator: { item: "Breath of the Creator", gems: 5 },
+  thread_of_returning: { item: "Thread of Returning", gems: 3 },
 };
 
 type SessionUser = { id: string };

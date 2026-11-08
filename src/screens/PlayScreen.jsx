@@ -46,7 +46,7 @@ function renderMessageContent(content, destinations = null) {
 
   // Music cues ([tension], [hazard], [stealth_start]) stay in the stored text
   // for useAudioPlayer, but are not for the reader.
-  content = content.replace(/[ \t]*\[(?:tension|hazard|stealth_start)\]/gi, '');
+  content = content.replace(/[ \t]*\[\s*(?:tension|hazard|stealth_start)\s*\]/gi, '');
   const trimmed = content.trim();
   const renderText = (text) => destinations
     ? splitNarrationHighlights(text, destinations).map((part, index) => part.kind === 'text'
