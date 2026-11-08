@@ -27,3 +27,11 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# The API Worker moved to the private repo acalistudios/Shattered-Saga-api
+# (2026-11-08). Older checkouts still hold api-worker/.dev.vars with real
+# keys: never let that folder back into this public repo.
+/api-worker/
+.dev.vars
+.dev.vars.*
+!.dev.vars.example

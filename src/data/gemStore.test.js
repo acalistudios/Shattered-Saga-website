@@ -1,12 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { GEM_STORE_ITEMS, buyWithLocalGems } from './gemStore';
-import { STORE_ITEMS } from '../../api-worker/src/store';
 import { UNDEATH_CURE_ITEM, DIVINE_INTERVENTION_ITEMS, getCompletionGifts } from './resurrection';
 
 describe('gem store (A4)', () => {
-  it('shows exactly the prices the server charges', () => {
+  it('shows the prices the server charges', () => {
+    // The server owns the real prices (private repo Shattered-Saga-api,
+    // src/store.ts). Keep this table equal to its STORE_ITEMS.
     const shown = Object.fromEntries(GEM_STORE_ITEMS.map(i => [i.id, { item: i.item, gems: i.gems }]));
-    expect(shown).toEqual(STORE_ITEMS);
+    expect(shown).toEqual({
+      rite_of_quiet_return: { item: 'Rite of Quiet Return', gems: 6 },
+      breath_of_the_creator: { item: 'Breath of the Creator', gems: 5 },
+      thread_of_returning: { item: 'Thread of Returning', gems: 3 },
+    });
   });
 
   it('sells the cure and both divine-intervention items, by their engine names', () => {

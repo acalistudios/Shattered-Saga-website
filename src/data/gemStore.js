@@ -1,5 +1,6 @@
 // Gem store catalogue (Hans, 2026-10-28, A4). DISPLAY ONLY: the Worker's
-// api-worker/src/store.ts owns the real prices and a test keeps them equal.
+// The server (private repo Shattered-Saga-api, src/store.ts) owns the real
+// prices; gemStore.test.js pins this table to them.
 // Prices set by Hans 2026-11-07 (15 gems = $3.00).
 import { UNDEATH_CURE_ITEM, DIVINE_INTERVENTION_ITEMS } from './resurrection';
 

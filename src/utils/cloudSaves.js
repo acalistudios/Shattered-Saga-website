@@ -196,7 +196,7 @@ export async function spendGems(amount, reason = '') {
 }
 
 /**
- * Buy a gem-store item. The server prices it by id (api-worker/src/store.ts).
+ * Buy a gem-store item. The server prices it by id (Shattered-Saga-api, src/store.ts).
  * Returns { gems, item } on success, or null if refused or offline.
  */
 export async function buyStoreItem(itemId) {
