@@ -3,6 +3,20 @@ import banner from '../assets/images/banner.png';
 import { validateCharacter, decompressCharacter } from '../utils/secureHash';
 import storage from '../utils/storage';
 import AccountStatusPills from '../components/AccountStatusPills';
+import { isBackendConfigured, requestPasswordReset, resetPassword } from '../utils/authApi';
+
+// A password-reset email links back here with ?token=... or ?error=...
+const readResetParams = () => {
+  if (typeof window === 'undefined') return { token: null, error: null };
+  const params = new URLSearchParams(window.location.search);
+  return { token: params.get('token'), error: params.get('error') };
+};
+const clearResetParams = () => {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('token');
+  url.searchParams.delete('error');
+  window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+};
 
 const scanQrOnline = async (blobOrFile) => {
   const formData = new FormData();
@@ -60,6 +74,70 @@ export default function Splash({
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [authStatus, setAuthStatus] = useState(null);
   const [slotRevision, setSlotRevision] = useState(0);
+
+  const [resetLink] = useState(readResetParams);
+  const [resetToken, setResetToken] = useState(resetLink.token);
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordRepeat, setNewPasswordRepeat] = useState('');
+  const [resetStatus, setResetStatus] = useState(
+    resetLink.error ? { type: 'error', message: 'That reset link has expired or was already used. Request a new one below.' } : null
+  );
+
+  useEffect(() => {
+    if (resetLink.error) clearResetParams();
+  }, [resetLink.error]);
+
+  const handleForgotPassword = async () => {
+    const email = emailInput.trim();
+    if (!email) {
+      setAuthStatus({ type: 'error', message: 'Enter your email address above, then click "Forgot password?" again.' });
+      return;
+    }
+    setIsAuthLoading(true);
+    setAuthStatus(null);
+    try {
+      await requestPasswordReset(email);
+      // Same message whether or not the account exists, so emails can't be probed.
+      setAuthStatus({ type: 'success', message: `If ${email} has an account, a reset link is on its way. Check your inbox and spam folder.` });
+    } catch (err) {
+      setAuthStatus({ type: 'error', message: `✕ Could not send the reset email: ${err.message}` });
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const handleResetSubmit = async (e) => {
+    e.preventDefault();
+    if (newPassword.length < 8) {
+      setResetStatus({ type: 'error', message: 'Use at least 8 characters.' });
+      return;
+    }
+    if (newPassword !== newPasswordRepeat) {
+      setResetStatus({ type: 'error', message: 'The two passwords do not match.' });
+      return;
+    }
+    setIsAuthLoading(true);
+    setResetStatus(null);
+    try {
+      await resetPassword(resetToken, newPassword);
+      clearResetParams();
+      setResetToken(null);
+      setNewPassword('');
+      setNewPasswordRepeat('');
+      setIsSignUpMode(false);
+      setAuthStatus({ type: 'success', message: 'Password updated. Sign in with your new password.' });
+    } catch (err) {
+      const expired = /invalid.*token|expired/i.test(err.message);
+      setResetStatus({
+        type: 'error',
+        message: expired
+          ? '✕ This reset link has expired or was already used. Cancel, then use "Forgot password?" to get a new one.'
+          : `✕ ${err.message}`,
+      });
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
 
   useEffect(() => {
     const refreshSlots = () => setSlotRevision((rev) => rev + 1);
@@ -639,7 +717,8 @@ export default function Splash({
             <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-amber-500/40"></div>
             <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-amber-500/40"></div>
 
-            {!isLoggedIn ? (
+            {/* A reset link opens the password form even for a signed-in visitor. */}
+            {!isLoggedIn || resetToken ? (
               /* Simulated Social Login Stack */
               <div className="space-y-4 text-left">
                 <div>
@@ -681,7 +760,49 @@ export default function Splash({
                     <span className="absolute bg-slate-950 px-3 text-5xs text-slate-500 font-bold uppercase tracking-widest">Or Use Email</span>
                   </div>
 
+                  {resetToken ? (
+                  <form onSubmit={handleResetSubmit} className="space-y-3">
+                    <p className="text-2xs font-bold text-amber-400 text-left">Choose a new password</p>
+                    <div className="space-y-2">
+                      {[['New password', newPassword, setNewPassword], ['Repeat new password', newPasswordRepeat, setNewPasswordRepeat]].map(([label, value, setValue]) => (
+                        <div key={label} className="flex flex-col gap-1 text-left">
+                          <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">{label}</label>
+                          <input
+                            type="password"
+                            required
+                            minLength={8}
+                            autoComplete="new-password"
+                            placeholder="At least 8 characters"
+                            value={value}
+                            onChange={(e) => setValue(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-850 hover:border-slate-750 focus:border-amber-500/50 rounded px-3 py-2 text-2xs text-slate-200 placeholder-slate-650 focus:outline-none transition-colors"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isAuthLoading}
+                      className="w-full py-2.5 rounded bg-amber-500 hover:bg-amber-600 disabled:bg-slate-900 disabled:text-slate-600 text-slate-955 text-3xs font-extrabold uppercase tracking-wider cursor-pointer transition-all active:scale-99 flex items-center justify-center gap-1.5"
+                    >
+                      {isAuthLoading ? <>🌀 Processing...</> : <>🔑 Save New Password</>}
+                    </button>
+                    {resetStatus && (
+                      <p className="text-4xs font-bold leading-normal mt-1 text-left text-rose-450">{resetStatus.message}</p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => { clearResetParams(); setResetToken(null); setResetStatus(null); }}
+                      className="w-full text-4xs text-slate-500 hover:text-slate-300 underline cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </form>
+                  ) : (
                   <form onSubmit={handleEmailPasswordSubmit} className="space-y-3">
+                    {resetStatus && (
+                      <p className="text-4xs font-bold leading-normal text-left text-rose-450">{resetStatus.message}</p>
+                    )}
                     <div className="space-y-2">
                       <div className="flex flex-col gap-1 text-left">
                         <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Email Address</label>
@@ -699,7 +820,7 @@ export default function Splash({
                         <input
                           type="password"
                           required
-                          minLength={6}
+                          minLength={8}
                           placeholder="••••••••"
                           value={passwordInput}
                           onChange={(e) => setPasswordInput(e.target.value)}
@@ -720,6 +841,16 @@ export default function Splash({
                         <>🔑 Sign In with Password</>
                       )}
                     </button>
+                    {!isSignUpMode && isBackendConfigured && (
+                      <button
+                        type="button"
+                        onClick={handleForgotPassword}
+                        disabled={isAuthLoading}
+                        className="w-full text-right text-4xs text-slate-400 hover:text-amber-400 underline cursor-pointer disabled:opacity-50"
+                      >
+                        Forgot password?
+                      </button>
+                    )}
                     {authStatus && (
                       <p className={`text-4xs font-bold leading-normal mt-1 text-left ${
                         authStatus.type === 'success' ? 'text-emerald-400' : 'text-rose-450'
@@ -743,6 +874,7 @@ export default function Splash({
                       </button>
                     </div>
                   </form>
+                  )}
                 </div>
                 
                 <div className="border-t border-slate-850/60 pt-4 mt-2 space-y-2">

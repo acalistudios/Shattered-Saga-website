@@ -59,6 +59,19 @@ export async function signInEmail(email, password) {
   return data;
 }
 
+// Password reset. The emailed link goes through the Worker and lands back on
+// this site with ?token=... (or ?error=INVALID_TOKEN when it has expired).
+export async function requestPasswordReset(email) {
+  return post('/api/auth/request-password-reset', {
+    email,
+    redirectTo: `${window.location.origin}/`,
+  });
+}
+
+export async function resetPassword(token, newPassword) {
+  return post('/api/auth/reset-password', { token, newPassword });
+}
+
 export async function signOut() {
   try {
     await post('/api/auth/sign-out', {}, true);
