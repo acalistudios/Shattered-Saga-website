@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import AdSlot from '../components/AdSlot';
+import { ADSENSE_SLOTS, displayAdsEnabled } from '../utils/ads';
 import { SKILLS_LIST, ATTRIBUTE_LIST } from '../data/gms';
 import { printCharacterSheet, printAdventureLog, ELEMENTAL_ABILITIES } from '../utils/print';
 import { signCharacter } from '../utils/secureHash';
@@ -2288,22 +2290,12 @@ export default function PlayScreen({
         </form>
         )}
 
-        {/* Google DoubleClick Responsive Test Ad Unit */}
-        {showAdSidebar && (
+        {/* AdSense banner under the input (free engine only; renders nothing until configured) */}
+        {showAdSidebar && displayAdsEnabled && ADSENSE_SLOTS.inline && (
           <div className="w-full bg-slate-950 border-t border-slate-900 py-1.5 flex flex-col items-center justify-center gap-1 select-none shrink-0">
-            <span className="text-[8px] uppercase tracking-widest text-slate-600 font-bold">SPONSORED ADVERTISEMENT</span>
-            <div className="w-full max-w-[728px] h-[90px] overflow-hidden flex justify-center">
-              <iframe
-                src="https://securepubads.g.doubleclick.net/gampad/ads?gdfp_req=1&correlator=1234567890&output=html&sz=728x90&iu=/7176/tg/homepage&impl=s"
-                width="728"
-                height="90"
-                frameBorder="0"
-                scrolling="no"
-                marginHeight="0"
-                marginWidth="0"
-                title="Google DoubleClick Leaderboard Test Ad"
-                className="max-w-full opacity-90 hover:opacity-100 transition-opacity"
-              />
+            <span className="text-[8px] uppercase tracking-widest text-slate-600 font-bold">Advertisement</span>
+            <div className="w-full max-w-[728px] min-h-[90px] overflow-hidden">
+              <AdSlot slot={ADSENSE_SLOTS.inline} format="horizontal" style={{ height: 90 }} />
             </div>
           </div>
         )}
@@ -2311,24 +2303,14 @@ export default function PlayScreen({
       </div>
 
       {/* ----------------- AD BANNER SIDEBAR (Free engine only, turned off for subscribers) ----------------- */}
-      {showAdSidebar && isDesktopLayout && (
-        <div className="w-[160px] border-l border-slate-900 bg-slate-950/80 p-2 flex flex-col items-center justify-start shrink-0 h-full">
-          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2 mt-2">Sponsored Ad</span>
-          <div className="w-[140px] h-[600px] bg-slate-900 border border-slate-800 rounded flex items-center justify-center overflow-hidden relative shadow-inner">
-            <iframe
-              src="https://securepubads.g.doubleclick.net/gampad/ads?gdfp_req=1&correlator=1234567890&output=html&sz=120x600&iu=/7176/tg/homepage&impl=s"
-              width="120"
-              height="600"
-              frameBorder="0"
-              scrolling="no"
-              marginHeight="0"
-              marginWidth="0"
-              title="Google DoubleClick Skyscraper Test Ad"
-              className="opacity-90 hover:opacity-100 transition-opacity"
-            />
+      {showAdSidebar && isDesktopLayout && displayAdsEnabled && ADSENSE_SLOTS.sidebar && (
+        <div className="w-[176px] border-l border-slate-900 bg-slate-950/80 p-2 flex flex-col items-center justify-start shrink-0 h-full">
+          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2 mt-2">Advertisement</span>
+          <div className="w-[160px] min-h-[600px] overflow-hidden">
+            <AdSlot slot={ADSENSE_SLOTS.sidebar} format="vertical" style={{ width: 160, height: 600 }} />
           </div>
           <p className="text-[8px] text-slate-600 mt-2 text-center leading-normal px-1">
-            Ad views help pay for Shattered Saga's AI servers.
+            Ads help pay for Shattered Saga's AI storytellers. Subscribers play ad-free.
           </p>
         </div>
       )}

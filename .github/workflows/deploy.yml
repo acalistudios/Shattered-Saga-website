@@ -33,6 +33,12 @@ jobs:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # Ads for free play (src/utils/ads.js). Public IDs, so repository
+          # variables rather than secrets; unset = no ads are shown.
+          VITE_ADSENSE_CLIENT: ${{ vars.VITE_ADSENSE_CLIENT }}
+          VITE_ADSENSE_SLOT_SIDEBAR: ${{ vars.VITE_ADSENSE_SLOT_SIDEBAR }}
+          VITE_ADSENSE_SLOT_INLINE: ${{ vars.VITE_ADSENSE_SLOT_INLINE }}
+          VITE_GAM_REWARDED_AD_UNIT: ${{ vars.VITE_GAM_REWARDED_AD_UNIT }}
 
       - name: Deploy to Cloudflare Pages 🚀
         uses: cloudflare/wrangler-action@v3

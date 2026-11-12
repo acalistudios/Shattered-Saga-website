@@ -523,6 +523,9 @@ export default function useGameState() {
               gems: me.gems,
               unlocked_slots: me.unlocked_slots,
               linked_providers: me.linked_providers || [],
+              email_verified: me.email_verified,
+              premium_turn_cost: me.premium_turn_cost ?? 8,
+              fair_use: me.fair_use ?? null,
             }
           : null;
         setUserProfile(profile);
@@ -1277,7 +1280,9 @@ export default function useGameState() {
           ? await generateViaBackend({
               systemPrompt: summaryPrompt,
               history: newHistory.slice(-10),
-              premiumTurn: engineTier === 'premium',
+              // Summaries never need the premium model, which costs the
+              // player 8 turns (Worker turns.ts PREMIUM_TURN_COST).
+              premiumTurn: false,
               model: activeModel,
             })
           : await generateCompletion({
@@ -1376,8 +1381,8 @@ export default function useGameState() {
         currentEnergy = userProfile ? userProfile.energy_balance : 0;
       }
 
-      if (currentEnergy <= 0) {
-        setApiError("Your priority Pro turns are exhausted. Please switch to the Free/Flash engine (ad-free for subscribers) or watch a sponsored video in settings for a refill!");
+      if (currentEnergy < 8) {
+        setApiError("A premium turn uses 8 turns and your balance is too low. Switch to the standard engine, or top up in Account > Store.");
         return;
       }
     }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import storage from '../utils/storage';
 import AccountSignIn from '../components/AccountSignIn';
 import { GEM_STORE_ITEMS } from '../data/gemStore';
+import { rewardedAdsEnabled, showRewardedAd } from '../utils/ads';
 import {
   startCheckout,
   cancelSubscription,
@@ -114,10 +114,9 @@ export default function AccountScreen({
     }
   }, [fetchUserProfile]);
   
-  // Sponsored Video Ad States
-  const [videoAdOpen, setVideoAdOpen] = useState(false);
-  const [videoAdSeconds, setVideoAdSeconds] = useState(15);
-  const [videoAdMuted, setVideoAdMuted] = useState(false);
+  // Rewarded ad (Google Ad Manager, utils/ads.js). The Worker pays AD_REWARD_TURNS.
+  const AD_REWARD_TURNS = 3;
+  const [rewardedAdBusy, setRewardedAdBusy] = useState(false);
 
   const isSimulationMode = !isBackendConfigured;
 
@@ -322,43 +321,27 @@ export default function AccountScreen({
   };
 
   // Video Ad Timer Effect
-  useEffect(() => {
-    let interval = null;
-    if (videoAdOpen && videoAdSeconds > 0) {
-      interval = setInterval(() => {
-        setVideoAdSeconds(prev => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [videoAdOpen, videoAdSeconds]);
-
-  const handleStartVideoAd = () => {
-    setVideoAdSeconds(15);
-    setVideoAdOpen(true);
-  };
-
-  const handleClaimAdReward = async () => {
-    const email = storage.get('shattered_email') || 'adventurer@saga.com';
-    if (isSimulationMode) {
-      const profile = storage.get(`mock_supabase_profile_${email}`, null);
-      if (profile) {
-        profile.energy_balance = (profile.energy_balance || 0) + 10;
-        storage.set(`mock_supabase_profile_${email}`, profile);
+  const handleWatchRewardedAd = async () => {
+    if (rewardedAdBusy) return;
+    setRewardedAdBusy(true);
+    try {
+      const outcome = await showRewardedAd();
+      if (outcome === 'closed') {
+        alert('Watch the ad to the end to earn the reward.');
+        return;
       }
-      setPurchaseSuccess("Sponsored ad viewed successfully! Added +10 priority Turns.");
+      if (outcome !== 'granted') {
+        alert('No ad is available right now. Please try again later.');
+        return;
+      }
+      await claimAdReward();
+      setPurchaseSuccess(`Thanks for watching! +${AD_REWARD_TURNS} turns added.`);
       fetchUserProfile();
-      setVideoAdOpen(false);
       setTimeout(() => setPurchaseSuccess(null), 4000);
-    } else {
-      try {
-        await claimAdReward();
-        setPurchaseSuccess("Sponsored ad viewed successfully! Added +10 priority Turns.");
-        fetchUserProfile();
-        setVideoAdOpen(false);
-        setTimeout(() => setPurchaseSuccess(null), 4000);
-      } catch (err) {
-        alert(err.message || 'Could not claim ad reward. Please try again.');
-      }
+    } catch (err) {
+      alert(err.message || 'Could not claim the ad reward. Please try again.');
+    } finally {
+      setRewardedAdBusy(false);
     }
   };
 
@@ -943,7 +926,8 @@ export default function AccountScreen({
                   <ul className="text-5xs text-slate-400 space-y-1 mb-4">
                     <li>• Capped 8-turn conversation context history</li>
                     <li>• Dynamic Regional Memory filtering</li>
-                    <li>• Sponsored video ad refills available (+10 turns)</li>
+                    <li>• 20 turns at sign-up, +80 once your email is verified</li>
+                    <li>• Rewarded ad refills (+3 turns each, up to 10 a day)</li>
                   </ul>
                 </div>
                 {currentTier === 'free' ? (
@@ -984,7 +968,7 @@ export default function AccountScreen({
                     </span>
                   </div>
                   <p className="text-4xs text-slate-450 leading-relaxed mb-3">
-                    Unlock the **BYOK Sandbox Connection**. Bring your own API keys for unlimited plays with zero side-panel ads.
+                    Unlock the <strong>BYOK Sandbox Connection</strong>. Bring your own API keys for unlimited plays with zero side-panel ads.
                   </p>
                   <ul className="text-5xs text-slate-400 space-y-1 mb-4">
                     <li>• Configure Gemini, OpenAI, or Anthropic custom models</li>
@@ -1021,11 +1005,11 @@ export default function AccountScreen({
                     </span>
                   </div>
                   <p className="text-4xs text-slate-450 leading-relaxed mb-3">
-                    Unlock Premium Engine (Pro model narrative quality) with monthly priority reserves and unlimited ad-free Flash play!
+                    Unlock the Premium Engine (Pro model narrative quality) with a monthly premium allowance and ad-free standard play.
                   </p>
                   <ul className="text-5xs text-slate-400 space-y-1 mb-4">
-                    <li>• **{billingCycle === 'monthly' ? '200' : '2,400'} priority Pro turns** immediately</li>
-                    <li>• Unlimited ad-free Free Engine (Flash) play turns</li>
+                    <li>• <strong>{billingCycle === 'monthly' ? '200' : '2,400'} premium turns</strong> (1 premium turn uses 8 turns)</li>
+                    <li>• Up to 1,000 ad-free standard turns a month (fair use); after that they use your balance</li>
                     <li>• Expanded 25-turn history context buffer</li>
                   </ul>
                 </div>
@@ -1061,8 +1045,8 @@ export default function AccountScreen({
                     Maximum narrative priority. The ultimate subscription for heavy dungeon-crawlers and legendary storytellers.
                   </p>
                   <ul className="text-5xs text-slate-400 space-y-1 mb-4">
-                    <li>• **{billingCycle === 'monthly' ? '650' : '7,800'} priority Pro turns** immediately</li>
-                    <li>• Unlimited ad-free Free Engine (Flash) play turns</li>
+                    <li>• <strong>{billingCycle === 'monthly' ? '650' : '7,800'} premium turns</strong> (1 premium turn uses 8 turns)</li>
+                    <li>• Up to 3,000 ad-free standard turns a month (fair use); after that they use your balance</li>
                     <li>• Expanded 25-turn history context buffer</li>
                   </ul>
                 </div>
@@ -1092,26 +1076,28 @@ export default function AccountScreen({
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               
-              {/* Sponsored Video Refill (FREE Energy) */}
+              {/* Rewarded ad refill (FREE turns), only when Google Ad Manager is configured */}
+              {rewardedAdsEnabled && (
               <div className="rounded-lg p-4 bg-gradient-to-br from-slate-900 to-amber-950/20 border border-amber-500/30 flex flex-col justify-between shadow-lg relative overflow-hidden">
                 <div className="absolute top-0 right-0 px-2 py-0.5 bg-amber-500 text-slate-950 font-black text-5xs uppercase tracking-widest rounded-bl">
                   FREE ENERGY
                 </div>
                 <div>
                   <span className="text-xl">📺</span>
-                  <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider mt-2">Sponsored Video Refill</h4>
+                  <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider mt-2">Rewarded Ad Refill</h4>
                   <p className="text-5xs text-slate-450 mt-1 mb-3">
-                    Watch a short 15-second video ad to claim **+10 priority Turns** for free. Guaranteed profit for game servers.
+                    Watch a short ad to the end for <strong>+{AD_REWARD_TURNS} turns</strong>, up to 10 times a day. Ads help pay for the AI storytellers.
                   </p>
                 </div>
                 <button
-                  onClick={handleStartVideoAd}
-                  disabled={purchaseLoading !== null}
-                  className="w-full py-2 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-4xs uppercase tracking-wider cursor-pointer transition-all hover:scale-101"
+                  onClick={handleWatchRewardedAd}
+                  disabled={purchaseLoading !== null || rewardedAdBusy}
+                  className="w-full py-2 rounded bg-amber-500 hover:bg-amber-400 disabled:bg-slate-800 disabled:text-slate-500 text-slate-950 font-black text-4xs uppercase tracking-wider cursor-pointer transition-all hover:scale-101"
                 >
-                  Watch Sponsored Ad
+                  {rewardedAdBusy ? 'Loading ad...' : 'Watch an Ad'}
                 </button>
               </div>
+              )}
 
               {/* Turn Energy Package */}
               <div className="rounded-lg p-4 bg-slate-900 border border-slate-800/80 flex flex-col justify-between">
@@ -1197,89 +1183,6 @@ export default function AccountScreen({
         </div>
 
       </div>
-
-      {/* Simulated Sponsored Video Ad Overlay */}
-      {videoAdOpen && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl relative">
-            
-            {/* Ad Header */}
-            <div className="flex items-center justify-between px-4 py-3 bg-slate-950 border-b border-slate-850">
-              <span className="text-5xs font-bold text-amber-400 tracking-wider uppercase">Sponsored Video Ad</span>
-              <span className="px-2.5 py-0.5 bg-slate-900 border border-slate-800 rounded text-5xs font-bold text-slate-400 uppercase">
-                {videoAdSeconds > 0 ? `Ad plays for: ${videoAdSeconds}s` : 'Reward Ready!'}
-              </span>
-            </div>
-
-            {/* Video Player Display Container */}
-            <div className="w-full aspect-video bg-black flex flex-col items-center justify-center p-6 relative overflow-hidden group">
-              
-              {/* Simulated Gameplay Demo Video Loop in Background */}
-              <div className="absolute inset-0 opacity-40 bg-gradient-to-tr from-indigo-950 via-slate-950 to-amber-950 flex flex-col justify-between p-4 text-left">
-                <div className="space-y-1">
-                  <h5 className="font-serif text-amber-400 text-xs font-bold tracking-wide">⚔️ SHATTERED SAGA: ONLINE ⚔️</h5>
-                  <p className="text-5xs text-slate-400 uppercase tracking-widest">Pre-Register Now on App Store & Google Play</p>
-                </div>
-                <div className="h-0.5 bg-slate-800 w-full overflow-hidden relative">
-                  <div 
-                    className="h-full bg-gradient-to-r from-amber-500 to-yellow-400 absolute left-0 top-0 transition-all duration-1000 ease-linear"
-                    style={{ width: `${((15 - videoAdSeconds) / 15) * 100}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Large Central Pulsing Commercial Icon */}
-              <div className="z-10 flex flex-col items-center gap-2">
-                <span className="text-3xl animate-bounce">🎬</span>
-                <span className="text-4xs text-amber-400 font-extrabold uppercase tracking-widest text-center max-w-xs leading-relaxed">
-                  {videoAdSeconds > 0 
-                    ? "Evaluating epic high-fantasy dungeon crawl trailer..." 
-                    : "Transmission Complete! Claim your 10 energy turns below."}
-                </span>
-                {videoAdSeconds > 0 && (
-                  <div className="flex gap-1.5 mt-3">
-                    <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
-                    <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping animation-delay-300" />
-                    <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping animation-delay-600" />
-                  </div>
-                )}
-              </div>
-
-              {/* Volume / Mute Control bottom right */}
-              <button
-                onClick={() => setVideoAdMuted(!videoAdMuted)}
-                className="absolute bottom-3 right-3 p-1.5 rounded-full bg-slate-950/70 border border-slate-800 text-3xs font-bold text-slate-300 hover:text-white cursor-pointer"
-              >
-                {videoAdMuted ? '🔇 Muted' : '🔊 Playing'}
-              </button>
-            </div>
-
-            {/* Ad Footer Controls */}
-            <div className="p-4 bg-slate-950 border-t border-slate-850 flex justify-between items-center gap-4">
-              <span className="text-5xs text-slate-500 uppercase font-semibold leading-normal max-w-xs text-left">
-                Revenue generated from this sponsor compensates AI server costs directly. Thank you for supporting Shattered Saga!
-              </span>
-              
-              {videoAdSeconds > 0 ? (
-                <button
-                  disabled
-                  className="px-4 py-2 bg-slate-850 border border-slate-800 rounded font-bold text-4xs uppercase tracking-wider text-slate-600 cursor-not-allowed"
-                >
-                  Locked ({videoAdSeconds}s)
-                </button>
-              ) : (
-                <button
-                  onClick={handleClaimAdReward}
-                  className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-4xs uppercase tracking-widest rounded shadow-lg shadow-amber-500/20 transition-all hover:scale-103 cursor-pointer"
-                >
-                  Claim 10 Turns
-                </button>
-              )}
-            </div>
-
-          </div>
-        </div>
-      )}
 
     </div>
   );

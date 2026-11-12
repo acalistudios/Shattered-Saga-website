@@ -3,7 +3,7 @@ import banner from '../assets/images/banner.png';
 import { validateCharacter, decompressCharacter } from '../utils/secureHash';
 import storage from '../utils/storage';
 import AccountStatusPills from '../components/AccountStatusPills';
-import { isBackendConfigured, requestPasswordReset, resetPassword } from '../utils/authApi';
+import { isBackendConfigured, requestPasswordReset, resetPassword, sendVerificationEmail } from '../utils/authApi';
 
 // A password-reset email links back here with ?token=... or ?error=...
 const readResetParams = () => {
@@ -85,6 +85,28 @@ export default function Splash({
   useEffect(() => {
     if (resetLink.error) clearResetParams();
   }, [resetLink.error]);
+
+  // The verification email links back with ?email_verified=1.
+  const [emailVerifiedNotice] = useState(() => new URLSearchParams(window.location.search).get('email_verified') === '1');
+  const [verifySendState, setVerifySendState] = useState(null);
+  useEffect(() => {
+    if (!emailVerifiedNotice) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('email_verified');
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  }, [emailVerifiedNotice]);
+
+  const handleResendVerification = async () => {
+    if (!userProfile?.email) return;
+    setVerifySendState('sending');
+    try {
+      await sendVerificationEmail(userProfile.email);
+      setVerifySendState('sent');
+    } catch {
+      setVerifySendState(null);
+      alert('Could not send the verification email. Please try again in a minute.');
+    }
+  };
 
   const handleForgotPassword = async () => {
     const email = emailInput.trim();
@@ -944,6 +966,27 @@ export default function Splash({
                     </button>
                   </div>
                 </div>
+
+                {emailVerifiedNotice && (
+                  <p className="text-3xs font-bold text-emerald-400 bg-emerald-950/30 border border-emerald-800/40 rounded px-3 py-2 text-left">
+                    ✓ Email verified. Your 80 bonus turns have been added.
+                  </p>
+                )}
+                {userProfile?.email_verified === false && !emailVerifiedNotice && (
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 bg-amber-950/30 border border-amber-800/40 rounded px-3 py-2 text-left">
+                    <p className="text-3xs text-amber-200 flex-1">
+                      Verify your email to unlock <strong>80 more free turns</strong>. Check your inbox for the link from Shattered Saga.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleResendVerification}
+                      disabled={verifySendState === 'sending' || verifySendState === 'sent'}
+                      className="px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 disabled:bg-slate-800 disabled:text-slate-500 text-slate-955 text-4xs font-extrabold uppercase tracking-wider cursor-pointer shrink-0"
+                    >
+                      {verifySendState === 'sent' ? 'Sent ✓' : verifySendState === 'sending' ? 'Sending…' : 'Resend link'}
+                    </button>
+                  </div>
+                )}
 
                 <div className="space-y-3 pt-2 text-left">
                   <h3 className="text-3xs uppercase tracking-widest text-slate-500 font-bold mb-1">

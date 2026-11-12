@@ -43,11 +43,15 @@ async function post(path, body, useAuth = false) {
   return data;
 }
 
+// The verification email's link returns here with ?email_verified=1.
+const verifiedCallbackURL = () => `${window.location.origin}/?email_verified=1`;
+
 export async function signUpEmail(email, password, name) {
   const data = await post('/api/auth/sign-up/email', {
     email,
     password,
     name: name || email.split('@')[0],
+    callbackURL: verifiedCallbackURL(),
   });
   if (data.token) setToken(data.token);
   return data;
@@ -57,6 +61,11 @@ export async function signInEmail(email, password) {
   const data = await post('/api/auth/sign-in/email', { email, password });
   if (data.token) setToken(data.token);
   return data;
+}
+
+// Verifying the email unlocks the rest of the free sign-up turns.
+export async function sendVerificationEmail(email) {
+  return post('/api/auth/send-verification-email', { email, callbackURL: verifiedCallbackURL() }, true);
 }
 
 // Password reset. The emailed link goes through the Worker and lands back on
@@ -178,7 +187,7 @@ export async function fetchMe() {
   return res.json();
 }
 
-// Claim sponsored video ad reward (+10 turns).
+// Claim a rewarded-ad reward (+3 turns; the Worker sets the amount).
 export async function claimAdReward() {
   return post('/api/ads/claim', {}, true);
 }

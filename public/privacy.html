@@ -208,7 +208,7 @@
     <div class="corner-bottom-right"></div>
 
     <h1>PRIVACY POLICY</h1>
-    <div class="last-updated">Last Updated: June 20, 2026</div>
+    <div class="last-updated">Last Updated: November 12, 2026</div>
 
     <p>Welcome to Shattered Saga (the "Game", "we", "us", or "our"), an AI-powered role-playing game website hosted at <strong>shatteredsaga.com</strong>. Your privacy is important to us, and we are committed to being transparent about how we collect, use, and protect your data.</p>
 
@@ -221,10 +221,11 @@
       <li><strong>Storage Location</strong>: This data remains on your physical device. We do not copy this client-side gameplay data to our servers unless you explicitly sync or back it up using an account.</li>
     </ul>
 
-    <h3>B. Account Authentication (Supabase)</h3>
+    <h3>B. Accounts</h3>
     <p>If you sign in using <strong>Google</strong>, <strong>Facebook</strong>, or an email/password account:</p>
     <ul>
-      <li><strong>Authentication Provider</strong>: We use <strong>Supabase</strong> to securely manage user accounts.</li>
+      <li><strong>Account Hosting</strong>: Accounts are managed by our own sign-in service, hosted on <strong>Cloudflare</strong>. Passwords are stored only as secure hashes.</li>
+      <li><strong>Account Emails</strong>: We send email-verification and password-reset messages through <strong>Mailgun</strong>, which receives your email address for that purpose only.</li>
       <li><strong>Information Collected</strong>: We retrieve and store your email address, profile username, and a unique user ID.</li>
       <li><strong>Purpose</strong>: This information is used solely to authenticate your identity, synchronize your game profile status, track your virtual currency (Gems) balance, and allow cross-device play.</li>
     </ul>
@@ -232,7 +233,7 @@
     <h3>C. Game Master AI Processing (Text Inputs)</h3>
     <p>Shattered Saga relies on Artificial Intelligence to narrate your adventures.</p>
     <ul>
-      <li><strong>Inputs</strong>: When you submit player choices, actions, or custom inputs, these text snippets are sent securely to our AI model pipelines (such as Google Gemini APIs) to generate responses. We do not save your narrative choices on our servers; they are processed ephemerally.</li>
+      <li><strong>Inputs</strong>: When you submit player choices, actions, or custom inputs, these text snippets are sent securely to the AI providers that power the Game Master (<strong>OpenAI</strong>, <strong>Anthropic</strong>, and <strong>Google</strong>) to generate responses. We do not save your narrative choices on our servers; they are processed ephemerally.</li>
     </ul>
 
     <h3>D. Billing and Transaction Logs</h3>
@@ -242,13 +243,21 @@
       <li><strong>Information Stored</strong>: We do not store credit card numbers on our servers. We only store transaction confirmations (order ID, amount, and gem balance adjustments) to credit your account correctly.</li>
     </ul>
 
-    <h2>2. Cookies and Tracking</h2>
-    <p>We do not use tracking cookies, pixel tags, or third-party advertising trackers. We use local browser storage strictly for session state (keeping you logged in) and functional game preferences.</p>
+    <h2>2. Cookies, Tracking and Advertising</h2>
+    <p>We use local browser storage and a sign-in cookie for session state (keeping you logged in) and game preferences.</p>
+    <p><strong>Advertising (free play only):</strong> Free players see ads served by <strong>Google</strong> (Google AdSense and Google Ad Manager). Subscribers play ad-free.</p>
+    <ul>
+      <li>Third-party vendors, including Google, use cookies to serve ads based on a user's prior visits to this website or other websites.</li>
+      <li>Google's use of advertising cookies enables it and its partners to serve ads to you based on your visit to this site and/or other sites on the Internet.</li>
+      <li>You may opt out of personalized advertising by visiting <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener">Google Ads Settings</a>, or opt out of some third-party vendors' use of cookies for personalized advertising at <a href="https://www.aboutads.info/choices/" target="_blank" rel="noopener">www.aboutads.info</a>.</li>
+      <li>Visitors in the European Economic Area, the United Kingdom and Switzerland are asked for consent before personalized ads are shown, through Google's consent message.</li>
+      <li>Learn more in <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">How Google uses information from sites that use its services</a>.</li>
+    </ul>
 
     <h2>3. Data Sharing and Third Parties</h2>
     <p>We do not sell, rent, or trade your personal data. We only share information with third parties in the following limited circumstances:</p>
     <ul>
-      <li><strong>Service Providers</strong>: With cloud services like Supabase to host database profiles, and AI models (like Google Gemini) to generate game narration.</li>
+      <li><strong>Service Providers</strong>: Cloudflare (hosting and account data), OpenAI, Anthropic and Google (AI narration), Mailgun (account emails), Stripe (payments), and Google (advertising for free players, as described above).</li>
       <li><strong>Legal Requirements</strong>: If required by law, regulation, or legal process to protect the safety and integrity of our players and platform.</li>
     </ul>
 

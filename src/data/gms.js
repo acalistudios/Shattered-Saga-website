@@ -34,12 +34,12 @@ export const SAGA_ENGINES = [
     name: 'Premium Engine',
     model: 'gemini-1.5-pro',
     provider: 'gemini',
-    description: 'Deep, rich narrative depth with maximum memory retention. Uses Gemini 1.5 Pro. Consumes 0.1 Gems per turn.',
+    description: 'Deep, rich narrative depth with maximum memory retention, for Adventurer and Legend subscribers. Each premium turn uses 8 turns from your balance.',
     glowClass: 'shadow-violet-500/20 border-violet-500/40 hover:border-violet-400',
     badgeClass: 'bg-violet-950/60 text-violet-400 border border-violet-500/30',
     icon: '💎',
     accentText: 'text-violet-400',
-    badgeText: 'Paid (Gems)'
+    badgeText: 'Subscribers'
   },
   {
     id: 'free',
