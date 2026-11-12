@@ -274,6 +274,9 @@ function App() {
     const authLinked = params.get('auth_linked');
     const authSuccess = params.get('auth_success');
     if (!authError && !authLinked && !authSuccess) return;
+    // An expired password-reset link also returns ?error=INVALID_TOKEN; that is
+    // not a failed sign-in. Splash explains it.
+    if (authError === 'INVALID_TOKEN' && !authProvider && !authLinked && !authSuccess) return;
 
     window.history.replaceState(null, '', window.location.pathname);
     const returnScreen = storage.get('account_return_screen');

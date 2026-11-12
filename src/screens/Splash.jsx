@@ -79,9 +79,8 @@ export default function Splash({
   const [resetToken, setResetToken] = useState(resetLink.token);
   const [newPassword, setNewPassword] = useState('');
   const [newPasswordRepeat, setNewPasswordRepeat] = useState('');
-  const [resetStatus, setResetStatus] = useState(
-    resetLink.error ? { type: 'error', message: 'That reset link has expired or was already used. Request a new one below.' } : null
-  );
+  const [resetStatus, setResetStatus] = useState(null);
+  const [linkExpired, setLinkExpired] = useState(resetLink.error === 'INVALID_TOKEN');
 
   useEffect(() => {
     if (resetLink.error) clearResetParams();
@@ -693,6 +692,69 @@ export default function Splash({
       layoutMode === 'desktop' ? 'max-w-4xl' : 'max-w-lg'
     }`}>
       
+      {/* A password-reset email lands here with ?token=: always show the form on top. */}
+      {!resetToken && linkExpired && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Reset link expired">
+          <div className="w-full max-w-sm bg-slate-950 border border-amber-900/40 rounded-xl p-5 shadow-2xl space-y-3 text-left">
+            <p className="text-2xs font-bold text-amber-400">Reset link expired</p>
+            <p className="text-3xs text-slate-300 leading-relaxed">
+              That password-reset link has expired or was already used. Links work once, for one hour.
+              {isLoggedIn ? ' You are signed in, so you can carry on playing.' : ' Use "Forgot password?" on the sign-in form to get a new one.'}
+            </p>
+            <button
+              type="button"
+              onClick={() => setLinkExpired(false)}
+              className="w-full py-2 rounded bg-amber-500 hover:bg-amber-600 text-slate-955 text-3xs font-extrabold uppercase tracking-wider cursor-pointer"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+      {resetToken && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Choose a new password">
+          <div className="w-full max-w-sm bg-slate-950 border border-amber-900/40 rounded-xl p-5 shadow-2xl">
+                  <form onSubmit={handleResetSubmit} className="space-y-3">
+                    <p className="text-2xs font-bold text-amber-400 text-left">Choose a new password</p>
+                    <div className="space-y-2">
+                      {[['New password', newPassword, setNewPassword], ['Repeat new password', newPasswordRepeat, setNewPasswordRepeat]].map(([label, value, setValue]) => (
+                        <div key={label} className="flex flex-col gap-1 text-left">
+                          <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">{label}</label>
+                          <input
+                            type="password"
+                            required
+                            minLength={8}
+                            autoComplete="new-password"
+                            placeholder="At least 8 characters"
+                            value={value}
+                            onChange={(e) => setValue(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-850 hover:border-slate-750 focus:border-amber-500/50 rounded px-3 py-2 text-2xs text-slate-200 placeholder-slate-650 focus:outline-none transition-colors"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isAuthLoading}
+                      className="w-full py-2.5 rounded bg-amber-500 hover:bg-amber-600 disabled:bg-slate-900 disabled:text-slate-600 text-slate-955 text-3xs font-extrabold uppercase tracking-wider cursor-pointer transition-all active:scale-99 flex items-center justify-center gap-1.5"
+                    >
+                      {isAuthLoading ? <>🌀 Processing...</> : <>🔑 Save New Password</>}
+                    </button>
+                    {resetStatus && (
+                      <p className="text-4xs font-bold leading-normal mt-1 text-left text-rose-450">{resetStatus.message}</p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => { clearResetParams(); setResetToken(null); setResetStatus(null); }}
+                      className="w-full text-4xs text-slate-500 hover:text-slate-300 underline cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </form>
+          </div>
+        </div>
+      )}
+
       {/* Inner centering block with my-auto prevents centering scroll clip bug */}
       <div className="w-full flex flex-col items-center justify-start py-4 my-auto">
         
@@ -717,8 +779,7 @@ export default function Splash({
             <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-amber-500/40"></div>
             <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-amber-500/40"></div>
 
-            {/* A reset link opens the password form even for a signed-in visitor. */}
-            {!isLoggedIn || resetToken ? (
+            {!isLoggedIn ? (
               /* Simulated Social Login Stack */
               <div className="space-y-4 text-left">
                 <div>
@@ -760,49 +821,7 @@ export default function Splash({
                     <span className="absolute bg-slate-950 px-3 text-5xs text-slate-500 font-bold uppercase tracking-widest">Or Use Email</span>
                   </div>
 
-                  {resetToken ? (
-                  <form onSubmit={handleResetSubmit} className="space-y-3">
-                    <p className="text-2xs font-bold text-amber-400 text-left">Choose a new password</p>
-                    <div className="space-y-2">
-                      {[['New password', newPassword, setNewPassword], ['Repeat new password', newPasswordRepeat, setNewPasswordRepeat]].map(([label, value, setValue]) => (
-                        <div key={label} className="flex flex-col gap-1 text-left">
-                          <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">{label}</label>
-                          <input
-                            type="password"
-                            required
-                            minLength={8}
-                            autoComplete="new-password"
-                            placeholder="At least 8 characters"
-                            value={value}
-                            onChange={(e) => setValue(e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-850 hover:border-slate-750 focus:border-amber-500/50 rounded px-3 py-2 text-2xs text-slate-200 placeholder-slate-650 focus:outline-none transition-colors"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={isAuthLoading}
-                      className="w-full py-2.5 rounded bg-amber-500 hover:bg-amber-600 disabled:bg-slate-900 disabled:text-slate-600 text-slate-955 text-3xs font-extrabold uppercase tracking-wider cursor-pointer transition-all active:scale-99 flex items-center justify-center gap-1.5"
-                    >
-                      {isAuthLoading ? <>🌀 Processing...</> : <>🔑 Save New Password</>}
-                    </button>
-                    {resetStatus && (
-                      <p className="text-4xs font-bold leading-normal mt-1 text-left text-rose-450">{resetStatus.message}</p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => { clearResetParams(); setResetToken(null); setResetStatus(null); }}
-                      className="w-full text-4xs text-slate-500 hover:text-slate-300 underline cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  </form>
-                  ) : (
                   <form onSubmit={handleEmailPasswordSubmit} className="space-y-3">
-                    {resetStatus && (
-                      <p className="text-4xs font-bold leading-normal text-left text-rose-450">{resetStatus.message}</p>
-                    )}
                     <div className="space-y-2">
                       <div className="flex flex-col gap-1 text-left">
                         <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Email Address</label>
@@ -874,7 +893,6 @@ export default function Splash({
                       </button>
                     </div>
                   </form>
-                  )}
                 </div>
                 
                 <div className="border-t border-slate-850/60 pt-4 mt-2 space-y-2">
