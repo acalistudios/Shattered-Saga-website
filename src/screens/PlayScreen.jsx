@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import AdSlot from '../components/AdSlot';
+import TradeModal from '../components/TradeModal';
+import { merchantsAtLocation } from '../utils/adventureTrade';
 import { ADSENSE_SLOTS, displayAdsEnabled } from '../utils/ads';
 import { SKILLS_LIST, ATTRIBUTE_LIST } from '../data/gms';
 import { printCharacterSheet, printAdventureLog, ELEMENTAL_ABILITIES } from '../utils/print';
@@ -192,6 +194,9 @@ export default function PlayScreen({
   onResolveEnemyAttack,
   onUseInventoryItem,
   onInstallBowstring,
+  onTrade,
+  onHaggle,
+  onTradeLog,
   onPerformRite,
   activeEnemy,
   counterOpportunities,
@@ -456,7 +461,58 @@ export default function PlayScreen({
 
   const sessionToken = getToken() || storage.get('supabase_session_token');
   const energyBalance = userProfile ? userProfile.energy_balance : null;
-  const energyIsCritical = sessionToken ? (energyBalance !== null && energyBalance <= 10) : (gmEnergies[activeGm.id] <= 20);
+  // Two bars: standard turns and premium turns. One balance pays for both; a
+  // premium turn uses PREMIUM_TURN_COST of it. Adventurer/Legend also get a
+  // monthly fair-use allowance of standard turns before the balance is used.
+  const PREMIUM_TURN_COST = userProfile?.premium_turn_cost || 8;
+  const tier = userProfile?.subscription_tier || 'free';
+  const premiumEligible = ['adventurer', 'legend'].includes(tier);
+  const fairUse = userProfile?.fair_use || null;
+  const turnBars = !sessionToken
+    ? [{
+        label: 'Guest turns',
+        value: `${gmEnergies[activeGm.id]}%`,
+        fraction: (gmEnergies[activeGm.id] || 0) / 100,
+        color: activeGm.theme.barColor,
+        critical: gmEnergies[activeGm.id] <= 20,
+        note: 'Sign in to keep your turns and saves.',
+      }]
+    : energyBalance === null
+      ? [{ label: 'Standard', value: 'Loading…', fraction: 0, color: 'bg-sky-500' }]
+      : [
+          fairUse
+            ? {
+                label: 'Standard (this month)',
+                value: `${fairUse.remaining} / ${fairUse.limit}`,
+                fraction: fairUse.limit ? fairUse.remaining / fairUse.limit : 0,
+                color: 'bg-sky-500',
+                critical: fairUse.remaining === 0 && energyBalance <= 10,
+                note: fairUse.remaining === 0 ? `Allowance used: standard turns now come from your balance (${energyBalance}).` : null,
+              }
+            : {
+                label: 'Standard',
+                value: `${energyBalance}`,
+                fraction: Math.min(1, energyBalance / 100),
+                color: 'bg-sky-500',
+                critical: energyBalance <= 10,
+              },
+          premiumEligible
+            ? {
+                label: 'Premium',
+                value: `${Math.floor(energyBalance / PREMIUM_TURN_COST)}`,
+                fraction: Math.min(1, Math.floor(energyBalance / PREMIUM_TURN_COST) / (tier === 'legend' ? 650 : 200)),
+                color: 'bg-violet-500',
+                critical: energyBalance < PREMIUM_TURN_COST,
+                note: `Each premium turn uses ${PREMIUM_TURN_COST} turns from your balance.`,
+              }
+            : {
+                label: 'Premium',
+                value: 'Subscribers',
+                fraction: 0,
+                color: 'bg-violet-500',
+                locked: true,
+              },
+        ];
   const activeAdventure = getAdventureById(activeAdventureId);
   const narrationDestinations = [...(activeAdventure?.settings || []), ...(activeAdventure?.narrativeDestinations || [])]
     .sort((a, b) => b.length - a.length);
@@ -482,6 +538,9 @@ export default function PlayScreen({
       })
     : [];
   const activeRoomImage = activeRoom ? activeAdventure?.settingImages?.[activeRoom] : null;
+  // Merchants in this room can be traded with directly (utils/adventureTrade.js).
+  const merchantsHere = activeAdventureId ? merchantsAtLocation(activeAdventureId, activeRoom) : [];
+  const [isTradeOpen, setIsTradeOpen] = useState(false);
   const getSkillLabel = (skillId) => (
     SKILLS_LIST.find((skill) => skill.id === skillId)?.name || skillId.replace(/_/g, ' ')
   );
@@ -531,31 +590,26 @@ export default function PlayScreen({
               </div>
             </div>
 
-            {/* Energy bar */}
-            <div className="mt-4 pt-3 border-t border-slate-900/60">
-              <div className="flex justify-between items-center text-3xs font-semibold mb-1">
-                <span className="text-slate-450">
-                  {sessionToken ? 'Remaining Turns' : 'GM Energy'}
-                </span>
-                <span className={energyIsCritical ? 'text-rose-400 font-bold animate-pulse' : 'text-slate-350'}>
-                  {sessionToken 
-                    ? (energyBalance !== null ? `${energyBalance} Turns` : 'Loading...')
-                    : `${gmEnergies[activeGm.id]}%`
-                  }
-                </span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-slate-950 overflow-hidden border border-slate-900">
-                <div
-                  className={`h-full transition-all duration-350 rounded-full ${activeGm.theme.barColor} ${
-                    energyIsCritical ? 'energy-pulse-active' : ''
-                  }`}
-                  style={{ 
-                    width: sessionToken 
-                      ? (energyBalance !== null ? `${Math.min(100, (energyBalance / 100) * 100)}%` : '0%')
-                      : `${gmEnergies[activeGm.id]}%` 
-                  }}
-                />
-              </div>
+            {/* Turns remaining: standard and premium (Worker turns.ts rules) */}
+            <div className="mt-4 pt-3 border-t border-slate-900/60 space-y-2.5">
+              <span className="text-3xs uppercase tracking-widest text-slate-500 font-bold block">Turns remaining</span>
+              {turnBars.map((bar) => (
+                <div key={bar.label}>
+                  <div className="flex justify-between items-center text-3xs font-semibold mb-1">
+                    <span className="text-slate-450">{bar.label}</span>
+                    <span className={bar.critical ? 'text-rose-400 font-bold animate-pulse' : bar.locked ? 'text-slate-600' : 'text-slate-350'}>
+                      {bar.value}
+                    </span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-slate-950 overflow-hidden border border-slate-900">
+                    <div
+                      className={`h-full transition-all duration-350 rounded-full ${bar.color} ${bar.critical ? 'energy-pulse-active' : ''}`}
+                      style={{ width: `${Math.max(0, Math.min(100, bar.fraction * 100))}%` }}
+                    />
+                  </div>
+                  {bar.note && <p className="text-5xs text-slate-600 mt-0.5">{bar.note}</p>}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -1927,6 +1981,29 @@ export default function PlayScreen({
                 </div>
               );
             })()}
+
+            {merchantsHere.length > 0 && onTrade && (
+              <button
+                type="button"
+                onClick={() => setIsTradeOpen(true)}
+                disabled={!!activeEnemy || isLoading}
+                title={activeEnemy ? 'No trading in the middle of a fight.' : 'Buy and sell at the prices set by the game.'}
+                className="w-full mb-1 px-3 py-2 rounded border border-amber-600/40 bg-amber-950/30 hover:bg-amber-900/40 disabled:opacity-40 disabled:cursor-not-allowed text-2xs font-bold text-amber-300 text-left cursor-pointer flex items-center justify-between gap-2"
+              >
+                <span>🛒 Trade with {merchantsHere.map((m) => m.name).join(' or ')}</span>
+                <span className="text-4xs text-amber-500/80 uppercase tracking-widest">Buy &amp; sell</span>
+              </button>
+            )}
+            {isTradeOpen && merchantsHere.length > 0 && (
+              <TradeModal
+                merchants={merchantsHere}
+                character={character}
+                adventureId={activeAdventureId}
+                onTrade={onTrade}
+                onHaggle={onHaggle}
+                onClose={(summary) => { setIsTradeOpen(false); onTradeLog?.(summary); }}
+              />
+            )}
 
             {(activeRoomImage || activeRoomChoices.length > 0) && (
               <div className="rounded border border-slate-850 bg-slate-900/35 overflow-hidden mb-1">

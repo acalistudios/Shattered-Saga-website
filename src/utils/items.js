@@ -94,6 +94,12 @@ export function cleanItemName(itemName) {
 }
 
 function getGenericValue(itemName) {
+  // "Rations (3)" / "Ration (1)": priced per ration, whatever the plural.
+  const rationQty = itemName.match(/^rations?\s*\((\d+)\)$/i);
+  if (rationQty && GENERIC_ITEM_VALUE_BY_NAME.Ration) {
+    const valueCp = parseInt(rationQty[1], 10) * GENERIC_ITEM_VALUE_BY_NAME.Ration.valueCp;
+    return { valueCp, value: coinValue(valueCp), valueCategory: 'provisions' };
+  }
   const exact = GENERIC_ITEM_VALUE_BY_NAME[itemName];
   const clean = GENERIC_ITEM_VALUE_BY_NAME[cleanItemName(itemName)];
   if (exact || clean) {

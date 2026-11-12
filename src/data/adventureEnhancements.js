@@ -100,7 +100,7 @@ const BASE_ADVENTURE_SETTING_METADATA = {
       ],
       "Prison Sub-Level": [
         { text: "Invoke Lord Aldric's sacred oath with his Signet Ring to shield the children", skill: "leadership", difficulty: "novice", intent: "social" },
-        { text: "Drive Vance's consecrated wedge into the fracturing seal keystone to anchor the binding", skill: "athletics", difficulty: "novice", intent: "utility" },
+        { text: "Set Vance's blessed iron keystone into the fracturing seal to anchor the binding", skill: "athletics", difficulty: "novice", intent: "utility" },
         { text: "Channel the Binding Prayer Scroll and Seal Tile to re-bind Malachar into the floor", skill: "divine_communion", difficulty: "professional", intent: "magic" },
       ],
     },

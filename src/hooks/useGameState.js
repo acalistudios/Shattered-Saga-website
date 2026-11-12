@@ -48,6 +48,7 @@ import { claimDepot, isAtDepot, settleConfiscatedOnCompletion, shouldConfiscateO
 import { getSupplyDepot } from '../data/supplyDepot';
 import { rollDiceExpression } from '../utils/dice';
 import { claimSearchFind, applySearchFind, formatCoin, TREASURE_FINDS_PER_ADVENTURE } from '../data/payouts';
+import { merchantsAtLocation, buyFromMerchant, sellToMerchant, recordHaggle, haggleToday } from '../utils/adventureTrade';
 import {
   PATROL_FOES, patrolGearRecovery, isPatrolId, patrolEncounterIdOf, patrolIdFor, beginPatrol, markPatrolFought,
   normalizePatrolOutcome, rollPatrolOutcomeLoot, finishPatrol as applyPatrolFinish, describePatrolResult, FLEE_PURSUIT_FRACTION, canBeginPatrol, getPatrolChoices, selectPatrolChoices,
@@ -401,6 +402,12 @@ const DEFAULT_CHARACTER = {
   companions: []
 };
 
+// Items renamed after release; saves still holding the old name get the new one.
+const LEGACY_ITEM_NAMES = {
+  "Vance's Consecrated Forge Wedge": "Vance's Blessed Iron Keystone",
+};
+const renameLegacyItem = (item) => (typeof item === 'string' && LEGACY_ITEM_NAMES[item]) || item;
+
 export function validateCharacterSchema(raw) {
   if (!raw) return DEFAULT_CHARACTER;
   
@@ -443,11 +450,11 @@ export function validateCharacterSchema(raw) {
       gold: gp,
       fateCoins: raw.currency?.fateCoins ?? 0
     },
-    equipment: {
+    equipment: Object.fromEntries(Object.entries({
       ...DEFAULT_CHARACTER.equipment,
       ...(raw.equipment || {})
-    },
-    inventory: Array.isArray(raw.inventory) ? raw.inventory : DEFAULT_CHARACTER.inventory,
+    }).map(([slot, item]) => [slot, renameLegacyItem(item)])),
+    inventory: Array.isArray(raw.inventory) ? raw.inventory.map(renameLegacyItem) : DEFAULT_CHARACTER.inventory,
     active_quests: Array.isArray(raw.active_quests) ? raw.active_quests : DEFAULT_CHARACTER.active_quests,
     completed_quests: Array.isArray(raw.completed_quests) ? raw.completed_quests : DEFAULT_CHARACTER.completed_quests,
     unlocked_regions: Array.isArray(raw.unlocked_regions) ? raw.unlocked_regions : DEFAULT_CHARACTER.unlocked_regions,
@@ -4946,6 +4953,54 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     return true;
   };
 
+  // Trading with the merchants in the current room (utils/adventureTrade.js).
+  // The engine sets every price; the GM is told afterwards via the story log.
+  const merchantHere = (merchantName) => (
+    activeAdventureId ? merchantsAtLocation(activeAdventureId, currentLocation).find(m => m.name === merchantName) : null
+  );
+
+  const tradeWithMerchant = (action, merchantName, itemName) => {
+    const merchant = merchantHere(merchantName);
+    if (!merchant) return false;
+    const equipped = Object.values(character.equipment || {}).filter(Boolean);
+    const next = action === 'buy'
+      ? buyFromMerchant(character, activeAdventureId, merchant, itemName)
+      : sellToMerchant(character, activeAdventureId, merchant, itemName, equipped);
+    if (next === character) return false;
+    setCharacter(prev => (action === 'buy'
+      ? buyFromMerchant(prev, activeAdventureId, merchant, itemName)
+      : sellToMerchant(prev, activeAdventureId, merchant, itemName, Object.values(prev.equipment || {}).filter(Boolean))));
+    return true;
+  };
+
+  /** One Negotiation roll per merchant per in-game day; improves prices up to 25%. */
+  const haggleWithMerchant = (merchantName) => {
+    const merchant = merchantHere(merchantName);
+    if (!merchant || haggleToday(character, activeAdventureId, merchant) !== null) return null;
+    const skill = SKILLS_LIST.find(s => s.id === 'negotiation');
+    if (!skill) return null;
+    const roll = executeOpposedCheck({
+      skillName: skill.name,
+      primaryAttr: skill.primary.charAt(0).toUpperCase() + skill.primary.slice(1),
+      primaryScore: character.attributes?.[skill.primary] || 1,
+      secondaryAttr: skill.secondary.charAt(0).toUpperCase() + skill.secondary.slice(1),
+      secondaryScore: character.attributes?.[skill.secondary] || 1,
+      skillRanks: character.skills?.negotiation || 0,
+      difficulty: 'professional',
+      roleplayModifier: 0,
+      resistanceModifier: 0,
+      potencyModifier: 0,
+    });
+    setCharacter(prev => recordHaggle(prev, activeAdventureId, merchant, roll));
+    return { ...roll, adjustment: roll.success ? Math.min(merchant.negotiationMaxAdjustment ?? 0.25, Math.max(0, roll.margin) * 0.05) : 0 };
+  };
+
+  /** Tell the story (and so the GM) what changed hands. */
+  const recordTradeInStory = (summary) => {
+    if (!summary) return;
+    setHistory(prev => [...prev, { role: 'model', content: `*${summary}*`, imagePrompt: null, imageUrl: null, checkDetails: null }]);
+  };
+
   /** A7: put the Starfall Bowstring on a bow, permanently (utils/bowstring.js). */
   const installBowstring = (bowName) => {
     if (installStarfallBowstring(character, bowName) === character) return false;
@@ -6451,6 +6506,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     resolveEnemyAttack,
     useInventoryItem,
     installBowstring,
+    tradeWithMerchant,
+    haggleWithMerchant,
+    recordTradeInStory,
     performRite,
     activeEnemy,
     setActiveEnemy,

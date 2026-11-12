@@ -97,6 +97,9 @@ function App() {
     resolveEnemyAttack,
     useInventoryItem,
     installBowstring,
+    tradeWithMerchant,
+    haggleWithMerchant,
+    recordTradeInStory,
     performRite,
     triggerPriceRecovery,
     buyItemFromMerchant,
@@ -1147,6 +1150,9 @@ function App() {
             onResolveEnemyAttack={resolveEnemyAttack}
             onUseInventoryItem={useInventoryItem}
             onInstallBowstring={installBowstring}
+            onTrade={tradeWithMerchant}
+            onHaggle={haggleWithMerchant}
+            onTradeLog={recordTradeInStory}
             onPerformRite={performRite}
             activeEnemy={activeEnemy}
             counterOpportunities={counterOpportunities}

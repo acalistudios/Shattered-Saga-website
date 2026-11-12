@@ -168,7 +168,7 @@ const BASE_ADVENTURES_LIST = [
       {
         name: 'Vance',
         role: 'Forge Owner',
-        desc: 'A grizzled retired watchman with a limp. Suspicious of the keep, he offers his consecrated forge wedge and warns travelers: "Cold iron won\'t bite the shadow bound below—search Aldric\'s study for his signet ring and search the chapel altar for holy water and prayer scrolls before you descend, or you will die in those vaults."',
+        desc: 'A grizzled retired watchman with a limp. Suspicious of the keep, he offers a blessed iron keystone from his forge and warns travelers: "Cold iron won\'t bite the shadow bound below—search Aldric\'s study for his signet ring and search the chapel altar for holy water and prayer scrolls before you descend, or you will die in those vaults."',
         stats: {
           HP: 14,
           attributes: { Power: 3, Coordination: 2, Vigor: 2, Willpower: 3, Intellect: 2, Charisma: 2, Attunement: 1, Empathy: 2 },
@@ -176,7 +176,7 @@ const BASE_ADVENTURES_LIST = [
           defenses: { dodge: 'Coordination d6 + Vigor d2+1', block: 'Power d8 + Coordination d2+1 + 2d2' },
           armor: 'Leather apron, light armor soak 1d3 when relevant',
           attacks: [{ name: 'Forge Hammer', skill: 'Heavy Weapons', damage: '1d8 blunt', note: 'Uses a smithing hammer as a warhammer if cornered.' }],
-          equipment: ['Forge Hammer', 'Iron Shield', 'Smithing Tools', 'Vance\'s Consecrated Forge Wedge'],
+          equipment: ['Forge Hammer', 'Iron Shield', 'Smithing Tools', 'Vance\'s Blessed Iron Keystone'],
           weaknesses: ['Old leg injury imposes -1 on chase, Acrobatics, or extended Athletics checks.']
         }
       },
@@ -239,8 +239,8 @@ const BASE_ADVENTURES_LIST = [
             { name: 'Shadow Claw', skill: 'Brawling', damage: '1d6 edged', note: 'Can inflict Bleeding Tier 1 only on margin 5+.' },
             { name: 'Dread Whisper', skill: 'Intimidation', damage: '2 Fatigue', note: 'Opposed by Willpower; failure applies frightened for 1 round.' }
           ],
-          special: 'Counts as monstrous score 6 for Willpower and Attunement resistance. Incorporeal: completely ignores mundane physical weapons. If the player attacks directly with mundane steel, the Chronicler must describe their blade passing harmlessly through icy shadow, deal immediate counter-fatigue, and narrate an urgent clue to use Holy Water, the Binding Prayer Scroll, Vance\'s consecrated wedge, or Aldric\'s aid. Every 1d2+1 rounds of direct melee combat, Malachar taunts the player: for rounds 2–5, he announces either "You know fighting me is a lost cause, right? Cold iron cannot sever shadow." or "What mortal could hope to prevail against the incorporeal? Yet still you try..."; for round 6 and beyond, he mocks: "The fool keeps trying more of the same! Victory shall be mine!" The Chronicler must then intervene and point out to the player that there may be better ways to defeat Malachar than a direct confrontation (such as using the sacred seal tile, Aldric\'s oath, holy water, or driving the consecrated wedge into the altar). Bargains always carry a morality cost.',
-          weaknesses: ['Holy Water', 'Creator\'s Binding Seal Tile', 'Binding Prayer Scroll', 'Aldric\'s restored oath.', 'Vance\'s Consecrated Forge Wedge']
+          special: 'Counts as monstrous score 6 for Willpower and Attunement resistance. Incorporeal: completely ignores mundane physical weapons. If the player attacks directly with mundane steel, the Chronicler must describe their blade passing harmlessly through icy shadow, deal immediate counter-fatigue, and narrate an urgent clue to use Holy Water, the Binding Prayer Scroll, Vance\'s blessed iron keystone, or Aldric\'s aid. Every 1d2+1 rounds of direct melee combat, Malachar taunts the player: for rounds 2–5, he announces either "You know fighting me is a lost cause, right? Cold iron cannot sever shadow." or "What mortal could hope to prevail against the incorporeal? Yet still you try..."; for round 6 and beyond, he mocks: "The fool keeps trying more of the same! Victory shall be mine!" The Chronicler must then intervene and point out to the player that there may be better ways to defeat Malachar than a direct confrontation (such as using the sacred seal tile, Aldric\'s oath, holy water, or setting Vance\'s blessed iron keystone into the seal). Bargains always carry a morality cost.',
+          weaknesses: ['Holy Water', 'Creator\'s Binding Seal Tile', 'Binding Prayer Scroll', 'Aldric\'s restored oath.', 'Vance\'s Blessed Iron Keystone']
         }
       }
     ],
@@ -253,7 +253,7 @@ const BASE_ADVENTURES_LIST = [
       'Holy Water',
       'Silver Mirror',
       'Binding Prayer Scroll',
-      'Vance\'s Consecrated Forge Wedge'
+      'Vance\'s Blessed Iron Keystone'
     ],
     itemsDetail: [
       { name: 'Creator\'s Binding Seal Tile', desc: 'A white stone tile veined with gold and old prayer-script, broken from the original prison seal.', properties: 'During the Malachar ritual, grants +1 to Lore, Divine Manifestation, or Arcane Drawing checks made to weaken or re-bind the demon. Outside that ritual it is evidence, not a general bonus item.' },
@@ -264,7 +264,7 @@ const BASE_ADVENTURES_LIST = [
       { name: 'Holy Water', desc: 'A stoppered glass vial from the chapel font, still clear despite the dust.', properties: 'Harms demons, undead, incorporeal evil, and possessed targets. Against Aldric, who is not evil, it calms him briefly instead of dealing damage unless the player attacks again.' },
       { name: 'Silver Mirror', desc: 'A palm-sized mirror with a tarnished frame and a crack like a lightning fork.', properties: 'Reveals invisible shadows, possession marks, false reflections, and hidden writing tied to Malachar.' },
       { name: 'Binding Prayer Scroll', desc: 'A brittle chapel scroll written in a priest\'s cramped hand.', properties: 'One-use ritual aid. Reduces the final re-binding difficulty by one tier or grants +1 to a Divine Manifestation check against Malachar.' },
-      { name: 'Vance\'s Consecrated Forge Wedge', desc: 'A heavy iron wedge stamped with holy smithing runes from Vance\'s forge.', properties: 'Grants +2 to Athletics or Heavy Weapons checks made to physically wedge, brace, or hammer the cracked prison seal in the Prison Sub-Level.' }
+      { name: 'Vance\'s Blessed Iron Keystone', desc: 'A heavy iron keystone stamped with holy smithing runes from Vance\'s forge, cut to replace the cracked keystone of the prison seal.', properties: 'Grants +2 to Athletics or Heavy Weapons checks made to set, brace, or hammer the keystone into the cracked prison seal in the Prison Sub-Level.' }
     ],
     settings: ['Ashveil Village Square', 'Yew Graveyard', 'Great Hall', 'Lord\'s Study', 'Chapel', 'Prison Sub-Level'],
     settingDescriptions: {
