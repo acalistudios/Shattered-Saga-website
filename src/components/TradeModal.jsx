@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { formatCoin } from '../data/payouts';
 import { merchantStock, buyPriceCp, sellOfferCp, haggleToday } from '../utils/adventureTrade';
-import { getLoan, returnableLoans } from '../utils/discoveries';
+import { getLoan, returnableLoans, itemsOnLoan } from '../utils/discoveries';
 
 const coinCp = (c = {}) => (c.gp ?? c.gold ?? 0) * 100 + (c.sp || 0) * 10 + (c.cp || 0);
 
@@ -20,6 +20,7 @@ export default function TradeModal({ merchants, character, adventureId, onTrade,
   const haggle = haggleToday(character, adventureId, merchant);
   const purse = coinCp(character.currency);
   const equipped = Object.values(character.equipment || {}).filter(Boolean);
+  const onLoan = itemsOnLoan(character);
   const stock = merchantStock(character, adventureId, merchant);
 
   // One row per distinct item in the pack, with its count.
@@ -29,7 +30,7 @@ export default function TradeModal({ merchants, character, adventureId, onTrade,
     item,
     count,
     isEquipped: equipped.includes(item),
-    offer: sellOfferCp(adventureId, merchant, item, haggle || 0, equipped),
+    offer: sellOfferCp(adventureId, merchant, item, haggle || 0, [...equipped, ...onLoan]),
   })).sort((a, b) => (b.offer ?? -1) - (a.offer ?? -1));
 
   const record = (line) => setLog((prev) => [...prev, line]);
@@ -151,7 +152,7 @@ export default function TradeModal({ merchants, character, adventureId, onTrade,
                     <span className="text-2xs text-slate-200 font-bold">{row.item}{row.count > 1 ? ` ×${row.count}` : ''}</span>
                     <span className="block text-4xs text-slate-500">
                       {row.isEquipped ? 'Equipped: unequip it to sell'
-                        : getLoan(row.item) ? `On loan from ${getLoan(row.item).ownerShort}: not yours to sell`
+                        : onLoan.includes(row.item) ? `On loan from ${getLoan(row.item).ownerShort}: not yours to sell`
                         : row.offer === null ? `${merchant.name} doesn't buy this` : ''}
                     </span>
                   </div>

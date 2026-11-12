@@ -49,7 +49,7 @@ import { getSupplyDepot } from '../data/supplyDepot';
 import { rollDiceExpression } from '../utils/dice';
 import { claimSearchFind, applySearchFind, formatCoin, TREASURE_FINDS_PER_ADVENTURE } from '../data/payouts';
 import { merchantsAtLocation, buyFromMerchant, sellToMerchant, recordHaggle, haggleToday } from '../utils/adventureTrade';
-import { recordDiscoveries, resolveLoanRemovals, returnLoan, settleLoansOnLeave, getLoan } from '../utils/discoveries';
+import { recordDiscoveries, resolveLoanRemovals, returnLoan, settleLoansOnLeave, settleMissingLoans, getLoan } from '../utils/discoveries';
 import {
   PATROL_FOES, patrolGearRecovery, isPatrolId, patrolEncounterIdOf, patrolIdFor, beginPatrol, markPatrolFought,
   normalizePatrolOutcome, rollPatrolOutcomeLoot, finishPatrol as applyPatrolFinish, describePatrolResult, FLEE_PURSUIT_FRACTION, canBeginPatrol, getPatrolChoices, selectPatrolChoices,
@@ -752,11 +752,16 @@ export default function useGameState() {
   }, [currentLocation, activeSlotIndex, character?.name]);
 
   // Journal discoveries: note each authored item of this adventure the first
-  // time it reaches the pack, and start tracking loaned items (utils/discoveries.js).
-  const inventoryKey = (character?.inventory || []).join('|');
+  // time it reaches the pack, start tracking loaned items, and settle a loan
+  // whose item left the pack (drunk, used, taken) — utils/discoveries.js.
+  const inventoryKey = [...(character?.inventory || []), '/', ...Object.values(character?.equipment || {})].join('|');
   useEffect(() => {
     if (!activeAdventureId || !character?.name) return;
-    setCharacter(prev => (prev ? recordDiscoveries(prev, activeAdventureId) : prev));
+    const dropped = Object.values(droppedItems?.[activeAdventureId] || {}).flat();
+    setCharacter(prev => (prev
+      ? settleMissingLoans(recordDiscoveries(prev, activeAdventureId), activeAdventureId, currentLocation, dropped)
+      : prev));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when the pack or adventure changes
   }, [inventoryKey, activeAdventureId, character?.name]);
 
   useEffect(() => {

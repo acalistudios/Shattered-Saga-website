@@ -449,7 +449,7 @@ const BASE_ADVENTURES_LIST = [
       { name: 'Threx\'s Sealed Letter', desc: 'A wax-sealed letter bearing a red eye sigil and instructions for preparing viable vessels.', properties: 'Proof of the possession conspiracy. Lore or Languages can identify the demonic phrasing; breaking the seal early may alert Threx if discovered.' },
       { name: 'Flare Pouch', desc: 'A paper pouch of red powder refined from Redvein ore.', properties: 'Consumable stimulant. Restores 2 Fatigue or grants +1 to one Power, Vigor, or Coordination-based check, then costs 3 Fatigue afterward and may require a Willpower check to avoid craving or corruption.' },
       { name: 'Raw Redvein Ore', desc: 'A jagged red-black mineral that hums softly near possessed victims.', properties: 'Alchemy material and possession focus. Can disrupt possessing spirits during a ritual, but carrying it too long may provoke nightmares or Willpower checks.' },
-      { name: 'Bram\'s Notebook', desc: 'A soot-stained notebook documenting Redvein exposure, Flare refinement, and safe disposal methods.', properties: 'Grants +1 to Alchemy or Lore checks involving Redvein, Flare, or possession vessels. Can guide destruction of the Processing Hall without killing prisoners.' }
+      { name: 'Bram\'s Notebook', desc: 'A soot-stained notebook documenting Redvein exposure, Flare refinement, and safe disposal methods.', properties: 'Grants +1 to Alchemy or Lore checks involving Redvein, Flare, or possession vessels. Can guide destruction of the Processing Hall without killing prisoners. It is on loan from Old Bram: if he gets it back, emit [remove_item: Bram\'s Notebook].' }
     ],
     settings: ['Intake Cage', 'Prisoner Barracks', 'Processing Hall', 'Deep Redvein Vein', 'Threx\'s Office', 'Supply Depot'],
     settingDescriptions: {
@@ -658,7 +658,7 @@ const BASE_ADVENTURES_LIST = [
     itemsDetail: [
       { name: 'Lost Archive Scroll', desc: 'A waterproof scroll tube containing elven records on planar static cycles.', properties: 'Major lore reward. Grants campaign secrets and can justify a Lore or Languages skill point when those skills were used.' },
       { name: 'Amulet of Tide-Taming', desc: 'A blue-green shell amulet strung on silver wire, cold as deep current when danger rises.', properties: 'Water-aspected relic. Breathe underwater for one scene once per rest and gain +1 to Survival or Athletics in water hazards. Water-affinity PCs can extend underwater breathing to close allies in the same scene.' },
-      { name: 'Water-Breathing Elixir', desc: 'A cool glass vial smelling of mint, salt, and kelp.', properties: 'Consumable. Grants water breathing for one hour; does not restore Fatigue or SP.' }
+      { name: 'Water-Breathing Elixir', desc: 'A cool glass vial smelling of mint, salt, and kelp.', properties: 'Consumable. Grants water breathing for one hour; does not restore Fatigue or SP. One that Naelia lends is on loan: if the player hands it back to her, emit [remove_item: Water-Breathing Elixir].' }
     ],
     settings: ['Flooded Library Entrance', 'Hall of Forgotten Runes', 'Tidal Siphon Junction', 'Planar Archives Sanctuary'],
     settingDescriptions: {
@@ -900,7 +900,7 @@ const BASE_ADVENTURES_LIST = [
     items: ['Sun Gear Key', 'Moon Gear Key', 'Star Gear Key', 'Aether-Wrench', 'Stabilized Chrono-Core', 'Von Rictor\'s Ledger', 'Tiny Copper Leg', 'Alchemical Acid Flask'],
     itemsDetail: [
       { name: 'Sun Gear Key', desc: 'A heavy golden-brass gear key engraved with solar rays. It is hot to the touch. Located in the Boiler Core Basement, held by a molten slag-heap.' },
-      { name: 'Moon Gear Key', desc: 'A silver-plated crescent gear key. It emits a soft, cold light. Worn by Unit-7 as a brooch.' },
+      { name: 'Moon Gear Key', desc: 'A silver-plated crescent gear key. It emits a soft, cold light. Worn by Unit-7 as a brooch.', properties: 'Unit-7\'s keepsake: once set into the alignment lock, or pinned back on Unit-7, emit [remove_item: Moon Gear Key].' },
       { name: 'Star Gear Key', desc: 'A delicate, star-shaped brass gear key. It vibrates gently at a high frequency. Hidden inside the Queen Bee\'s hive in the Arboretum.' },
       { name: 'Aether-Wrench', desc: 'A specialized clocksmith\'s tool glowing with green light-emitting runes.', properties: 'Counts as a +1 Light Weapon, dealing 1d6 blunt as a mace-like tool. Grants +1 to Crafting or Smithing checks involving clockwork, steam valves, automata, or mechanical disassembly.' },
       { name: 'Stabilized Chrono-Core', desc: 'A humming sphere of tempered glass containing glowing blue sand.', properties: 'Can be installed in the central engine to stabilize the conservatory. If consumed as an emergency time reversal, restores 5 HP with a [heal] effect once, then becomes inert; it does not restore SP or Fatigue.' },

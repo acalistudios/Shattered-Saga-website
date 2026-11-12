@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
-  recordDiscoveries, resolveLoanRemovals, returnLoan, settleLoansOnLeave, returnableLoans,
+  recordDiscoveries, resolveLoanRemovals, returnLoan, settleLoansOnLeave, returnableLoans, settleMissingLoans,
 } from './discoveries';
 import { ITEM_NOTES, LOANED_ITEMS } from '../data/itemObjectives';
 import { ADVENTURES_LIST } from '../data/adventures';
-import { merchantBuys, sellOfferCp, getAdventureMerchants } from './adventureTrade';
+import { merchantBuys, sellOfferCp, sellToMerchant, getAdventureMerchants } from './adventureTrade';
 
 const KEY = "Vance's Blessed Iron Keystone";
 const ADV = 'ashveil_keep';
@@ -53,7 +53,8 @@ describe("Vance's keystone (a loan)", () => {
 
   it('cannot be sold to anyone', () => {
     const vance = getAdventureMerchants(ADV).find((m) => m.name === 'Vance Coalhand');
-    expect(sellOfferCp(ADV, vance, KEY)).toBeNull();
+    const c = { ...withKeystone(), currency: { gp: 0 } };
+    expect(sellToMerchant(c, ADV, vance, KEY)).toBe(c);
   });
 
   it('leaving with it: kept, standing drops; returning later recovers some', () => {
@@ -70,6 +71,49 @@ describe("Vance's keystone (a loan)", () => {
     const used = resolveLoanRemovals(withKeystone(), [KEY], 'Prison Sub-Level');
     const again = settleLoansOnLeave({ ...used, inventory: [KEY] }, ADV);
     expect(again.progression.loans[KEY].status).toBe('used');
+  });
+});
+
+describe('the other loans', () => {
+  const ELIXIR = 'Water-Breathing Elixir';
+  const SPIRE = 'sunken_spire';
+  const spire = (inventory, bought = 0) => hero({
+    inventory,
+    progression: bought ? { adventureTrades: { [SPIRE]: { 'Neris Tidehand': { bought: { [ELIXIR]: bought } } } } } : {},
+  });
+
+  it("Bram's notebook: returned in the barracks, kept if you leave with it", () => {
+    const c = recordDiscoveries(hero({ inventory: ["Bram's Notebook"] }), 'saltblood_mines');
+    expect(c.progression.loans["Bram's Notebook"].status).toBe('active');
+    const back = resolveLoanRemovals(c, ["Bram's Notebook"], 'Prisoner Barracks');
+    expect(back.localEconomy.relationships['Old Bram']).toBe(10);
+    expect(settleLoansOnLeave(c, 'saltblood_mines').localEconomy.relationships['Old Bram']).toBe(-15);
+  });
+
+  it("an elixir bought from a merchant is not a loan; one from Naelia is", () => {
+    expect(recordDiscoveries(spire([ELIXIR], 1), SPIRE).progression.loans).toBeUndefined();
+    const lent = recordDiscoveries(spire([ELIXIR, ELIXIR], 1), SPIRE);
+    expect(lent.progression.loans[ELIXIR].status).toBe('active');
+  });
+
+  it('drinking the elixir (it leaves the pack) counts as using it', () => {
+    const lent = recordDiscoveries(spire([ELIXIR, ELIXIR], 1), SPIRE);
+    const drank = settleMissingLoans({ ...lent, inventory: [ELIXIR] }, SPIRE, 'Tidal Siphon Junction');
+    expect(drank.progression.loans[ELIXIR].status).toBe('used');
+    expect(drank.localEconomy.relationships['Naelia the Diver']).toBe(5);
+    expect(settleMissingLoans(lent, SPIRE, 'Tidal Siphon Junction')).toBe(lent);
+  });
+
+  it('a dropped loan is not settled', () => {
+    const lent = recordDiscoveries(spire([ELIXIR]), SPIRE);
+    expect(settleMissingLoans({ ...lent, inventory: [] }, SPIRE, 'Hall of Forgotten Runes', [ELIXIR]).progression.loans[ELIXIR].status).toBe('active');
+  });
+
+  it("Moon Gear Key: set into the lock away from Unit-7's lab is used", () => {
+    const c = recordDiscoveries(hero({ inventory: ['Moon Gear Key'] }), 'clockwork_conservatory');
+    const used = settleMissingLoans({ ...c, inventory: [] }, 'clockwork_conservatory', 'The Chronos Vault');
+    expect(used.progression.loans['Moon Gear Key'].status).toBe('used');
+    expect(used.localEconomy.relationships['Unit-7 (Nanny)']).toBe(10);
   });
 });
 

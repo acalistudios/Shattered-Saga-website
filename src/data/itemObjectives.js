@@ -18,7 +18,7 @@ export const ITEM_NOTES = {
   "Threx's Sealed Letter": 'Proof of the possession conspiracy. Opening it early may warn Threx.',
   'Flare Pouch': 'A dangerous stimulant: a quick boost, then a crash and possible craving.',
   'Raw Redvein Ore': 'Can drive out possessing spirits during a ritual, but carrying it brings nightmares.',
-  "Bram's Notebook": 'Explains Redvein and Flare, and how to destroy the Processing Hall without killing the prisoners.',
+  "Bram's Notebook": "Lent by Old Bram. Explains Redvein and Flare, and how to destroy the Processing Hall without killing the prisoners. Give it back to Bram when you're done.",
   // Blackroot Hollow
   'Spider-Silk Bundle': 'Fine crafting silk: sell it or use it for rope, nets or armour lining.',
   'Queen Venom Vial': "One dose of Mother Silken's venom for a blade.",
@@ -48,7 +48,7 @@ export const ITEM_NOTES = {
   // Whispers of the Sunken Spire
   'Lost Archive Scroll': 'Elven records of planar static cycles. A major lore find.',
   'Amulet of Tide-Taming': 'Breathe underwater for a scene once per rest.',
-  'Water-Breathing Elixir': 'One hour of water breathing.',
+  'Water-Breathing Elixir': "One hour of water breathing. If Naelia lent it, drink it for the dive or hand it back to her unused; don't walk off with it.",
   // The Plague Bells of Merrin Abbey
   'Blessed Bell Clapper': 'A holy relic: restores divine power or stabilises the dying.',
   "Healer's Abbey Satchel": "A healer's kit with five uses.",
@@ -61,7 +61,7 @@ export const ITEM_NOTES = {
   'Blue-Lantern Charm': 'Once per adventure, helps with ghosts, tides and drowned places.',
   // The Clockwork Conservatory
   'Sun Gear Key': 'One of three gear keys for the alignment lock (Sun 45).',
-  'Moon Gear Key': 'One of three gear keys for the alignment lock (Moon 90). Unit-7 wears it.',
+  'Moon Gear Key': "Unit-7's keepsake brooch, and one of three gear keys for the alignment lock (Moon 90). Set it in the lock, or pin it back on Unit-7.",
   'Star Gear Key': 'One of three gear keys for the alignment lock (Star 180).',
   'Aether-Wrench': 'A clocksmith tool and weapon. Helps with clockwork and steam valves.',
   'Stabilized Chrono-Core': 'Install it in the central engine to stabilise the conservatory, or use it once to heal.',
@@ -117,7 +117,7 @@ export const LOANED_ITEMS = {
     adventureId: 'ashveil_keep',
     owner: 'Vance Coalhand',
     ownerShort: 'Vance',
-    ownerLocation: 'Ashveil Village Square',
+    ownerLocations: ['Ashveil Village Square'],
     // used: set into the seal; returned: brought back unused; kept: left the
     // adventure still holding it; lateReturn: brought back after keeping it.
     reputation: { used: 15, returned: 5, kept: -20, lateReturn: 10 },
@@ -126,6 +126,48 @@ export const LOANED_ITEMS = {
       returned: 'You returned Vance\'s keystone unused. He thanks you for your honesty.',
       kept: 'You left Ashveil still carrying Vance\'s keystone. Vance considers it stolen.',
       lateReturn: 'You finally brought Vance\'s keystone back. He forgives you, mostly.',
+    },
+  },
+  "Bram's Notebook": {
+    adventureId: 'saltblood_mines',
+    owner: 'Old Bram',
+    ownerShort: 'Bram',
+    // Bram is a prisoner: he is found in the cages or the barracks.
+    ownerLocations: ['Prisoner Barracks', 'Intake Cage'],
+    reputation: { used: 5, returned: 10, kept: -15, lateReturn: 5 },
+    outcomes: {
+      used: "Bram's notebook was spent bringing down the Flare operation. He says it was worth it.",
+      returned: "You gave Bram his notebook back. His life's work is safe, and he won't forget it.",
+      kept: "You left the mines with Bram's notebook. He has lost his life's work.",
+      lateReturn: "You finally returned Bram's notebook. He is relieved, if wary.",
+    },
+  },
+  'Water-Breathing Elixir': {
+    adventureId: 'sunken_spire',
+    owner: 'Naelia the Diver',
+    ownerShort: 'Naelia',
+    ownerLocations: ['Flooded Library Entrance', 'Planar Archives Sanctuary'],
+    // Only a lent elixir is a loan: copies bought from a merchant are not
+    // (see startLoans in utils/discoveries.js).
+    reputation: { used: 5, returned: 5, kept: -15, lateReturn: 5 },
+    outcomes: {
+      used: "You drank Naelia's elixir for the dive. She counts it as money well lent.",
+      returned: "You handed Naelia's elixir back unused. She is surprised, and pleased.",
+      kept: "You left the Spire with Naelia's elixir. She marks you down as a thief.",
+      lateReturn: "You finally brought Naelia's elixir back. She takes it without a word.",
+    },
+  },
+  'Moon Gear Key': {
+    adventureId: 'clockwork_conservatory',
+    owner: 'Unit-7 (Nanny)',
+    ownerShort: 'Unit-7',
+    ownerLocations: ['The Alchemical Lab'],
+    reputation: { used: 10, returned: 5, kept: -10, lateReturn: 5 },
+    outcomes: {
+      used: "You set Unit-7's moon brooch into the alignment lock. The conservatory hums back to life.",
+      returned: "You pinned the moon brooch back on Unit-7. Its whirring softens.",
+      kept: "You left the conservatory with Unit-7's moon brooch. The lock stays dark.",
+      lateReturn: "You brought Unit-7's moon brooch back at last.",
     },
   },
 };

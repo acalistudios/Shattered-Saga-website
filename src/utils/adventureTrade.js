@@ -11,7 +11,7 @@
 import { ADVENTURE_ECONOMY_METADATA } from '../data/adventureEconomy';
 import { MERCHANT_TRADE_RULES } from '../data/economy';
 import { getItemDetails } from './items';
-import { LOANED_ITEMS } from '../data/itemObjectives';
+import { itemsOnLoan } from './discoveries';
 
 const norm = (s) => String(s || '').trim().toLowerCase();
 const QTY_RE = /^(.*?)\s*\((\d+)\)$/;
@@ -93,9 +93,9 @@ const unitOf = (itemName) => {
 };
 
 /** What the merchant pays for one of this item, or null if they won't buy it. */
-export function sellOfferCp(adventureId, merchant, itemName, haggle = 0, equipped = []) {
-  // Equipped gear can't be sold, nor can an item an NPC lent you.
-  if (equipped.includes(itemName) || LOANED_ITEMS[itemName]) return null;
+export function sellOfferCp(adventureId, merchant, itemName, haggle = 0, unsellable = []) {
+  // `unsellable`: equipped gear, and anything an NPC lent you (itemsOnLoan).
+  if (unsellable.includes(itemName)) return null;
   const { valueCp, category } = itemValuation(adventureId, unitOf(itemName)?.unit || itemName);
   if (!valueCp || !merchantBuys(merchant, category)) return null;
   const rate = Math.min(
@@ -140,7 +140,7 @@ export function buyFromMerchant(character, adventureId, merchant, itemName) {
 export function sellToMerchant(character, adventureId, merchant, itemName, equipped = []) {
   const idx = (character.inventory || []).indexOf(itemName);
   if (idx === -1) return character;
-  const offer = sellOfferCp(adventureId, merchant, itemName, haggleToday(character, adventureId, merchant), equipped);
+  const offer = sellOfferCp(adventureId, merchant, itemName, haggleToday(character, adventureId, merchant), [...equipped, ...itemsOnLoan(character)]);
   if (offer === null) return character;
   const stack = unitOf(itemName);
   const inventory = stack && stack.qty > 1
