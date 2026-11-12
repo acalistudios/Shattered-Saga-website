@@ -49,6 +49,7 @@ import { getSupplyDepot } from '../data/supplyDepot';
 import { rollDiceExpression } from '../utils/dice';
 import { claimSearchFind, applySearchFind, formatCoin, TREASURE_FINDS_PER_ADVENTURE } from '../data/payouts';
 import { merchantsAtLocation, buyFromMerchant, sellToMerchant, recordHaggle, haggleToday } from '../utils/adventureTrade';
+import { recordDiscoveries, resolveLoanRemovals, returnLoan, settleLoansOnLeave, getLoan } from '../utils/discoveries';
 import {
   PATROL_FOES, patrolGearRecovery, isPatrolId, patrolEncounterIdOf, patrolIdFor, beginPatrol, markPatrolFought,
   normalizePatrolOutcome, rollPatrolOutcomeLoot, finishPatrol as applyPatrolFinish, describePatrolResult, FLEE_PURSUIT_FRACTION, canBeginPatrol, getPatrolChoices, selectPatrolChoices,
@@ -749,6 +750,14 @@ export default function useGameState() {
       storage.set(`slot_${activeSlotIndex}_current_location`, currentLocation);
     }
   }, [currentLocation, activeSlotIndex, character?.name]);
+
+  // Journal discoveries: note each authored item of this adventure the first
+  // time it reaches the pack, and start tracking loaned items (utils/discoveries.js).
+  const inventoryKey = (character?.inventory || []).join('|');
+  useEffect(() => {
+    if (!activeAdventureId || !character?.name) return;
+    setCharacter(prev => (prev ? recordDiscoveries(prev, activeAdventureId) : prev));
+  }, [inventoryKey, activeAdventureId, character?.name]);
 
   useEffect(() => {
     if (character && character.name) {
@@ -3295,6 +3304,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           }
         });
         updated.inventory = nextInventory;
+        // A loaned item given up: returned to its owner, or used as intended.
+        Object.assign(updated, resolveLoanRemovals(updated, parsedItemsToRemove, [currentLocation, newLocation].filter(Boolean)));
 
         // Quests Modification
         let nextActiveQuests = [...(updated.active_quests || [])];
@@ -3848,7 +3859,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         nextCompletedQuests.push(finishedAdvName);
       }
 
-      return {
+      // Leaving with a loaned item still in the pack means keeping it.
+      return settleLoansOnLeave({
         ...prev,
         attributes: nextAttributes,
         inventory: nextInventory,
@@ -3865,7 +3877,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         stats: nextStats,
         localEconomy: nextLocalEconomy,
         companions: []
-      };
+      }, activeAdventureId);
     });
 
     if (awardedPartingNarratives.length > 0) {
@@ -4999,6 +5011,15 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
   const recordTradeInStory = (summary) => {
     if (!summary) return;
     setHistory(prev => [...prev, { role: 'model', content: `*${summary}*`, imagePrompt: null, imageUrl: null, checkDetails: null }]);
+  };
+
+  /** Hand a loaned item back to the merchant who owns it (Trade screen). */
+  const returnLoanToOwner = (itemName) => {
+    const loan = getLoan(itemName);
+    if (!loan || returnLoan(character, itemName) === character) return false;
+    setCharacter(prev => returnLoan(prev, itemName));
+    recordTradeInStory(`You hand ${itemName} back to ${loan.ownerShort}.`);
+    return true;
   };
 
   /** A7: put the Starfall Bowstring on a bow, permanently (utils/bowstring.js). */
@@ -6509,6 +6530,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     tradeWithMerchant,
     haggleWithMerchant,
     recordTradeInStory,
+    returnLoanToOwner,
     performRite,
     activeEnemy,
     setActiveEnemy,

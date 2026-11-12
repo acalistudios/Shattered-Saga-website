@@ -100,6 +100,7 @@ function App() {
     tradeWithMerchant,
     haggleWithMerchant,
     recordTradeInStory,
+    returnLoanToOwner,
     performRite,
     triggerPriceRecovery,
     buyItemFromMerchant,
@@ -1153,6 +1154,7 @@ function App() {
             onTrade={tradeWithMerchant}
             onHaggle={haggleWithMerchant}
             onTradeLog={recordTradeInStory}
+            onReturnLoan={returnLoanToOwner}
             onPerformRite={performRite}
             activeEnemy={activeEnemy}
             counterOpportunities={counterOpportunities}

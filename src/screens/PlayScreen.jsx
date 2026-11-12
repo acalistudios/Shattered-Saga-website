@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import AdSlot from '../components/AdSlot';
 import TradeModal from '../components/TradeModal';
 import { merchantsAtLocation } from '../utils/adventureTrade';
+import { LOAN_STATUS_LABEL } from '../utils/discoveries';
 import { ADSENSE_SLOTS, displayAdsEnabled } from '../utils/ads';
 import { SKILLS_LIST, ATTRIBUTE_LIST } from '../data/gms';
 import { printCharacterSheet, printAdventureLog, ELEMENTAL_ABILITIES } from '../utils/print';
@@ -197,6 +198,7 @@ export default function PlayScreen({
   onTrade,
   onHaggle,
   onTradeLog,
+  onReturnLoan,
   onPerformRite,
   activeEnemy,
   counterOpportunities,
@@ -1142,6 +1144,31 @@ export default function PlayScreen({
                       </ul>
                     </div>
 
+                    {/* Discoveries: what each item found this adventure is for (utils/discoveries.js) */}
+                    {(character.progression?.discoveries?.[activeAdventureId] || []).length > 0 && (
+                      <div className="space-y-1.5 pt-3 border-t border-slate-900">
+                        <h5 className="text-3xs uppercase tracking-wider text-amber-500/80 font-bold font-serif">Discoveries</h5>
+                        <ul className="space-y-1.5">
+                          {character.progression.discoveries[activeAdventureId].map((d) => {
+                            const loan = character.progression?.loans?.[d.item];
+                            return (
+                              <li key={d.item} className="bg-slate-900/40 p-1.5 rounded border border-slate-900/60">
+                                <div className="flex justify-between items-center gap-2 font-bold text-slate-200">
+                                  <span>🔎 {d.item}</span>
+                                  {loan && (
+                                    <span className={`text-4xs uppercase font-semibold tracking-wider ${loan.status === 'kept' ? 'text-red-400' : loan.status === 'active' ? 'text-amber-300' : 'text-emerald-400'}`}>
+                                      {LOAN_STATUS_LABEL[loan.status]}
+                                    </span>
+                                  )}
+                                </div>
+                                {d.note && <p className="text-3xs text-slate-400 mt-0.5 font-normal leading-relaxed">{d.note}</p>}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
+
                     {/* NPCs */}
                     {activeAdventure.npcs && activeAdventure.npcs.length > 0 && (
                       <div className="space-y-1.5 pt-3 border-t border-slate-900">
@@ -2001,6 +2028,7 @@ export default function PlayScreen({
                 adventureId={activeAdventureId}
                 onTrade={onTrade}
                 onHaggle={onHaggle}
+                onReturnLoan={onReturnLoan}
                 onClose={(summary) => { setIsTradeOpen(false); onTradeLog?.(summary); }}
               />
             )}

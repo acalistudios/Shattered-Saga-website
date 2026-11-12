@@ -11,6 +11,7 @@
 import { ADVENTURE_ECONOMY_METADATA } from '../data/adventureEconomy';
 import { MERCHANT_TRADE_RULES } from '../data/economy';
 import { getItemDetails } from './items';
+import { LOANED_ITEMS } from '../data/itemObjectives';
 
 const norm = (s) => String(s || '').trim().toLowerCase();
 const QTY_RE = /^(.*?)\s*\((\d+)\)$/;
@@ -74,6 +75,17 @@ export function itemValuation(adventureId, itemName) {
   return { valueCp: details.valueCp || 0, category: details.valueCategory || 'misc', counted: !!m };
 }
 
+/**
+ * Whether a merchant buys this category. Jewellers and relic dealers also buy
+ * "treasure" (mirrors, seal tiles, sealed letters...), which no merchant
+ * listed on its own (Hans, 2026-11-12).
+ */
+export function merchantBuys(merchant, category) {
+  const buys = merchant.buys || [];
+  if (buys.includes(category)) return true;
+  return category === 'treasure' && (buys.includes('jewelry') || buys.includes('relics'));
+}
+
 // A counted stack ("Rations (3)") is sold one at a time.
 const unitOf = (itemName) => {
   const m = String(itemName).match(QTY_RE);
@@ -82,9 +94,10 @@ const unitOf = (itemName) => {
 
 /** What the merchant pays for one of this item, or null if they won't buy it. */
 export function sellOfferCp(adventureId, merchant, itemName, haggle = 0, equipped = []) {
-  if (equipped.includes(itemName)) return null;
+  // Equipped gear can't be sold, nor can an item an NPC lent you.
+  if (equipped.includes(itemName) || LOANED_ITEMS[itemName]) return null;
   const { valueCp, category } = itemValuation(adventureId, unitOf(itemName)?.unit || itemName);
-  if (!valueCp || !(merchant.buys || []).includes(category)) return null;
+  if (!valueCp || !merchantBuys(merchant, category)) return null;
   const rate = Math.min(
     MERCHANT_TRADE_RULES.bestPlayerSaleRate,
     (merchant.buyRate ?? MERCHANT_TRADE_RULES.baseBuyRate) * (1 + (haggle || 0)),

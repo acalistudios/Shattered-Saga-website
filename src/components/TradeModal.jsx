@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { formatCoin } from '../data/payouts';
 import { merchantStock, buyPriceCp, sellOfferCp, haggleToday } from '../utils/adventureTrade';
+import { getLoan, returnableLoans } from '../utils/discoveries';
 
 const coinCp = (c = {}) => (c.gp ?? c.gold ?? 0) * 100 + (c.sp || 0) * 10 + (c.cp || 0);
 
@@ -9,7 +10,7 @@ const coinCp = (c = {}) => (c.gp ?? c.gold ?? 0) * 100 + (c.sp || 0) * 10 + (c.c
  * from the engine (utils/adventureTrade.js); closing the screen writes one line
  * into the story so the GM knows what changed hands.
  */
-export default function TradeModal({ merchants, character, adventureId, onTrade, onHaggle, onClose }) {
+export default function TradeModal({ merchants, character, adventureId, onTrade, onHaggle, onReturnLoan, onClose }) {
   const [activeName, setActiveName] = useState(merchants[0]?.name);
   const [log, setLog] = useState([]);
   const [haggleNote, setHaggleNote] = useState(null);
@@ -32,6 +33,8 @@ export default function TradeModal({ merchants, character, adventureId, onTrade,
   })).sort((a, b) => (b.offer ?? -1) - (a.offer ?? -1));
 
   const record = (line) => setLog((prev) => [...prev, line]);
+  // Returning writes its own story line (useGameState.returnLoanToOwner).
+  const loansHere = onReturnLoan ? returnableLoans(character, merchant.name) : [];
 
   const buy = (entry) => {
     const price = buyPriceCp(entry, haggle || 0);
@@ -93,6 +96,25 @@ export default function TradeModal({ merchants, character, adventureId, onTrade,
         </div>
         {haggleNote && <p className="px-5 pt-2 text-4xs text-violet-300">{haggleNote}</p>}
 
+        {loansHere.length > 0 && (
+          <div className="mx-5 mt-3 p-3 rounded border border-amber-700/50 bg-amber-950/30 space-y-2">
+            {loansHere.map((item) => (
+              <div key={item} className="flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
+                <p className="text-3xs text-amber-200">
+                  <strong>{item}</strong> belongs to {getLoan(item).ownerShort}. Giving it back unused keeps your word; keeping it costs you their trust.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => onReturnLoan(item)}
+                  className="px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 text-4xs font-black uppercase cursor-pointer shrink-0"
+                >
+                  Return to {getLoan(item).ownerShort}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 overflow-y-auto">
           <section>
             <h4 className="text-3xs uppercase tracking-widest text-slate-500 font-bold mb-2">For sale</h4>
@@ -128,7 +150,9 @@ export default function TradeModal({ merchants, character, adventureId, onTrade,
                   <div className="text-left">
                     <span className="text-2xs text-slate-200 font-bold">{row.item}{row.count > 1 ? ` ×${row.count}` : ''}</span>
                     <span className="block text-4xs text-slate-500">
-                      {row.isEquipped ? 'Equipped: unequip it to sell' : row.offer === null ? `${merchant.name} doesn't buy this` : ''}
+                      {row.isEquipped ? 'Equipped: unequip it to sell'
+                        : getLoan(row.item) ? `On loan from ${getLoan(row.item).ownerShort}: not yours to sell`
+                        : row.offer === null ? `${merchant.name} doesn't buy this` : ''}
                     </span>
                   </div>
                   <button
