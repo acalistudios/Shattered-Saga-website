@@ -8,6 +8,7 @@ import AccountStatusPills from '../components/AccountStatusPills';
 import KeystoneFontTracker from '../components/KeystoneFontTracker';
 import { getRandomTravelEncounter, TRAVEL_ENCOUNTERS } from '../data/travelEncounters';
 import { getDepotHold, DEPOT_HOLD_DAYS } from '../utils/depotEngine';
+import { keptLoans, lateReturnTerms, returnLoan, getLoan } from '../utils/discoveries';
 import { formatCoin as formatCopper } from '../data/payouts';
 import { ARENA_BRACKETS, isArenaUnlocked, isBracketOpen, arenaBlockReason, getArenaAllowance, getArenaRecord } from '../utils/arenaEngine';
 import { pendingPatrolEncounterFor, canBeginPatrol, getPatrolAllowance, PATROL_FATIGUE, PATROL_HOURS } from '../utils/patrolEngine';
@@ -989,6 +990,34 @@ export default function AdventureSelection({
                     <p className="text-3xs text-slate-355 leading-relaxed mb-4">
                       {selectedAdventure.backstory || selectedAdventure.desc}
                     </p>
+
+                    {/* Kept loans can be taken back from the map (Hans, 2026-11-13). */}
+                    {onUpdateCharacterStats && keptLoans(character, selectedAdventure.id).map((item) => {
+                      const loan = getLoan(item);
+                      const terms = lateReturnTerms(character, item);
+                      return (
+                        <div key={item} className="mb-4 p-3 rounded border border-red-800/50 bg-red-950/30 text-left space-y-2">
+                          <p className="text-4xs text-red-200 leading-snug">
+                            <strong>{loan.ownerShort}</strong> wants {item} back: <em>{loan.grumble}</em>
+                          </p>
+                          <p className="text-5xs text-slate-400">
+                            {terms.fraction === 1
+                              ? `Return it now and ${loan.ownerShort} lets it go: your standing with them is restored.`
+                              : `Kept ${terms.days} days. Returning it now restores ${Math.round(terms.fraction * 100)}% of the standing you lost.`}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onUpdateCharacterStats((prev) => returnLoan(prev, item));
+                              window.alert(terms.text);
+                            }}
+                            className="px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 text-4xs font-black uppercase cursor-pointer"
+                          >
+                            Return to {loan.ownerShort}
+                          </button>
+                        </div>
+                      );
+                    })}
 
                     {/* Objectives & Loot Details */}
                     {unlockState.unlocked && (

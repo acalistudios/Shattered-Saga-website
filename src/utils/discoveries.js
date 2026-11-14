@@ -65,21 +65,44 @@ export function recordDiscoveries(character, adventureId, day = character?.stats
   };
 }
 
+/**
+ * Bringing a kept item back late (Hans, 2026-11-13). The owner grumbles, and
+ * the kept penalty is refunded: in full within a week of leaving with it, then
+ * a quarter less for each further week, never less than a quarter. A late
+ * return never earns the standing that using or promptly returning would have.
+ */
+export function lateReturnTerms(character, itemName) {
+  const loan = getLoan(itemName);
+  const state = character?.progression?.loans?.[itemName];
+  if (!loan || state?.status !== 'kept') return null;
+  const today = character.stats?.day ?? 1;
+  const days = Math.max(0, today - (state.keptOnDay ?? state.since ?? today));
+  const weeksOver = days <= 7 ? 0 : Math.ceil((days - 7) / 7);
+  const fraction = Math.max(0.25, 1 - 0.25 * weeksOver);
+  const amount = Math.round(-(loan.reputation.kept || 0) * fraction);
+  const forgiven = fraction === 1
+    ? `${loan.ownerShort} lets it go.`
+    : `${loan.ownerShort} takes it back, but has not fully forgiven you.`;
+  return { days, fraction, amount, text: `${loan.outcomes.lateReturn} ${loan.grumble} ${forgiven}` };
+}
+
 /** Change the loan's status, the owner's standing, and the story log. */
 function settleLoan(character, itemName, outcome) {
   const loan = getLoan(itemName);
   if (!loan) return character;
-  const amount = loan.reputation[outcome] ?? 0;
+  const late = outcome === 'lateReturn' ? lateReturnTerms(character, itemName) : null;
+  const amount = late ? late.amount : (loan.reputation[outcome] ?? 0);
   const rels = { ...(character.localEconomy?.relationships || {}) };
   rels[loan.owner] = Math.max(-100, Math.min(100, (rels[loan.owner] || 0) + amount));
   const progression = character.progression || {};
+  const extra = outcome === 'kept' ? { keptOnDay: character.stats?.day ?? 1 } : {};
   return {
     ...character,
     localEconomy: { ...(character.localEconomy || {}), relationships: rels },
-    storyEvents: [...(character.storyEvents || []), loan.outcomes[outcome]],
+    storyEvents: [...(character.storyEvents || []), late ? late.text : loan.outcomes[outcome]],
     progression: {
       ...progression,
-      loans: { ...(progression.loans || {}), [itemName]: { ...(progression.loans?.[itemName] || {}), status: outcome } },
+      loans: { ...(progression.loans || {}), [itemName]: { ...(progression.loans?.[itemName] || {}), status: outcome, ...extra } },
     },
   };
 }
@@ -151,6 +174,14 @@ export function returnableLoans(character, merchantName) {
   return Object.entries(character.progression?.loans || {})
     .filter(([item, state]) => getLoan(item)?.owner === merchantName
       && ['active', 'kept'].includes(state.status) && (character.inventory || []).includes(item))
+    .map(([item]) => item);
+}
+
+/** Kept items from this adventure still in the pack, which can be returned from the map. */
+export function keptLoans(character, adventureId) {
+  return Object.entries(character?.progression?.loans || {})
+    .filter(([item, state]) => state.status === 'kept' && state.adventureId === adventureId
+      && (character.inventory || []).includes(item))
     .map(([item]) => item);
 }
 

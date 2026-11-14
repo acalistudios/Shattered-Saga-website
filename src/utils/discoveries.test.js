@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   recordDiscoveries, resolveLoanRemovals, returnLoan, settleLoansOnLeave, returnableLoans, settleMissingLoans,
+  keptLoans, lateReturnTerms,
 } from './discoveries';
 import { ITEM_NOTES, LOANED_ITEMS } from '../data/itemObjectives';
 import { ADVENTURES_LIST } from '../data/adventures';
@@ -57,14 +58,35 @@ describe("Vance's keystone (a loan)", () => {
     expect(sellToMerchant(c, ADV, vance, KEY)).toBe(c);
   });
 
-  it('leaving with it: kept, standing drops; returning later recovers some', () => {
+  it('leaving with it: kept, standing drops, and the day is recorded', () => {
     const kept = settleLoansOnLeave(withKeystone(), ADV);
-    expect(kept.progression.loans[KEY].status).toBe('kept');
+    expect(kept.progression.loans[KEY]).toMatchObject({ status: 'kept', keptOnDay: 3 });
     expect(standing(kept)).toBe(-20);
     expect(settleLoansOnLeave(kept, ADV)).toBe(kept);
-    const late = returnLoan(kept, KEY);
-    expect(late.progression.loans[KEY].status).toBe('lateReturn');
-    expect(standing(late)).toBe(-10);
+    expect(keptLoans(kept, ADV)).toEqual([KEY]);
+  });
+
+  it('a late return refunds the penalty by how long it was kept, never more', () => {
+    const kept = settleLoansOnLeave(withKeystone(), ADV);
+    const on = (day) => ({ ...kept, stats: { day } });
+    // Within a week: fully forgiven (back to 0, not the +5/+15 of a prompt return).
+    const soon = returnLoan(on(10), KEY);
+    expect(soon.progression.loans[KEY].status).toBe('lateReturn');
+    expect(standing(soon)).toBe(0);
+    expect(soon.storyEvents.at(-1)).toMatch(/children, not for your pack.*lets it go/);
+    expect(keptLoans(soon, ADV)).toEqual([]);
+    // Then a quarter less per further week, never below a quarter.
+    expect(lateReturnTerms(on(11), KEY)).toMatchObject({ fraction: 0.75, amount: 15 });
+    expect(lateReturnTerms(on(18), KEY)).toMatchObject({ fraction: 0.5, amount: 10 });
+    expect(standing(returnLoan(on(200), KEY))).toBe(-15);
+    expect(returnLoan(on(200), KEY).storyEvents.at(-1)).toMatch(/not fully forgiven/);
+  });
+
+  it('handing it over in the village square on a later visit counts as late', () => {
+    const kept = settleLoansOnLeave(withKeystone(), ADV);
+    const back = resolveLoanRemovals(kept, [KEY], 'Ashveil Village Square');
+    expect(back.progression.loans[KEY].status).toBe('lateReturn');
+    expect(standing(back)).toBe(0);
   });
 
   it('nothing happens to a loan that was already settled', () => {

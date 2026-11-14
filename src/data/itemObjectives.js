@@ -119,13 +119,16 @@ export const LOANED_ITEMS = {
     ownerShort: 'Vance',
     ownerLocations: ['Ashveil Village Square'],
     // used: set into the seal; returned: brought back unused; kept: left the
-    // adventure still holding it; lateReturn: brought back after keeping it.
-    reputation: { used: 15, returned: 5, kept: -20, lateReturn: 10 },
+    // adventure still holding it. Bringing it back late refunds some or all of
+    // the kept penalty, never more (lateReturnTerms in utils/discoveries.js).
+    reputation: { used: 15, returned: 5, kept: -20 },
+    // What the owner says while you still have it, and when you bring it back late.
+    grumble: '"I made that keystone for the children, not for your pack."',
     outcomes: {
       used: 'You set Vance\'s keystone into the seal. Vance is proud his work saved the children.',
       returned: 'You returned Vance\'s keystone unused. He thanks you for your honesty.',
       kept: 'You left Ashveil still carrying Vance\'s keystone. Vance considers it stolen.',
-      lateReturn: 'You finally brought Vance\'s keystone back. He forgives you, mostly.',
+      lateReturn: 'You brought Vance\'s keystone back late.',
     },
   },
   "Bram's Notebook": {
@@ -134,12 +137,13 @@ export const LOANED_ITEMS = {
     ownerShort: 'Bram',
     // Bram is a prisoner: he is found in the cages or the barracks.
     ownerLocations: ['Prisoner Barracks', 'Intake Cage'],
-    reputation: { used: 5, returned: 10, kept: -15, lateReturn: 5 },
+    reputation: { used: 5, returned: 10, kept: -15 },
+    grumble: '"Forty years of notes, and you walked off with them."',
     outcomes: {
       used: "Bram's notebook was spent bringing down the Flare operation. He says it was worth it.",
       returned: "You gave Bram his notebook back. His life's work is safe, and he won't forget it.",
       kept: "You left the mines with Bram's notebook. He has lost his life's work.",
-      lateReturn: "You finally returned Bram's notebook. He is relieved, if wary.",
+      lateReturn: "You brought Bram's notebook back late.",
     },
   },
   'Water-Breathing Elixir': {
@@ -149,12 +153,13 @@ export const LOANED_ITEMS = {
     ownerLocations: ['Flooded Library Entrance', 'Planar Archives Sanctuary'],
     // Only a lent elixir is a loan: copies bought from a merchant are not
     // (see startLoans in utils/discoveries.js).
-    reputation: { used: 5, returned: 5, kept: -15, lateReturn: 5 },
+    reputation: { used: 5, returned: 5, kept: -15 },
+    grumble: '"I lent you that to keep you breathing, not to keep."',
     outcomes: {
       used: "You drank Naelia's elixir for the dive. She counts it as money well lent.",
       returned: "You handed Naelia's elixir back unused. She is surprised, and pleased.",
       kept: "You left the Spire with Naelia's elixir. She marks you down as a thief.",
-      lateReturn: "You finally brought Naelia's elixir back. She takes it without a word.",
+      lateReturn: "You brought Naelia's elixir back late.",
     },
   },
   'Moon Gear Key': {
@@ -162,12 +167,13 @@ export const LOANED_ITEMS = {
     owner: 'Unit-7 (Nanny)',
     ownerShort: 'Unit-7',
     ownerLocations: ['The Alchemical Lab'],
-    reputation: { used: 10, returned: 5, kept: -10, lateReturn: 5 },
+    reputation: { used: 10, returned: 5, kept: -10 },
+    grumble: 'Unit-7 clicks reproachfully: "Brooch. Missing. Return requested."',
     outcomes: {
       used: "You set Unit-7's moon brooch into the alignment lock. The conservatory hums back to life.",
       returned: "You pinned the moon brooch back on Unit-7. Its whirring softens.",
       kept: "You left the conservatory with Unit-7's moon brooch. The lock stays dark.",
-      lateReturn: "You brought Unit-7's moon brooch back at last.",
+      lateReturn: "You brought Unit-7's moon brooch back late.",
     },
   },
 };
