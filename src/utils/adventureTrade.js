@@ -9,9 +9,10 @@
 // item's value. One Negotiation roll per merchant per in-game day can improve
 // both by up to 25% (best purchase 75% of list, best sale 75% of value).
 import { ADVENTURE_ECONOMY_METADATA } from '../data/adventureEconomy';
-import { MERCHANT_TRADE_RULES } from '../data/economy';
+import { MERCHANT_TRADE_RULES, coinValue } from '../data/economy';
 import { getItemDetails } from './items';
 import { itemsOnLoan } from './discoveries';
+import { MERCHANT_RESTOCK, completedCount } from '../data/merchantRestock';
 
 const norm = (s) => String(s || '').trim().toLowerCase();
 const QTY_RE = /^(.*?)\s*\((\d+)\)$/;
@@ -35,10 +36,30 @@ export function merchantsAtLocation(adventureId, location) {
 
 const tradeLog = (character, adventureId) => character?.progression?.adventureTrades?.[adventureId] || {};
 
+/**
+ * Everything the merchant offers: their own goods, plus each restock tier the
+ * player has unlocked by completing adventures (data/merchantRestock.js).
+ * Restocked goods carry `restockAfter`; a restock of an item they already sell
+ * adds to its stock instead.
+ */
+export function merchantOffer(character, merchant) {
+  const done = completedCount(character);
+  const offer = (merchant.sells || []).map((entry) => ({ ...entry }));
+  for (const tier of MERCHANT_RESTOCK[merchant.name] || []) {
+    if (done < tier.after) continue;
+    for (const [item, priceCp, stock] of tier.sells) {
+      const have = offer.find((e) => e.item === item);
+      if (have) have.stock = (have.stock ?? 1) + stock;
+      else offer.push({ item, priceCp, price: coinValue(priceCp), stock, restockAfter: tier.after });
+    }
+  }
+  return offer;
+}
+
 /** What the merchant still has for sale this run of the adventure. */
 export function merchantStock(character, adventureId, merchant) {
   const bought = tradeLog(character, adventureId)[merchant.name]?.bought || {};
-  return (merchant.sells || []).map((entry) => ({
+  return merchantOffer(character, merchant).map((entry) => ({
     ...entry,
     remaining: Math.max(0, (entry.stock ?? 1) - (bought[entry.item] || 0)),
   }));

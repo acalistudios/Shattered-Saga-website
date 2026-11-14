@@ -128,6 +128,7 @@ export default function TradeModal({ merchants, character, adventureId, onTrade,
                     <div className="text-left">
                       <span className="text-2xs text-slate-200 font-bold">{entry.item}</span>
                       <span className="block text-4xs text-slate-500">{entry.remaining > 0 ? `${entry.remaining} left` : 'Sold out'}</span>
+                      {entry.restockAfter && <span className="block text-5xs text-emerald-400" title={`Stocked once you had completed ${entry.restockAfter} adventures`}>✦ New stock</span>}
                     </div>
                     <button
                       type="button"

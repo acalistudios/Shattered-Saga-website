@@ -48,7 +48,7 @@ import { claimDepot, isAtDepot, settleConfiscatedOnCompletion, shouldConfiscateO
 import { getSupplyDepot } from '../data/supplyDepot';
 import { rollDiceExpression } from '../utils/dice';
 import { claimSearchFind, applySearchFind, formatCoin, TREASURE_FINDS_PER_ADVENTURE } from '../data/payouts';
-import { merchantsAtLocation, buyFromMerchant, sellToMerchant, recordHaggle, haggleToday } from '../utils/adventureTrade';
+import { merchantsAtLocation, buyFromMerchant, sellToMerchant, recordHaggle, haggleToday, merchantOffer } from '../utils/adventureTrade';
 import { recordDiscoveries, resolveLoanRemovals, returnLoan, settleLoansOnLeave, settleMissingLoans, getLoan } from '../utils/discoveries';
 import {
   PATROL_FOES, patrolGearRecovery, isPatrolId, patrolEncounterIdOf, patrolIdFor, beginPatrol, markPatrolFought,
@@ -2319,7 +2319,7 @@ Currency: 10 cp = 1 sp, 10 sp = 1 gp, so 1 gp = 100 cp. Treat copper value as th
 Item Values:
 ${Object.entries(activeAdventure.itemValues || {}).map(([itemName, value]) => `- ${itemName}: ${value.value?.gp || 0} gp, ${value.value?.sp || 0} sp, ${value.value?.cp || 0} cp (${value.valueCp} cp), category: ${value.category}. ${value.notes || ''}`).join('\n') || '- No adventure-specific item values listed; use the generic gear value table from the rules reference.'}
 Merchants:
-${(activeAdventure.merchants || []).map(merchant => `- ${merchant.name} (${merchant.role}) at ${merchant.location}: sells ${(merchant.sells || []).map(sale => `${sale.item} for ${sale.price?.gp || 0} gp, ${sale.price?.sp || 0} sp, ${sale.price?.cp || 0} cp; stock ${sale.stock}`).join('; ') || 'nothing listed'}; buys ${(merchant.buys || []).join(', ') || 'nothing listed'} at ${Math.round((merchant.buyRate || 0.5) * 100)}% listed value before Negotiation. ${merchant.notes || ''}`).join('\n') || '- No fixed merchants listed in this adventure.'}
+${(activeAdventure.merchants || []).map(merchant => `- ${merchant.name} (${merchant.role}) at ${merchant.location}: sells ${merchantOffer(character, merchant).map(sale => `${sale.item} for ${sale.price?.gp || 0} gp, ${sale.price?.sp || 0} sp, ${sale.price?.cp || 0} cp; stock ${sale.stock}`).join('; ') || 'nothing listed'}; buys ${(merchant.buys || []).join(', ') || 'nothing listed'} at ${Math.round((merchant.buyRate || 0.5) * 100)}% listed value before Negotiation. ${merchant.notes || ''}`).join('\n') || '- No fixed merchants listed in this adventure.'}
 Trade Rules: Merchants sell at listed value and buy relevant categories at 50% of listed value. A successful Negotiation check can improve the player's purchase price or sale payout by up to 25%. Best purchase price is 75% of list; best sale payout is 75% of list. Use [currency: +/-N cp|sp|gp] plus [add_item] or [remove_item] tags for completed transactions.
 
 ${activeAdventure.progression ? `[PROGRESSION & BALANCE]

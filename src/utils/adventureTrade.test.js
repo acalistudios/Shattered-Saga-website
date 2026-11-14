@@ -3,6 +3,9 @@ import {
   merchantsAtLocation, merchantStock, buyFromMerchant, sellToMerchant, sellOfferCp, buyPriceCp,
   recordHaggle, haggleToday,
 } from './adventureTrade';
+import { MERCHANT_RESTOCK } from '../data/merchantRestock';
+import { ADVENTURE_ECONOMY_METADATA } from '../data/adventureEconomy';
+import { getItemDetails } from './items';
 
 const ADV = 'ashveil_keep';
 const hero = (over = {}) => ({
@@ -91,5 +94,36 @@ describe('haggling', () => {
     expect(sellOfferCp(ADV, martha, 'Binding Prayer Scroll', 0.25)).toBe(313);
     const won = recordHaggle(hero(), ADV, martha, { success: true, margin: 5 });
     expect(buyFromMerchant(won, ADV, martha, 'Holy Water').currency).toMatchObject({ gp: 1, sp: 2, cp: 5 });
+  });
+});
+
+describe('shopkeepers restock as adventures are completed', () => {
+  const done = (n) => hero({ completed_adventures: ['a', 'b', 'c', 'd', 'e', 'f', 'g'].slice(0, n), currency: { gp: 50, sp: 0, cp: 0, gold: 50 } });
+  const items = (c) => merchantStock(c, ADV, vance).map((e) => e.item);
+
+  it('every restocked item has a catalogue price, and every merchant exists', () => {
+    const all = Object.values(ADVENTURE_ECONOMY_METADATA).flatMap((a) => a.merchants || []).map((m) => m.name);
+    for (const [name, tiers] of Object.entries(MERCHANT_RESTOCK)) {
+      expect(all).toContain(name);
+      for (const tier of tiers) for (const [item, priceCp] of tier.sells) {
+        expect(getItemDetails(item).valueCp, item).toBe(priceCp);
+      }
+    }
+  });
+
+  it("Vance's forge grows after 2, 4 and 6 adventures", () => {
+    expect(items(done(1))).not.toContain('Longsword');
+    expect(items(done(2))).toContain('Longsword');
+    expect(items(done(3))).not.toContain('Steel Chainmail');
+    expect(items(done(4))).toContain('Steel Chainmail');
+    expect(items(done(6))).toContain('Greatsword');
+    expect(merchantStock(done(6), ADV, vance).find((e) => e.item === 'Greatsword').restockAfter).toBe(6);
+    expect(merchantStock(done(0), ADV, vance).every((e) => !e.restockAfter)).toBe(true);
+  });
+
+  it('restocked goods can be bought, and run out', () => {
+    const c = buyFromMerchant(done(2), ADV, vance, 'Longsword');
+    expect(c.inventory).toContain('Longsword');
+    expect(buyFromMerchant(c, ADV, vance, 'Longsword')).toBe(c);
   });
 });
