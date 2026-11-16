@@ -136,7 +136,10 @@ export async function pushSlot(slotIndex) {
       body: JSON.stringify({ data, charName: data.character.name }),
     });
     if (res.ok) {
-      storage.set(`slot_${slotIndex}_cloud_synced_at`, Date.now());
+      // Record the server's timestamp for this upload, so the next sign-in
+      // recognises the cloud copy as the one this device sent and doesn't ask.
+      const d = await res.json().catch(() => ({}));
+      storage.set(`slot_${slotIndex}_cloud_synced_at`, d.updatedAt || Date.now());
       return true;
     }
     return false;
@@ -435,6 +438,10 @@ export async function reconcileOnLogin({ confirm, unlockedSlots = [1, 2], gems =
     }
     // Same character and the cloud isn't newer — leave it alone.
     if (s.char_name === name && s.updated_at <= localAt + 1000) continue;
+    // Same character and the cloud copy is the one this device last uploaded
+    // or downloaded. The server stamps uploads a moment after local play, so
+    // without this every reload asked to "restore" this device's own save.
+    if (s.char_name === name && s.updated_at <= Number(storage.get(`slot_${i}_cloud_synced_at`) || 0)) continue;
 
     const okToPull = await confirm(
       `Slot ${i}: your account has "${s.char_name}" saved ${fmtDate(s.updated_at)}.\n` +
