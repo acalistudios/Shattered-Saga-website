@@ -147,16 +147,29 @@ export default function TradeModal({ merchants, character, adventureId, onTrade,
           <section>
             <h4 className="text-3xs uppercase tracking-widest text-slate-500 font-bold mb-2">Your pack</h4>
             <ul className="space-y-1.5">
-              {pack.map((row) => (
+              {pack.map((row) => {
+                // The owner is right here: hand it back from its own row (free).
+                const returnable = loansHere.includes(row.item);
+                return (
                 <li key={row.item} className="flex items-center justify-between gap-2 bg-slate-900 border border-slate-800 rounded px-3 py-2">
                   <div className="text-left">
                     <span className="text-2xs text-slate-200 font-bold">{row.item}{row.count > 1 ? ` ×${row.count}` : ''}</span>
                     <span className="block text-4xs text-slate-500">
-                      {row.isEquipped ? 'Equipped: unequip it to sell'
+                      {returnable ? `${getLoan(row.item).ownerShort}'s, on loan: give it back for nothing`
+                        : row.isEquipped ? 'Equipped: unequip it to sell'
                         : onLoan.includes(row.item) ? `On loan from ${getLoan(row.item).ownerShort}: not yours to sell`
                         : row.offer === null ? `${merchant.name} doesn't buy this` : ''}
                     </span>
                   </div>
+                  {returnable ? (
+                    <button
+                      type="button"
+                      onClick={() => onReturnLoan(row.item)}
+                      className="px-3 py-1 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 text-4xs font-black uppercase cursor-pointer shrink-0"
+                    >
+                      Return
+                    </button>
+                  ) : (
                   <button
                     type="button"
                     onClick={() => sell(row)}
@@ -165,8 +178,10 @@ export default function TradeModal({ merchants, character, adventureId, onTrade,
                   >
                     {row.offer === null ? 'Sell' : `Sell · ${formatCoin(row.offer)}`}
                   </button>
+                  )}
                 </li>
-              ))}
+                );
+              })}
               {pack.length === 0 && <li className="text-4xs text-slate-500">Your pack is empty.</li>}
             </ul>
           </section>

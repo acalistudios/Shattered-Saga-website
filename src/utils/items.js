@@ -124,7 +124,19 @@ function getGenericValue(itemName) {
     ['shortsword', 'Shortsword'],
     ['rapier', 'Shortsword'],
     ['cutlass', 'Shortsword'],
+    // Any other sword ("Steel Sword") is a standard blade; heavy polearms and
+    // scythes price like a warhammer (Hans 2026-11-17: Vance wouldn't buy the
+    // Iron War Scythe because it had no value or category).
+    ['sword', 'Longsword'],
+    ['scythe', 'Warhammer'],
+    ['maul', 'Warhammer'],
+    ['glaive', 'Greatsword'],
+    ['halberd', 'Greatsword'],
+    ['mace', 'Longsword'],
+    ['spear', 'Shortsword'],
+    ['sickle', 'Hatchet'],
     ['hatchet', 'Hatchet'],
+    ['axe', 'Longsword'],
     ['dagger', 'Dagger'],
     ['knife', 'Knife'],
     ['bow', 'Hunting Bow'],
@@ -205,9 +217,9 @@ export function getItemDetails(itemName) {
 
   if (nameLower.includes('dagger') || nameLower.includes('knife')) {
     weight = 1.5; volume = 1.0; slot = 'hand'; subslot = 'small';
-  } else if (nameLower.includes('shortsword') || nameLower.includes('rapier') || nameLower.includes('cutlass') || nameLower.includes('hatchet')) {
+  } else if (nameLower.includes('shortsword') || nameLower.includes('rapier') || nameLower.includes('cutlass') || nameLower.includes('hatchet') || nameLower.includes('sickle') || nameLower.includes('mace') || nameLower.includes('club')) {
     weight = 3.0; volume = 2.0; slot = 'hand'; subslot = 'medium';
-  } else if (nameLower.includes('sword') || nameLower.includes('greatsword') || nameLower.includes('axe') || nameLower.includes('warhammer') || nameLower.includes('hammer') || nameLower.includes('sledge') || nameLower.includes('maul') || nameLower.includes('spear') || nameLower.includes('glaive') || nameLower.includes('halberd')) {
+  } else if (nameLower.includes('sword') || nameLower.includes('greatsword') || nameLower.includes('axe') || nameLower.includes('warhammer') || nameLower.includes('hammer') || nameLower.includes('sledge') || nameLower.includes('maul') || nameLower.includes('spear') || nameLower.includes('glaive') || nameLower.includes('halberd') || nameLower.includes('scythe') || nameLower.includes('flail') || nameLower.includes('staff')) {
     weight = 6.0; volume = 4.0; slot = 'hand'; subslot = 'large';
   } else if (nameLower.includes('bow') || nameLower.includes('crossbow')) {
     weight = 3.5; volume = 3.0; slot = 'hand'; subslot = 'large';
