@@ -776,7 +776,7 @@ export default function AccountScreen({
                 <span className="block mt-1 text-5xs text-slate-450 uppercase tracking-wider">Metered premium narration</span>
               </div>
               <div className="rounded-lg bg-slate-900 border border-violet-500/20 p-4">
-                <span className="block text-5xs text-slate-500 uppercase tracking-widest font-bold">Current Covenant</span>
+                <span className="block text-5xs text-slate-500 uppercase tracking-widest font-bold">Current Plan</span>
                 <span className="block mt-2 text-sm text-violet-300 font-black capitalize">{currentTier}</span>
                 <span className="block mt-2 text-5xs text-slate-450 uppercase tracking-wider">Subscription entitlement</span>
               </div>
@@ -857,7 +857,7 @@ export default function AccountScreen({
           {/* Subscriptions section */}
           {showSubscriptions && (
           <div>
-            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Subscription covenants</h2>
+            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Subscription plans</h2>
             {['supporter', 'adventurer', 'legend'].includes(currentTier) && (
               <button type="button" className="quest-quick-launch" onClick={() => {
                 setEngineTier(currentTier === 'supporter' ? 'byok' : 'premium');
@@ -957,9 +957,6 @@ export default function AccountScreen({
                   ? 'bg-slate-900 border-amber-500/50 shadow shadow-amber-500/10'
                   : 'bg-slate-905/30 border-slate-900/60 opacity-85 hover:opacity-100 hover:border-slate-800/80'
               }`}>
-                <div className="absolute top-0 right-0 px-2 py-0.5 bg-amber-500 text-slate-950 font-black text-5xs uppercase tracking-widest rounded-bl">
-                  POPULAR
-                </div>
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 font-serif">BYOK Supporter</h4>
@@ -978,7 +975,7 @@ export default function AccountScreen({
                 </div>
                 {currentTier === 'supporter' ? (
                   <div className="w-full text-center py-1 bg-amber-500/10 rounded border border-amber-500/20 text-4xs font-bold text-amber-400 uppercase tracking-wider">
-                    Active Covenant
+                    Your Plan
                   </div>
                 ) : (
                   <button
@@ -1015,7 +1012,7 @@ export default function AccountScreen({
                 </div>
                 {currentTier === 'adventurer' ? (
                   <div className="w-full text-center py-1 bg-violet-500/10 rounded border border-violet-500/20 text-4xs font-bold text-violet-400 uppercase tracking-wider">
-                    Active Covenant
+                    Your Plan
                   </div>
                 ) : (
                   <button
@@ -1052,7 +1049,7 @@ export default function AccountScreen({
                 </div>
                 {currentTier === 'legend' ? (
                   <div className="w-full text-center py-1 bg-emerald-500/10 rounded border border-emerald-500/20 text-4xs font-bold text-emerald-400 uppercase tracking-wider">
-                    Active Covenant
+                    Your Plan
                   </div>
                 ) : (
                   <button
