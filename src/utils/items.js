@@ -1,6 +1,7 @@
 // Item database and carrying capacity calculator for Shattered Saga
 import { GENERIC_ITEM_VALUE_BY_NAME, coinValue } from '../data/economy';
 import { parseStrungBow, STARFALL_BOWSTRING } from './bowstring';
+import { gearValue } from '../data/gearStats';
 
 export const ITEMS_DATABASE = {
   // Backpacks (Gear Slot: backpack)
@@ -112,6 +113,13 @@ function getGenericValue(itemName) {
     return { valueCp: match.valueCp, value: match.value, valueCategory: match.category };
   }
   const nameLower = itemName.toLowerCase();
+  // Ordinary weapons and shields are priced by what they do (data/gearStats.js),
+  // so an iron shield is worth more than a wooden one. Enchanted (+N) gear
+  // keeps the magical price bands below.
+  if (!/\+\d/.test(itemName)) {
+    const gear = gearValue(itemName);
+    if (gear) return { valueCp: gear.valueCp, value: coinValue(gear.valueCp), valueCategory: gear.category };
+  }
   const fallback = [
     ['+3', '+3 Weapon'],
     ['+2 shield', '+2 Shield'],
@@ -124,19 +132,7 @@ function getGenericValue(itemName) {
     ['shortsword', 'Shortsword'],
     ['rapier', 'Shortsword'],
     ['cutlass', 'Shortsword'],
-    // Any other sword ("Steel Sword") is a standard blade; heavy polearms and
-    // scythes price like a warhammer (Hans 2026-11-17: Vance wouldn't buy the
-    // Iron War Scythe because it had no value or category).
-    ['sword', 'Longsword'],
-    ['scythe', 'Warhammer'],
-    ['maul', 'Warhammer'],
-    ['glaive', 'Greatsword'],
-    ['halberd', 'Greatsword'],
-    ['mace', 'Longsword'],
-    ['spear', 'Shortsword'],
-    ['sickle', 'Hatchet'],
     ['hatchet', 'Hatchet'],
-    ['axe', 'Longsword'],
     ['dagger', 'Dagger'],
     ['knife', 'Knife'],
     ['bow', 'Hunting Bow'],

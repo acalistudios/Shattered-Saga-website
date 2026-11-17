@@ -56,13 +56,43 @@ export function merchantOffer(character, merchant) {
   return offer;
 }
 
-/** What the merchant still has for sale this run of the adventure. */
+/**
+ * What the merchant still has for sale this run of the adventure. Anything the
+ * player sold them goes on their shelf at its list value (Hans 2026-11-17), so
+ * it can be bought back; `soldByYou` counts how many of the stock came from you.
+ */
 export function merchantStock(character, adventureId, merchant) {
-  const bought = tradeLog(character, adventureId)[merchant.name]?.bought || {};
-  return merchantOffer(character, merchant).map((entry) => ({
+  const log = tradeLog(character, adventureId)[merchant.name] || {};
+  const bought = log.bought || {};
+  const sold = log.sold || {};
+  const offer = merchantOffer(character, merchant);
+  for (const [item, count] of Object.entries(sold)) {
+    if (count <= 0) continue;
+    const have = offer.find((e) => e.item === item);
+    if (have) {
+      have.stock = (have.stock ?? 1) + count;
+      have.soldByYou = count;
+    } else {
+      const { valueCp } = itemValuation(adventureId, item);
+      const priceCp = Math.max(1, valueCp || 1);
+      offer.push({ item, priceCp, price: coinValue(priceCp), stock: count, soldByYou: count });
+    }
+  }
+  return offer.map((entry) => ({
     ...entry,
     remaining: Math.max(0, (entry.stock ?? 1) - (bought[entry.item] || 0)),
   }));
+}
+
+/**
+ * Undos the player gets per visit with this merchant: one for every 20 points
+ * of reputation with them (Hans 2026-11-17). Reputation is
+ * localEconomy.relationships, -100..100.
+ */
+export const REP_PER_UNDO = 20;
+export function undosPerVisit(character, merchant) {
+  const rep = character?.localEconomy?.relationships?.[merchant.name] || 0;
+  return Math.max(0, Math.floor(rep / REP_PER_UNDO));
 }
 
 const haggleKey = (character, merchantName) => `${merchantName}@day${character?.stats?.day ?? 1}`;
@@ -167,11 +197,55 @@ export function sellToMerchant(character, adventureId, merchant, itemName, equip
   const inventory = stack && stack.qty > 1
     ? character.inventory.map((item, i) => (i === idx ? `${stack.name} (${stack.qty - 1})` : item))
     : character.inventory.filter((_, i) => i !== idx);
-  return {
+  const next = {
     ...character,
     currency: withCoin(character.currency, coinCp(character.currency) + offer),
     inventory,
   };
+  // The merchant now has it on the shelf (merchantStock).
+  const shelfItem = stack ? stack.unit : itemName;
+  return updateTradeLog(next, adventureId, merchant.name, (log) => ({
+    ...log,
+    sold: { ...(log.sold || {}), [shelfItem]: (log.sold?.[shelfItem] || 0) + 1 },
+  }));
+}
+
+/** The item a sale of `itemName` puts on the merchant's shelf ("Rations (1)" for a stack). */
+export const shelfItemFor = (itemName) => unitOf(itemName)?.unit || itemName;
+
+/**
+ * Reverse one trade from this visit at the price it was made (an undo, granted
+ * by reputation). `trade` is { action: 'buy'|'sell', item, priceCp } where
+ * item is what changed hands ("Rations (1)" for one ration from a stack).
+ * Returns the same character if it can't be undone (item gone, or too poor).
+ */
+export function undoTrade(character, adventureId, merchant, trade) {
+  const coin = coinCp(character.currency);
+  const inv = character.inventory || [];
+  if (trade.action === 'buy') {
+    // Give the item back for a refund.
+    const unit = unitOf(trade.item);
+    const idx = unit
+      ? inv.findIndex((i) => unitOf(i)?.name.toLowerCase() === unit.name.toLowerCase() && unitOf(i).qty >= unit.qty)
+      : inv.indexOf(trade.item);
+    if (idx === -1) return character;
+    const have = unitOf(inv[idx]);
+    const inventory = unit && have.qty > unit.qty
+      ? inv.map((item, i) => (i === idx ? `${have.name} (${have.qty - unit.qty})` : item))
+      : inv.filter((_, i) => i !== idx);
+    const next = { ...character, currency: withCoin(character.currency, coin + trade.priceCp), inventory };
+    return updateTradeLog(next, adventureId, merchant.name, (log) => ({
+      ...log,
+      bought: { ...(log.bought || {}), [trade.item]: Math.max(0, (log.bought?.[trade.item] || 0) - 1) },
+    }));
+  }
+  // Take back what you sold, returning the money.
+  if (coin < trade.priceCp) return character;
+  const next = { ...character, currency: withCoin(character.currency, coin - trade.priceCp), inventory: addToStack(inv, trade.item) };
+  return updateTradeLog(next, adventureId, merchant.name, (log) => ({
+    ...log,
+    sold: { ...(log.sold || {}), [trade.item]: Math.max(0, (log.sold?.[trade.item] || 0) - 1) },
+  }));
 }
 
 /** Add an item, folding "Rations (5)" into an existing "Rations (n)" stack. */

@@ -4,6 +4,7 @@
 // character in and get a new character (or a plain result) back.
 import { getRewardItemByName } from '../data/rewardItems';
 import { parseStrungBow, STARFALL_BOWSTRING } from './bowstring';
+import { getWeaponType } from '../data/gearStats';
 
 // Canonical empty progression block. DEFAULT_CHARACTER in useGameState spreads
 // this so the two cannot drift apart.
@@ -25,19 +26,13 @@ export const DEFAULT_PROGRESSION = {
   pendingGearRecovery: null
 };
 
+// Base weapon stats come from data/gearStats.js (the same table the shop and
+// inventory describe). Unknown hand items fall back to a 1d6 light weapon.
 export function getWeaponProperties(weaponName) {
-  if (!weaponName) return { name: "Unarmed Strike", dice: "1d3", skill: "brawling" };
-  const nameLower = weaponName.toLowerCase();
-  if (nameLower.includes("greatsword") || nameLower.includes("warhammer") || nameLower.includes("greataxe") || nameLower.includes("heavy")) {
-    return { name: weaponName, dice: "2d6", skill: "heavy_weapons" };
-  }
-  if (nameLower.includes("longsword") || nameLower.includes("spear") || nameLower.includes("axe") || nameLower.includes("mace")) {
-    return { name: weaponName, dice: "1d8", skill: "martial_weapons" };
-  }
-  if (nameLower.includes("dagger") || nameLower.includes("knife") || nameLower.includes("shiv")) {
-    return { name: weaponName, dice: "1d4", skill: "light_weapons" };
-  }
-  return { name: weaponName, dice: "1d6", skill: "light_weapons" }; // default light weapon
+  if (!weaponName) return { name: "Unarmed Strike", dice: "1d3", skill: "brawling", hands: 1 };
+  const type = getWeaponType(weaponName);
+  if (type) return { name: weaponName, dice: type.dice, skill: type.skill, damageType: type.damageType, hands: type.hands };
+  return { name: weaponName, dice: "1d6", skill: "light_weapons", hands: 1 }; // default light weapon
 }
 
 export function getMagicBonus(itemName) {

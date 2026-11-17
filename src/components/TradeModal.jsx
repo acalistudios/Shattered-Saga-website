@@ -1,7 +1,14 @@
 import { useState } from 'react';
 import { formatCoin } from '../data/payouts';
-import { merchantStock, buyPriceCp, sellOfferCp, haggleToday } from '../utils/adventureTrade';
+import { merchantStock, buyPriceCp, sellOfferCp, haggleToday, undosPerVisit, shelfItemFor, REP_PER_UNDO } from '../utils/adventureTrade';
 import { getLoan, returnableLoans, itemsOnLoan } from '../utils/discoveries';
+import { describeGear } from '../data/gearStats';
+
+/** What the item does in play, under its name (data/gearStats.js). */
+const GearLine = ({ item }) => {
+  const text = describeGear(item);
+  return text ? <span className="block text-4xs text-sky-300/80">{text}</span> : null;
+};
 
 const coinCp = (c = {}) => (c.gp ?? c.gold ?? 0) * 100 + (c.sp || 0) * 10 + (c.cp || 0);
 
@@ -10,10 +17,13 @@ const coinCp = (c = {}) => (c.gp ?? c.gold ?? 0) * 100 + (c.sp || 0) * 10 + (c.c
  * from the engine (utils/adventureTrade.js); closing the screen writes one line
  * into the story so the GM knows what changed hands.
  */
-export default function TradeModal({ merchants, character, adventureId, onTrade, onHaggle, onReturnLoan, onClose }) {
+export default function TradeModal({ merchants, character, adventureId, onTrade, onUndoTrade, onHaggle, onReturnLoan, onClose }) {
   const [activeName, setActiveName] = useState(merchants[0]?.name);
   const [log, setLog] = useState([]);
   const [haggleNote, setHaggleNote] = useState(null);
+  // Trades this visit, per merchant, newest last; and undos spent per merchant.
+  const [trades, setTrades] = useState({});
+  const [undosUsed, setUndosUsed] = useState({});
   const merchant = merchants.find((m) => m.name === activeName) || merchants[0];
   if (!merchant) return null;
 
@@ -37,14 +47,43 @@ export default function TradeModal({ merchants, character, adventureId, onTrade,
   // Returning writes its own story line (useGameState.returnLoanToOwner).
   const loansHere = onReturnLoan ? returnableLoans(character, merchant.name) : [];
 
+  const remember = (trade) => {
+    record(trade.line);
+    setTrades((prev) => ({ ...prev, [merchant.name]: [...(prev[merchant.name] || []), trade] }));
+  };
   const buy = (entry) => {
     const price = buyPriceCp(entry, haggle || 0);
-    if (onTrade('buy', merchant.name, entry.item)) record(`bought ${entry.item} from ${merchant.name} for ${formatCoin(price)}`);
+    if (onTrade('buy', merchant.name, entry.item)) {
+      remember({ action: 'buy', item: entry.item, priceCp: price, line: `bought ${entry.item} from ${merchant.name} for ${formatCoin(price)}` });
+    }
   };
   const sell = (row) => {
     // A counted stack sells one at a time: "sold 1 × Rations", not "Rations (3)".
     const label = /\(\d+\)$/.test(row.item) ? `1 × ${row.item.replace(/\s*\(\d+\)$/, '')}` : row.item;
-    if (onTrade('sell', merchant.name, row.item)) record(`sold ${label} to ${merchant.name} for ${formatCoin(row.offer)}`);
+    if (onTrade('sell', merchant.name, row.item)) {
+      remember({ action: 'sell', item: shelfItemFor(row.item), priceCp: row.offer, line: `sold ${label} to ${merchant.name} for ${formatCoin(row.offer)}` });
+    }
+  };
+
+  // Undo: one per visit for every REP_PER_UNDO reputation with this merchant.
+  const myTrades = trades[merchant.name] || [];
+  const undosLeft = Math.max(0, undosPerVisit(character, merchant) - (undosUsed[merchant.name] || 0));
+  const lastTrade = myTrades[myTrades.length - 1];
+  const undo = () => {
+    if (!lastTrade || undosLeft <= 0 || !onUndoTrade) return;
+    if (!onUndoTrade(merchant.name, lastTrade)) {
+      setHaggleNote(lastTrade.action === 'sell'
+        ? `You can't afford to buy back ${lastTrade.item} for ${formatCoin(lastTrade.priceCp)}.`
+        : `You no longer have ${lastTrade.item} to give back.`);
+      return;
+    }
+    setTrades((prev) => ({ ...prev, [merchant.name]: myTrades.slice(0, -1) }));
+    setUndosUsed((prev) => ({ ...prev, [merchant.name]: (prev[merchant.name] || 0) + 1 }));
+    setLog((prev) => {
+      const i = prev.lastIndexOf(lastTrade.line);
+      return i === -1 ? prev : [...prev.slice(0, i), ...prev.slice(i + 1)];
+    });
+    setHaggleNote(`${merchant.name} lets you take that back.`);
   };
   const doHaggle = () => {
     const result = onHaggle(merchant.name);
@@ -97,6 +136,25 @@ export default function TradeModal({ merchants, character, adventureId, onTrade,
         </div>
         {haggleNote && <p className="px-5 pt-2 text-4xs text-violet-300">{haggleNote}</p>}
 
+        <div className="px-5 pt-2 flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
+          <p className="text-4xs text-slate-500">
+            {undosPerVisit(character, merchant) > 0
+              ? `${merchant.name} trusts you: ${undosLeft} undo${undosLeft === 1 ? '' : 's'} left this visit.`
+              : `Earn ${REP_PER_UNDO} reputation with ${merchant.name} to be allowed to undo a trade.`}
+          </p>
+          {undosPerVisit(character, merchant) > 0 && (
+            <button
+              type="button"
+              onClick={undo}
+              disabled={!lastTrade || undosLeft <= 0}
+              title={lastTrade ? `Undo: ${lastTrade.line}` : 'Nothing to undo yet'}
+              className="px-3 py-1 rounded border border-slate-700 hover:border-slate-500 disabled:opacity-40 text-slate-200 text-4xs font-bold uppercase tracking-wider cursor-pointer shrink-0"
+            >
+              ↶ Undo{lastTrade ? `: ${lastTrade.action === 'buy' ? 'bought' : 'sold'} ${lastTrade.item}` : ''}
+            </button>
+          )}
+        </div>
+
         {loansHere.length > 0 && (
           <div className="mx-5 mt-3 p-3 rounded border border-amber-700/50 bg-amber-950/30 space-y-2">
             {loansHere.map((item) => (
@@ -127,7 +185,11 @@ export default function TradeModal({ merchants, character, adventureId, onTrade,
                   <li key={entry.item} className="flex items-center justify-between gap-2 bg-slate-900 border border-slate-800 rounded px-3 py-2">
                     <div className="text-left">
                       <span className="text-2xs text-slate-200 font-bold">{entry.item}</span>
-                      <span className="block text-4xs text-slate-500">{entry.remaining > 0 ? `${entry.remaining} left` : 'Sold out'}</span>
+                      <GearLine item={entry.item} />
+                      <span className="block text-4xs text-slate-500">
+                        {entry.remaining > 0 ? `${entry.remaining} left` : 'Sold out'}
+                        {entry.soldByYou ? ` · ${entry.soldByYou} sold by you` : ''}
+                      </span>
                       {entry.restockAfter && <span className="block text-5xs text-emerald-400" title={`Stocked once you had completed ${entry.restockAfter} adventures`}>✦ New stock</span>}
                     </div>
                     <button
@@ -154,6 +216,7 @@ export default function TradeModal({ merchants, character, adventureId, onTrade,
                 <li key={row.item} className="flex items-center justify-between gap-2 bg-slate-900 border border-slate-800 rounded px-3 py-2">
                   <div className="text-left">
                     <span className="text-2xs text-slate-200 font-bold">{row.item}{row.count > 1 ? ` ×${row.count}` : ''}</span>
+                    <GearLine item={row.item} />
                     <span className="block text-4xs text-slate-500">
                       {returnable ? `${getLoan(row.item).ownerShort}'s, on loan: give it back for nothing`
                         : row.isEquipped ? 'Equipped: unequip it to sell'

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import AdSlot from '../components/AdSlot';
 import TradeModal from '../components/TradeModal';
 import GmPickerModal from '../components/GmPicker';
+import { describeGear, getDualWield, DUAL_WIELD } from '../data/gearStats';
 import { merchantsAtLocation } from '../utils/adventureTrade';
 import { LOAN_STATUS_LABEL } from '../utils/discoveries';
 import { ADSENSE_SLOTS, displayAdsEnabled } from '../utils/ads';
@@ -197,6 +198,7 @@ export default function PlayScreen({
   onUseInventoryItem,
   onInstallBowstring,
   onTrade,
+  onUndoTrade,
   onHaggle,
   onTradeLog,
   onReturnLoan,
@@ -2031,6 +2033,7 @@ export default function PlayScreen({
                 character={character}
                 adventureId={activeAdventureId}
                 onTrade={onTrade}
+                onUndoTrade={onUndoTrade}
                 onHaggle={onHaggle}
                 onReturnLoan={onReturnLoan}
                 onClose={(summary) => { setIsTradeOpen(false); onTradeLog?.(summary); }}
@@ -2835,6 +2838,12 @@ export default function PlayScreen({
                 );
               })()}
             </div>
+            {getDualWield(character.equipment) && (
+              <p className="mt-2 text-[10px] text-amber-300/90 leading-snug">
+                ⚔️ Dual wielding: each melee attack strikes twice. Main hand {DUAL_WIELD.main.hit} to hit and {DUAL_WIELD.main.damage} damage;
+                off hand {DUAL_WIELD.off.hit} to hit and {DUAL_WIELD.off.damage} damage. You can still parry, but there's no shield soak.
+              </p>
+            )}
           </div>
 
           {/* Section 3: Backpack Inventory */}
@@ -2883,6 +2892,9 @@ export default function PlayScreen({
                           {details.weight} lbs / {details.volume} L
                         </span>
                       </div>
+                      {describeGear(item) && (
+                        <span className="text-[10px] text-sky-300/80 leading-snug mt-0.5">{describeGear(item)}</span>
+                      )}
 
                       <div className="flex justify-between items-center mt-1.5 border-t border-slate-950 pt-1.5">
                         <span className="text-[10px] text-slate-500 font-semibold select-none">

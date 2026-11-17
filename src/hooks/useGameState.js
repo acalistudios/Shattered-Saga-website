@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import storage from '../utils/storage';
 import { GMS, SAGA_ENGINES, BASE_SYSTEM_PROMPT, SKILLS_LIST, PROFESSIONS_LIST, ELEMENTS_LIST, getGm, DEFAULT_GM_ID, PREMIUM_TURN_COST } from '../data/gms';
+import { getArmorType, getShieldSoakDie, getDualWield, DUAL_WIELD, isShieldName } from '../data/gearStats';
 import { calculateWeightAndVolume, getItemDetails, getEquippedDefenseGear } from '../utils/items';
 import { generateCompletion, executeOpposedCheck, rollDie, rollAttributePrimary, rollAttributeSecondary, rollSkillRanks } from '../utils/ai';
 import { ADVENTURES_LIST } from '../data/adventures';
@@ -48,7 +49,7 @@ import { claimDepot, isAtDepot, settleConfiscatedOnCompletion, shouldConfiscateO
 import { getSupplyDepot } from '../data/supplyDepot';
 import { rollDiceExpression } from '../utils/dice';
 import { claimSearchFind, applySearchFind, formatCoin, TREASURE_FINDS_PER_ADVENTURE } from '../data/payouts';
-import { merchantsAtLocation, buyFromMerchant, sellToMerchant, recordHaggle, haggleToday, merchantOffer } from '../utils/adventureTrade';
+import { merchantsAtLocation, buyFromMerchant, sellToMerchant, recordHaggle, haggleToday, merchantOffer, undoTrade } from '../utils/adventureTrade';
 import { recordDiscoveries, resolveLoanRemovals, returnLoan, settleLoansOnLeave, settleMissingLoans, getLoan } from '../utils/discoveries';
 import {
   PATROL_FOES, patrolGearRecovery, isPatrolId, patrolEncounterIdOf, patrolIdFor, beginPatrol, markPatrolFought,
@@ -106,17 +107,6 @@ function consumeInventoryItem(inventory, namePattern) {
   return { consumed, nextInventory };
 }
 
-function getArmorType(armorName) {
-  if (!armorName) return 'none';
-  const nameLower = armorName.toLowerCase();
-  if (nameLower.includes('heavy') || nameLower.includes('plate') || nameLower.includes('heavy duty apron')) {
-    return 'heavy';
-  }
-  if (nameLower.includes('medium') || nameLower.includes('chainmail') || nameLower.includes('reinforced apron') || nameLower.includes('ringmail')) {
-    return 'medium';
-  }
-  return 'light';
-}
 
 function rollAttribute(score) {
   const rollDie = (s) => Math.floor(Math.random() * s) + 1;
@@ -133,17 +123,6 @@ function rollAttribute(score) {
   return rollDie(20) + rollDie(12); // score 11+
 }
 
-function getShieldSoakDie(shieldName) {
-  if (!shieldName) return 4;
-  const nameLower = shieldName.toLowerCase();
-  if (nameLower.includes('tower') || nameLower.includes('heavy') || nameLower.includes('reinforced')) {
-    return 8;
-  }
-  if (nameLower.includes('buckler') || nameLower.includes('hide') || nameLower.includes('leather') || nameLower.includes('wood') || nameLower.includes('targe')) {
-    return 4;
-  }
-  return 6; // default to medium shield (d6)
-}
 
 
 
@@ -5024,6 +5003,14 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
   };
 
   /** One Negotiation roll per merchant per in-game day; improves prices up to 25%. */
+  // Reverse a trade from this visit at its own price (an undo earned by reputation).
+  const undoTradeWithMerchant = (merchantName, trade) => {
+    const merchant = merchantHere(merchantName);
+    if (!merchant || undoTrade(character, activeAdventureId, merchant, trade) === character) return false;
+    setCharacter(prev => undoTrade(prev, activeAdventureId, merchant, trade));
+    return true;
+  };
+
   const haggleWithMerchant = (merchantName) => {
     const merchant = merchantHere(merchantName);
     if (!merchant || haggleToday(character, activeAdventureId, merchant) !== null) return null;
@@ -6025,57 +6012,67 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     const keystoneSpellPwr = keystoneMods.spellPowerBonus || 0;
 
     if (maneuverType === 'melee') {
-      const rightItem = character.equipment?.hand_right;
-      const weaponProps = getRewardWeaponProfile(rightItem, character, activeEnemy, activeAdventureId);
-      
-      const attr1Roll = rollAttribute(character.attributes.coordination || 1);
-      const attr2Roll = rollAttribute(character.attributes.power || 1);
-      
-      let skillRoll = 0;
-      const skillRanks = character.skills[weaponProps.skill] || 0;
-      for (let i = 0; i < skillRanks; i++) {
-        skillRoll += rollDie(2);
-      }
+      // The main hand is whichever hand holds a weapon (not a shield); none means
+      // unarmed. Two one-handed weapons strike twice, both at a penalty
+      // (data/gearStats.js DUAL_WIELD).
+      const dual = getDualWield(character.equipment);
+      const mainItem = [character.equipment?.hand_right, character.equipment?.hand_left].find(i => i && !isShieldName(i)) || null;
+      const strikes = dual
+        ? [{ item: dual.main, pen: DUAL_WIELD.main, label: 'main hand' }, { item: dual.off, pen: DUAL_WIELD.off, label: 'off hand' }]
+        : [{ item: mainItem, pen: { hit: 0, damage: 0 }, label: null }];
 
-      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + weaponProps.attackBonus + (nextRollModifier || 0);
-      const isHit = totalRoll >= enemyDefenseRoll;
+      let enemyHp = activeEnemy.hp;
+      let anyHit = false;
+      const nextEnemyStatuses = { ...(activeEnemy.statuses || {}) };
+      const notices = [];
+      const names = [];
+
+      strikes.forEach((strike, idx) => {
+        if (enemyHp <= 0) return; // the first blow already finished it
+        const weaponProps = getRewardWeaponProfile(strike.item, character, activeEnemy, activeAdventureId);
+        names.push(weaponProps.name);
+        const attr1Roll = rollAttribute(character.attributes.coordination || 1);
+        const attr2Roll = rollAttribute(character.attributes.power || 1);
+        let skillRoll = 0;
+        const skillRanks = character.skills[weaponProps.skill] || 0;
+        for (let i = 0; i < skillRanks; i++) skillRoll += rollDie(2);
+
+        const defenseRoll = idx === 0 ? enemyDefenseRoll : rollDiceExpression(enemyDodgeVal) + defenseModifier;
+        const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + weaponProps.attackBonus + strike.pen.hit + (idx === 0 ? (nextRollModifier || 0) : 0);
+        const dualStr = strike.label ? ` (${strike.label}, dual wield ${strike.pen.hit} to hit, ${strike.pen.damage} damage)` : '';
+        const rollStr = `Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}`;
+
+        if (totalRoll >= defenseRoll) {
+          anyHit = true;
+          const rawDmg = Math.max(0, rollDiceExpression(weaponProps.dice) + dmgBonus + weaponProps.damageBonus + keystoneAtkDmg + strike.pen.damage);
+          const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
+          const netDmg = Math.max(1, rawDmg - soak);
+          enemyHp = Math.max(0, enemyHp - netDmg);
+          const effectTexts = [];
+          weaponProps.effects.forEach(effect => {
+            if (effect.type === 'cooldown') {
+              setCharacter(prev => setItemCooldownOnCharacter(prev, effect.itemName, effect.effectId, effect.reset, 8));
+              effectTexts.push(effect.text);
+            } else if (effect.type === 'poison') {
+              const poisoned = Math.random() < effect.chance;
+              effectTexts.push(`${effect.text}: ${poisoned ? 'poison applied' : 'no poison'}`);
+              if (poisoned) nextEnemyStatuses.poisoned = true;
+            } else if (effect.type === 'passive') {
+              effectTexts.push(effect.text);
+            }
+          });
+          const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${keystoneAtkDmg > 0 ? `, Cinder Might: +${keystoneAtkDmg}` : ''}${weaponProps.attackBonus ? `, Weapon Bonus: +${weaponProps.attackBonus}` : ''}${weaponProps.damageBonus ? `, Reward Damage Bonus: +${weaponProps.damageBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''}`;
+          notices.push(`[Combat Action: Melee Strike${dualStr} using ${weaponProps.name} vs ${activeEnemy.name}. ${rollStr}${bonusesStr}) vs Defense Roll: ${defenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus${keystoneAtkDmg > 0 ? ` +${keystoneAtkDmg} keystone` : ''}), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${enemyHp}/${activeEnemy.maxHp}.]`);
+        } else {
+          const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : ''}${weaponProps.attackBonus ? `, Weapon Bonus: +${weaponProps.attackBonus}` : ''}`;
+          notices.push(`[Combat Action: Melee Strike${dualStr} using ${weaponProps.name} vs ${activeEnemy.name}. ${rollStr}${bonusesStr}) vs Defense Roll: ${defenseRoll}. Miss! no damage dealt.]`);
+        }
+      });
       setNextRollModifier(0);
 
-      actionDesc = `I strike the ${activeEnemy.name} with my ${weaponProps.name}!`;
-
-      if (isHit) {
-        const rawDmg = rollDiceExpression(weaponProps.dice) + dmgBonus + weaponProps.damageBonus + keystoneAtkDmg;
-        const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
-        const netDmg = Math.max(1, rawDmg - soak);
-        const nextHp = Math.max(0, activeEnemy.hp - netDmg);
-        const effectTexts = [];
-        const nextEnemyStatuses = { ...(activeEnemy.statuses || {}) };
-
-        weaponProps.effects.forEach(effect => {
-          if (effect.type === 'cooldown') {
-            setCharacter(prev => setItemCooldownOnCharacter(prev, effect.itemName, effect.effectId, effect.reset, 8));
-            effectTexts.push(effect.text);
-          } else if (effect.type === 'poison') {
-            const poisoned = Math.random() < effect.chance;
-            effectTexts.push(`${effect.text}: ${poisoned ? 'poison applied' : 'no poison'}`);
-            if (poisoned) nextEnemyStatuses.poisoned = true;
-          } else if (effect.type === 'passive') {
-            effectTexts.push(effect.text);
-          }
-        });
-
-        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${keystoneAtkDmg > 0 ? `, Cinder Might: +${keystoneAtkDmg}` : ''}${weaponProps.attackBonus ? `, Weapon Bonus: +${weaponProps.attackBonus}` : ''}${weaponProps.damageBonus ? `, Reward Damage Bonus: +${weaponProps.damageBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''}`;
-        systemNotice = `[Combat Action: Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus${keystoneAtkDmg > 0 ? ` +${keystoneAtkDmg} keystone` : ''}), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
-
-        if (nextHp === 0) {
-          systemNotice += " [combat_end]";
-        }
-
-        setActiveEnemy(prev => ({ ...prev, hp: nextHp, statuses: nextEnemyStatuses }));
-      } else {
-        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : ''}${weaponProps.attackBonus ? `, Weapon Bonus: +${weaponProps.attackBonus}` : ''}`;
-        systemNotice = `[Combat Action: Melee Strike using ${weaponProps.name} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
-      }
+      actionDesc = `I strike the ${activeEnemy.name} with my ${names.join(' and ')}!`;
+      systemNotice = notices.join(' ') + (enemyHp === 0 ? ' [combat_end]' : '');
+      if (anyHit) setActiveEnemy(prev => ({ ...prev, hp: enemyHp, statuses: nextEnemyStatuses }));
     } else if (maneuverType === 'ranged') {
       const rightItem = character.equipment?.hand_right;
       const leftItem = character.equipment?.hand_left;
@@ -6566,6 +6563,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     useInventoryItem,
     installBowstring,
     tradeWithMerchant,
+    undoTradeWithMerchant,
     haggleWithMerchant,
     recordTradeInStory,
     returnLoanToOwner,

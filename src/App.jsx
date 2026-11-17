@@ -99,6 +99,7 @@ function App() {
     useInventoryItem,
     installBowstring,
     tradeWithMerchant,
+    undoTradeWithMerchant,
     haggleWithMerchant,
     recordTradeInStory,
     returnLoanToOwner,
@@ -1154,6 +1155,7 @@ function App() {
             onUseInventoryItem={useInventoryItem}
             onInstallBowstring={installBowstring}
             onTrade={tradeWithMerchant}
+            onUndoTrade={undoTradeWithMerchant}
             onHaggle={haggleWithMerchant}
             onTradeLog={recordTradeInStory}
             onReturnLoan={returnLoanToOwner}

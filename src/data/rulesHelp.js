@@ -130,7 +130,7 @@ export const GAME_RULES_SECTIONS = [
         title: 'Active Defenses',
         content: [
           'Acrobatics (Dodge): Coordination + Vigor. Completely avoids damage on success (Medium armor -1, Heavy armor -2).',
-          'Blocking (Shield/Parry): Power + Coordination. Interposes shield or weapon to soak damage (Wooden: 1d4, Iron: 1d6+1, Tower: 1d8+2).',
+          'Blocking (Shield/Parry): Power + Coordination. Interposes shield or weapon to soak damage (Wooden or buckler: 1d4, Iron or steel: 1d6, Tower or heavy: 1d8, plus any +N on the shield).',
           'Ward (Willpower/Arcane): Willpower + Empathy (or Attunement + Intellect). Resists mental terror, curses, and spellblasts.'
         ]
       },
@@ -139,6 +139,14 @@ export const GAME_RULES_SECTIONS = [
         content: [
           'Each defensive reaction beyond the first in the same round suffers a cumulative -2 penalty (-2 on 2nd, -4 on 3rd, -6 on 4th).',
           'Tactical rule: Avoid being surrounded by minions or taking multiple flurries from rapid foes without cover!'
+        ]
+      },
+      {
+        title: 'Weapons & Dual Wielding',
+        content: [
+          'One-handed melee weapons use Light Weapons; two-handed ones use Heavy Weapons; bows and crossbows use Marksmanship. Each item shows its damage, skill and hands in your inventory and in shops.',
+          'Damage: dagger 1d4, shortsword and hatchet 1d6, sword and axe 1d8, polearm and war scythe 1d10, greatsword and warhammer 2d6.',
+          'Dual wielding: hold a one-handed melee weapon in each hand and every melee attack strikes twice. The main hand strikes at -2 to hit and -1 damage, the off hand at -4 to hit and -2 damage. You can still parry with Blocking, but with no shield there is no shield soak.'
         ]
       }
     ]
