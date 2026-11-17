@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import storage from '../utils/storage';
-import { GMS, SAGA_ENGINES, BASE_SYSTEM_PROMPT, SKILLS_LIST, PROFESSIONS_LIST, ELEMENTS_LIST } from '../data/gms';
+import { GMS, SAGA_ENGINES, BASE_SYSTEM_PROMPT, SKILLS_LIST, PROFESSIONS_LIST, ELEMENTS_LIST, getGm, DEFAULT_GM_ID, PREMIUM_TURN_COST } from '../data/gms';
 import { calculateWeightAndVolume, getItemDetails, getEquippedDefenseGear } from '../utils/items';
 import { generateCompletion, executeOpposedCheck, rollDie, rollAttributePrimary, rollAttributeSecondary, rollSkillRanks } from '../utils/ai';
 import { ADVENTURES_LIST } from '../data/adventures';
@@ -930,7 +930,10 @@ export default function useGameState() {
 
   // Single-narrator model: any legacy GM id (oracle/titan/ancient) or null resolves
   // to the sole narrator entry so saved games and adventure suggestedGm values keep working.
-  const activeGm = GMS.find(g => g.id === activeGmId) || GMS[0];
+  const activeGm = getGm(activeGmId);
+  // The GM the player chose for this character (creation or the GM picker).
+  // Adventures, patrols and arena bouts all start with it.
+  const chosenGmId = getGm(character?.preferredGm || DEFAULT_GM_ID).id;
 
   const recordDiceRoll = useCallback((entry) => {
     const id = entry.id || `roll_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -1230,6 +1233,7 @@ export default function useGameState() {
       scars: { maxHpPenalty: 0, notes: [] },
       portraitUrl: creationData.portraitUrl || null,
       portraitSeed: creationData.portraitSeed || null,
+      preferredGm: getGm(creationData.gmId || DEFAULT_GM_ID).id,
       storage: [],
       currency: { gold: startingGold, fateCoins: 0 },
       strongholds: [],
@@ -1359,6 +1363,10 @@ export default function useGameState() {
   ) => {
     if (!activeGmId || isLoading) return;
 
+    // The GM decides the engine: The Loremaster narrates with the premium chain,
+    // The Chronicler with the standard one. BYOK players keep their own key.
+    if (engineTier !== 'byok') engineTier = activeGm.premium ? 'premium' : 'free';
+
     // Death no longer ends the campaign: it opens the resurrection choice. The
     // block stays so a dead character cannot keep acting, but the way out is now
     // choosing where to return rather than resetting the whole save.
@@ -1390,6 +1398,23 @@ export default function useGameState() {
       }
     }
 
+    // The Loremaster's turns come from an account balance, so a guest can't use it.
+    const switchToChronicler = (reason) => {
+      const ok = typeof window !== 'undefined' && window.confirm(
+        `${reason}\n\nSwitch to The Chronicler (1 turn per action) and send this action?`
+      );
+      if (!ok) return false;
+      swapGmVoluntarily(DEFAULT_GM_ID);
+      engineTier = 'free';
+      return true;
+    };
+    if (engineTier === 'premium' && !sandbox && !sessionToken && isBackendConfigured) {
+      if (!switchToChronicler('The Loremaster needs a signed-in account: its turns come from your balance.')) {
+        setApiError('Sign in to play with The Loremaster, or switch your GM to The Chronicler.');
+        return;
+      }
+    }
+
     if (sessionToken && engineTier === 'premium') {
       let currentEnergy;
       if (!supabaseUrl && !isBackendConfigured) {
@@ -1402,8 +1427,9 @@ export default function useGameState() {
         currentEnergy = userProfile ? userProfile.energy_balance : 0;
       }
 
-      if (currentEnergy < 8) {
-        setApiError("A premium turn uses 8 turns and your balance is too low. Switch to the standard engine, or top up in Account > Store.");
+      if (currentEnergy < PREMIUM_TURN_COST
+        && !switchToChronicler(`The Loremaster uses ${PREMIUM_TURN_COST} turns per action and you have ${currentEnergy}.`)) {
+        setApiError(`The Loremaster uses ${PREMIUM_TURN_COST} turns per action. Switch your GM to The Chronicler, or top up in Account > Store.`);
         return;
       }
     }
@@ -3597,6 +3623,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
             await fetchUserProfile();
           }
         }
+      } else if (engineTier === 'free' && sessionToken && isBackendConfigured && !sandbox) {
+        // Chronicler turns also come off the account balance; keep the display current.
+        fetchUserProfile();
       }
 
       // Check if adventure step is completed (milestone check in GM text)
@@ -3621,7 +3650,10 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
   // Perform voluntary manual GM Swapping
   const swapGmVoluntarily = async (newGmId) => {
-    setActiveGmId(newGmId);
+    const gmId = getGm(newGmId).id;
+    setActiveGmId(gmId);
+    // Remember it for the character, so later adventures start with this GM.
+    setCharacter(prev => (prev ? { ...prev, preferredGm: gmId } : prev));
     setWarningMessage(null);
     setApiError(null);
   };
@@ -4011,7 +4043,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     const choices = selectPatrolChoices(encounterId);
     setCharacter(prev => beginPatrol(prev, encounterId, choices));
     setActiveAdventureId(patrolId);
-    setActiveGmId('narrator');
+    setActiveGmId(chosenGmId);
     setCurrentLocation(adventure.settings[0]);
     setActiveEnemy(null);
     setCombatStance(null);
@@ -4073,7 +4105,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
     setCharacter(prev => beginArenaBout(prev, bracketId));
     setActiveAdventureId(arenaId);
-    setActiveGmId('narrator');
+    setActiveGmId(chosenGmId);
     setCurrentLocation(adventure.settings[0]);
     setActiveEnemy(null);
     setCombatStance(null);
@@ -4145,7 +4177,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
   const startAdventure = (adventureId, gmId, startingPrompt, isFreeRoam = false) => {
     setActiveAdventureId(adventureId);
-    setActiveGmId(gmId);
+    // The player's own GM choice wins over the adventure's legacy suggestedGm.
+    setActiveGmId(character?.preferredGm ? chosenGmId : getGm(gmId).id);
     storage.set(`slot_${activeSlotIndex}_pre_adventure_character`, character);
     
     const adventure = ADVENTURES_LIST.find(a => a.id === adventureId);

@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { SKILLS_LIST, PROFESSIONS_LIST, ELEMENTS_LIST, VIRTUES, VICES, ALLEGIANCES, ATTRIBUTE_LIST } from '../data/gms';
 import { PRESET_METADATA } from '../data/portraits';
 import AccountStatusPills from '../components/AccountStatusPills';
+import { GmCards } from '../components/GmPicker';
+import { DEFAULT_GM_ID } from '../data/gms';
 
 const HELP_TEXTS = {
   philosophy: {
@@ -115,6 +117,7 @@ export default function CharacterCreation({
   const [gender, setGender] = useState('Male');
   const [age, setAge] = useState('middle'); // 'youth', 'middle', 'elder'
   const [element, setElement] = useState('air');
+  const [gmId, setGmId] = useState(DEFAULT_GM_ID);
   const [portraitUrl, setPortraitUrl] = useState(null);
   const [portraitSeed, setPortraitSeed] = useState(null);
   
@@ -322,7 +325,8 @@ export default function CharacterCreation({
       philosophy,
       personality: { practicality, action },
       portraitUrl,
-      portraitSeed
+      portraitSeed,
+      gmId
     });
   };
 
@@ -933,6 +937,16 @@ export default function CharacterCreation({
             </div>
           </div>
 
+        </div>
+
+        {/* Stage 6: Game Master (which AI narrates; data/gms.js) */}
+        <div className="rounded-lg border border-slate-800 bg-slate-900/30 p-5">
+          <h3 className="text-md font-bold text-amber-300 uppercase tracking-wider font-serif mb-1">Game Master</h3>
+          <p className="text-3xs text-slate-400 leading-relaxed mb-4">
+            Your GM narrates the world and plays everyone in it. Each is a different AI with its own cost per action.
+            You can change GM at any time during play by clicking the Game Master panel.
+          </p>
+          <GmCards selectedId={gmId} onSelect={setGmId} />
         </div>
 
         {/* Submit */}

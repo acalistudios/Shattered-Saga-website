@@ -57,6 +57,7 @@ function App() {
     updateCharacterStats,
     character,
     activeGm,
+    swapGmVoluntarily,
     gmEnergies,
     history,
     journal,
@@ -1091,6 +1092,7 @@ function App() {
           <PlayScreen
             character={character}
             activeGm={activeGm}
+            onSwapGm={swapGmVoluntarily}
             userProfile={userProfile}
             gmEnergies={gmEnergies}
             history={history}

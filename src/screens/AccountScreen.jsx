@@ -771,9 +771,9 @@ export default function AccountScreen({
                 <span className="block mt-1 text-5xs text-slate-450 uppercase tracking-wider">Character slots and special unlocks</span>
               </div>
               <div className="rounded-lg bg-slate-900 border border-emerald-500/20 p-4">
-                <span className="block text-5xs text-slate-500 uppercase tracking-widest font-bold">Priority Turns</span>
+                <span className="block text-5xs text-slate-500 uppercase tracking-widest font-bold">Turns</span>
                 <span className="block mt-1 text-2xl text-emerald-400 font-black">{currentTurns}</span>
-                <span className="block mt-1 text-5xs text-slate-450 uppercase tracking-wider">Metered premium narration</span>
+                <span className="block mt-1 text-5xs text-slate-450 uppercase tracking-wider">Chronicler 1 · Loremaster 8 per action</span>
               </div>
               <div className="rounded-lg bg-slate-900 border border-violet-500/20 p-4">
                 <span className="block text-5xs text-slate-500 uppercase tracking-widest font-bold">Current Plan</span>
@@ -794,7 +794,7 @@ export default function AccountScreen({
               <h2 className="text-sm font-bold text-slate-300 uppercase tracking-widest mb-2">Account summary</h2>
               <p className="text-xs text-slate-450 leading-relaxed">
                 Gems are stored on your account and are used for persistent unlocks like extra character slots.
-                Priority Turns are the metered pool for premium AI narration. Use the Store tab when you need more of either balance.
+                Turns pay for your Game Master: The Chronicler uses 1 per action, The Loremaster 8. Use the Store tab when you need more of either balance.
               </p>
             </div>
           )}
@@ -921,11 +921,11 @@ export default function AccountScreen({
                     </span>
                   </div>
                   <p className="text-4xs text-slate-450 leading-relaxed mb-3">
-                    Play using the Free Connection engine (Flash). Supported by responsive banner ads on the side panels.
+                    Play with either Game Master using your turn balance. Supported by banner ads on the side panels.
                   </p>
                   <ul className="text-5xs text-slate-400 space-y-1 mb-4">
-                    <li>• Capped 8-turn conversation context history</li>
-                    <li>• Dynamic Regional Memory filtering</li>
+                    <li>• The Chronicler: 1 turn per action · The Loremaster: 8</li>
+                    <li>• Top up anytime with turn packs from the Store</li>
                     <li>• 20 turns at sign-up, +80 once your email is verified</li>
                     <li>• Rewarded ad refills (+3 turns each, up to 10 a day)</li>
                   </ul>
@@ -1002,12 +1002,12 @@ export default function AccountScreen({
                     </span>
                   </div>
                   <p className="text-4xs text-slate-450 leading-relaxed mb-3">
-                    Unlock the Premium Engine (Pro model narrative quality) with a monthly premium allowance and ad-free standard play.
+                    A monthly bundle of turns for The Loremaster, plus ad-free play with The Chronicler.
                   </p>
                   <ul className="text-5xs text-slate-400 space-y-1 mb-4">
-                    <li>• <strong>{billingCycle === 'monthly' ? '200' : '2,400'} premium turns</strong> (1 premium turn uses 8 turns)</li>
-                    <li>• Up to 1,000 ad-free standard turns a month (fair use); after that they use your balance</li>
-                    <li>• Expanded 25-turn history context buffer</li>
+                    <li>• <strong>{billingCycle === 'monthly' ? '1,600' : '19,200'} turns</strong> ({billingCycle === 'monthly' ? '200' : '2,400'} Loremaster actions at 8 turns each)</li>
+                    <li>• Up to 1,000 Chronicler actions a month without using your balance (fair use)</li>
+                    <li>• No ads</li>
                   </ul>
                 </div>
                 {currentTier === 'adventurer' ? (
@@ -1039,12 +1039,12 @@ export default function AccountScreen({
                     </span>
                   </div>
                   <p className="text-4xs text-slate-450 leading-relaxed mb-3">
-                    Maximum narrative priority. The ultimate subscription for heavy dungeon-crawlers and legendary storytellers.
+                    The biggest monthly bundle, for players who want The Loremaster most of the time.
                   </p>
                   <ul className="text-5xs text-slate-400 space-y-1 mb-4">
-                    <li>• <strong>{billingCycle === 'monthly' ? '650' : '7,800'} premium turns</strong> (1 premium turn uses 8 turns)</li>
-                    <li>• Up to 3,000 ad-free standard turns a month (fair use); after that they use your balance</li>
-                    <li>• Expanded 25-turn history context buffer</li>
+                    <li>• <strong>{billingCycle === 'monthly' ? '5,200' : '62,400'} turns</strong> ({billingCycle === 'monthly' ? '650' : '7,800'} Loremaster actions at 8 turns each)</li>
+                    <li>• Up to 3,000 Chronicler actions a month without using your balance (fair use)</li>
+                    <li>• No ads</li>
                   </ul>
                 </div>
                 {currentTier === 'legend' ? (
@@ -1100,8 +1100,8 @@ export default function AccountScreen({
               <div className="rounded-lg p-4 bg-slate-900 border border-slate-800/80 flex flex-col justify-between">
                 <div>
                   <span className="text-xl">⚡</span>
-                  <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider mt-2">200 Priority Turns</h4>
-                  <p className="text-5xs text-slate-500 mt-1 mb-3">Instantly inject 200 premium priority turns to play without any cooldowns.</p>
+                  <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider mt-2">200 Turns</h4>
+                  <p className="text-5xs text-slate-500 mt-1 mb-3">200 actions with The Chronicler, or 25 with The Loremaster. Never expire.</p>
                 </div>
                 <button
                   onClick={() => handleBuyPack('turns_200')}
@@ -1116,8 +1116,8 @@ export default function AccountScreen({
               <div className="rounded-lg p-4 bg-slate-900 border border-slate-800/80 flex flex-col justify-between">
                 <div>
                   <span className="text-xl">⚡⚡</span>
-                  <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider mt-2">1,500 Priority Turns</h4>
-                  <p className="text-5xs text-slate-500 mt-1 mb-3">High capacity refill for long epic stories. Yields a 30% discount.</p>
+                  <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider mt-2">1,500 Turns</h4>
+                  <p className="text-5xs text-slate-500 mt-1 mb-3">1,500 actions with The Chronicler, or 187 with The Loremaster. A third cheaper than the small pack. Never expire.</p>
                 </div>
                 <button
                   onClick={() => handleBuyPack('turns_1500')}

@@ -1,5 +1,6 @@
 // Game Master Definitions for Shattered Saga (V4)
 import narratorPortrait from '../assets/images/ancient.png';
+import loremasterPortrait from '../assets/images/oracle.png';
 
 export const BASE_SYSTEM_PROMPT = `You are the Game Master (GM) for "Shattered Saga", a high fantasy text-based RPG. 
 The player is on an epic adventure in a world they help select. 
@@ -34,7 +35,7 @@ export const SAGA_ENGINES = [
     name: 'Premium Engine',
     model: 'gemini-1.5-pro',
     provider: 'gemini',
-    description: 'Deep, rich narrative depth with maximum memory retention, for Adventurer and Legend subscribers. Each premium turn uses 8 turns from your balance.',
+    description: 'The Loremaster\'s engine: deep, rich narrative depth with maximum memory retention. Each action uses 8 turns from your balance.',
     glowClass: 'shadow-violet-500/20 border-violet-500/40 hover:border-violet-400',
     badgeClass: 'bg-violet-950/60 text-violet-400 border border-violet-500/30',
     icon: '💎',
@@ -67,14 +68,28 @@ export const SAGA_ENGINES = [
   }
 ];
 
-// A single, neutral Game Master narrator. The former Oracle/Titan/Ancient personas
-// were cosmetic tone wrappers over the same underlying model; they have been unified
-// into one grounded narrator. Legacy save data or adventure `suggestedGm` values
-// (e.g. 'oracle', 'titan', 'ancient') resolve to this entry via a fallback in useGameState.
+// The player picks their Game Master (Hans 2026-11-17). The GM decides which AI
+// narrates: The Chronicler runs the standard model chain at 1 turn per action,
+// The Loremaster the premium chain at PREMIUM_TURN_COST turns (Worker turns.ts).
+// The server charges by the premiumTurn flag, so `premium` here is what costs.
+// Legacy ids ('oracle', 'titan', 'ancient') and adventure `suggestedGm` values
+// resolve to The Chronicler via the fallback in useGameState.
+export const PREMIUM_TURN_COST = 8;
+export const DEFAULT_GM_ID = 'narrator';
+
 export const GMS = [
   {
     id: 'narrator',
     name: 'The Chronicler',
+    premium: false,
+    turnCost: 1,
+    memoryTurns: 8,
+    tagline: 'Quick and dependable',
+    strengths: [
+      '1 turn per action',
+      'Fast replies that keep the story moving',
+      'Remembers your last 8 exchanges',
+    ],
     avatar: narratorPortrait,
     colorClass: 'amber',
     theme: {
@@ -93,8 +108,43 @@ Narration Style:
 - Keep prose grounded and economical: concrete sensory detail over flowery adjectives. Avoid stock phrases like "fate", "the weave", "destiny calls", or repeating the same descriptors turn after turn.
 - Match tone to the moment (tense in danger, quiet in calm) without exaggeration.
 `,
+  },
+  {
+    id: 'loremaster',
+    name: 'The Loremaster',
+    premium: true,
+    turnCost: PREMIUM_TURN_COST,
+    memoryTurns: 25,
+    tagline: 'Deeper stories, longer memory',
+    strengths: [
+      `${PREMIUM_TURN_COST} turns per action`,
+      'A more capable AI: richer descriptions and sharper characters',
+      'Remembers your last 25 exchanges, so old threads come back',
+      'Needs an account (turns come from your balance)',
+    ],
+    avatar: loremasterPortrait,
+    colorClass: 'emerald',
+    theme: {
+      primaryColor: '#10b981',
+      secondaryColor: '#059669',
+      glowClass: 'shadow-emerald-500/20 border-emerald-500/40 hover:border-emerald-400',
+      barColor: 'bg-emerald-500',
+      badgeClass: 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/30',
+      avatarBorder: 'border-emerald-500',
+      accentText: 'text-emerald-400',
+    },
+    description: 'A patient, deeply read narrator who remembers what you did many scenes ago and weaves it back in, with richer detail and more distinct characters.',
+    promptOverride: `
+Narration Style:
+- Write as a neutral narrator addressing the player as "you". Do not adopt a named in-world GM persona or theatrical voice.
+- Give scenes texture: concrete sensory detail, distinct voices for each character, and consequences that follow from earlier choices. Bring back earlier threads, names and promises when they matter.
+- Stay economical: richer, not longer. Avoid stock phrases like "fate", "the weave" or "destiny calls".
+`,
   }
 ];
+
+/** Resolve any stored or legacy GM id to a real GM. */
+export const getGm = (id) => GMS.find(g => g.id === id) || GMS[0];
 export const SKILLS_LIST = [
   { id: 'acrobatics', name: 'Acrobatics', primary: 'coordination', secondary: 'vigor', desc: 'Balance, dodging, tumbling.' },
   { id: 'alchemy', name: 'Alchemy', primary: 'intellect', secondary: 'attunement', desc: 'Brewing potions, acids, poisons.' },

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import AdSlot from '../components/AdSlot';
 import TradeModal from '../components/TradeModal';
+import GmPickerModal from '../components/GmPicker';
 import { merchantsAtLocation } from '../utils/adventureTrade';
 import { LOAN_STATUS_LABEL } from '../utils/discoveries';
 import { ADSENSE_SLOTS, displayAdsEnabled } from '../utils/ads';
@@ -210,7 +211,8 @@ export default function PlayScreen({
   nextRollModifier = 0,
   diceRollLog = [],
   lastRoleplayEvent = null,
-  clearDiceRollLog
+  clearDiceRollLog,
+  onSwapGm
 }) {
   const isDesktopLayout = layoutMode === 'desktop';
   const recoveryAction = getPlayRecovery(apiError || '');
@@ -226,6 +228,7 @@ export default function PlayScreen({
   const [difficulty, setDifficulty] = useState('professional');
   const [spSpend, setSpSpend] = useState(0);
   const [isCampfireOpen, setIsCampfireOpen] = useState(false);
+  const [isGmPickerOpen, setIsGmPickerOpen] = useState(false);
 
   useEffect(() => {
     if (lastRoleplayEvent && lastRoleplayEvent.amount !== 0) {
@@ -468,7 +471,6 @@ export default function PlayScreen({
   // monthly fair-use allowance of standard turns before the balance is used.
   const PREMIUM_TURN_COST = userProfile?.premium_turn_cost || 8;
   const tier = userProfile?.subscription_tier || 'free';
-  const premiumEligible = ['adventurer', 'legend'].includes(tier);
   const fairUse = userProfile?.fair_use || null;
   const turnBars = !sessionToken
     ? [{
@@ -484,36 +486,28 @@ export default function PlayScreen({
       : [
           fairUse
             ? {
-                label: 'Standard (this month)',
+                label: 'Chronicler (this month)',
                 value: `${fairUse.remaining} / ${fairUse.limit}`,
                 fraction: fairUse.limit ? fairUse.remaining / fairUse.limit : 0,
                 color: 'bg-sky-500',
                 critical: fairUse.remaining === 0 && energyBalance <= 10,
-                note: fairUse.remaining === 0 ? `Allowance used: standard turns now come from your balance (${energyBalance}).` : null,
+                note: fairUse.remaining === 0 ? `Allowance used: Chronicler actions now come from your balance (${energyBalance}).` : null,
               }
             : {
-                label: 'Standard',
+                label: 'Chronicler actions',
                 value: `${energyBalance}`,
                 fraction: Math.min(1, energyBalance / 100),
                 color: 'bg-sky-500',
-                critical: energyBalance <= 10,
+                critical: !activeGm.premium && energyBalance <= 10,
               },
-          premiumEligible
-            ? {
-                label: 'Premium',
-                value: `${Math.floor(energyBalance / PREMIUM_TURN_COST)}`,
-                fraction: Math.min(1, Math.floor(energyBalance / PREMIUM_TURN_COST) / (tier === 'legend' ? 650 : 200)),
-                color: 'bg-violet-500',
-                critical: energyBalance < PREMIUM_TURN_COST,
-                note: `Each premium turn uses ${PREMIUM_TURN_COST} turns from your balance.`,
-              }
-            : {
-                label: 'Premium',
-                value: 'Subscribers',
-                fraction: 0,
-                color: 'bg-violet-500',
-                locked: true,
-              },
+          {
+            label: 'Loremaster actions',
+            value: `${Math.floor(energyBalance / PREMIUM_TURN_COST)}`,
+            fraction: Math.min(1, Math.floor(energyBalance / PREMIUM_TURN_COST) / (tier === 'legend' ? 650 : 200)),
+            color: 'bg-emerald-500',
+            critical: activeGm.premium && energyBalance < PREMIUM_TURN_COST,
+            note: `Each Loremaster action uses ${PREMIUM_TURN_COST} turns from your balance of ${energyBalance}.`,
+          },
         ];
   const activeAdventure = getAdventureById(activeAdventureId);
   const narrationDestinations = [...(activeAdventure?.settings || []), ...(activeAdventure?.narrativeDestinations || [])]
@@ -578,19 +572,29 @@ export default function PlayScreen({
           {/* GM Status Card */}
           <div className="rounded border border-amber-500/20 bg-slate-950/60 p-4">
             <h3 className="text-2xs uppercase tracking-widest text-slate-500 font-bold mb-3">Active Game Master</h3>
-            <div className="flex items-center gap-3">
-              <div className={`w-12 h-12 rounded-full overflow-hidden border ${activeGm.theme.avatarBorder} bg-slate-900`}>
+            <button
+              type="button"
+              onClick={() => onSwapGm && setIsGmPickerOpen(true)}
+              title="Change your Game Master"
+              className="w-full flex items-center gap-3 text-left rounded -m-1 p-1 hover:bg-slate-900/70 cursor-pointer transition-colors group"
+            >
+              <div className={`w-12 h-12 shrink-0 rounded-full overflow-hidden border ${activeGm.theme.avatarBorder} bg-slate-900`}>
                 <img
                   src={activeGm.avatar}
                   alt={activeGm.name}
                   className="w-full h-full object-cover"
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h4 className={`text-md font-bold ${activeGm.theme.accentText}`}>{activeGm.name}</h4>
-                <p className="text-3xs text-slate-400 capitalize">{activeGm.provider} pipeline</p>
+                <p className="text-3xs text-slate-400">
+                  {settings?.engineTier === 'byok'
+                    ? 'Your own API key'
+                    : `${activeGm.turnCost} ${activeGm.turnCost === 1 ? 'turn' : 'turns'} per action`}
+                  <span className="text-slate-500 group-hover:text-amber-400"> · Change</span>
+                </p>
               </div>
-            </div>
+            </button>
 
             {/* Turns remaining: standard and premium (Worker turns.ts rules) */}
             <div className="mt-4 pt-3 border-t border-slate-900/60 space-y-2.5">
@@ -3022,6 +3026,16 @@ export default function PlayScreen({
           </div>
         </div>
       </div>
+
+      {isGmPickerOpen && onSwapGm && (
+        <GmPickerModal
+          activeGmId={activeGm.id}
+          balance={sessionToken ? energyBalance : null}
+          isByok={settings?.engineTier === 'byok'}
+          onSelect={onSwapGm}
+          onClose={() => setIsGmPickerOpen(false)}
+        />
+      )}
 
       {/* Death: blocks all play until the player chooses how to return. */}
       <ResurrectionModal
