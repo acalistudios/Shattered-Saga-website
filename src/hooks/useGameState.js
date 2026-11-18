@@ -4739,7 +4739,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         defenseSkillId === 'blocking' && !!shieldName
       );
     // A shield makes a block more likely to succeed (data/gearStats.js).
-    const shieldRollBonus = (defenseSkillId === 'blocking') ? Math.floor(getShieldRollBonus(shieldName) * matchup.shieldFactor) : 0;
+    const shieldRollBonus = (defenseSkillId === 'blocking')
+      ? Math.floor(getShieldRollBonus(shieldName) * matchup.shieldFactor) + armorPieces.blockPenalty
+      : 0;
     const totalDefModifier = defensePenalty - starvationPenalty - exhaustionPenalty + shieldMagicBonus + shieldRollBonus + matchup.rollBonus + armorCheckPenalty + stanceBonus + keystoneDodgeBonus + loadPenalty;
 
     const playerRollTotal = primaryRoll + secondaryRoll + skillRoll + totalDefModifier;
@@ -4825,7 +4827,10 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
     let netDamage = 0;
     if (!defenseSuccess) {
-      netDamage = Math.max(0, rawDamage - finalArmorSoak);
+      // A hit that gets through always hurts a little: armour alone cannot make
+      // you untouchable (balance playtest, src/sim). Your blows on enemies
+      // already worked this way.
+      netDamage = Math.max(1, rawDamage - finalArmorSoak);
     } else if (defenseSkillId === 'blocking') {
       rawDamageRoll = rollDiceExpression(enemyAttack.damageExpr);
       rawDamage = rawDamageRoll;

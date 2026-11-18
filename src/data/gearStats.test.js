@@ -30,7 +30,7 @@ describe('gear stats', () => {
   it('describes weapons, shields and armour, and nothing else', () => {
     expect(describeGear('Dagger')).toBe('1d4+1 piercing · One-Handed Weapons skill · one hand · parries 1d2 · dual-wield ±0 main / -1 off hand to hit');
     expect(describeGear('Iron War Scythe')).toBe('1d10 edged · Two-Handed Weapons skill · two hands · parries 1d4');
-    expect(describeGear('Iron Shield')).toContain('+2 to Blocking rolls, blocks 1d6');
+    expect(describeGear('Iron Shield')).toContain('+3 to Blocking rolls, blocks 1d6');
     expect(describeGear('Leather Armor')).toContain('absorbs 1d3');
     expect(describeGear('+1 Shield (Voss Crest)')).toContain('1d6 +1');
     expect(describeGear('Bedroll')).toBe('');
@@ -43,9 +43,9 @@ describe('gear stats', () => {
     expect(getParryDie('Greatsword')).toBe(4);
     expect(getParryDie('Hunting Bow')).toBe(0);
     expect(getShieldRollBonus('Buckler')).toBe(1);
-    expect(getShieldRollBonus('Wooden Shield')).toBe(1);
-    expect(getShieldRollBonus('Iron Shield')).toBe(2);
-    expect(getShieldRollBonus('Tower Shield')).toBe(3);
+    expect(getShieldRollBonus('Wooden Shield')).toBe(2);
+    expect(getShieldRollBonus('Iron Shield')).toBe(3);
+    expect(getShieldRollBonus('Tower Shield')).toBe(4);
   });
 
   it('scales the dual-wield penalty with weapon weight', () => {
@@ -86,7 +86,7 @@ describe('fighting styles', () => {
 
   it('applies each matchup rule, and nothing for unrelated styles', () => {
     expect(getMatchupModifiers('two_handed', 'shield', 'block', true).shieldFactor).toBe(0.75);
-    expect(getMatchupModifiers('dual', 'shield', 'block', true).rollBonus).toBe(1);
+    expect(getMatchupModifiers('dual', 'shield', 'block', true).rollBonus).toBe(0);
     expect(getMatchupModifiers('ranged', 'two_handed', 'block', false)).toMatchObject({ canParry: false, rollBonus: -2 });
     expect(getMatchupModifiers('ranged', 'none', 'dodge', false).rollBonus).toBe(-2);
     expect(getMatchupModifiers('ranged', 'shield', 'block', true)).toMatchObject({ canParry: true, rollBonus: 0 });
@@ -98,8 +98,8 @@ describe('fighting styles', () => {
     expect(enemyStyleFromNpc(threx)).toEqual({ style: 'shield', shield: 'Iron Shield' });
     expect(enemyStyleFromWeapon('spear and hide shield')).toEqual({ style: 'shield', shield: 'spear and hide shield' });
     const enemy = { style: 'shield', shield: 'Iron Shield', defenses: { dodge: '5', block: '10' } };
-    expect(rollEnemyDefense(enemy, 'none', Number)).toMatchObject({ roll: 12, defence: 'block', blockDie: 6 });
-    expect(rollEnemyDefense(enemy, 'two_handed', Number)).toMatchObject({ roll: 11, blockDie: 4 });
+    expect(rollEnemyDefense(enemy, 'none', Number)).toMatchObject({ roll: 13, defence: 'block', blockDie: 6 });
+    expect(rollEnemyDefense(enemy, 'two_handed', Number)).toMatchObject({ roll: 12, blockDie: 4 });
     expect(rollEnemyDefense({ style: 'two_handed', defenses: { dodge: '5', block: '10' } }, 'ranged', Number)).toMatchObject({ roll: 3, defence: 'dodge' });
   });
 });

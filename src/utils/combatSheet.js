@@ -74,7 +74,7 @@ export function getCombatSheet(character) {
   const dodgeMod = bodyDodgePen + pieces.dodgePenalty + (keystone.dodgeBonus || 0) + defPen + load;
   const { shieldName, weaponName } = getEquippedDefenseGear(eq);
   const shieldBonus = shieldName ? getShieldRollBonus(shieldName) + getMagicBonus(shieldName) : 0;
-  const blockMod = shieldBonus + defPen + load;
+  const blockMod = shieldBonus + pieces.blockPenalty + defPen + load;
   const canBlock = !!(shieldName || weaponName);
   const blockSoak = shieldName
     ? `1d${getShieldSoakDie(shieldName)}${getMagicBonus(shieldName) ? signed(getMagicBonus(shieldName)) : ''} shield`

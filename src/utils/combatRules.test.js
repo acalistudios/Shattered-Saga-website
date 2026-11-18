@@ -21,7 +21,7 @@ describe('armour pieces', () => {
     expect(getArmorPieceType('Mage Hood')).toBeNull();
     expect(getArmorPieceType('Iron Key')).toBeNull();
     expect(getArmorPieces({ head: 'Iron Plate Helm', legs: 'Plate Greaves', feet: 'Steel Sabatons', hands: 'Plate Gauntlets' }))
-      .toEqual({ metal: 4, leather: 0, soak: 2, dodgePenalty: -2 });
+      .toEqual({ metal: 4, leather: 0, soak: 2, dodgePenalty: -2, blockPenalty: -1 });
     expect(getArmorPieces({ head: 'Leather Helmet', legs: 'Leather Pants', feet: 'Leather Boots', hands: 'Leather Gloves' }))
       .toMatchObject({ soak: 1, dodgePenalty: 0 });
     expect(getArmorPieces({ head: 'Iron Plate Helm' })).toMatchObject({ soak: 0, dodgePenalty: 0 });
@@ -69,7 +69,7 @@ describe('combat stats panel numbers', () => {
     expect(s.attacks[0]).toMatchObject({ weapon: 'Steel Sword', damage: '1d8', hitAvg: 12 });
     expect(s.soak).toMatchObject({ avg: 2 });
     expect(s.dodge.avg).toBe(10);
-    expect(s.block).toMatchObject({ avg: 12, soak: '1d6 shield' });
+    expect(s.block).toMatchObject({ avg: 13, soak: '1d6 shield' });
   });
 
   it('renders the panel with every row', async () => {

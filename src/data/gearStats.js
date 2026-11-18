@@ -53,10 +53,12 @@ export function getParryDie(weaponName) {
 // all damage) rolled the same odds and shields did nothing in play.
 // blockDie is the damage soaked when a Blocking defence succeeds.
 export const SHIELD_TYPES = [
-  { key: 'tower', match: ['tower', 'heavy', 'reinforced'], label: 'Heavy shield', blockDie: 8, rollBonus: 3, valueCp: 500 },
+  // Roll bonuses raised by 1 after the balance playtest (src/sim): at +2 an
+  // iron shield did no better than a sword alone against the adventures' foes.
+  { key: 'tower', match: ['tower', 'heavy', 'reinforced'], label: 'Heavy shield', blockDie: 8, rollBonus: 4, valueCp: 500 },
   { key: 'light', match: ['buckler', 'targe'], label: 'Buckler', blockDie: 4, rollBonus: 1, valueCp: 60 },
-  { key: 'wooden', match: ['wood', 'hide', 'leather'], label: 'Wooden shield', blockDie: 4, rollBonus: 1, valueCp: 100 },
-  { key: 'metal', match: [], label: 'Shield', blockDie: 6, rollBonus: 2, valueCp: 250 }, // iron, steel, unnamed
+  { key: 'wooden', match: ['wood', 'hide', 'leather'], label: 'Wooden shield', blockDie: 4, rollBonus: 2, valueCp: 100 },
+  { key: 'metal', match: [], label: 'Shield', blockDie: 6, rollBonus: 3, valueCp: 250 }, // iron, steel, unnamed
 ];
 
 export function getShieldRollBonus(shieldName) {
@@ -96,7 +98,14 @@ export function getArmorPieces(equipment = {}) {
     if (type === 'metal') metal++;
     else if (type === 'leather') leather++;
   }
-  return { metal, leather, soak: Math.floor((metal * 2 + leather) / 4), dodgePenalty: -Math.floor(metal / 2) || 0 };
+  // A full metal set also stiffens a block (-1), so stacking every piece of
+  // metal is a trade, not a free upgrade (balance playtest, src/sim).
+  return {
+    metal, leather,
+    soak: Math.floor((metal * 2 + leather) / 4),
+    dodgePenalty: -Math.floor(metal / 2) || 0,
+    blockPenalty: -Math.floor(metal / 4) || 0,
+  };
 }
 
 const SKILL_LABELS ={ light_weapons: 'One-Handed Weapons', heavy_weapons: 'Two-Handed Weapons', marksmanship: 'Marksmanship', blocking: 'Blocking' };
@@ -172,7 +181,7 @@ export function describeGear(itemName) {
     return `${a.label}: absorbs ${a.soak}${bonus} damage (${a.note})`;
   }
   const piece = getArmorPieceType(itemName);
-  if (piece === 'metal') return 'Metal armour piece (helm, legs, feet or hands): every 2 add +1 soak and -1 to dodge';
+  if (piece === 'metal') return 'Metal armour piece (helm, legs, feet or hands): every 2 add +1 soak and -1 to dodge; a full set of 4 is also -1 to block';
   if (piece === 'leather') return 'Leather armour piece (helm, legs, feet or hands): every 4 add +1 soak';
   return '';
 }
@@ -228,7 +237,7 @@ export const FIGHTING_STYLES = {
 // of the two lighter strikes.
 export const MATCHUP = {
   heavyBlowShieldFactor: 0.75, // two-handed vs shield: shield bonus and block die x0.75
-  shieldVsQuickBlows: 1, // shield blocking a dual wielder: + to the block roll
+  shieldVsQuickBlows: 0, // shield blocking a dual wielder (was +1; the stronger shield bonus covers it)
   slowVsDual: 0, // two-handed fighter defending against a dual wielder (two strikes already win it)
   shieldVsArrows: 0, // shield blocking an arrow: + to the block roll
   arrowsVsNoShield: -2, // defending against an arrow without a shield
