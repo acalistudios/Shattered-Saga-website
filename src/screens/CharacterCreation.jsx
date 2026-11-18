@@ -712,7 +712,7 @@ export default function CharacterCreation({
                     <div>
                       <span className="text-xs font-bold text-slate-200 block">{prof.name}</span>
                       <span className="text-4xs text-slate-500 mt-1 block">
-                        {prof.skills.map((s) => s.split('_').join(' ')).join(', ')}
+                        {prof.skills.map((s) => SKILLS_LIST.find((k) => k.id === s)?.name || s.split('_').join(' ')).join(', ')}
                       </span>
                     </div>
                     {count > 0 && (

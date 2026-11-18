@@ -14,18 +14,42 @@ export function consumeRationFromInventory(inventory = []) {
   return { hasRations, updatedInventory };
 }
 
-/** A rest changes resources, not HP, undeath, or permanent adventure rewards (unless keystone perks are active). */
+// Resting with food heals a quarter of max HP plus 1 per Healing rank; resting
+// hungry heals nothing but gives back half your fatigue (Hans 2026-11-18).
+// Used by the Rest button and by the GM's [rest] tag, so both agree.
+export const REST_HEAL_FRACTION = 0.25;
+
+export function restHealAmount(character) {
+  const maxHp = character?.stats?.maxHp ?? 10;
+  return Math.ceil(maxHp * REST_HEAL_FRACTION) + (character?.skills?.healing || 0);
+}
+
+export function hungryRestFatigue(stats = {}) {
+  const maxFatigue = stats.maxFatigue ?? 15;
+  return Math.min(maxFatigue, (stats.fatigue ?? 0) + Math.ceil(maxFatigue / 2));
+}
+
+/** A rest restores resources and some HP; it never touches undeath or permanent adventure rewards. */
 export function resolveRest(character) {
   const { hasRations, updatedInventory } = consumeRationFromInventory(character.inventory);
   const stats = { ...character.stats };
   const hours = getGameHourStamp(stats.day ?? 1, stats.hour ?? 13) + 8;
   stats.day = Math.floor(hours / 24) + 1;
   stats.hour = hours % 24;
+  let healed = 0;
   if (hasRations) {
     stats.fatigue = stats.maxFatigue ?? 15;
     stats.arcaneSP = stats.maxArcaneSP ?? 0;
     stats.divineSP = stats.maxDivineSP ?? 0;
     stats.elementalAbilityUsed = false;
+    // The dying (0 HP or below) need real healing, not sleep.
+    if ((stats.hp ?? 0) > 0) {
+      const before = stats.hp ?? 0;
+      stats.hp = Math.min(stats.maxHp ?? 10, before + restHealAmount(character));
+      healed = stats.hp - before;
+    }
+  } else {
+    stats.fatigue = hungryRestFatigue(stats);
   }
   const keystoneMods = getKeystoneStatModifiers(character);
   let keystoneRestMsg = '';
@@ -46,7 +70,7 @@ export function resolveRest(character) {
   return {
     character: hasRations ? applyRewardRestRecovery(rested) : rested,
     message: hasRations
-      ? `*You set up camp and rest for 8 hours, consuming a ration. Your physical energy, spiritual focus, and elemental focus are fully restored.*${keystoneRestMsg}`
-      : '*You try to rest for 8 hours, but with no rations to nourish you, you cannot recover your strength. You wake up weak and hungry.*',
+      ? `*You set up camp and rest for 8 hours, consuming a ration. Your physical energy, spiritual focus, and elemental focus are fully restored${healed > 0 ? `, and you recover ${healed} HP` : ''}.*${keystoneRestMsg}`
+      : '*You try to rest for 8 hours, but with no rations to nourish you, you recover only half your strength and no health. You wake up weak and hungry.*',
   };
 }

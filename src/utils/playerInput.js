@@ -14,7 +14,7 @@ export const ENGINE_TAG_NAMES = [
   'add_companion', 'add_gold', 'add_item', 'add_quest', 'advance_day', 'axis',
   'bleed', 'choice', 'combat_end', 'combat_start', 'companion_joined',
   'complete_quest', 'currency', 'damage', 'elemental_ability_unlock',
-  'elemental_ability_used', 'ending_selected', 'enemy_attack', 'event',
+  'elemental_ability_used', 'ending_selected', 'enemy_attack', 'enemy_weakened', 'event',
   'fatigue', 'heal', 'image', 'location', 'milestone', 'morality', 'npc_fact',
   'npc_fear', 'npc_trust', 'objective_complete', 'patrol_end', 'arena_end', 'recruit_companion',
   'region_fact', 'remove_gold', 'remove_item', 'remove_quest', 'rest',

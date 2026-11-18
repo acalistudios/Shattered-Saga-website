@@ -12,12 +12,13 @@ const hero = (overrides = {}) => ({
 });
 
 describe('deterministic manual rest', () => {
-  it('consumes one ration and advances midnight correctly without changing HP or undeath', () => {
+  it('consumes one ration, advances midnight correctly and heals a quarter of max HP', () => {
     const source = hero();
     const before = JSON.stringify(source);
     const { character, message } = resolveRest(source);
     expect(character.inventory).toEqual(['Rations (1)', 'Dagger']);
-    expect(character.stats).toMatchObject({ day: 2, hour: 8, hp: 1, fatigue: 15, arcaneSP: 8, divineSP: 4, elementalAbilityUsed: false });
+    expect(character.stats).toMatchObject({ day: 2, hour: 8, hp: 6, fatigue: 15, arcaneSP: 8, divineSP: 4, elementalAbilityUsed: false });
+    expect(message).toContain('recover 5 HP');
     expect(character.progression).toMatchObject({ resurrectionCount: 1, npcReactionPenalty: -1 });
     expect(character.daysWithoutFood).toBe(0);
     expect(message).toContain('consuming a ration');
@@ -30,10 +31,15 @@ describe('deterministic manual rest', () => {
     expect(character.progression.activeItemEffects).toEqual([]);
     expect(character.progression.temporarySkillPenalties).toEqual({});
   });
-  it('without food advances time and hunger but grants no recovery', () => {
+  it('adds Healing ranks, caps at max HP, and does not heal the dying', () => {
+    expect(resolveRest(hero({ skills: { healing: 3 } })).character.stats.hp).toBe(9);
+    expect(resolveRest(hero({ stats: { ...hero().stats, hp: 18 } })).character.stats.hp).toBe(20);
+    expect(resolveRest(hero({ stats: { ...hero().stats, hp: 0 } })).character.stats.hp).toBe(0);
+  });
+  it('without food advances time and hunger, heals nothing, and gives back half the fatigue', () => {
     const source = hero({ inventory: ['Dagger'] });
     const { character, message } = resolveRest(source);
-    expect(character.stats).toMatchObject({ hour: 8, hp: 1, fatigue: 2, arcaneSP: 0, elementalAbilityUsed: true });
+    expect(character.stats).toMatchObject({ hour: 8, hp: 1, fatigue: 10, arcaneSP: 0, elementalAbilityUsed: true });
     expect(character.progression).toEqual(source.progression);
     expect(character.daysWithoutFood).toBe(3);
     expect(message).toContain('no rations');

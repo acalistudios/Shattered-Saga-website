@@ -69,20 +69,21 @@ export const GAME_RULES_SECTIONS = [
       {
         title: 'The 14 Canonical Professions',
         content: [
-          'Bandit: Cunning highwayman; skilled in One-Handed Weapons, Stealth, Thievery, Escapology, and Intimidation.',
-          'Bard: Traveling skald and poet; skilled in Performance, Deception, Lore, Insight, and Negotiation.',
-          'Cleric: Ordained chapel minister; skilled in Divine Communion, Divine Manifestation, Healing, Lore, and Leadership.',
-          'Craftsman: Artisan builder; skilled in Crafting, Smithing, Appraise, Athletics, and Perception.',
-          'Duelist: Disciplined blade fencer; skilled in One-Handed Weapons, Acrobatics, Insight, Brawling, and Deception.',
-          'Farmer: Hardy tiller; skilled in Survival, Herbalism, Animal Rapport, Athletics, and Brawling.',
-          'Healer: Field apothecary; skilled in Healing, Herbalism, Alchemy, Insight, and Divine Communion.',
-          'Hunter: Wilderness tracker; skilled in Marksmanship, Tracking, Stealth, Survival, and Trapping.',
-          'Merchant: Shrewd trader; skilled in Negotiation, Appraise, Deception, Insight, and Languages.',
-          'Sailor: Veteran coastal mariner; skilled in Athletics, Acrobatics, Brawling, Survival, and Escapology.',
-          'Scholar: Academic researcher; skilled in Lore, Languages, Insight, Arcane Drawing, and Appraise.',
-          'Shaman: Elemental seer; skilled in Divine Communion, Arcane Shaping, Herbalism, Animal Rapport, and Survival.',
-          'Soldier: Castle garrison infantry; skilled in Two-Handed Weapons, Blocking, Athletics, Leadership, and Intimidation.',
-          'Wilderness Guide: Trail scout; skilled in Survival, Tracking, Perception, Marksmanship, and Athletics.'
+          // Must match PROFESSIONS in data/gms.js (the skills a character actually starts with).
+          'Bandit: Cunning highwayman; skilled in Stealth, Lockpicking, One-Handed Weapons, and Thievery.',
+          'Bard: Traveling skald and poet; skilled in Performance, Deception, Negotiation, and One-Handed Weapons.',
+          'Cleric: Ordained chapel minister; skilled in Divine Communion, Lore, Healing, and Blocking.',
+          'Craftsman: Artisan builder; skilled in Crafting, Appraise, Smithing, and Negotiation.',
+          'Duelist: Disciplined blade fencer; skilled in One-Handed Weapons, Acrobatics, Blocking, and Performance.',
+          'Farmer: Hardy tiller; skilled in Survival, Herbalism, Animal Rapport, and Negotiation.',
+          'Healer: Field apothecary; skilled in Healing, Herbalism, Insight, and Lore.',
+          'Hunter: Wilderness tracker; skilled in Marksmanship, Tracking, Trapping, and Perception.',
+          'Merchant: Shrewd trader; skilled in Negotiation, Appraise, Languages, and Leadership.',
+          'Sailor: Veteran coastal mariner; skilled in Athletics, Blocking, Survival, and Brawling.',
+          'Scholar: Academic researcher; skilled in Lore, Languages, Arcane Drawing, and Arcane Shaping.',
+          'Shaman: Elemental seer; skilled in Arcane Drawing, Divine Communion, Animal Rapport, and Herbalism.',
+          'Soldier: Castle garrison infantry; skilled in Two-Handed Weapons, Blocking, Athletics, and Leadership.',
+          'Wilderness Guide: Trail scout; skilled in Survival, Tracking, Perception, and Athletics.'
         ]
       },
       {
@@ -129,9 +130,11 @@ export const GAME_RULES_SECTIONS = [
       {
         title: 'Active Defenses',
         content: [
-          'Acrobatics (Dodge): Coordination + Vigor. Completely avoids damage on success (Medium armor -1, Heavy armor -2).',
+          'Acrobatics (Dodge): Coordination + Vigor. Completely avoids damage on success (Medium armor -1, Heavy armor -2, and -1 for every two metal helm/leg/foot/hand pieces).',
           'Blocking (Shield/Parry): Power + Coordination. A shield adds to the roll (Buckler or Wooden +1, Iron or steel +2, Tower or heavy +3) and, on success, soaks damage (Wooden or buckler 1d4, Iron or steel 1d6, Tower or heavy 1d8, plus any +N on the shield). Parrying with a weapon and no shield soaks 1d2 with a one-handed weapon or 1d4 with a two-handed one. Dodge avoids all damage; Block makes up for it with the shield bonus and works in heavy armour.',
-          'Ward (Willpower/Arcane): Willpower + Empathy (or Attunement + Intellect). Resists mental terror, curses, and spellblasts.'
+          'Resist (Willpower): Willpower + Empathy + your Divine Communion or Arcane Drawing ranks, whichever is higher. When an attack is mental or magical (a curse, terror, possession), the defence buttons become a single Resist button. Success avoids it entirely; armour and shields do nothing against it.',
+          'Armour: body armour soaks damage when you are hit (light 1d3, medium 1d4, heavy 1d6). Helmets, leggings, boots and gloves add to it: each metal piece counts 2 and each leather piece 1, and every 4 adds +1 soak (a full metal set +2, a full leather set +1). Every two metal pieces cost -1 on dodges.',
+          'Your Combat Stats panel (in Equipment) shows your current to-hit, damage, attacks per action, soak, dodge, block and resist.'
         ]
       },
       {
@@ -149,7 +152,8 @@ export const GAME_RULES_SECTIONS = [
           'Dual wielding: hold a one-handed melee weapon in each hand and every melee attack strikes twice, at a penalty that depends on the weapon in each hand. Light weapons (daggers, knives, torches): no penalty in the main hand, -1 to hit in the off hand. Heavier one-handers: main hand -1 to hit, off hand -2 to hit and -1 damage. You can parry with the main-hand weapon, but there is no shield bonus or shield soak.',
           'Fighting styles: two-handed fighters have a small edge on shield fighters, shield fighters on dual wielders, and dual wielders on two-handed fighters. Archers do well against everyone except shields. The edges are small: any style can win any fight. Enemies show their style beside their name in combat.',
           'Heavy blow: a two-handed attack weakens a shield (its block bonus and block die count three-quarters). Quick blows: a shield gets +1 to block a dual wielder. Arrows: no weapon can parry an arrow, and without a shield you defend against one at -2; a shield blocks arrows normally.',
-          'Enemies with a shield block your attacks instead of dodging: a block still lets part of the blow through, after their armour and the shield die.'
+          'Enemies with a shield block your attacks instead of dodging: a block still lets part of the blow through, after their armour and the shield die.',
+          'Hunger, exhaustion and a heavy load lower your attack rolls, dodges and blocks, as well as your skill checks.'
         ]
       }
     ]
@@ -171,7 +175,7 @@ export const GAME_RULES_SECTIONS = [
       {
         title: 'Boss Encounters & The Malachar Rule',
         content: [
-          'Immunity to Mundane Steel: Planar, demonic, and spectral bosses (like Malachar the Bound Demon) ignore normal weapons and roll monstrous d20 resistance dice.',
+          'Immunity to Mundane Steel: incorporeal and planar foes (like Malachar the Bound Demon) take no damage from ordinary weapons, and some take only half, until the story\'s weakness is used (holy water, a seal, an oath restored). Magic weapons (+N or story rewards), spells and divine power hurt them normally. The combat log says when steel passes through.',
           'Attempting to duel an ancient demon head-on with a starting character is swift suicide.',
           'The Ritual Solution: Dismantle bosses through preparation—restore Lord Aldric Voss’s broken oath with his signet ring, deploy chapel Holy Water to weaken incorporeal forms, and use sacred Binding Scrolls and Keystones to re-seal the horror while allies hold the line.'
         ]
@@ -202,6 +206,7 @@ export const GAME_RULES_SECTIONS = [
       {
         title: 'Signature Elemental Powers',
         content: [
+          'Each power can be used once between rests. The Game Master narrates its effect; the engine tracks whether it has been used.',
           'Fire (Cinderbreath): Unleash a 2d6 flame cone once between rests; scales up to 4d6 lingering fireburst.',
           'Earth (Stone Mantle): Gain +1d6 armor soak for 3 rounds once between rests; scales up to +1d10 soak with stun immunity.',
           'Air (Gale Flash): Disorient a foe for 2 rounds once between rests; scales up to 10-yard blinding tempest.',
@@ -219,9 +224,9 @@ export const GAME_RULES_SECTIONS = [
       {
         title: 'Resting & Camping',
         content: [
-          'Full Camp (1 ration at dusk): Restores 50 Fatigue, fully resets Arcane & Divine Energy, and heals 25% Max HP.',
-          'Starving Camp (no food): Restores only 15 Fatigue, resets half magic energy, and heals 0 HP.',
-          'Safe Tavern Inn: Fully clears all Fatigue, fully resets magic energy, and heals 50% Max HP.'
+          'Camp with a ration (8 hours): fully restores Fatigue and Arcane & Divine Energy, recharges your elemental power, and heals 25% of Max HP plus 1 per Healing rank. A character at 0 HP or below needs real healing first.',
+          'Camp without food: heals nothing and restores no magic, but you get back half your Fatigue. Hunger then lowers every roll until you eat.',
+          'Inn: a paid room at a tavern restores more than a camp; the innkeeper lists what each room gives.'
         ]
       },
       {
@@ -243,8 +248,7 @@ export const GAME_RULES_SECTIONS = [
       {
         title: 'Darkness & Torches',
         content: [
-          'Pitch darkness inflicts -4 penalty to visual Perception and Ranged Marksmanship.',
-          'Torches illuminate 15 yards (normal melee), but distant targets beyond the light circle still suffer -2 dim-light penalty.'
+          'Darkness is judged by the Game Master: expect it to make spotting things and shooting harder, and carry a torch or lantern into caves and crypts.'
         ]
       }
     ]
@@ -266,7 +270,7 @@ export const GAME_RULES_SECTIONS = [
         title: 'Save Slots & Hotkeys',
         content: [
           '2 complimentary Cloud Save Slots; additional slots (up to 8 total) unlock permanently for 5 Gems each.',
-          'Hotkeys: C (Character Sheet), I (Inventory), M (Regional Map), J (Quest Journal), ? (Rules Modal), 1-3 (Suggested Actions).',
+          'Hotkeys: L opens and closes the dice log; Escape closes it.',
           'Mobile devices feature an expandable bottom touch drawer for instant one-tap navigation.'
         ]
       }

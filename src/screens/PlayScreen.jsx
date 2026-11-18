@@ -4,6 +4,8 @@ import TradeModal from '../components/TradeModal';
 import GmPickerModal from '../components/GmPicker';
 import { describeGear, getDualWield, getDualWieldPenalty, FIGHTING_STYLES } from '../data/gearStats';
 import { merchantsAtLocation } from '../utils/adventureTrade';
+import { isMentalAttack } from '../utils/enemyDefense';
+import CombatStatsPanel from '../components/CombatStatsPanel';
 import { LOAN_STATUS_LABEL } from '../utils/discoveries';
 import { ADSENSE_SLOTS, displayAdsEnabled } from '../utils/ads';
 import { SKILLS_LIST, ATTRIBUTE_LIST } from '../data/gms';
@@ -1897,6 +1899,19 @@ export default function PlayScreen({
                     </div>
                   )}
 
+                  {isMentalAttack(attack) ? (
+                  <div className="flex gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => onResolveEnemyAttack('ward', 0)}
+                      disabled={isLoading}
+                      title="Mental or magical attack: armour, dodging and shields don't help. Rolls Willpower + Empathy + Divine Communion or Arcane Drawing (whichever is higher)."
+                      className="flex-1 py-2 rounded bg-slate-900 hover:bg-slate-800 border border-violet-800/60 hover:border-violet-400/60 text-violet-200 hover:text-violet-300 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <span>Resist (Willpower)</span>
+                    </button>
+                  </div>
+                  ) : (
                   <div className="flex gap-2.5">
                     <button
                       type="button"
@@ -1923,6 +1938,7 @@ export default function PlayScreen({
                       {!shieldName && weaponName && <span className="text-5xs font-sans italic text-amber-500/70">(Parry)</span>}
                     </button>
                   </div>
+                  )}
                 </div>
               );
             })()}
@@ -2857,6 +2873,7 @@ export default function PlayScreen({
                 </p>
               );
             })()}
+            <CombatStatsPanel character={character} />
           </div>
 
           {/* Section 3: Backpack Inventory */}

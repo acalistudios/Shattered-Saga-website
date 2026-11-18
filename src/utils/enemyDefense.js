@@ -8,6 +8,37 @@
 import { getMatchupModifiers, getShieldRollBonus, getShieldSoakDie, inferFightingStyle, isShieldName } from '../data/gearStats';
 import { rollDiceExpression } from './dice';
 
+/**
+ * An attack the GM marks "vs Will" (curse, terror, mind control) is resisted
+ * with Willpower; dodging, blocking and armour don't apply.
+ */
+export function isMentalAttack(attack) {
+  return /will|mind|mental|ward|resolve|spirit|soul|fear|terror/i.test(attack?.vsSkill || '');
+}
+
+/**
+ * How much of a weapon's damage reaches an enemy whose armour text says it is
+ * incorporeal or immune to mundane harm (Malachar, ghosts, projections).
+ * Magic weapons (+N or reward weapons), spells and divine power hurt it
+ * normally, as does anything once the GM emits [enemy_weakened].
+ * Returns { factor: 1 | 0.5 | 0, note }.
+ */
+export function mundaneDamageFactor(enemy, { magical = false } = {}) {
+  const immunity = enemy?.mundaneImmunity;
+  if (!immunity || enemy?.weakened || magical) return { factor: 1, note: '' };
+  if (immunity === 'resistant') return { factor: 0.5, note: `${enemy.name} shrugs off mundane steel: half damage until it is weakened` };
+  return { factor: 0, note: `Mundane steel passes through ${enemy.name}: no damage until it is weakened (holy water, rites, the story's key)` };
+}
+
+/** Read the immunity from an NPC's armour text. */
+export function mundaneImmunityFromArmor(armorText) {
+  const t = String(armorText || '').toLowerCase();
+  if (!t) return null;
+  if (/(mundane|physical)[^.;]*\b(reduced|mostly irrelevant|halved)/.test(t)) return 'resistant';
+  if (/immune to (mundane|physical)|ignores mundane|cannot be harmed|incorporeal|projection/.test(t)) return 'immune';
+  return null;
+}
+
 /** Style and shield for an authored NPC (its gear and attack names). */
 export function enemyStyleFromNpc(npc) {
   const stats = npc?.stats || {};

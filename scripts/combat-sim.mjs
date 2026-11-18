@@ -24,7 +24,9 @@ const expr = (e) => e.split('+').reduce((t, p) => {
 const primary = (s) => [4, 4, 6, 8, 10, 12, 20][Math.min(s, 6)] && d([4, 4, 6, 8, 10, 12, 20][Math.min(s, 6)]);
 const secondary = (s) => ({ 1: () => d(2), 2: () => d(2) + 1, 3: () => d(4), 4: () => d(4) + 1, 5: () => d(6), 6: () => d(10) })[Math.min(Math.max(s, 1), 6)]();
 
-const PLAYER = { coord: 3, power: 3, vigor: 3, weaponSkill: 2, blocking: 2, acrobatics: 2, armour: 'light' };
+const PLAYER = { coord: 3, power: 3, vigor: 3, weaponSkill: 2, blocking: 2, acrobatics: 2, armour: 'light', pieceSoak: 0, pieceDodge: 0 };
+// Optional 4th arg "soak,dodge": extra flat soak and dodge modifier from helm/legs/feet/hands pieces.
+if (process.argv[4]) [PLAYER.pieceSoak, PLAYER.pieceDodge] = process.argv[4].split(',').map(Number);
 const ARMOUR = { none: () => 0, light: () => d(3), medium: () => d(4), heavy: () => d(6) };
 const DODGE_PEN = { none: 0, light: 0, medium: -1, heavy: -2 };
 
@@ -73,9 +75,9 @@ function fight(build, enemy, defence, rules) {
 
     const atk = enemy.attack();
     let def;
-    if (defence === 'dodge') def = primary(PLAYER.coord) + secondary(PLAYER.vigor) + nd(PLAYER.acrobatics, 2) + DODGE_PEN[PLAYER.armour];
+    if (defence === 'dodge') def = primary(PLAYER.coord) + secondary(PLAYER.vigor) + nd(PLAYER.acrobatics, 2) + DODGE_PEN[PLAYER.armour] + PLAYER.pieceDodge;
     else def = primary(PLAYER.power) + secondary(PLAYER.coord) + nd(PLAYER.blocking, 2) + (shield && !rules.old ? (rules.shieldRoll ?? getShieldRollBonus(shield)) : 0);
-    const armour = ARMOUR[PLAYER.armour]();
+    const armour = ARMOUR[PLAYER.armour]() + PLAYER.pieceSoak;
     let taken = 0;
     if (def < atk) {
       taken = Math.max(0, expr(enemy.dmg) + Math.floor((atk - def) / 3) - armour);

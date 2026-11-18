@@ -70,7 +70,36 @@ export const ARMOR_TYPES = {
   heavy: { label: 'Heavy armour', soak: '1d6', note: '+2 vs edged, -2 vs blunt' },
 };
 
-const SKILL_LABELS = { light_weapons: 'One-Handed Weapons', heavy_weapons: 'Two-Handed Weapons', marksmanship: 'Marksmanship', blocking: 'Blocking' };
+// Helmets, leggings, boots and gloves (Hans 2026-11-18). Each metal piece is
+// worth 2 points and each leather piece 1; every 4 points soak 1 more damage,
+// so a full metal set adds +2 soak and a full leather set +1. Every two metal
+// pieces cost -1 on dodges. Kept small: scripts/combat-sim.mjs showed +1 soak
+// per piece made heavy armour nearly unbeatable against 1d6-1d8 enemy hits.
+export const ARMOR_PIECE_SLOTS = ['head', 'legs', 'feet', 'hands'];
+const METAL_PIECE = /plate|iron|steel|chain|mail|sabaton|gauntlet|greave|helm\b/i;
+const LEATHER_PIECE = /leather|hide|studded|boots|gloves|pants|helmet|cap\b|bracer/i;
+
+const PIECE_WORDS = /helm|helmet|\bcap\b|coif|greaves|pants|leggings|boots|sabatons?|gloves|gauntlets?|bracers/i;
+
+export function getArmorPieceType(itemName) {
+  if (!itemName || !PIECE_WORDS.test(itemName)) return null;
+  if (METAL_PIECE.test(itemName)) return 'metal';
+  if (LEATHER_PIECE.test(itemName)) return 'leather';
+  return null; // hoods, veils, charms: no protection
+}
+
+export function getArmorPieces(equipment = {}) {
+  let metal = 0;
+  let leather = 0;
+  for (const slot of ARMOR_PIECE_SLOTS) {
+    const type = getArmorPieceType(equipment?.[slot]);
+    if (type === 'metal') metal++;
+    else if (type === 'leather') leather++;
+  }
+  return { metal, leather, soak: Math.floor((metal * 2 + leather) / 4), dodgePenalty: -Math.floor(metal / 2) || 0 };
+}
+
+const SKILL_LABELS ={ light_weapons: 'One-Handed Weapons', heavy_weapons: 'Two-Handed Weapons', marksmanship: 'Marksmanship', blocking: 'Blocking' };
 
 const lowerOf = (name) => String(name || '').toLowerCase();
 export const isShieldName = (name) => /shield|buckler|targe/i.test(name || '');
@@ -142,6 +171,9 @@ export function describeGear(itemName) {
     const a = ARMOR_TYPES[getArmorType(itemName)];
     return `${a.label}: absorbs ${a.soak}${bonus} damage (${a.note})`;
   }
+  const piece = getArmorPieceType(itemName);
+  if (piece === 'metal') return 'Metal armour piece (helm, legs, feet or hands): every 2 add +1 soak and -1 to dodge';
+  if (piece === 'leather') return 'Leather armour piece (helm, legs, feet or hands): every 4 add +1 soak';
   return '';
 }
 
