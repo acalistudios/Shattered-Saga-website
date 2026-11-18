@@ -42,11 +42,11 @@ The cataclysm tore imperial borders apart into **The Shattered Realm**: a rugged
 ## Chapter 2: Creating Your Champion
 
 ### The 14 Canonical Professions
-- **Bandit:** Cunning highwayman; skilled in Light Weapons, Stealth, Thievery, Escapology, and Intimidation.
+- **Bandit:** Cunning highwayman; skilled in One-Handed Weapons, Stealth, Thievery, Escapology, and Intimidation.
 - **Bard:** Traveling skald and poet; skilled in Performance, Deception, Lore, Insight, and Negotiation.
 - **Cleric:** Ordained chapel minister; skilled in Divine Communion, Divine Manifestation, Healing, Lore, and Leadership.
 - **Craftsman:** Artisan builder; skilled in Crafting, Smithing, Appraise, Athletics, and Perception.
-- **Duelist:** Disciplined blade fencer; skilled in Light Weapons, Acrobatics, Insight, Brawling, and Deception.
+- **Duelist:** Disciplined blade fencer; skilled in One-Handed Weapons, Acrobatics, Insight, Brawling, and Deception.
 - **Farmer:** Hardy tiller; skilled in Survival, Herbalism, Animal Rapport, Athletics, and Brawling.
 - **Healer:** Field apothecary; skilled in Healing, Herbalism, Alchemy, Insight, and Divine Communion.
 - **Hunter:** Wilderness tracker; skilled in Marksmanship, Tracking, Stealth, Survival, and Trapping.
@@ -54,7 +54,7 @@ The cataclysm tore imperial borders apart into **The Shattered Realm**: a rugged
 - **Sailor:** Veteran coastal mariner; skilled in Athletics, Acrobatics, Brawling, Survival, and Escapology.
 - **Scholar:** Academic researcher; skilled in Lore, Languages, Insight, Arcane Drawing, and Appraise.
 - **Shaman:** Elemental seer; skilled in Divine Communion, Arcane Shaping, Herbalism, Animal Rapport, and Survival.
-- **Soldier:** Castle garrison infantry; skilled in Heavy Weapons, Blocking, Athletics, Leadership, and Intimidation.
+- **Soldier:** Castle garrison infantry; skilled in Two-Handed Weapons, Blocking, Athletics, Leadership, and Intimidation.
 - **Wilderness Guide:** Trail scout; skilled in Survival, Tracking, Perception, Marksmanship, and Athletics.
 
 ### The Eight Core Attributes
@@ -102,13 +102,13 @@ Every skill is paired with a Primary Attribute (natural aptitude) and Secondary 
 - **Divine Manifestation:** Willpower + Charisma (Radiant healing, holy smites)
 - **Escapology:** Coordination + Vigor (Slipping manacles, wriggling through bars)
 - **Healing:** Intellect + Empathy (Staunching bleed, setting broken bones)
-- **Heavy Weapons:** Power + Vigor (Greatswords, warhammers, halberds)
+- **Two-Handed Weapons:** Power + Vigor (Greatswords, warhammers, halberds)
 - **Herbalism:** Intellect + Empathy (Gathering remedies, identifying flora)
 - **Insight:** Empathy + Intellect (Reading motives, detecting lies)
 - **Intimidation:** Willpower + Power (Interrogating foes, commanding fear)
 - **Languages:** Intellect + Charisma (Translating dead scripts, dialects)
 - **Leadership:** Charisma + Willpower (Rallying allies, commanding militia)
-- **Light Weapons:** Coordination + Power (Rapiers, shortswords, daggers)
+- **One-Handed Weapons:** Coordination + Power (Rapiers, shortswords, daggers)
 - **Lockpicking:** Coordination + Intellect (Picking tumblers, disabling latches)
 - **Lore:** Intellect + Attunement (History, genealogies, sacred rites)
 - **Luck:** Attunement + Empathy (Twisting misfortune, narrow escapes)

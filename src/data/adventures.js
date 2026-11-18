@@ -175,7 +175,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { Blocking: 2, HeavyWeapons: 2, Perception: 2, Smithing: 2, Leadership: 1 },
           defenses: { dodge: 'Coordination d6 + Vigor d2+1', block: 'Power d8 + Coordination d2+1 + 2d2' },
           armor: 'Leather apron, light armor soak 1d3 when relevant',
-          attacks: [{ name: 'Forge Hammer', skill: 'Heavy Weapons', damage: '1d8 blunt', note: 'Uses a smithing hammer as a warhammer if cornered.' }],
+          attacks: [{ name: 'Forge Hammer', skill: 'Two-Handed Weapons', damage: '1d8 blunt', note: 'Uses a smithing hammer as a warhammer if cornered.' }],
           equipment: ['Forge Hammer', 'Iron Shield', 'Smithing Tools', 'Vance\'s Blessed Iron Keystone'],
           weaknesses: ['Old leg injury imposes -1 on chase, Acrobatics, or extended Athletics checks.']
         }
@@ -190,7 +190,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { Insight: 3, Negotiation: 2, Healing: 1, Herbalism: 1, Perception: 1 },
           defenses: { dodge: 'Coordination d6 + Vigor d2', will: 'Willpower d8 + Empathy d4+1' },
           armor: 'None',
-          attacks: [{ name: 'Kitchen Knife', skill: 'Light Weapons', damage: '1d4 edged', note: 'Only fights if Oswin is threatened.' }],
+          attacks: [{ name: 'Kitchen Knife', skill: 'One-Handed Weapons', damage: '1d4 edged', note: 'Only fights if Oswin is threatened.' }],
           equipment: ['Bandages (2)', 'Rations (3)', 'Kitchen Knife'],
           weaknesses: ['Can be pressured by threats to Oswin; may panic if shown demonic evidence without reassurance.']
         }
@@ -205,7 +205,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { Stealth: 3, Thievery: 2, LightWeapons: 2, Trapping: 2, Intimidation: 1 },
           defenses: { dodge: 'Coordination d10 + Vigor d2+1 + Stealth 3d2 when hiding', block: 'Power d6 + Coordination d4+1' },
           armor: 'Patchwork leather, light armor soak 1d3',
-          attacks: [{ name: 'Notched Dagger', skill: 'Light Weapons', damage: '1d4 edged or piercing', note: 'Prefers ambushes and retreats after a wound.' }],
+          attacks: [{ name: 'Notched Dagger', skill: 'One-Handed Weapons', damage: '1d4 edged or piercing', note: 'Prefers ambushes and retreats after a wound.' }],
           equipment: ['Notched Dagger', 'Snare Cord', 'Bent Key Ring'],
           weaknesses: ['Cowardly under direct Intimidation; mercy or food can turn him into an informant.']
         }
@@ -220,7 +220,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { HeavyWeapons: 3, Blocking: 3, Leadership: 2, Lore: 2, DivineCommunion: 1 },
           defenses: { dodge: 'Coordination d8 + Vigor d4', block: 'Power d10 + Coordination d4 + 3d2', will: 'Willpower d12 + Empathy d2+1' },
           armor: 'Spectral plate; mundane weapons pass through unless the Voss crest items, Holy Water, or the Binding Prayer Scroll are involved.',
-          attacks: [{ name: 'Spectral Bastard Sword', skill: 'Heavy Weapons', damage: '1d8 edged', note: 'Deals Fatigue instead of HP unless Aldric is enraged.' }],
+          attacks: [{ name: 'Spectral Bastard Sword', skill: 'Two-Handed Weapons', damage: '1d8 edged', note: 'Deals Fatigue instead of HP unless Aldric is enraged.' }],
           special: 'Holy Water calms Aldric for a few turns rather than harming him, unless the player continues attacking.',
           weaknesses: ['The Voss Signet Ring, truth about the bound priest, and acts of mercy can restore his reason.']
         }
@@ -264,7 +264,7 @@ const BASE_ADVENTURES_LIST = [
       { name: 'Holy Water', desc: 'A stoppered glass vial from the chapel font, still clear despite the dust.', properties: 'Harms demons, undead, incorporeal evil, and possessed targets. Against Aldric, who is not evil, it calms him briefly instead of dealing damage unless the player attacks again.' },
       { name: 'Silver Mirror', desc: 'A palm-sized mirror with a tarnished frame and a crack like a lightning fork.', properties: 'Reveals invisible shadows, possession marks, false reflections, and hidden writing tied to Malachar.' },
       { name: 'Binding Prayer Scroll', desc: 'A brittle chapel scroll written in a priest\'s cramped hand.', properties: 'One-use ritual aid. Reduces the final re-binding difficulty by one tier or grants +1 to a Divine Manifestation check against Malachar.' },
-      { name: 'Vance\'s Blessed Iron Keystone', desc: 'A heavy iron keystone stamped with holy smithing runes from Vance\'s forge, cut to replace the cracked keystone of the prison seal.', properties: 'Grants +2 to Athletics or Heavy Weapons checks made to set, brace, or hammer the keystone into the cracked prison seal in the Prison Sub-Level. It is on loan from Vance: when it is set into the seal, or handed back to Vance, emit [remove_item: Vance\'s Blessed Iron Keystone].' }
+      { name: 'Vance\'s Blessed Iron Keystone', desc: 'A heavy iron keystone stamped with holy smithing runes from Vance\'s forge, cut to replace the cracked keystone of the prison seal.', properties: 'Grants +2 to Athletics or Two-Handed Weapons checks made to set, brace, or hammer the keystone into the cracked prison seal in the Prison Sub-Level. It is on loan from Vance: when it is set into the seal, or handed back to Vance, emit [remove_item: Vance\'s Blessed Iron Keystone].' }
     ],
     settings: ['Ashveil Village Square', 'Yew Graveyard', 'Great Hall', 'Lord\'s Study', 'Chapel', 'Prison Sub-Level'],
     settingDescriptions: {
@@ -326,7 +326,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { Blocking: 3, HeavyWeapons: 3, Leadership: 3, Athletics: 2, Perception: 1 },
           defenses: { dodge: 'Coordination d8 + Vigor d4', block: 'Power d10 + Coordination d4 + 3d2' },
           armor: 'None until armed; can use medium guard armor from the Supply Depot.',
-          attacks: [{ name: 'Recovered Guard Sword', skill: 'Heavy Weapons', damage: '1d8 edged', note: 'Only available after gear recovery.' }],
+          attacks: [{ name: 'Recovered Guard Sword', skill: 'Two-Handed Weapons', damage: '1d8 edged', note: 'Only available after gear recovery.' }],
           equipment: ['Torn Guard Tabard', 'Hidden Lock Shim'],
           weaknesses: ['Cracked ribs; starts below maximum HP and suffers -1 to prolonged Athletics until treated.']
         }
@@ -356,7 +356,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { Lockpicking: 3, Thievery: 3, Acrobatics: 2, Stealth: 3, LightWeapons: 1 },
           defenses: { dodge: 'Coordination d10 + Vigor d2+1 + 2d2', will: 'Willpower d6 + Empathy d2+1' },
           armor: 'None',
-          attacks: [{ name: 'Shiv', skill: 'Light Weapons', damage: '1d4 edged', note: 'Can be replaced with a dagger from the depot.' }],
+          attacks: [{ name: 'Shiv', skill: 'One-Handed Weapons', damage: '1d4 edged', note: 'Can be replaced with a dagger from the depot.' }],
           equipment: ['Bone Shiv', 'Contraband Lockpicks'],
           weaknesses: ['Self-preserving; may flee if escape seems impossible.']
         }
@@ -371,7 +371,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { Healing: 4, Herbalism: 3, Insight: 3, DivineCommunion: 2, DivineManifestation: 1 },
           defenses: { dodge: 'Coordination d6 + Vigor d2+1', will: 'Willpower d8 + Empathy d4+1' },
           armor: 'None',
-          attacks: [{ name: 'Rusty Scalpel', skill: 'Light Weapons', damage: '1d4 edged', note: 'Used defensively.' }],
+          attacks: [{ name: 'Rusty Scalpel', skill: 'One-Handed Weapons', damage: '1d4 edged', note: 'Used defensively.' }],
           equipment: ['Bandages (3)', 'Bitterroot Poultice'],
           weaknesses: ['Will risk herself for sick prisoners.']
         }
@@ -386,7 +386,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { HeavyWeapons: 4, Athletics: 3, Smithing: 3, Brawling: 2, Intimidation: 2 },
           defenses: { dodge: 'Coordination d8 + Vigor d4', block: 'Power d12 + Coordination d4 + 3d2' },
           armor: 'Reinforced mining leathers, soak 1d4',
-          attacks: [{ name: 'Heavy Mining Pick', skill: 'Heavy Weapons', damage: '1d8+1 piercing/crushing', note: 'Can sunder doors, lock mechanisms, and rockfalls.' }],
+          attacks: [{ name: 'Heavy Mining Pick', skill: 'Two-Handed Weapons', damage: '1d8+1 piercing/crushing', note: 'Can sunder doors, lock mechanisms, and rockfalls.' }],
           equipment: ['Heavy Mining Pick', 'Rough Whetstone', 'Miner Leather Apron'],
           weaknesses: ['Stubborn and protective of fellow miners; will not leave wounded comrades behind.']
         }
@@ -401,7 +401,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { Intimidation: 3, Deception: 3, HeavyWeapons: 2, Blocking: 2, Leadership: 2 },
           defenses: { dodge: 'Coordination d8 + Vigor d4+1', block: 'Power d8 + Coordination d4 + 2d2' },
           armor: 'Chain coat, medium armor soak 1d4',
-          attacks: [{ name: 'Overseer Mace', skill: 'Heavy Weapons', damage: '1d6 blunt', note: 'Often fights behind guards.' }],
+          attacks: [{ name: 'Overseer Mace', skill: 'Two-Handed Weapons', damage: '1d6 blunt', note: 'Often fights behind guards.' }],
           equipment: ['Overseer Mace', 'Iron Shield', 'Office Key', 'Chain Coat'],
           weaknesses: ['Ledger evidence can break his authority; Redvein spirits may abandon him if the ore is purified.']
         }
@@ -416,7 +416,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { HeavyWeapons: 1, Blocking: 1, Intimidation: 1, Perception: 1 },
           defenses: { dodge: 'Coordination d6 + Vigor d2+1', block: 'Power d8 + Coordination d2+1 + 1d2' },
           armor: 'Leather jerkin, light armor soak 1d3',
-          attacks: [{ name: 'Club or Spear', skill: 'Heavy Weapons', damage: '1d6 blunt or piercing', note: 'Use clubs for cage guards and spears for patrols.' }],
+          attacks: [{ name: 'Club or Spear', skill: 'Two-Handed Weapons', damage: '1d6 blunt or piercing', note: 'Use clubs for cage guards and spears for patrols.' }],
           equipment: ['Club', 'Spear', 'Leather Jerkin', 'Ring of Keys'],
           weaknesses: ['Poor morale and susceptible to Deception or bribery.']
         }
@@ -507,7 +507,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { Smithing: 4, Blocking: 3, HeavyWeapons: 2, Crafting: 2, Appraise: 2 },
           defenses: { dodge: 'Coordination d6 + Vigor d4+1', block: 'Power d10 + Coordination d2+1 + 3d2' },
           armor: 'Reinforced leather apron, light armor soak 1d3',
-          attacks: [{ name: 'Smith\'s Maul', skill: 'Heavy Weapons', damage: '1d10 blunt', note: 'Slow, brutal, and effective against stone armor.' }],
+          attacks: [{ name: 'Smith\'s Maul', skill: 'Two-Handed Weapons', damage: '1d10 blunt', note: 'Slow, brutal, and effective against stone armor.' }],
           equipment: ['Smith\'s Maul', 'Heat-Treated Apron', 'Forge Tools'],
           weaknesses: ['Will not abandon the ridge for profit; can be baited by threats to his forge crew.']
         }
@@ -537,7 +537,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { HeavyWeapons: 3, Blocking: 2, Athletics: 2 },
           defenses: { dodge: 'Coordination d6 + Vigor d6', block: 'Power d12 + Coordination d2+1 + 2d2' },
           armor: 'Basalt hide, heavy armor soak 1d6; vulnerable to blunt damage matrix effects.',
-          attacks: [{ name: 'Basalt Fist', skill: 'Heavy Weapons', damage: '1d8 blunt', note: 'Can knock prone on a high-margin hit.' }],
+          attacks: [{ name: 'Basalt Fist', skill: 'Two-Handed Weapons', damage: '1d8 blunt', note: 'Can knock prone on a high-margin hit.' }],
           weaknesses: ['Cooling water, Smithing sabotage, and blunt weapons.']
         }
       },
@@ -634,7 +634,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { Survival: 3, Athletics: 3, Appraise: 2, LightWeapons: 2, Negotiation: 2 },
           defenses: { dodge: 'Coordination d10 + Vigor d4 + 3d2', will: 'Willpower d6 + Empathy d4' },
           armor: 'Seal-hide diving vest, light armor soak 1d3',
-          attacks: [{ name: 'Diver\'s Spear', skill: 'Light Weapons', damage: '1d6 piercing', note: 'Useful underwater and in narrow halls.' }],
+          attacks: [{ name: 'Diver\'s Spear', skill: 'One-Handed Weapons', damage: '1d6 piercing', note: 'Useful underwater and in narrow halls.' }],
           equipment: ['Diver\'s Spear', 'Draft Map', 'Water-Breathing Elixir'],
           weaknesses: ['Greedy but not cruel; proof of Vaelin\'s sentience can soften her.']
         }
@@ -649,7 +649,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { LightWeapons: 2, Blocking: 2, Athletics: 2, Perception: 2 },
           defenses: { dodge: 'Coordination d8 + Vigor d4', block: 'Power d8 + Coordination d4 + 2d2' },
           armor: 'Corroded chain, medium armor soak 1d4',
-          attacks: [{ name: 'Barnacled Spear', skill: 'Light Weapons', damage: '1d6 piercing', note: 'Can pin targets in shallow water on high margin.' }],
+          attacks: [{ name: 'Barnacled Spear', skill: 'One-Handed Weapons', damage: '1d6 piercing', note: 'Can pin targets in shallow water on high margin.' }],
           weaknesses: ['Holy rites, Vaelin\'s command, and removing archive seals.']
         }
       }
@@ -761,7 +761,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { HeavyWeapons: 2, Blocking: 2, Athletics: 2 },
           defenses: { dodge: 'Coordination d8 + Vigor d4+1', block: 'Power d10 + Coordination d4 + 2d2' },
           armor: 'Stone shell, medium armor soak 1d4',
-          attacks: [{ name: 'Stone Staff', skill: 'Heavy Weapons', damage: '1d6 blunt', note: 'May reverse footing on a high-margin hit.' }],
+          attacks: [{ name: 'Stone Staff', skill: 'Two-Handed Weapons', damage: '1d6 blunt', note: 'May reverse footing on a high-margin hit.' }],
           weaknesses: ['Repaired anchor dials and fulfilled pilgrim vows.']
         }
       }
@@ -844,7 +844,7 @@ const BASE_ADVENTURES_LIST = [
           defenses: { dodge: 'Coordination d10 + Vigor d6', block: 'Power d12 + Coordination d4+1 + 2d2' },
           armor: 'Copper plating, medium armor soak 1d4; acid can reduce or bypass plating for the scene.',
           attacks: [
-            { name: 'Scissor Snip', skill: 'Light Weapons', damage: '1d6 edged', note: 'Bleeding only on margin 5+ per edged weapon rules.' },
+            { name: 'Scissor Snip', skill: 'One-Handed Weapons', damage: '1d6 edged', note: 'Bleeding only on margin 5+ per edged weapon rules.' },
             { name: 'Steam Vent Spray', skill: 'Hazard', damage: '3 fire/blunt', note: 'Close-range environmental spray; player may dodge with Acrobatics or reduce exposure with Vigor/Survival.' }
           ],
           equipment: ['Moon Gear Key'],
@@ -981,7 +981,7 @@ const BASE_ADVENTURES_LIST = [
           defenses: { dodge: 'Coordination d10 + Vigor d4+1', block: 'Power d12 + Coordination d4+1 + 3d2', will: 'Willpower d20 + Empathy d2' },
           armor: 'Incorporeal frostfire armor; mundane attacks are reduced unless braziers are lit or crystals are shattered.',
           attacks: [
-            { name: 'Frostfire Glaive', skill: 'Heavy Weapons', damage: '1d10 edged or piercing', note: 'Applies Frozen on high-margin hit or failed Vigor resistance.' },
+            { name: 'Frostfire Glaive', skill: 'Two-Handed Weapons', damage: '1d10 edged or piercing', note: 'Applies Frozen on high-margin hit or failed Vigor resistance.' },
             { name: 'Freezing Howl', skill: 'Intimidation', damage: '2 Fatigue', note: 'Room-wide fear and cold effect opposed by Willpower or Vigor; failure may apply chilled or slowed for 1 round.' }
           ],
           special: 'Uses monstrous score 6 for Willpower and Attunement resistance. Undead and evil for Divine Smite purposes.',
@@ -1013,7 +1013,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { HeavyWeapons: 3, Blocking: 2, Athletics: 2 },
           defenses: { dodge: 'Coordination d6 + Vigor d6', block: 'Power d12 + Coordination d2+1 + 2d2' },
           armor: 'Runic ice and iron shell, heavy armor soak 1d6; immune to poison and fear.',
-          attacks: [{ name: 'Glacial Slam', skill: 'Heavy Weapons', damage: '1d8 blunt', note: 'May knock prone or pin a target against ice on high margin.' }],
+          attacks: [{ name: 'Glacial Slam', skill: 'Two-Handed Weapons', damage: '1d8 blunt', note: 'May knock prone or pin a target against ice on high margin.' }],
           weaknesses: ['Alchemical acid, high heat, fire, and blunt damage against cracked joints.']
         }
       }
@@ -1085,7 +1085,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { LightWeapons: 4, Blocking: 3, Leadership: 3, Insight: 2, Healing: 1 },
           defenses: { dodge: 'Coordination d10 + Vigor d4 + 3d2', block: 'Power d8 + Coordination d4+1 + 3d2' },
           armor: 'Worn leather armor, light armor soak 1d3',
-          attacks: [{ name: 'Practice Blade', skill: 'Light Weapons', damage: '1d6 edged', note: 'Fights only to protect prisoners or test resolve.' }],
+          attacks: [{ name: 'Practice Blade', skill: 'One-Handed Weapons', damage: '1d6 edged', note: 'Fights only to protect prisoners or test resolve.' }],
           equipment: ['Practice Blade', 'Arena Key Token', 'Bandages (2)'],
           weaknesses: ['Old injury in sword arm; will risk everything for a prisoner who shows mercy.']
         }
@@ -1100,7 +1100,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { Deception: 4, Negotiation: 4, Performance: 4, Intimidation: 2, Appraise: 2 },
           defenses: { dodge: 'Coordination d8 + Vigor d2+1', will: 'Willpower d10 + Empathy d2' },
           armor: 'Fine clothes with hidden mail, light armor soak 1d3',
-          attacks: [{ name: 'Poisoned Stiletto', skill: 'Light Weapons', damage: '1d4 piercing', note: 'Uses assassins and guards before fighting directly.' }],
+          attacks: [{ name: 'Poisoned Stiletto', skill: 'One-Handed Weapons', damage: '1d4 piercing', note: 'Uses assassins and guards before fighting directly.' }],
           equipment: ['Poisoned Stiletto', 'Ledger of Illegal Sales', 'Gold Signet'],
           weaknesses: ['Public scandal, exposed ledgers, and loss of noble confidence.']
         }
@@ -1115,7 +1115,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { HeavyWeapons: 4, Blocking: 3, Intimidation: 3, Athletics: 3, Performance: 2 },
           defenses: { dodge: 'Coordination d8 + Vigor d6', block: 'Power d12 + Coordination d4 + 3d2' },
           armor: 'Arena plate, heavy armor soak 1d6',
-          attacks: [{ name: 'Champion Maul', skill: 'Heavy Weapons', damage: '1d10 blunt', note: 'Knocks targets prone on high-margin hits.' }],
+          attacks: [{ name: 'Champion Maul', skill: 'Two-Handed Weapons', damage: '1d10 blunt', note: 'Knocks targets prone on high-margin hits.' }],
           equipment: ['Champion Maul', 'Arena Plate', 'Champion Laurel'],
           weaknesses: ['Pride, crowd manipulation, and blunt memories of the family he abandoned.']
         }
@@ -1130,7 +1130,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { Stealth: 4, Lockpicking: 3, Escapology: 3, Thievery: 3, Acrobatics: 2 },
           defenses: { dodge: 'Coordination d12 + Vigor d2+1 + 2d2', will: 'Willpower d8 + Empathy d2+1' },
           armor: 'None',
-          attacks: [{ name: 'Hidden Shiv', skill: 'Light Weapons', damage: '1d4 edged', note: 'Prefers escape over combat.' }],
+          attacks: [{ name: 'Hidden Shiv', skill: 'One-Handed Weapons', damage: '1d4 edged', note: 'Prefers escape over combat.' }],
           equipment: ['Hidden Shiv', 'Bent Lockpick', 'Drain Map'],
           weaknesses: ['Will betray a plan that ignores children and elderly prisoners.']
         }
@@ -1142,12 +1142,12 @@ const BASE_ADVENTURES_LIST = [
       { name: 'Gladiator Net', desc: 'A weighted fighting net used to entangle opponents on the sand.', properties: 'Can be used with Thrown Weapons or Trapping to restrain a target for 1 round on a successful opposed check.' },
       { name: 'Ledger of Illegal Sales', desc: 'Varro\'s hidden record of unlawful enslavements, bribes, and noble buyers.', properties: 'Evidence item. Grants leverage with magistrates and can turn the crowd or city watch against Varro.' },
       { name: 'Underworks Key', desc: 'A rusted iron key stamped with a beast-gate number.', properties: 'Opens drain tunnels, beast pens, and one armory side door. Grants a major advantage to escape plans.' },
-      { name: 'Champion Maul +2', desc: 'Durn Ashjaw\'s black iron maul, etched with victory marks and heavy enough to crater arena sand.', properties: 'Earth-aspected +2 Heavy Weapon. Deals 1d10+1 blunt damage and grants +2 to Heavy Weapons checks. Earth-affinity PCs knock targets prone on critical hits.' }
+      { name: 'Champion Maul +2', desc: 'Durn Ashjaw\'s black iron maul, etched with victory marks and heavy enough to crater arena sand.', properties: 'Earth-aspected +2 Heavy Weapon. Deals 1d10+1 blunt damage and grants +2 to Two-Handed Weapons checks. Earth-affinity PCs knock targets prone on critical hits.' }
     ],
     settings: ['Slave Pens', 'Training Sand', 'Beast Gate Underworks', 'Noble Gallery', 'Champion Dais'],
     settingDescriptions: {
       'Slave Pens': 'A torchlit holding level of locked cells, straw pallets, manacles, whispered alliances, and guards playing dice. Escapology, Lockpicking, Deception, or Leadership can start a plan before the arena schedule advances.',
-      'Training Sand': 'A smaller practice arena where prisoners spar for food, favor, and survival. Brawling, Blocking, Light Weapons, Performance, or Healing can earn allies and keep wounds from becoming fatal.',
+      'Training Sand': 'A smaller practice arena where prisoners spar for food, favor, and survival. Brawling, Blocking, One-Handed Weapons, Performance, or Healing can earn allies and keep wounds from becoming fatal.',
       'Beast Gate Underworks': 'Drain tunnels, winch rooms, chained beasts, and narrow service doors beneath the arena floor. Stealth, Animal Rapport, Thievery, or Trapping can open an escape route or turn beasts against guards.',
       'Noble Gallery': 'A red-awning balcony of gamblers, sponsors, poisoners, and spies. Insight, Negotiation, Deception, Appraise, or Performance can win patronage or expose corruption.',
       'Champion Dais': 'The final raised platform where Varro keeps his ledgers beneath the champion throne. The crowd can be swayed, the champion challenged, or the whole colosseum thrown into revolt.'
@@ -1155,7 +1155,7 @@ const BASE_ADVENTURES_LIST = [
     rewards: {
       winFreedom: [
         'Win the tournament and earn legal freedom: Champion Maul +2 or a chosen arena weapon +2, moderate gold, arena fame, and morality gain if defeated foes were spared.',
-        'Gain 1 skill point for a skill used during the adventure; gain a second restricted point in Heavy Weapons, Light Weapons, Blocking, Brawling, or Performance for an exceptional final match.'
+        'Gain 1 skill point for a skill used during the adventure; gain a second restricted point in Two-Handed Weapons, One-Handed Weapons, Blocking, Brawling, or Performance for an exceptional final match.'
       ],
       revolt: [
         'Lead a slave revolt: prisoner ally network, high morality gain, Varro\'s exposed ledger, and modest treasure from liberated supplies.',
@@ -1263,7 +1263,7 @@ const BASE_ADVENTURES_LIST = [
     settingDescriptions: {
       'Blackroot Village Edge': 'Pens, drag marks, frightened dogs, and villagers arguing between rescue and revenge. Tracking, Survival, Insight, or Animal Rapport can reveal the freshest trail.',
       'Abandoned Mine Mouth': 'A timber-braced entrance veiled in webbing and old warning signs. Trapping, Perception, or Fire-based solutions can clear hazards before the party is surrounded.',
-      'Webbed Root Gallery': 'A cathedral of roots and silk bridges where every footstep trembles through the nest. Acrobatics, Stealth, Marksmanship, and Light Weapons matter as spiders attack from above.',
+      'Webbed Root Gallery': 'A cathedral of roots and silk bridges where every footstep trembles through the nest. Acrobatics, Stealth, Marksmanship, and One-Handed Weapons matter as spiders attack from above.',
       'Egg Nursery': 'A humid chamber of pale eggs, trapped villagers, and Mother Silken\'s wounded bulk. The player can fight, bargain, rescue quietly, or threaten the brood.',
       'Lower Molt Rift': 'A cracked descent into deeper dark where the armored predator climbs toward the eggs. Solving this threat can justify relocating the spiders instead of killing them.'
     },
@@ -1330,7 +1330,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { HeavyWeapons: 3, Blocking: 3, Intimidation: 3, Athletics: 2 },
           defenses: { dodge: 'Coordination d8 + Vigor d4+1', block: 'Power d10 + Coordination d4 + 3d2' },
           armor: 'Chain shirt, medium armor soak 1d4',
-          attacks: [{ name: 'Warhammer', skill: 'Heavy Weapons', damage: '1d8 blunt', note: 'Targets shields and knees.' }],
+          attacks: [{ name: 'Warhammer', skill: 'Two-Handed Weapons', damage: '1d8 blunt', note: 'Targets shields and knees.' }],
           equipment: ['Warhammer', 'Iron Shield', 'Chain Shirt'],
           weaknesses: ['Hated by hungry peasants and vulnerable to mutiny if humiliated.']
         }
@@ -1442,7 +1442,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { Deception: 3, Lore: 3, DivineCommunion: 2, Negotiation: 2, LightWeapons: 1 },
           defenses: { dodge: 'Coordination d6 + Vigor d2+1', will: 'Willpower d10 + Empathy d2+1' },
           armor: 'None',
-          attacks: [{ name: 'Ceremonial Dagger', skill: 'Light Weapons', damage: '1d4 edged', note: 'Only fights if cornered.' }],
+          attacks: [{ name: 'Ceremonial Dagger', skill: 'One-Handed Weapons', damage: '1d4 edged', note: 'Only fights if cornered.' }],
           equipment: ['Ceremonial Dagger', 'Abbey Seal', 'Relic Cabinet Key'],
           weaknesses: ['Confession, public testimony, and Sister Hale\'s courage.']
         }
@@ -1540,7 +1540,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { Deception: 4, Stealth: 4, LightWeapons: 3, Performance: 3, Insight: 2 },
           defenses: { dodge: 'Coordination d12 + Vigor d2+1 + 3d2', will: 'Willpower d10 + Empathy d2' },
           armor: 'None',
-          attacks: [{ name: 'Glass Thorn Dagger', skill: 'Light Weapons', damage: '1d4 piercing', note: 'On hit, poison can cause the target to miss its next attack.' }],
+          attacks: [{ name: 'Glass Thorn Dagger', skill: 'One-Handed Weapons', damage: '1d4 piercing', note: 'On hit, poison can cause the target to miss its next attack.' }],
           equipment: ['Glass Thorn Dagger', 'Poison Ring', 'False Masks'],
           weaknesses: ['Reflections reveal repeated mannerisms; Performance contests can trap them in public.']
         }
@@ -1653,7 +1653,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { HeavyWeapons: 3, Intimidation: 3, DivineManifestation: 2, Perception: 2 },
           defenses: { dodge: 'Coordination d8 + Vigor d4+1', will: 'Willpower d12 + Empathy d2' },
           armor: 'Barnacled chain, medium armor soak 1d4',
-          attacks: [{ name: 'Anchor Hook', skill: 'Heavy Weapons', damage: '1d8 piercing', note: 'Can drag targets toward the returning tide.' }],
+          attacks: [{ name: 'Anchor Hook', skill: 'Two-Handed Weapons', damage: '1d8 piercing', note: 'Can drag targets toward the returning tide.' }],
           weaknesses: ['Valid contracts, restored bells, and market law loopholes.']
         }
       }
@@ -1720,7 +1720,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { Negotiation: 3, Leadership: 3, Appraise: 2, Insight: 2, Intimidation: 1 },
           defenses: { dodge: 'Coordination d6 + Vigor d2+1', will: 'Willpower d8 + Empathy d4' },
           armor: 'None',
-          attacks: [{ name: 'Wood Axe', skill: 'Heavy Weapons', damage: '1d6 edged', note: 'Only fights in desperation.' }],
+          attacks: [{ name: 'Wood Axe', skill: 'Two-Handed Weapons', damage: '1d6 edged', note: 'Only fights in desperation.' }],
           equipment: ['Boundary Map', 'Wood Axe'],
           weaknesses: ['Pressure from families needing winter shelter.']
         }
@@ -1832,7 +1832,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { Crafting: 4, Smithing: 3, LightWeapons: 3, Perception: 3, ArcaneDrawing: 2 },
           defenses: { dodge: 'Coordination d10 + Vigor d6', block: 'Power d10 + Coordination d4+1 + 2d2' },
           armor: 'Brass shell, medium armor soak 1d4',
-          attacks: [{ name: 'Surgical Shears', skill: 'Light Weapons', damage: '1d6 edged', note: 'Bleeding only on high-margin hit.' }],
+          attacks: [{ name: 'Surgical Shears', skill: 'One-Handed Weapons', damage: '1d6 edged', note: 'Bleeding only on high-margin hit.' }],
           weaknesses: ['Contradictory commands, empathy demonstrations, acid, and removed governor gear.']
         }
       },
@@ -1946,7 +1946,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { Survival: 3, Herbalism: 2, AnimalRapport: 2, Insight: 2, Negotiation: 1 },
           defenses: { dodge: 'Coordination d6 + Vigor d4', will: 'Willpower d8 + Empathy d4+1' },
           armor: 'None',
-          attacks: [{ name: 'Harvest Sickle', skill: 'Light Weapons', damage: '1d4 edged', note: 'Will fight if given hope.' }],
+          attacks: [{ name: 'Harvest Sickle', skill: 'One-Handed Weapons', damage: '1d4 edged', note: 'Will fight if given hope.' }],
           equipment: ['Harvest Sickle', 'Pressed Clover'],
           weaknesses: ['Protective of younger siblings and easy to intimidate by elders.']
         }
@@ -1964,7 +1964,7 @@ const BASE_ADVENTURES_LIST = [
       'Golden Wheat Road': 'A road through impossible grain, buzzing flies, and drought beyond the field edge. Survival, Herbalism, and Perception reveal unnatural growth.',
       'Choosing Feast Hall': 'A warm hall of forced smiles, full plates, and one empty chair. Insight, Negotiation, and Deception can expose the selection ritual.',
       'Elder\'s Root Cellar': 'A cool cellar beneath Rowan\'s house, hiding ledgers and old bones behind barrels. Lockpicking, Perception, or Intimidation can uncover proof.',
-      'Hill Shrine': 'A whitewashed shrine whose floorboards pulse like a throat. Divine Communion, Lore, or Heavy Weapons can open the way below.',
+      'Hill Shrine': 'A whitewashed shrine whose floorboards pulse like a throat. Divine Communion, Lore, or Two-Handed Weapons can open the way below.',
       'Root-Heart Chamber': 'A cavern of roots, soil, and golden light where the Hunger waits under the harvest. The pact can be fought, broken, continued, or redirected.'
     },
     rewards: {
@@ -2029,7 +2029,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { Insight: 4, Negotiation: 3, Healing: 2, Deception: 2, DivineManifestation: 1 },
           defenses: { dodge: 'Coordination d8 + Vigor d2+1', will: 'Willpower d10 + Empathy d6' },
           armor: 'None',
-          attacks: [{ name: 'Mirror Shard', skill: 'Light Weapons', damage: '1d4 edged', note: 'Only if cornered.' }],
+          attacks: [{ name: 'Mirror Shard', skill: 'One-Handed Weapons', damage: '1d4 edged', note: 'Only if cornered.' }],
           equipment: ['Mirror Shard', 'Child\'s Ribbon'],
           weaknesses: ['Fades in direct dawn light unless the mirror is judged or sealed.']
         }
@@ -2044,7 +2044,7 @@ const BASE_ADVENTURES_LIST = [
           skills: { LightWeapons: 4, Acrobatics: 3, Blocking: 3, ArcaneShaping: 2, Intimidation: 2 },
           defenses: { dodge: 'Coordination d12 + Vigor d4+1 + 3d2', block: 'Power d10 + Coordination d6 + 3d2' },
           armor: 'Mirror mail, medium armor soak 1d4',
-          attacks: [{ name: 'Silvered Rapier', skill: 'Light Weapons', damage: '1d6 piercing', note: 'Can split reflections on high-margin hit.' }],
+          attacks: [{ name: 'Silvered Rapier', skill: 'One-Handed Weapons', damage: '1d6 piercing', note: 'Can split reflections on high-margin hit.' }],
           weaknesses: ['Covered mirror, Saint Orra\'s Veil, honest self-accusation, and Divine Manifestation.']
         }
       }
@@ -2053,7 +2053,7 @@ const BASE_ADVENTURES_LIST = [
     itemsDetail: [
       { name: 'Saint Orra\'s Veil +3', desc: 'A white veil embroidered with silver eyes that open only in reflected light.', properties: 'Aether-aspected +3 relic. Grants +3 to Insight or Divine Communion when judging truth, possession, doubles, or reflected identities. Aether-affinity PCs can see through one illusion, possession, or false double once per rest.' },
       { name: 'Mirror Shard Charm', desc: 'A harmless polished shard wrapped in thread.', properties: 'Once per adventure, grants +1 to Insight or Deception by showing a flicker of a possible self.' },
-      { name: 'Silvered Rapier +1', desc: 'A mirror-bright rapier drawn from the reflection realm.', properties: 'Counts as a +1 Light Weapon. Deals 1d6 piercing damage and grants +1 to Light Weapons checks.' },
+      { name: 'Silvered Rapier +1', desc: 'A mirror-bright rapier drawn from the reflection realm.', properties: 'Counts as a +1 Light Weapon. Deals 1d6 piercing damage and grants +1 to One-Handed Weapons checks.' },
       { name: 'Reflection Testimony', desc: 'Conflicting statements from originals and doubles.', properties: 'Evidence item. Grants +1 to Negotiation, Insight, or Lore when resolving who remains.' }
     ],
     settings: ['Village Green', 'Saint Orra Chapel', 'Hall of Reflections', 'Vestry Archive', 'Dawn Mirror Threshold'],

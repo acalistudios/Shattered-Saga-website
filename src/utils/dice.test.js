@@ -23,7 +23,7 @@ describe('rollDiceExpression', () => {
   it('every arena champion has a rollable defense and a real attack skill', () => {
     for (const { opponent } of ARENA_BRACKETS) {
       expect(rollDiceExpression(opponent.stats.defenses.dodge, min)).toBeGreaterThan(0);
-      expect(['Heavy Weapons', 'Light Weapons']).toContain(opponent.stats.attacks[0].skill);
+      expect(['Two-Handed Weapons', 'One-Handed Weapons']).toContain(opponent.stats.attacks[0].skill);
     }
   });
 });

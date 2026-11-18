@@ -8,19 +8,21 @@
 // generated loot ("Iron War Scythe", "Rusted Shortsword") still gets real stats.
 // Named reward weapons keep their own overrides in getRewardWeaponProfile.
 //
-// Skill rule: one-handed melee weapons use Light Weapons, two-handed ones
-// Heavy Weapons, bows and crossbows Marksmanship.
+// Skill rule: one-handed melee weapons use One-Handed Weapons, two-handed ones
+// Two-Handed Weapons, bows and crossbows Marksmanship.
 
 export const WEAPON_TYPES = [
-  { key: 'greatsword', match: ['greatsword'], label: 'Greatsword', dice: '2d6', damageType: 'edged', skill: 'heavy_weapons', hands: 2, valueCp: 500 },
-  { key: 'greataxe', match: ['greataxe'], label: 'Greataxe', dice: '2d6', damageType: 'edged', skill: 'heavy_weapons', hands: 2, valueCp: 500 },
-  { key: 'warhammer', match: ['warhammer', 'maul', 'sledge'], label: 'Warhammer', dice: '2d6', damageType: 'blunt', skill: 'heavy_weapons', hands: 2, valueCp: 500 },
+  // Two-handed melee weapons are all 1d10: 2d6 out-damaged every other style
+  // in scripts/combat-matchups.mjs.
+  { key: 'greatsword', match: ['greatsword'], label: 'Greatsword', dice: '1d10', damageType: 'edged', skill: 'heavy_weapons', hands: 2, valueCp: 500 },
+  { key: 'greataxe', match: ['greataxe'], label: 'Greataxe', dice: '1d10', damageType: 'edged', skill: 'heavy_weapons', hands: 2, valueCp: 500 },
+  { key: 'warhammer', match: ['warhammer', 'maul', 'sledge', 'pickaxe', 'mining pick', 'war pick'], label: 'Warhammer', dice: '1d10', damageType: 'blunt', skill: 'heavy_weapons', hands: 2, valueCp: 500 },
   { key: 'polearm', match: ['scythe', 'glaive', 'halberd'], label: 'Polearm', dice: '1d10', damageType: 'edged', skill: 'heavy_weapons', hands: 2, valueCp: 500 },
   { key: 'staff', match: ['quarterstaff', 'staff'], label: 'Staff', dice: '1d6', damageType: 'blunt', skill: 'heavy_weapons', hands: 2, valueCp: 20 },
   { key: 'crossbow', match: ['crossbow'], label: 'Crossbow', dice: '1d8', damageType: 'piercing', skill: 'marksmanship', hands: 2, valueCp: 500, ranged: true },
   { key: 'longbow', match: ['longbow'], label: 'Longbow', dice: '1d8', damageType: 'piercing', skill: 'marksmanship', hands: 2, valueCp: 400, ranged: true },
   { key: 'bow', match: ['bow'], label: 'Bow', dice: '1d6', damageType: 'piercing', skill: 'marksmanship', hands: 2, valueCp: 300, ranged: true },
-  { key: 'dagger', match: ['dagger', 'knife', 'shiv'], label: 'Dagger', dice: '1d4', damageType: 'piercing', skill: 'light_weapons', hands: 1, size: 'small', valueCp: 20 },
+  { key: 'dagger', match: ['dagger', 'knife', 'shiv'], label: 'Dagger', dice: '1d4+1', damageType: 'piercing', skill: 'light_weapons', hands: 1, size: 'small', valueCp: 20 },
   { key: 'shortsword', match: ['shortsword', 'rapier', 'cutlass'], label: 'Shortsword', dice: '1d6', damageType: 'edged', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 100 },
   { key: 'hatchet', match: ['hatchet', 'sickle'], label: 'Hatchet', dice: '1d6', damageType: 'edged', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 50 },
   { key: 'club', match: ['club', 'cudgel'], label: 'Club', dice: '1d4', damageType: 'blunt', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 10 },
@@ -31,13 +33,35 @@ export const WEAPON_TYPES = [
   { key: 'torch', match: ['torch'], label: 'Torch', dice: '1d4', damageType: 'fire', skill: 'light_weapons', hands: 1, size: 'small', valueCp: 1 },
 ];
 
-// Block: the soak die rolled when a Blocking defence succeeds.
+// Flat damage bonus for two-handed melee weapons. Tested at +1 (Hans
+// 2026-11-17) but scripts/combat-matchups.mjs showed it made two-handers beat
+// every style, so it is 0; the bigger dice and the matchup rules carry them.
+export const TWO_HAND_DAMAGE_BONUS = 0;
+export const isTwoHandedMelee = (type) => !!type && type.hands === 2 && !type.ranged;
+
+// Parrying: a successful Blocking roll with a weapon and no shield turns part
+// of the blow aside. A heavy two-handed haft parries better than a light blade.
+export const PARRY_DIE = { 1: 2, 2: 4 };
+export function getParryDie(weaponName) {
+  const w = getWeaponType(weaponName);
+  if (!w || w.ranged) return 0;
+  return PARRY_DIE[w.hands] || 0;
+}
+
+// Shields (Hans 2026-11-17): rollBonus is added to the Blocking roll, so a
+// shield makes a block more likely to succeed. Without it Dodge (which avoids
+// all damage) rolled the same odds and shields did nothing in play.
+// blockDie is the damage soaked when a Blocking defence succeeds.
 export const SHIELD_TYPES = [
-  { key: 'tower', match: ['tower', 'heavy', 'reinforced'], label: 'Heavy shield', blockDie: 8, valueCp: 500 },
-  { key: 'light', match: ['buckler', 'targe'], label: 'Buckler', blockDie: 4, valueCp: 60 },
-  { key: 'wooden', match: ['wood', 'hide', 'leather'], label: 'Wooden shield', blockDie: 4, valueCp: 100 },
-  { key: 'metal', match: [], label: 'Shield', blockDie: 6, valueCp: 250 }, // iron, steel, unnamed
+  { key: 'tower', match: ['tower', 'heavy', 'reinforced'], label: 'Heavy shield', blockDie: 8, rollBonus: 3, valueCp: 500 },
+  { key: 'light', match: ['buckler', 'targe'], label: 'Buckler', blockDie: 4, rollBonus: 1, valueCp: 60 },
+  { key: 'wooden', match: ['wood', 'hide', 'leather'], label: 'Wooden shield', blockDie: 4, rollBonus: 1, valueCp: 100 },
+  { key: 'metal', match: [], label: 'Shield', blockDie: 6, rollBonus: 2, valueCp: 250 }, // iron, steel, unnamed
 ];
+
+export function getShieldRollBonus(shieldName) {
+  return shieldName ? getShieldType(shieldName).rollBonus : 0;
+}
 
 // Armour soak, and how each weight handles damage types (useGameState).
 export const ARMOR_TYPES = {
@@ -46,7 +70,7 @@ export const ARMOR_TYPES = {
   heavy: { label: 'Heavy armour', soak: '1d6', note: '+2 vs edged, -2 vs blunt' },
 };
 
-const SKILL_LABELS = { light_weapons: 'Light Weapons', heavy_weapons: 'Heavy Weapons', marksmanship: 'Marksmanship', blocking: 'Blocking' };
+const SKILL_LABELS = { light_weapons: 'One-Handed Weapons', heavy_weapons: 'Two-Handed Weapons', marksmanship: 'Marksmanship', blocking: 'Blocking' };
 
 const lowerOf = (name) => String(name || '').toLowerCase();
 export const isShieldName = (name) => /shield|buckler|targe/i.test(name || '');
@@ -101,14 +125,18 @@ export function describeGear(itemName) {
   const bonus = plus ? ` +${plus}` : '';
   if (isShieldName(itemName)) {
     const s = getShieldType(itemName);
-    return `Shield: blocks 1d${s.blockDie}${bonus} damage on a successful Blocking roll · one hand`;
+    return `Shield: +${s.rollBonus} to Blocking rolls, blocks 1d${s.blockDie}${bonus} damage · one hand`;
   }
   const w = getWeaponType(itemName);
   if (w) {
     const hands = w.hands === 2 ? 'two hands' : 'one hand';
-    const offHand = w.hands === 1 && !w.ranged ? ' · can be dual-wielded' : '';
+    const twoHand = isTwoHandedMelee(w) && TWO_HAND_DAMAGE_BONUS ? `+${TWO_HAND_DAMAGE_BONUS}` : '';
+    const parry = w.ranged ? '' : ` · parries 1d${PARRY_DIE[w.hands]}`;
+    const dw = DUAL_WIELD[w.size === 'small' ? 'small' : 'medium'];
+    const signed = (n) => (n ? `${n}` : '±0');
+    const offHand = w.hands === 1 && !w.ranged ? ` · dual-wield ${signed(dw.main.hit)} main / ${signed(dw.off.hit)} off hand to hit` : '';
     const ammo = w.ranged ? ' · needs arrows' : '';
-    return `${w.dice}${bonus} ${w.damageType} · ${SKILL_LABELS[w.skill]} skill${bonus ? `, +${plus} to hit` : ''} · ${hands}${offHand}${ammo}`;
+    return `${w.dice}${twoHand}${bonus} ${w.damageType} · ${SKILL_LABELS[w.skill]} skill${bonus ? `, +${plus} to hit` : ''} · ${hands}${parry}${offHand}${ammo}`;
   }
   if (isArmorName(itemName)) {
     const a = ARMOR_TYPES[getArmorType(itemName)];
@@ -118,11 +146,19 @@ export function describeGear(itemName) {
 }
 
 // Dual wielding (Hans 2026-11-17): two one-handed melee weapons give a second
-// strike each round, at a penalty on both.
+// strike each round, at a penalty on both. The penalty scales with the weight
+// of the weapon in that hand, so a pair of daggers is a fair choice while two
+// swords cost more.
 export const DUAL_WIELD = {
-  main: { hit: -2, damage: -1 },
-  off: { hit: -4, damage: -2 },
+  small: { main: { hit: 0, damage: 0 }, off: { hit: -1, damage: 0 } },
+  medium: { main: { hit: -1, damage: 0 }, off: { hit: -2, damage: -1 } },
 };
+
+/** The dual-wield penalty for the weapon in one hand ('main' or 'off'). */
+export function getDualWieldPenalty(weaponName, hand) {
+  const w = getWeaponType(weaponName);
+  return DUAL_WIELD[w?.size === 'small' ? 'small' : 'medium'][hand];
+}
 
 /** Both hands hold one-handed melee weapons (not a shield, bow or two-hander). */
 export function getDualWield(equipment = {}) {
@@ -133,4 +169,100 @@ export function getDualWield(equipment = {}) {
   const l = getWeaponType(left);
   if (!r || !l || r.hands !== 1 || l.hands !== 1 || r.ranged || l.ranged) return null;
   return { main: right, off: left };
+}
+
+// ---------------------------------------------------------------------------
+// Fighting styles and matchups (Hans 2026-11-17)
+//
+// Each style has an edge on one other and a weakness to another, so the right
+// weapon depends on the foe:
+//   two-handed > shield > dual wield > two-handed
+//   ranged does well, except against a shield (a weapon can't parry an arrow)
+// The rules work the same whether the player or the enemy is attacking.
+// Tuned with scripts/combat-sim.mjs.
+// ---------------------------------------------------------------------------
+
+export const FIGHTING_STYLES = {
+  two_handed: { label: 'Two-handed fighter', icon: '🪓' },
+  shield: { label: 'Shield fighter', icon: '🛡️' },
+  dual: { label: 'Dual wielder', icon: '⚔️' },
+  ranged: { label: 'Ranged fighter', icon: '🏹' },
+  none: { label: 'No fighting style', icon: '' },
+};
+
+// Kept small on purpose (Hans 2026-11-17): each edge is worth roughly 55-60%
+// in an even duel, so a player can stick with one style and still win.
+// A shield also beats dual wielding without a rule of its own: it blocks each
+// of the two lighter strikes.
+export const MATCHUP = {
+  heavyBlowShieldFactor: 0.75, // two-handed vs shield: shield bonus and block die x0.75
+  shieldVsQuickBlows: 1, // shield blocking a dual wielder: + to the block roll
+  slowVsDual: 0, // two-handed fighter defending against a dual wielder (two strikes already win it)
+  shieldVsArrows: 0, // shield blocking an arrow: + to the block roll
+  arrowsVsNoShield: -2, // defending against an arrow without a shield
+};
+
+/** The style a player fights with for a melee or ranged attack. */
+export function getPlayerFightingStyle(equipment = {}, attackKind = 'melee') {
+  if (attackKind === 'ranged') return 'ranged';
+  const hands = [equipment?.hand_right, equipment?.hand_left].filter(Boolean);
+  if (hands.some(isShieldName)) return 'shield';
+  if (getDualWield(equipment)) return 'dual';
+  if (hands.some((h) => isTwoHandedMelee(getWeaponType(h)))) return 'two_handed';
+  return 'none';
+}
+
+const DUAL_WORDS = /\b(twin|paired|pair of|two|dual|both)\b|\band\b.*\b(dagger|knife|sword|axe|hatchet|sickle|blade)s?\b/i;
+
+/**
+ * The style an enemy fights with, from its gear and attack names (authored
+ * NPCs) or the weapon the GM names in [enemy_attack]. Anything unclear is
+ * 'none', and then no matchup rule applies.
+ */
+export function inferFightingStyle(...sources) {
+  const words = sources.flat().filter(Boolean).map(String);
+  const text = words.join(' | ');
+  if (!text) return 'none';
+  if (words.some(isShieldName)) return 'shield';
+  const weapons = words.map(getWeaponType).filter(Boolean);
+  if (weapons.some((w) => isTwoHandedMelee(w))) return 'two_handed';
+  const melee1h = weapons.filter((w) => w.hands === 1 && !w.ranged);
+  if (melee1h.length >= 2 || (melee1h.length && DUAL_WORDS.test(text))) return 'dual';
+  if (weapons.some((w) => w.ranged) || /\b(sling|javelin|thrown|throwing)\b/i.test(text)) return 'ranged';
+  return 'none';
+}
+
+/**
+ * How a matchup changes one defence. attacker/defender are style keys;
+ * defence is 'block' or 'dodge'; hasShield is whether the defender blocks with
+ * a shield. Returns roll and soak adjustments plus notes for the combat log.
+ */
+export function getMatchupModifiers(attacker, defender, defence, hasShield) {
+  const out = { rollBonus: 0, shieldFactor: 1, canParry: true, notes: [] };
+  if (defence === 'block' && hasShield) {
+    if (attacker === 'two_handed' && MATCHUP.heavyBlowShieldFactor !== 1) {
+      out.shieldFactor = MATCHUP.heavyBlowShieldFactor;
+      out.notes.push('Heavy blow: the shield blocks less');
+    } else if (attacker === 'dual' && MATCHUP.shieldVsQuickBlows) {
+      out.rollBonus += MATCHUP.shieldVsQuickBlows;
+      out.notes.push(`Shield catches quick blows: +${MATCHUP.shieldVsQuickBlows} to block`);
+    } else if (attacker === 'ranged' && MATCHUP.shieldVsArrows) {
+      out.rollBonus += MATCHUP.shieldVsArrows;
+      out.notes.push(`Shield stops arrows: +${MATCHUP.shieldVsArrows} to block`);
+    }
+  }
+  if (!hasShield && attacker === 'ranged' && MATCHUP.arrowsVsNoShield) {
+    out.rollBonus += MATCHUP.arrowsVsNoShield;
+    if (defence === 'block') {
+      out.canParry = false;
+      out.notes.push(`A weapon can't parry an arrow (${MATCHUP.arrowsVsNoShield} to defend)`);
+    } else {
+      out.notes.push(`No shield against arrows: ${MATCHUP.arrowsVsNoShield} to dodge`);
+    }
+  }
+  if (defender === 'two_handed' && attacker === 'dual' && MATCHUP.slowVsDual) {
+    out.rollBonus += MATCHUP.slowVsDual;
+    out.notes.push(`Too slow for two blades: ${MATCHUP.slowVsDual} to defend`);
+  }
+  return out;
 }

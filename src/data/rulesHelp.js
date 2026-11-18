@@ -69,11 +69,11 @@ export const GAME_RULES_SECTIONS = [
       {
         title: 'The 14 Canonical Professions',
         content: [
-          'Bandit: Cunning highwayman; skilled in Light Weapons, Stealth, Thievery, Escapology, and Intimidation.',
+          'Bandit: Cunning highwayman; skilled in One-Handed Weapons, Stealth, Thievery, Escapology, and Intimidation.',
           'Bard: Traveling skald and poet; skilled in Performance, Deception, Lore, Insight, and Negotiation.',
           'Cleric: Ordained chapel minister; skilled in Divine Communion, Divine Manifestation, Healing, Lore, and Leadership.',
           'Craftsman: Artisan builder; skilled in Crafting, Smithing, Appraise, Athletics, and Perception.',
-          'Duelist: Disciplined blade fencer; skilled in Light Weapons, Acrobatics, Insight, Brawling, and Deception.',
+          'Duelist: Disciplined blade fencer; skilled in One-Handed Weapons, Acrobatics, Insight, Brawling, and Deception.',
           'Farmer: Hardy tiller; skilled in Survival, Herbalism, Animal Rapport, Athletics, and Brawling.',
           'Healer: Field apothecary; skilled in Healing, Herbalism, Alchemy, Insight, and Divine Communion.',
           'Hunter: Wilderness tracker; skilled in Marksmanship, Tracking, Stealth, Survival, and Trapping.',
@@ -81,7 +81,7 @@ export const GAME_RULES_SECTIONS = [
           'Sailor: Veteran coastal mariner; skilled in Athletics, Acrobatics, Brawling, Survival, and Escapology.',
           'Scholar: Academic researcher; skilled in Lore, Languages, Insight, Arcane Drawing, and Appraise.',
           'Shaman: Elemental seer; skilled in Divine Communion, Arcane Shaping, Herbalism, Animal Rapport, and Survival.',
-          'Soldier: Castle garrison infantry; skilled in Heavy Weapons, Blocking, Athletics, Leadership, and Intimidation.',
+          'Soldier: Castle garrison infantry; skilled in Two-Handed Weapons, Blocking, Athletics, Leadership, and Intimidation.',
           'Wilderness Guide: Trail scout; skilled in Survival, Tracking, Perception, Marksmanship, and Athletics.'
         ]
       },
@@ -130,7 +130,7 @@ export const GAME_RULES_SECTIONS = [
         title: 'Active Defenses',
         content: [
           'Acrobatics (Dodge): Coordination + Vigor. Completely avoids damage on success (Medium armor -1, Heavy armor -2).',
-          'Blocking (Shield/Parry): Power + Coordination. Interposes shield or weapon to soak damage (Wooden or buckler: 1d4, Iron or steel: 1d6, Tower or heavy: 1d8, plus any +N on the shield).',
+          'Blocking (Shield/Parry): Power + Coordination. A shield adds to the roll (Buckler or Wooden +1, Iron or steel +2, Tower or heavy +3) and, on success, soaks damage (Wooden or buckler 1d4, Iron or steel 1d6, Tower or heavy 1d8, plus any +N on the shield). Parrying with a weapon and no shield soaks 1d2 with a one-handed weapon or 1d4 with a two-handed one. Dodge avoids all damage; Block makes up for it with the shield bonus and works in heavy armour.',
           'Ward (Willpower/Arcane): Willpower + Empathy (or Attunement + Intellect). Resists mental terror, curses, and spellblasts.'
         ]
       },
@@ -142,11 +142,14 @@ export const GAME_RULES_SECTIONS = [
         ]
       },
       {
-        title: 'Weapons & Dual Wielding',
+        title: 'Weapons & Fighting Styles',
         content: [
-          'One-handed melee weapons use Light Weapons; two-handed ones use Heavy Weapons; bows and crossbows use Marksmanship. Each item shows its damage, skill and hands in your inventory and in shops.',
-          'Damage: dagger 1d4, shortsword and hatchet 1d6, sword and axe 1d8, polearm and war scythe 1d10, greatsword and warhammer 2d6.',
-          'Dual wielding: hold a one-handed melee weapon in each hand and every melee attack strikes twice. The main hand strikes at -2 to hit and -1 damage, the off hand at -4 to hit and -2 damage. You can still parry with Blocking, but with no shield there is no shield soak.'
+          'Weapons held in one hand use the One-Handed Weapons skill; weapons held in both use Two-Handed Weapons; bows and crossbows use Marksmanship. Each item shows its damage, skill and hands in your inventory and in shops.',
+          'Damage: dagger 1d4+1, shortsword and hatchet 1d6, sword and axe 1d8; two-handed melee weapons (greatsword, warhammer, polearm, war scythe) 1d10.',
+          'Dual wielding: hold a one-handed melee weapon in each hand and every melee attack strikes twice, at a penalty that depends on the weapon in each hand. Light weapons (daggers, knives, torches): no penalty in the main hand, -1 to hit in the off hand. Heavier one-handers: main hand -1 to hit, off hand -2 to hit and -1 damage. You can parry with the main-hand weapon, but there is no shield bonus or shield soak.',
+          'Fighting styles: two-handed fighters have a small edge on shield fighters, shield fighters on dual wielders, and dual wielders on two-handed fighters. Archers do well against everyone except shields. The edges are small: any style can win any fight. Enemies show their style beside their name in combat.',
+          'Heavy blow: a two-handed attack weakens a shield (its block bonus and block die count three-quarters). Quick blows: a shield gets +1 to block a dual wielder. Arrows: no weapon can parry an arrow, and without a shield you defend against one at -2; a shield blocks arrows normally.',
+          'Enemies with a shield block your attacks instead of dodging: a block still lets part of the blow through, after their armour and the shield die.'
         ]
       }
     ]

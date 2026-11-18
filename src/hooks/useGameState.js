@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import storage from '../utils/storage';
 import { GMS, SAGA_ENGINES, BASE_SYSTEM_PROMPT, SKILLS_LIST, PROFESSIONS_LIST, ELEMENTS_LIST, getGm, DEFAULT_GM_ID, PREMIUM_TURN_COST } from '../data/gms';
-import { getArmorType, getShieldSoakDie, getDualWield, DUAL_WIELD, isShieldName } from '../data/gearStats';
+import { getArmorType, getShieldSoakDie, getShieldRollBonus, getDualWield, getDualWieldPenalty, getParryDie, isShieldName, getPlayerFightingStyle, getMatchupModifiers, inferFightingStyle } from '../data/gearStats';
 import { calculateWeightAndVolume, getItemDetails, getEquippedDefenseGear } from '../utils/items';
 import { generateCompletion, executeOpposedCheck, rollDie, rollAttributePrimary, rollAttributeSecondary, rollSkillRanks } from '../utils/ai';
 import { ADVENTURES_LIST } from '../data/adventures';
@@ -48,6 +48,7 @@ import { filterGmItemGrants, filterGmCurrencyChanges, isElementalUnlockAllowed }
 import { claimDepot, isAtDepot, settleConfiscatedOnCompletion, shouldConfiscateOnEntry, reclaimDepotHold } from '../utils/depotEngine';
 import { getSupplyDepot } from '../data/supplyDepot';
 import { rollDiceExpression } from '../utils/dice';
+import { enemyStyleFromNpc, enemyStyleFromWeapon, rollEnemyDefense } from '../utils/enemyDefense';
 import { claimSearchFind, applySearchFind, formatCoin, TREASURE_FINDS_PER_ADVENTURE } from '../data/payouts';
 import { merchantsAtLocation, buyFromMerchant, sellToMerchant, recordHaggle, haggleToday, merchantOffer, undoTrade } from '../utils/adventureTrade';
 import { recordDiscoveries, resolveLoanRemovals, returnLoan, settleLoansOnLeave, settleMissingLoans, getLoan } from '../utils/discoveries';
@@ -2509,7 +2510,7 @@ GM Instructions for automated tags:
 - Unlock elemental ability (Elemental Crucible only, the character's own element only): [elemental_ability_unlock: fire|earth|air|water|aether]
 - Mark elemental ability as spent when used: [elemental_ability_used]
 - Record only known reward objectives/endings for the current adventure: [objective_complete: objective_id], [ending_selected: ending_id]
-- When an enemy strikes at the player, do NOT narrate the hit landing or the player's injury. Emit the attack and let the engine roll the player's defense and apply damage: [enemy_attack: Attacker Name | attack dice | vs Dodge or Block | dmg damage dice | damage type], e.g. [enemy_attack: Saltblood Guard | 2d6 | vs Block | dmg 1d6 | blunt]. One tag per attack.
+- When an enemy strikes at the player, do NOT narrate the hit landing or the player's injury. Emit the attack and let the engine roll the player's defense and apply damage: [enemy_attack: Attacker Name | attack dice | vs Dodge or Block | dmg damage dice | damage type | weapon], e.g. [enemy_attack: Saltblood Guard | 2d6 | vs Block | dmg 1d6 | blunt | club and wooden shield]. One tag per attack. Name the weapon the foe really uses, and include "shield" if it carries one, "two" or "twin" if it fights with a blade in each hand, or the bow/crossbow if it shoots: the engine uses it for fighting-style matchups.
 - A fight follows the player from room to room: the foe pursues. Emit [combat_end] only when the fight truly ends — the foe is defeated, subdued, bound, surrenders, or flees, or the player escapes in a way that stops the pursuit (locking a door behind them, blocking the passage, losing them). Merely moving to another room does not end a fight.
 - When the adventure's story reaches its conclusion (the player has achieved or decisively failed its central goal and the adventure is over), emit [milestone: adventure_complete] exactly once, alongside the matching [ending_selected: ending_id] if one fits. This is the only way the adventure is recorded as completed; never emit it mid-adventure.
 - Do not award permanent skill ranks, skill points, attribute increases, major gear, gems, premium turns, or permanent abilities through freeform narration. Milestone rewards are engine-controlled.
@@ -2702,13 +2703,16 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         setCharacter(prev => clearSceneItemEffectsFromCharacter(prev));
       }
 
-      const enemyAttackRegex = /\[enemy_attack:\s*([^|\]]+)\|\s*([^|\]]+)\|\s*vs\s*([^|\]]+)\|\s*dmg\s*([^|\]]+)\|\s*([^|\]]+)\]/gi;
+      // The sixth field (the weapon, e.g. "mace and shield") is optional; it
+      // sets the attacker's fighting style (data/gearStats.js).
+      const enemyAttackRegex = /\[enemy_attack:\s*([^|\]]+)\|\s*([^|\]]+)\|\s*vs\s*([^|\]]+)\|\s*dmg\s*([^|\]]+)\|\s*([^|\]]+)(?:\|\s*([^|\]]+))?\]/gi;
       const parsedEnemyAttacks = [...cleanedText.matchAll(enemyAttackRegex)].map(m => ({
         name: m[1].trim(),
         diceExpr: m[2].trim(),
         vsSkill: m[3].trim(),
         damageExpr: m[4].trim(),
-        damageType: m[5].trim()
+        damageType: m[5].trim(),
+        weapon: m[6] ? m[6].trim() : null
       }));
       cleanedText = cleanedText.replace(enemyAttackRegex, '').trim();
 
@@ -2759,11 +2763,17 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           const baseHp = foundNpcStats.HP || foundNpc.HP || 20;
           const scaledHp = Math.round(baseHp * scaling.hpMultiplier);
 
+          // Fighting style from the NPC's gear; the GM's named weapon fills in
+          // when the gear says nothing (utils/enemyDefense.js).
+          let enemyStyle = enemyStyleFromNpc(foundNpc);
+          if (enemyStyle.style === 'none') enemyStyle = enemyStyleFromWeapon(parsedEnemyAttacks[0]?.weapon);
           setActiveEnemy({
             name: foundNpc.name,
             hp: Math.max(1, scaledHp - damageTaken),
             maxHp: scaledHp,
             armorSoak: armorSoak,
+            style: enemyStyle.style,
+            shield: enemyStyle.shield,
             defenses: foundNpcStats.defenses || foundNpc.defenses || { dodge: '10', block: '10' },
             scaling: {
               band: scaling.band,
@@ -2783,6 +2793,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
             hp: scaledHp,
             maxHp: scaledHp,
             armorSoak: '1d3',
+            ...enemyStyleFromWeapon(parsedEnemyAttacks[0]?.weapon),
             defenses: {
               dodge: '10',
               block: '10'
@@ -4697,7 +4708,19 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
     const keystoneMods = getKeystoneStatModifiers(character);
     const keystoneDodgeBonus = (defenseSkillId === 'dodge' || defenseSkillId === 'acrobatics') ? (keystoneMods.dodgeBonus || 0) : 0;
-    const totalDefModifier = defensePenalty - starvationPenalty - exhaustionPenalty + shieldMagicBonus + armorCheckPenalty + stanceBonus + keystoneDodgeBonus;
+    // Fighting-style matchup: the attacker's style comes from the weapon the GM
+    // named for this attack, else the enemy's gear (data/gearStats.js).
+    const attackerStyleFromWeapon = enemyAttack.weapon ? inferFightingStyle(enemyAttack.weapon) : 'none';
+    const attackerStyle = attackerStyleFromWeapon !== 'none' ? attackerStyleFromWeapon : (activeEnemy?.style || 'none');
+    const matchup = getMatchupModifiers(
+      attackerStyle,
+      getPlayerFightingStyle(character.equipment, 'melee'),
+      defenseSkillId === 'blocking' ? 'block' : 'dodge',
+      defenseSkillId === 'blocking' && !!shieldName
+    );
+    // A shield makes a block more likely to succeed (data/gearStats.js).
+    const shieldRollBonus = (defenseSkillId === 'blocking') ? Math.floor(getShieldRollBonus(shieldName) * matchup.shieldFactor) : 0;
+    const totalDefModifier = defensePenalty - starvationPenalty - exhaustionPenalty + shieldMagicBonus + shieldRollBonus + matchup.rollBonus + armorCheckPenalty + stanceBonus + keystoneDodgeBonus;
 
     const playerRollTotal = primaryRoll + secondaryRoll + skillRoll + totalDefModifier;
     const attackModifier = activeEnemy?.attackModifier || 0;
@@ -4762,10 +4785,16 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     let shieldSoak = 0;
     let shieldRollStr = '';
     if (defenseSuccess && defenseSkillId === 'blocking' && shieldName) {
-      const shieldSoakDie = getShieldSoakDie(shieldName);
+      const shieldSoakDie = Math.max(2, Math.floor(getShieldSoakDie(shieldName) * matchup.shieldFactor));
       const r = rollDie(shieldSoakDie);
       shieldSoak = r + shieldMagicBonus;
       shieldRollStr = `1d${shieldSoakDie} (${r})${shieldMagicBonus ? ` + ${shieldMagicBonus}` : ''} shield`;
+    } else if (defenseSuccess && defenseSkillId === 'blocking' && weaponName && matchup.canParry && getParryDie(weaponName)) {
+      // Parry with the weapon: less than a shield, more with a two-handed haft.
+      const parryDie = getParryDie(weaponName);
+      const r = rollDie(parryDie);
+      shieldSoak = r;
+      shieldRollStr = `1d${parryDie} (${r}) parry`;
     }
 
     let netDamage = 0;
@@ -4897,6 +4926,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     } else {
       combatResultText = `Failed to defend! Raw Damage: ${rawDamage} (Weapon roll ${rawDamageRoll} + Margin ${marginBonus}), Armor Soak: ${finalArmorSoak} (${armorRollStr || '0'}). Net damage taken: ${netDamage} HP.`;
     }
+    if (matchup.notes.length) combatResultText += ` Matchup: ${matchup.notes.join('; ')}.`;
 
     if (setBleedTier !== null) {
       combatResultText += ` Bleeding Tier was set to ${setBleedTier} due to high-margin ${enemyAttack.damageType || 'edged'} hit!`;
@@ -6014,11 +6044,11 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     if (maneuverType === 'melee') {
       // The main hand is whichever hand holds a weapon (not a shield); none means
       // unarmed. Two one-handed weapons strike twice, both at a penalty
-      // (data/gearStats.js DUAL_WIELD).
+      // (data/gearStats.js DUAL_WIELD, scaled by each weapon's weight).
       const dual = getDualWield(character.equipment);
       const mainItem = [character.equipment?.hand_right, character.equipment?.hand_left].find(i => i && !isShieldName(i)) || null;
       const strikes = dual
-        ? [{ item: dual.main, pen: DUAL_WIELD.main, label: 'main hand' }, { item: dual.off, pen: DUAL_WIELD.off, label: 'off hand' }]
+        ? [{ item: dual.main, pen: getDualWieldPenalty(dual.main, 'main'), label: 'main hand' }, { item: dual.off, pen: getDualWieldPenalty(dual.off, 'off'), label: 'off hand' }]
         : [{ item: mainItem, pen: { hit: 0, damage: 0 }, label: null }];
 
       let enemyHp = activeEnemy.hp;
@@ -6037,7 +6067,10 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         const skillRanks = character.skills[weaponProps.skill] || 0;
         for (let i = 0; i < skillRanks; i++) skillRoll += rollDie(2);
 
-        const defenseRoll = idx === 0 ? enemyDefenseRoll : rollDiceExpression(enemyDodgeVal) + defenseModifier;
+        // The enemy dodges, or blocks if it carries a shield; style matchups apply.
+        const enemyDef = rollEnemyDefense(activeEnemy, getPlayerFightingStyle(character.equipment, 'melee'));
+        const defenseRoll = enemyDef.roll;
+        const matchupStr = enemyDef.notes.length ? ` Matchup: ${enemyDef.notes.join('; ')}.` : '';
         const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + weaponProps.attackBonus + strike.pen.hit + (idx === 0 ? (nextRollModifier || 0) : 0);
         const dualStr = strike.label ? ` (${strike.label}, dual wield ${strike.pen.hit} to hit, ${strike.pen.damage} damage)` : '';
         const rollStr = `Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}`;
@@ -6062,10 +6095,19 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
             }
           });
           const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${keystoneAtkDmg > 0 ? `, Cinder Might: +${keystoneAtkDmg}` : ''}${weaponProps.attackBonus ? `, Weapon Bonus: +${weaponProps.attackBonus}` : ''}${weaponProps.damageBonus ? `, Reward Damage Bonus: +${weaponProps.damageBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''}`;
-          notices.push(`[Combat Action: Melee Strike${dualStr} using ${weaponProps.name} vs ${activeEnemy.name}. ${rollStr}${bonusesStr}) vs Defense Roll: ${defenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus${keystoneAtkDmg > 0 ? ` +${keystoneAtkDmg} keystone` : ''}), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${enemyHp}/${activeEnemy.maxHp}.]`);
+          notices.push(`[Combat Action: Melee Strike${dualStr} using ${weaponProps.name} vs ${activeEnemy.name}. ${rollStr}${bonusesStr}) vs Defense Roll: ${defenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus${keystoneAtkDmg > 0 ? ` +${keystoneAtkDmg} keystone` : ''}), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${enemyHp}/${activeEnemy.maxHp}.${matchupStr}]`);
+        } else if (enemyDef.defence === 'block') {
+          // A shield block still lets part of the blow through (same rule as the player's).
+          const rawDmg = Math.max(0, rollDiceExpression(weaponProps.dice) + dmgBonus + weaponProps.damageBonus + keystoneAtkDmg + strike.pen.damage);
+          const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
+          const shieldBlock = rollDie(enemyDef.blockDie);
+          const netDmg = Math.max(0, rawDmg - soak - shieldBlock);
+          if (netDmg > 0) anyHit = true;
+          enemyHp = Math.max(0, enemyHp - netDmg);
+          notices.push(`[Combat Action: Melee Strike${dualStr} using ${weaponProps.name} vs ${activeEnemy.name}. ${rollStr}) vs Block Roll: ${defenseRoll}. Blocked by shield! Raw Damage: ${rawDmg}, Soak: ${soak}, Shield: 1d${enemyDef.blockDie} (${shieldBlock}). Net Damage: ${netDmg}. Enemy HP is now ${enemyHp}/${activeEnemy.maxHp}.${matchupStr}]`);
         } else {
           const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : ''}${weaponProps.attackBonus ? `, Weapon Bonus: +${weaponProps.attackBonus}` : ''}`;
-          notices.push(`[Combat Action: Melee Strike${dualStr} using ${weaponProps.name} vs ${activeEnemy.name}. ${rollStr}${bonusesStr}) vs Defense Roll: ${defenseRoll}. Miss! no damage dealt.]`);
+          notices.push(`[Combat Action: Melee Strike${dualStr} using ${weaponProps.name} vs ${activeEnemy.name}. ${rollStr}${bonusesStr}) vs Defense Roll: ${defenseRoll}. Miss! no damage dealt.${matchupStr}]`);
         }
       });
       setNextRollModifier(0);
@@ -6092,7 +6134,11 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       }
 
       const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + bowProfile.attackBonus + (nextRollModifier || 0);
-      const isHit = totalRoll >= enemyDefenseRoll;
+      // Arrows: a shield blocks them, nothing else parries them (data/gearStats.js).
+      const enemyDef = rollEnemyDefense(activeEnemy, 'ranged');
+      const rangedDefenseRoll = enemyDef.roll;
+      const isHit = totalRoll >= rangedDefenseRoll;
+      const matchupStr = enemyDef.notes.length ? ` Matchup: ${enemyDef.notes.join('; ')}.` : '';
       setNextRollModifier(0);
 
       actionDesc = `I shoot a projectile at the ${activeEnemy.name} with my ${bowName}!`;
@@ -6115,16 +6161,24 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         });
 
         const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${keystoneAtkDmg > 0 ? `, Cinder Might: +${keystoneAtkDmg}` : ''}${bowProfile.attackBonus ? `, Weapon Bonus: +${bowProfile.attackBonus}` : ''}${bowProfile.damageBonus ? `, Reward Damage Bonus: +${bowProfile.damageBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''}`;
-        systemNotice = `[Combat Action: Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus${keystoneAtkDmg > 0 ? ` +${keystoneAtkDmg} keystone` : ''}), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.]`;
+        systemNotice = `[Combat Action: Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${bonusesStr}) vs Defense Roll: ${rangedDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus${keystoneAtkDmg > 0 ? ` +${keystoneAtkDmg} keystone` : ''}), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.${matchupStr}]`;
 
         if (nextHp === 0) {
           systemNotice += " [combat_end]";
         }
 
         setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
+      } else if (enemyDef.defence === 'block') {
+        const rawDmg = rollDiceExpression(bowDice) + dmgBonus + bowProfile.damageBonus + keystoneAtkDmg;
+        const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
+        const shieldBlock = rollDie(enemyDef.blockDie);
+        const netDmg = Math.max(0, rawDmg - soak - shieldBlock);
+        const nextHp = Math.max(0, activeEnemy.hp - netDmg);
+        systemNotice = `[Combat Action: Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}) vs Block Roll: ${rangedDefenseRoll}. Caught on the shield! Raw Damage: ${rawDmg}, Soak: ${soak}, Shield: 1d${enemyDef.blockDie} (${shieldBlock}). Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.${matchupStr}]${nextHp === 0 ? ' [combat_end]' : ''}`;
+        if (netDmg > 0) setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
       } else {
         const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : ''}${bowProfile.attackBonus ? `, Weapon Bonus: +${bowProfile.attackBonus}` : ''}`;
-        systemNotice = `[Combat Action: Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${bonusesStr}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
+        systemNotice = `[Combat Action: Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${bonusesStr}) vs Defense Roll: ${rangedDefenseRoll}. Miss! no damage dealt.${matchupStr}]`;
       }
     } else if (maneuverType === 'arcane_attack') {
       const attr1Roll = rollAttribute(character.attributes.attunement || 1);
@@ -6301,7 +6355,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     const keystoneSpellPwr = keystoneMods.spellPowerBonus || 0;
 
     if (counterType === 'melee') {
-      const rightItem = character.equipment?.hand_right;
+      // Counter with the weapon hand, not a shield (same rule as a melee strike).
+      const rightItem = [character.equipment?.hand_right, character.equipment?.hand_left].find(i => i && !isShieldName(i)) || null;
       const weaponProps = getRewardWeaponProfile(rightItem, character, activeEnemy, activeAdventureId);
       
       const attr1Roll = rollAttribute(character.attributes.coordination || 1);

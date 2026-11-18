@@ -4,7 +4,7 @@
 // character in and get a new character (or a plain result) back.
 import { getRewardItemByName } from '../data/rewardItems';
 import { parseStrungBow, STARFALL_BOWSTRING } from './bowstring';
-import { getWeaponType } from '../data/gearStats';
+import { getWeaponType, isTwoHandedMelee, TWO_HAND_DAMAGE_BONUS } from '../data/gearStats';
 
 // Canonical empty progression block. DEFAULT_CHARACTER in useGameState spreads
 // this so the two cannot drift apart.
@@ -31,7 +31,7 @@ export const DEFAULT_PROGRESSION = {
 export function getWeaponProperties(weaponName) {
   if (!weaponName) return { name: "Unarmed Strike", dice: "1d3", skill: "brawling", hands: 1 };
   const type = getWeaponType(weaponName);
-  if (type) return { name: weaponName, dice: type.dice, skill: type.skill, damageType: type.damageType, hands: type.hands };
+  if (type) return { name: weaponName, dice: type.dice, skill: type.skill, damageType: type.damageType, hands: type.hands, ranged: !!type.ranged };
   return { name: weaponName, dice: "1d6", skill: "light_weapons", hands: 1 }; // default light weapon
 }
 
@@ -245,8 +245,11 @@ export function getRewardWeaponProfile(rawWeaponName, character, enemy = null, a
   // Longbow and Glass Thorn Dagger are both +1 but read as +0 by name alone).
   const rewardEntry = getRewardItemByName(weaponName);
   let attackBonus = Math.max(getMagicBonus(weaponName), rewardEntry?.bonus || 0);
-  let damageBonus = 0;
+  // Two-handed melee weapons get a flat damage bonus (data/gearStats.js).
+  let damageBonus = isTwoHandedMelee(base) ? TWO_HAND_DAMAGE_BONUS : 0;
 
+  // Named two-handers start from at least the 1d10 of an ordinary one, so a
+  // reward is never weaker than a shop weapon of the same kind.
   if (lower.includes('champion maul +2')) {
     dice = '1d10+1';
     skill = 'heavy_weapons';
@@ -270,7 +273,7 @@ export function getRewardWeaponProfile(rawWeaponName, character, enemy = null, a
       effects.push({ type: 'passive', text: '+2 damage vs pact-bound growth' });
     }
   } else if (lower.includes('basalt warhammer +2')) {
-    dice = '1d8';
+    dice = '1d10';
     skill = 'heavy_weapons';
     if (getCooldownReady(character, weaponName, 'fire_core_strike')) {
       damageBonus += 2;

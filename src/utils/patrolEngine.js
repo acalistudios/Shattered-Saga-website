@@ -88,7 +88,7 @@ const humanStats = (HP, attack, damage) => ({
   attributes: { Power: 3, Coordination: 3, Vigor: 3, Willpower: 2, Intellect: 2, Charisma: 2, Attunement: 1, Empathy: 1 },
   defenses: { dodge: 'Coordination d8 + Vigor d4', block: 'Power d8 + Coordination d4' },
   armor: 'Light armor soak 1d3',
-  attacks: [{ name: attack, skill: 'Light Weapons', damage }],
+  attacks: [{ name: attack, skill: 'One-Handed Weapons', damage }],
 });
 
 // Who leads each ambush. Type decides gear recovery on death: people carry

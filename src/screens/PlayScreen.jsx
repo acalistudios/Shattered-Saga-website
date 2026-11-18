@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import AdSlot from '../components/AdSlot';
 import TradeModal from '../components/TradeModal';
 import GmPickerModal from '../components/GmPicker';
-import { describeGear, getDualWield, DUAL_WIELD } from '../data/gearStats';
+import { describeGear, getDualWield, getDualWieldPenalty, FIGHTING_STYLES } from '../data/gearStats';
 import { merchantsAtLocation } from '../utils/adventureTrade';
 import { LOAN_STATUS_LABEL } from '../utils/discoveries';
 import { ADSENSE_SLOTS, displayAdsEnabled } from '../utils/ads';
@@ -1935,7 +1935,14 @@ export default function PlayScreen({
               <div className="bg-rose-950/20 border border-rose-900/40 rounded-lg p-3 mb-1.5 flex justify-between items-center animate-fadeIn">
                 <div className="flex-1 mr-4">
                   <div className="flex justify-between items-center mb-1 text-2xs">
-                    <span className="font-serif font-black text-rose-400 uppercase tracking-widest">⚔️ Combat: {activeEnemy.name}</span>
+                    <span className="font-serif font-black text-rose-400 uppercase tracking-widest">
+                      ⚔️ Combat: {activeEnemy.name}
+                      {activeEnemy.style && activeEnemy.style !== 'none' && FIGHTING_STYLES[activeEnemy.style] && (
+                        <span className="ml-2 normal-case tracking-normal font-sans font-semibold text-amber-300/90" title="Fighting style: see Rules, Weapons & Fighting Styles">
+                          {FIGHTING_STYLES[activeEnemy.style].icon} {FIGHTING_STYLES[activeEnemy.style].label}
+                        </span>
+                      )}
+                    </span>
                     <span className="font-mono font-bold text-rose-400">{activeEnemy.hp} / {activeEnemy.maxHp} HP</span>
                   </div>
                   <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800">
@@ -2838,12 +2845,18 @@ export default function PlayScreen({
                 );
               })()}
             </div>
-            {getDualWield(character.equipment) && (
-              <p className="mt-2 text-[10px] text-amber-300/90 leading-snug">
-                ⚔️ Dual wielding: each melee attack strikes twice. Main hand {DUAL_WIELD.main.hit} to hit and {DUAL_WIELD.main.damage} damage;
-                off hand {DUAL_WIELD.off.hit} to hit and {DUAL_WIELD.off.damage} damage. You can still parry, but there's no shield soak.
-              </p>
-            )}
+            {(() => {
+              const dual = getDualWield(character.equipment);
+              if (!dual) return null;
+              const main = getDualWieldPenalty(dual.main, 'main');
+              const off = getDualWieldPenalty(dual.off, 'off');
+              return (
+                <p className="mt-2 text-[10px] text-amber-300/90 leading-snug">
+                  ⚔️ Dual wielding: each melee attack strikes twice. Main hand {main.hit} to hit{main.damage ? ` and ${main.damage} damage` : ''};
+                  off hand {off.hit} to hit{off.damage ? ` and ${off.damage} damage` : ''}. Lighter weapons cost less. You can parry with the main hand (no shield block).
+                </p>
+              );
+            })()}
           </div>
 
           {/* Section 3: Backpack Inventory */}
