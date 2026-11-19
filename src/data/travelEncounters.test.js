@@ -5,16 +5,16 @@ import { SKILLS_LIST } from './gms';
 const validSkills = new Set(SKILLS_LIST.map(s => s.id));
 
 describe('Travel & Roadside Combat Encounters', () => {
-  it('has 8 starting encounters plus 4 level 2+ road threats, all with full tactical branches', () => {
-    expect(TRAVEL_ENCOUNTERS.filter(e => !e.minLevel).length).toBe(8);
-    expect(TRAVEL_ENCOUNTERS.filter(e => e.minLevel === 2).map(e => e.id).sort())
+  it('has 8 classic encounters plus 4 level-scaled road threats, all with full tactical branches', () => {
+    expect(TRAVEL_ENCOUNTERS.filter(e => !e.scalesWithLevel).length).toBe(8);
+    expect(TRAVEL_ENCOUNTERS.filter(e => e.scalesWithLevel).map(e => e.id).sort())
       .toEqual(['anarchist_street_gang', 'flagellant_zealots', 'inquisition_enforcers', 'tollroad_crossbowmen']);
 
     const regionsCovered = new Set();
 
-    // The level 2+ threats are written as shorter scenes (4-5 ways out) and
-    // need not cover every school of magic.
-    for (const encounter of TRAVEL_ENCOUNTERS.filter(e => e.minLevel)) {
+    // The road threats are written as shorter scenes (4-5 ways out) and need
+    // not cover every school of magic.
+    for (const encounter of TRAVEL_ENCOUNTERS.filter(e => e.scalesWithLevel)) {
       expect(encounter.approaches.length).toBeGreaterThanOrEqual(4);
       for (const app of encounter.approaches) {
         expect(validSkills.has(app.skill), `Invalid skill: ${app.skill}`).toBe(true);
@@ -24,7 +24,7 @@ describe('Travel & Roadside Combat Encounters', () => {
       }
     }
 
-    for (const encounter of TRAVEL_ENCOUNTERS.filter(e => !e.minLevel)) {
+    for (const encounter of TRAVEL_ENCOUNTERS.filter(e => !e.scalesWithLevel)) {
       expect(encounter.id).toBeTruthy();
       expect(encounter.title).toBeTruthy();
       expect(encounter.intro.length).toBeGreaterThan(20);
@@ -69,13 +69,12 @@ describe('Travel & Roadside Combat Encounters', () => {
       const enc = getRandomTravelEncounter(reg);
       expect(enc).toBeDefined();
       expect(enc.region).toBe(reg);
-      expect(enc.approaches.length).toBe(5);
+      expect(enc.approaches.length).toBeGreaterThanOrEqual(4);
     }
   });
 
-  it('keeps level 2+ road threats away from a level 1 character', () => {
-    for (let i = 0; i < 200; i++) expect(getRandomTravelEncounter('region1', 1).minLevel).toBeUndefined();
-    const seen = new Set(Array.from({ length: 400 }, () => getRandomTravelEncounter('region1', 2).id));
+  it('offers the scaled road threats from level 1', () => {
+    const seen = new Set(Array.from({ length: 400 }, () => getRandomTravelEncounter('region1', 1).id));
     expect(seen.has('flagellant_zealots')).toBe(true);
     expect(seen.has('tollroad_crossbowmen')).toBe(true);
   });

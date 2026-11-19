@@ -4030,7 +4030,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
    */
   const startPatrol = (encounterId) => {
     if (activeAdventureId || !canBeginPatrol(character)) return false;
-    const patrolId = patrolIdFor(encounterId);
+    const patrolId = patrolIdFor(encounterId, character.stats?.level || 1);
     const adventure = getAdventureById(patrolId);
     if (!adventure) return false;
     const hunted = character.progression?.pendingGearRecovery?.patrolEncounterId === encounterId;

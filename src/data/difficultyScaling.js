@@ -11,6 +11,7 @@ const EXPLICIT_EXCLUDED_ROLES = new Set([
   'mythic',
   'hazard',
   'arena', // fixed-difficulty arena brackets (utils/arenaEngine.js)
+  'road', // road threats scale themselves by level (utils/patrolEngine.js scaleRoadThreat)
 ]);
 
 const EXCLUDED_ROLE_KEYWORDS = [

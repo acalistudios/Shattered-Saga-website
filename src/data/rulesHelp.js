@@ -289,7 +289,7 @@ export const GAME_RULES_SECTIONS = [
           'Between adventures or during transit across dangerous frontiers, outlaws, brigands, and monsters roam the high roads.',
           'One patrol is available before your first completed adventure. Each newly completed adventure replaces your allowance with two patrols; unused patrols do not bank. Resting does not replenish the allowance.',
           'A patrol is a GM-run scene: choose your own actions, fight, negotiate, or escape. Setting out costs 3 fatigue; at least four hours pass. You must have positive fatigue and sufficient HP to start. Negative fatigue imposes a check penalty of floor(2 × fatigue deficit).',
-          'After your first completed adventure, rougher bands join the roads: zealot processions, toll-road crossbowmen, anarchist gangs and Inquisition enforcers. They attack several times a round with modest blows, so each extra defence is harder and good armour pays for itself. Each can also be talked down, outwitted or avoided.',
+          'Rougher bands also work the roads: zealot processions, toll-road crossbowmen, anarchist gangs and Inquisition enforcers. They grow with you: a single weak foe at level 1, a pair from level 3, and more skilled and harder-hitting at higher levels. They are meant to wear you down before your next adventure, not to kill you. With two attackers each extra defence in a round is harder, so good armour pays for itself. Each band can also be talked down, outwitted or avoided.',
           'Patrol spoils are engine-defined: consumables, a chance of one gear item, and gold capped at 2 gp per character level (maximum 20 gp), never above the authored reward. Escaping pays no spoils. Unlocked region maps remain accessible for recovery.'
         ]
       },

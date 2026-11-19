@@ -788,13 +788,15 @@ export const TRAVEL_ENCOUNTERS = [
     ]
   },
 
-  // --- LEVEL 2+ ROAD THREATS (Hans 2026-11-18) ---
-  // Many accurate, modest blows: dodging gets worse with every extra defence in
-  // a round while armour soaks every hit, so heavier armour is favoured here.
-  // Each still has non-combat ways out.
+  // --- ROAD THREATS (Hans 2026-11-18) ---
+  // Several accurate, modest blows: dodging gets worse with every extra defence
+  // in a round while armour soaks every hit, so heavier armour is favoured.
+  // They scale with the character's level (utils/patrolEngine.js
+  // scaleRoadThreat): one weak foe at level 1, more and better ones later,
+  // never too hard, just wearing. Each still has non-combat ways out.
   {
     id: 'flagellant_zealots',
-    minLevel: 2,
+    scalesWithLevel: true,
     title: 'The Scourge Procession',
     region: 'region1',
     regionName: 'Region 1: Aethelgard & Heartland',
@@ -809,7 +811,7 @@ export const TRAVEL_ENCOUNTERS = [
   },
   {
     id: 'tollroad_crossbowmen',
-    minLevel: 2,
+    scalesWithLevel: true,
     title: 'The Unlawful Toll at Millers Ford',
     region: 'region1',
     regionName: 'Region 1: Aethelgard & Heartland',
@@ -824,7 +826,7 @@ export const TRAVEL_ENCOUNTERS = [
   },
   {
     id: 'anarchist_street_gang',
-    minLevel: 2,
+    scalesWithLevel: true,
     title: 'The Ashen Banner Riot',
     region: 'region2',
     regionName: 'Region 2: Ignis Ridge',
@@ -838,7 +840,7 @@ export const TRAVEL_ENCOUNTERS = [
   },
   {
     id: 'inquisition_enforcers',
-    minLevel: 2,
+    scalesWithLevel: true,
     title: 'The Inquisition Checkpoint',
     region: 'region3',
     regionName: 'Region 3: Frostfire Glacier',
@@ -852,7 +854,7 @@ export const TRAVEL_ENCOUNTERS = [
   },
 ];
 
-/** A random road encounter for a region; level 2+ threats join once you have completed an adventure. */
+/** A random road encounter for a region (minLevel, if any, gates an encounter by level). */
 export function getRandomTravelEncounter(regionId = 'region1', level = 1) {
   const matches = TRAVEL_ENCOUNTERS.filter(e => e.region === regionId && (e.minLevel || 1) <= level);
   if (matches.length > 0) {

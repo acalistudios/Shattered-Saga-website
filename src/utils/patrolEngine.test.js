@@ -4,7 +4,7 @@ import {
   isConsumable, addLootToInventory, buildPatrolAdventure, patrolIdFor, isPatrolId,
   beginPatrol, markPatrolFought, normalizePatrolOutcome, rollPatrolOutcomeLoot, finishPatrol,
   PATROL_HOURS, PATROL_FATIGUE, PATROL_FOES, canBeginPatrol, getPatrolAllowance, patrolCoinCapCp,
-  selectPatrolChoices, getPatrolChoices,
+  selectPatrolChoices, getPatrolChoices, patrolEncounterIdOf, patrolLevelOf, scaleRoadThreat,
 } from './patrolEngine';
 import { TRAVEL_ENCOUNTERS } from '../data/travelEncounters';
 import { SKILLS_LIST } from '../data/gms';
@@ -149,6 +149,30 @@ describe('patrol as a played encounter', () => {
 
   it('every authored encounter builds', () => {
     for (const e of TRAVEL_ENCOUNTERS) expect(buildPatrolAdventure(patrolIdFor(e.id)), e.id).toBeTruthy();
+  });
+
+  it('sizes road threats to the level in the patrol id, and leaves classic patrols alone', () => {
+    expect(patrolIdFor('highway_bandit_ambush', 5)).toBe('patrol:highway_bandit_ambush');
+    const l1 = patrolIdFor('flagellant_zealots', 1);
+    const l6 = patrolIdFor('flagellant_zealots', 6);
+    expect(l1).toBe('patrol:flagellant_zealots@1');
+    expect(patrolEncounterIdOf(l6)).toBe('flagellant_zealots');
+    expect(patrolLevelOf(l6)).toBe(6);
+    const weak = buildPatrolAdventure(l1).npcs[0];
+    const strong = buildPatrolAdventure(l6).npcs[0];
+    expect(weak.threatRole).toBe('road'); // general difficulty bands leave it alone
+    expect(weak.stats.attacks[0].note).toMatch(/A lone zealot/);
+    expect(strong.stats.attacks[0].note).toMatch(/2 zealots/);
+    expect(strong.stats.HP).toBeGreaterThan(weak.stats.HP);
+  });
+
+  it('never grows a road threat past two attackers or rank 3', () => {
+    for (const foe of Object.values(PATROL_FOES).filter((f) => f.scaling)) {
+      const top = scaleRoadThreat(foe, 12);
+      expect(top.attacksPerRound).toBeLessThanOrEqual(2);
+      expect(Math.max(...Object.values(top.stats.skills))).toBeLessThanOrEqual(3);
+      expect(scaleRoadThreat(foe, 1).attacksPerRound).toBe(1);
+    }
   });
 
   it('setting out spends fatigue but not time, and refills nothing', () => {

@@ -81,7 +81,14 @@ export const FLEE_PURSUIT_FRACTION = 0.25;
 
 export const PATROL_ID_PREFIX = 'patrol:';
 export const isPatrolId = (id) => typeof id === 'string' && id.startsWith(PATROL_ID_PREFIX);
-export const patrolEncounterIdOf = (id) => (isPatrolId(id) ? id.slice(PATROL_ID_PREFIX.length) : null);
+// A scaled road threat carries the character's level in its id
+// ("patrol:flagellant_zealots@4"), so the foe is the same every time the
+// adventure is rebuilt (reloads, the GM prompt) without storing extra state.
+export const patrolEncounterIdOf = (id) => (isPatrolId(id) ? id.slice(PATROL_ID_PREFIX.length).split('@')[0] : null);
+export const patrolLevelOf = (id) => {
+  const m = isPatrolId(id) ? id.match(/@(\d+)$/) : null;
+  return m ? Number(m[1]) : null;
+};
 
 const humanStats = (HP, attack, damage) => ({
   HP,
@@ -114,10 +121,13 @@ export const PATROL_FOES = {
   cinder_coast_corsairs: { name: 'Corsair Captain', type: 'human', stats: humanStats(18, 'Corsair Cutlass', '1d8 slashing') },
   astral_rift_void_stalkers: { name: 'Phase-Raider Captain', type: 'human', stats: humanStats(20, 'Phase Blade', '1d8 slashing') },
 
-  // Level 2+ road threats (Hans 2026-11-18): several accurate, modest attacks a
-  // round, so armour that soaks every hit beats dodging (src/sim playtest).
+  // Road threats (Hans 2026-11-18): several accurate, modest attacks a round,
+  // so armour that soaks every hit beats dodging (src/sim playtest). These
+  // stats are the level 2 shape; scaleRoadThreat() sizes them to the
+  // character's level (one weak foe at level 1, more and better ones later).
   flagellant_zealots: {
     name: 'Scourge Procession', type: 'human', attacksPerRound: 3,
+    scaling: { maxAttackers: 3, hpPerAttacker: 6, dodge: 'Coordination d6 + Vigor d4', skillKey: 'OneHandedWeapons', damage: ['1d4 edged', '1d4+1 edged'], group: ['zealot', 'zealots'] },
     stats: {
       HP: 26,
       attributes: { Power: 2, Coordination: 3, Vigor: 3, Willpower: 4, Intellect: 1, Charisma: 2, Attunement: 1, Empathy: 1 },
@@ -130,9 +140,12 @@ export const PATROL_FOES = {
   },
   tollroad_crossbowmen: {
     name: 'Toll-Warden Sergeant', type: 'human', attacksPerRound: 2,
+    scaling: { maxAttackers: 2, hpPerAttacker: 7, dodge: 'Coordination d8 + Vigor d4', skillKey: 'Marksmanship', damage: ['1d4 piercing', '1d6 piercing'], group: ['crossbowman', 'crossbowmen'] },
     stats: {
       HP: 20,
-      attributes: { Power: 3, Coordination: 4, Vigor: 3, Willpower: 2, Intellect: 2, Charisma: 2, Attunement: 1, Empathy: 1 },
+      // Coordination 3, not 4: at 4 they were the one road threat that could
+      // genuinely kill a mid-level character (road-threat playtest).
+      attributes: { Power: 3, Coordination: 3, Vigor: 3, Willpower: 2, Intellect: 2, Charisma: 2, Attunement: 1, Empathy: 1 },
       skills: { Marksmanship: 3 },
       defenses: { dodge: 'Coordination d10 + Vigor d4' },
       armor: 'Padded gambeson, medium armor soak 1d4',
@@ -142,6 +155,7 @@ export const PATROL_FOES = {
   },
   anarchist_street_gang: {
     name: 'Ashen Banner Ringleader', type: 'human', attacksPerRound: 2,
+    scaling: { maxAttackers: 3, hpPerAttacker: 7, dodge: 'Coordination d8 + Vigor d4', skillKey: 'OneHandedWeapons', damage: ['1d4 piercing', '1d6 piercing'], group: ['agitator', 'agitators'] },
     stats: {
       HP: 22,
       attributes: { Power: 3, Coordination: 3, Vigor: 3, Willpower: 3, Intellect: 2, Charisma: 3, Attunement: 1, Empathy: 1 },
@@ -154,6 +168,7 @@ export const PATROL_FOES = {
   },
   inquisition_enforcers: {
     name: 'Inquisitor-Captain', type: 'human', attacksPerRound: 2,
+    scaling: { maxAttackers: 2, hpPerAttacker: 8, dodge: 'Coordination d8 + Vigor d4', block: 'Power d6 + Coordination d4', skillKey: 'OneHandedWeapons', damage: ['1d4 edged', '1d4+1 edged'], group: ['enforcer', 'enforcers'] },
     stats: {
       HP: 24,
       attributes: { Power: 3, Coordination: 4, Vigor: 3, Willpower: 4, Intellect: 2, Charisma: 2, Attunement: 1, Empathy: 1 },
@@ -165,6 +180,58 @@ export const PATROL_FOES = {
     },
   },
 };
+
+// How road threats grow with the character (Hans 2026-11-18): never too hard,
+// just wearing. Tuned with src/sim/roadThreats.playtest.test.js against a
+// character who levels normally, aiming for near-certain wins that still cost
+// a real share of HP before the next adventure.
+export const ROAD_CURVE = {
+  // A third attacker made every later level a coin flip (playtest), so groups
+  // stop at two; later levels grow through skill, damage and HP instead.
+  attackersAt: [0, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], // index = level (capped), then by maxAttackers
+  skillRanks: (level) => Math.min(3, 1 + Math.floor((level - 1) / 3)), // rank 3 from level 7 on
+  hpBonusPerLevel: 1,
+  strongDamageFromLevel: 7, // switch to the second damage die from this level
+};
+
+const clampLevel = (level) => Math.max(1, Math.min(12, Number(level) || 1));
+
+/**
+ * A road threat sized to a character level: number of attackers, their skill,
+ * the group's HP and damage. Returns a PATROL_FOES-shaped foe; non-scaling
+ * foes come back unchanged.
+ */
+export function scaleRoadThreat(foe, level) {
+  if (!foe?.scaling) return foe;
+  const L = clampLevel(level);
+  const sc = foe.scaling;
+  const attackers = Math.min(sc.maxAttackers, ROAD_CURVE.attackersAt[Math.min(L, ROAD_CURVE.attackersAt.length - 1)]);
+  const ranks = ROAD_CURVE.skillRanks(L);
+  const damage = L >= ROAD_CURVE.strongDamageFromLevel ? sc.damage[1] : sc.damage[0];
+  const hp = sc.hpPerAttacker * attackers + ROAD_CURVE.hpBonusPerLevel * (L - 1);
+  const [one, many] = sc.group;
+  const base = foe.stats;
+  const attack = base.attacks[0];
+  const who = attackers === 1 ? `A lone ${one}` : `${attackers} ${many}`;
+  return {
+    ...foe,
+    attacksPerRound: attackers,
+    stats: {
+      ...base,
+      HP: hp,
+      skills: { ...(base.skills || {}), [sc.skillKey]: ranks },
+      defenses: {
+        dodge: `${sc.dodge}${ranks > 1 ? ` + ${ranks - 1}d2` : ''}`,
+        ...(sc.block ? { block: `${sc.block} + ${ranks}d2` } : {}),
+      },
+      attacks: [{
+        ...attack,
+        damage,
+        note: `${who}: make${attackers === 1 ? 's' : ''} ${attackers} attack${attackers === 1 ? '' : 's'} every round (one [enemy_attack] each, ${attack.skill} ${ranks}). HP is the whole group; it breaks when HP runs out. A road skirmish, not a death trap: they flee or yield once badly hurt.`,
+      }],
+    },
+  };
+}
 
 // Talking, bribing or cowing the band off: these approaches pay a "parley" result.
 const PARLEY_APPROACHES = new Set([
@@ -185,7 +252,10 @@ export function buildPatrolAdventure(patrolId) {
   if (adventureCache.has(patrolId)) return adventureCache.get(patrolId);
   const encounter = TRAVEL_ENCOUNTERS.find(e => e.id === patrolEncounterIdOf(patrolId));
   if (!encounter) return null;
-  const foe = PATROL_FOES[encounter.id] || { name: 'Road Ambusher', type: 'human', stats: humanStats(16, 'Blade', '1d6 slashing') };
+  const baseFoe = PATROL_FOES[encounter.id] || { name: 'Road Ambusher', type: 'human', stats: humanStats(16, 'Blade', '1d6 slashing') };
+  // Scaled road threats are sized to the level in the id; the general
+  // difficulty bands then leave them alone (threatRole 'road').
+  const foe = baseFoe.scaling ? scaleRoadThreat(baseFoe, patrolLevelOf(patrolId) || 1) : baseFoe;
   const setting = 'The Ambush Site';
   const adventure = {
     id: patrolId,
@@ -206,6 +276,7 @@ export function buildPatrolAdventure(patrolId) {
       role: foe.type === 'beast' ? 'Pack Leader' : 'Ambush Leader',
       desc: `Leads the ambush. ${foe.type === 'beast' ? 'A beast: it cannot be reasoned with, only driven off or calmed.' : 'Can be fought, threatened, bargained with, or escaped.'}`,
       stats: foe.stats,
+      ...(foe.scaling ? { threatRole: 'road' } : {}),
     }],
     items: [],
     itemsDetail: [],
@@ -219,7 +290,9 @@ export function buildPatrolAdventure(patrolId) {
   return adventure;
 }
 
-export const patrolIdFor = (encounterId) => `${PATROL_ID_PREFIX}${encounterId}`;
+/** A patrol id; scaled road threats also carry the character's level. */
+export const patrolIdFor = (encounterId, level = null) =>
+  `${PATROL_ID_PREFIX}${encounterId}${level && PATROL_FOES[encounterId]?.scaling ? `@${clampLevel(level)}` : ''}`;
 
 const CONSUMABLE_RE = /ration|herb|draught|elixir|potion|flask|vial|wrap|bundle|shard|brimstone|crystal|token|pelt/i;
 export const isConsumable = (item) => CONSUMABLE_RE.test(String(item || ''));
