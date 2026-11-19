@@ -60,18 +60,20 @@ export function enemyStyleFromWeapon(weapon) {
  * Roll the enemy's defence against a player attack made with attackerStyle.
  * Returns { roll, defence: 'block'|'dodge', blockDie, notes }.
  */
-export function rollEnemyDefense(enemy, attackerStyle, roll = rollDiceExpression) {
+export function rollEnemyDefense(enemy, attackerStyle, roll = rollDiceExpression, { ignoreShield = false } = {}) {
   const style = enemy?.style || 'none';
   const defenses = enemy?.defenses || {};
   const blocks = style === 'shield' && !!enemy?.shield && !!defenses.block;
   const defence = blocks ? 'block' : 'dodge';
   const m = getMatchupModifiers(attackerStyle, style, defence, blocks);
   const base = roll(blocks ? defenses.block : (defenses.dodge || defenses.block || '10'));
-  const shieldBonus = blocks ? Math.floor(getShieldRollBonus(enemy.shield) * m.shieldFactor) : 0;
+  // A flail wraps around the shield: no shield bonus to the block roll.
+  const shieldBonus = blocks && !ignoreShield ? Math.floor(getShieldRollBonus(enemy.shield) * m.shieldFactor) : 0;
+  const notes = blocks && ignoreShield ? [...m.notes, 'The flail wraps around the shield: no shield bonus'] : m.notes;
   return {
     roll: base + (enemy?.defenseModifier || 0) + shieldBonus + m.rollBonus,
     defence,
     blockDie: blocks ? Math.max(2, Math.floor(getShieldSoakDie(enemy.shield) * m.shieldFactor)) : 0,
-    notes: m.notes,
+    notes,
   };
 }

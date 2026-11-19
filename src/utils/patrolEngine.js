@@ -113,12 +113,65 @@ export const PATROL_FOES = {
   merrin_plague_carrion: { name: 'Plague Marauder', type: 'human', stats: humanStats(16, 'Hooked Cleaver', '1d6 slashing') },
   cinder_coast_corsairs: { name: 'Corsair Captain', type: 'human', stats: humanStats(18, 'Corsair Cutlass', '1d8 slashing') },
   astral_rift_void_stalkers: { name: 'Phase-Raider Captain', type: 'human', stats: humanStats(20, 'Phase Blade', '1d8 slashing') },
+
+  // Level 2+ road threats (Hans 2026-11-18): several accurate, modest attacks a
+  // round, so armour that soaks every hit beats dodging (src/sim playtest).
+  flagellant_zealots: {
+    name: 'Scourge Procession', type: 'human', attacksPerRound: 3,
+    stats: {
+      HP: 26,
+      attributes: { Power: 2, Coordination: 3, Vigor: 3, Willpower: 4, Intellect: 1, Charisma: 2, Attunement: 1, Empathy: 1 },
+      skills: { OneHandedWeapons: 3 },
+      defenses: { dodge: 'Coordination d6 + Vigor d4' },
+      armor: 'Rags and hair shirts, light armor soak 1d3',
+      attacks: [{ name: 'Hooked Scourges', skill: 'One-Handed Weapons', damage: '1d4 edged', note: 'A mob of zealots: makes 3 attacks every round (one [enemy_attack] per zealot), each weak on its own. HP is the whole procession; it breaks when HP runs out.' }],
+      equipment: ['Hooked Scourge'],
+    },
+  },
+  tollroad_crossbowmen: {
+    name: 'Toll-Warden Sergeant', type: 'human', attacksPerRound: 2,
+    stats: {
+      HP: 20,
+      attributes: { Power: 3, Coordination: 4, Vigor: 3, Willpower: 2, Intellect: 2, Charisma: 2, Attunement: 1, Empathy: 1 },
+      skills: { Marksmanship: 3 },
+      defenses: { dodge: 'Coordination d10 + Vigor d4' },
+      armor: 'Padded gambeson, medium armor soak 1d4',
+      attacks: [{ name: 'Crossbow Volley', skill: 'Marksmanship', damage: '1d8 piercing', note: 'The sergeant and a second crossbowman: 2 attacks every round (one [enemy_attack] each), with crossbows.' }],
+      equipment: ['Crossbow'],
+    },
+  },
+  anarchist_street_gang: {
+    name: 'Ashen Banner Ringleader', type: 'human', attacksPerRound: 2,
+    stats: {
+      HP: 22,
+      attributes: { Power: 3, Coordination: 3, Vigor: 3, Willpower: 3, Intellect: 2, Charisma: 3, Attunement: 1, Empathy: 1 },
+      skills: { OneHandedWeapons: 2 },
+      defenses: { dodge: 'Coordination d8 + Vigor d4' },
+      armor: 'Street leathers, light armor soak 1d3',
+      attacks: [{ name: 'Twin Knives', skill: 'One-Handed Weapons', damage: '1d6 piercing', note: 'The ringleader and a crony: 2 attacks every round (one [enemy_attack] each). They fight with a knife in each hand.' }],
+      equipment: ['Knife', 'Knife'],
+    },
+  },
+  inquisition_enforcers: {
+    name: 'Inquisitor-Captain', type: 'human', attacksPerRound: 2,
+    stats: {
+      HP: 24,
+      attributes: { Power: 3, Coordination: 4, Vigor: 3, Willpower: 4, Intellect: 2, Charisma: 2, Attunement: 1, Empathy: 1 },
+      skills: { OneHandedWeapons: 4, Blocking: 3 },
+      defenses: { dodge: 'Coordination d10 + Vigor d4', block: 'Power d8 + Coordination d4 + 3d2' },
+      armor: 'Black chain mantle, medium armor soak 1d4',
+      attacks: [{ name: 'Arming Sword', skill: 'One-Handed Weapons', damage: '1d6 edged', note: 'The captain and an enforcer: 2 well-drilled attacks every round (one [enemy_attack] each).' }],
+      equipment: ['Arming Sword', 'Iron Shield'],
+    },
+  },
 };
 
 // Talking, bribing or cowing the band off: these approaches pay a "parley" result.
 const PARLEY_APPROACHES = new Set([
   'diplomatic_parley', 'corsair_bribe', 'mountain_intimidation', 'ration_bargain',
   'gladiator_code', 'pack_negotiate', 'medical_triage_parley', 'planar_bargain',
+  'zealot_sermon', 'zealot_read', 'toll_pay', 'toll_expose', 'anarchist_cause', 'anarchist_cow',
+  'inquisition_papers', 'inquisition_faith',
 ]);
 export const isParleyApproach = (approach) => PARLEY_APPROACHES.has(approach?.id);
 

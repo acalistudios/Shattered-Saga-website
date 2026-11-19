@@ -38,6 +38,18 @@ export const ITEMS_DATABASE = {
   'Hunting Bow': { weight: 3.0, volume: 3.0, slot: 'hand', subslot: 'large', properties: 'Ranged weapon' },
   'Iron Hatchet': { weight: 2.5, volume: 1.5, slot: 'hand', subslot: 'medium', properties: 'Light chopping tool' },
 
+  // Weapons with traits (Hans 2026-11-18; stats and traits in data/gearStats.js)
+  'Short Bow': { weight: 2.0, volume: 2.5, slot: 'hand', subslot: 'large', properties: 'Quick: two shots per action' },
+  'Longbow': { weight: 3.0, volume: 3.5, slot: 'hand', subslot: 'large', properties: 'Steady, powerful shots' },
+  'Crossbow': { weight: 6.0, volume: 4.0, slot: 'hand', subslot: 'large', properties: 'Hard-hitting, armour-piercing, slow to reload' },
+  'Rapier': { weight: 2.5, volume: 2.0, slot: 'hand', subslot: 'medium', properties: 'Finesse blade' },
+  'Spear': { weight: 4.0, volume: 4.0, slot: 'hand', subslot: 'large', properties: 'Reach' },
+  'Flail': { weight: 5.0, volume: 3.0, slot: 'hand', subslot: 'medium', properties: 'Wraps around shields' },
+  'Mace': { weight: 4.0, volume: 2.5, slot: 'hand', subslot: 'medium', properties: 'Crushing' },
+  'Battle Axe': { weight: 8.0, volume: 5.0, slot: 'hand', subslot: 'large', properties: 'Huge, unwieldy blows' },
+  'Halberd': { weight: 9.0, volume: 6.5, slot: 'hand', subslot: 'large', properties: 'Long haft for parrying' },
+  'Warhammer': { weight: 8.0, volume: 5.0, slot: 'hand', subslot: 'large', properties: 'Crushing' },
+
   // Worn Gear (Slots: head, neck, body, legs, feet, hands_gloves)
   'Leather Helmet': { weight: 2.0, volume: 2.0, slot: 'head', desc: 'Basic leather protection.' },
   'Iron Plate Helm': { weight: 4.0, volume: 3.0, slot: 'head', desc: 'Heavy steel helmet.' },

@@ -786,11 +786,75 @@ export const TRAVEL_ENCOUNTERS = [
         failDesc: 'They misinterpret your dead tongue, siphon 25 Gold from your pouch, and strike you with static for 5 HP damage!'
       }
     ]
-  }
+  },
+
+  // --- LEVEL 2+ ROAD THREATS (Hans 2026-11-18) ---
+  // Many accurate, modest blows: dodging gets worse with every extra defence in
+  // a round while armour soaks every hit, so heavier armour is favoured here.
+  // Each still has non-combat ways out.
+  {
+    id: 'flagellant_zealots',
+    minLevel: 2,
+    title: 'The Scourge Procession',
+    region: 'region1',
+    regionName: 'Region 1: Aethelgard & Heartland',
+    intro: 'A procession of hooded flagellants blocks the crossroads, chanting and bleeding. Their prior points a scourge at you and names you a carrier of the Shattering. A dozen zealots close in with whips, cudgels and burning eyes.',
+    approaches: [
+      { id: 'zealot_sermon', name: 'Out-Preach the Prior', skill: 'divine_communion', fallbackSkill: 'performance', difficulty: 'professional', actionDesc: 'Answer scripture with scripture and turn the procession against its prior', winTitle: 'The Procession Kneels', winDesc: 'Your words cut deeper than any scourge. The zealots lower their whips and the shamed prior leads them on.', rewards: { gold: 0, reputation: 12, morality: 2, items: ['Holy Water'] }, failDesc: 'The prior shouts you down. Scourges fall on you for 4 HP damage before you break away.' },
+      { id: 'zealot_read', name: 'Read the Mob', skill: 'insight', fallbackSkill: 'perception', difficulty: 'professional', actionDesc: 'Find the frightened ones at the edge of the crowd and peel them away', winTitle: 'The Crowd Thins', winDesc: 'You speak to the doubters, not the faithful. Half the procession drifts off; the rest lose heart.', rewards: { gold: 5, reputation: 8, morality: 1, items: ['Rations (2)'] }, failDesc: 'You misjudge them. The crowd surges and you take 3 HP of blows getting clear.' },
+      { id: 'zealot_shieldwall', name: 'Hold the Bridge', skill: 'blocking', fallbackSkill: 'athletics', difficulty: 'professional', actionDesc: 'Plant yourself in the narrow bridge so only a few can reach you at once', winTitle: 'Unbroken', winDesc: 'Blow after blow rings off your guard until the zealots tire and the procession breaks.', rewards: { gold: 15, reputation: 10, morality: 1, items: ['Rations (2)'] }, failDesc: 'They swarm the bridge. You take 5 HP damage before forcing your way through.' },
+      { id: 'zealot_fight', name: 'Break the Procession', skill: 'heavy_weapons', fallbackSkill: 'light_weapons', difficulty: 'professional', actionDesc: 'Wade into the procession and drive them off by force', winTitle: 'Scattered', winDesc: 'The zealots scatter into the fields, leaving their offerings in the road.', rewards: { gold: 20, reputation: 6, morality: 0, items: ['Rations (3)'] }, failDesc: 'There are too many. You stagger free with 6 HP damage.' },
+      { id: 'zealot_slip', name: 'Slip Away in the Smoke', skill: 'stealth', fallbackSkill: 'survival', difficulty: 'novice', actionDesc: 'Use the censer smoke and the hedgerows to slip around the procession', winTitle: 'Unseen', winDesc: 'You are past the procession before the chant even falters.', rewards: { gold: 0, reputation: 2, morality: 0, items: [] }, failDesc: 'A zealot spots you in the hedge. You take 3 HP damage escaping.' },
+    ],
+  },
+  {
+    id: 'tollroad_crossbowmen',
+    minLevel: 2,
+    title: 'The Unlawful Toll at Millers Ford',
+    region: 'region1',
+    regionName: 'Region 1: Aethelgard & Heartland',
+    intro: 'A chain hangs across the ford. Behind a timber barricade, crossbowmen in a lord\'s faded livery level their bolts at you and name a toll no honest traveller could pay.',
+    approaches: [
+      { id: 'toll_pay', name: 'Pay or Haggle the Toll', skill: 'negotiation', fallbackSkill: 'deception', difficulty: 'novice', actionDesc: 'Haggle the toll down, or bluff that you ride under a lord\'s warrant', winTitle: 'Waved Through', winDesc: 'The sergeant pockets a fair coin and lowers the chain.', narrowWinDesc: 'They take their toll, but you cross unharmed.', rewards: { gold: 0, reputation: 6, morality: 0, items: [] }, tollCost: 10, failDesc: 'They take your coin and loose a bolt anyway: 4 HP damage.' },
+      { id: 'toll_rush', name: 'Rush the Barricade', skill: 'athletics', fallbackSkill: 'heavy_weapons', difficulty: 'professional', actionDesc: 'Charge the barricade before they can reload', winTitle: 'Over the Wall', winDesc: 'You are over the timbers before the second volley. The crossbowmen throw down their weapons.', rewards: { gold: 20, reputation: 8, morality: 1, items: ['Crossbow Bolts (20)'] }, failDesc: 'A volley meets you halfway: 6 HP damage.' },
+      { id: 'toll_shoot', name: 'Duel the Sergeant at Range', skill: 'marksmanship', fallbackSkill: 'perception', difficulty: 'professional', actionDesc: 'Find cover and pick off the sergeant across the ford', winTitle: 'Sergeant Down', winDesc: 'Your shot drops the sergeant and the rest lose their nerve.', rewards: { gold: 15, reputation: 8, morality: 1, items: ['Crossbow'] }, failDesc: 'You lose the exchange of shots: 5 HP damage.' },
+      { id: 'toll_expose', name: 'Expose the False Livery', skill: 'lore', fallbackSkill: 'intimidation', difficulty: 'professional', actionDesc: 'Name the lord whose colours they wear, and the gallows that wait for toll thieves', winTitle: 'The Chain Falls', winDesc: 'The livery is stolen and they know you know it. They melt into the reeds.', rewards: { gold: 10, reputation: 12, morality: 1, items: [] }, failDesc: 'They laugh, and a bolt grazes you for 3 HP damage.' },
+      { id: 'toll_ford', name: 'Find Another Crossing', skill: 'survival', fallbackSkill: 'tracking', difficulty: 'novice', actionDesc: 'Follow the river to a shallow crossing out of bowshot', winTitle: 'Around the Ford', winDesc: 'You cross a mile downstream with dry boots and a full purse.', rewards: { gold: 0, reputation: 2, morality: 0, items: [] }, failDesc: 'The current takes your footing; you lose an hour and 2 HP.' },
+    ],
+  },
+  {
+    id: 'anarchist_street_gang',
+    minLevel: 2,
+    title: 'The Ashen Banner Riot',
+    region: 'region2',
+    regionName: 'Region 2: Ignis Ridge',
+    intro: 'Smoke over the ridge road: an Ashen Banner gang of anarchists has torched a tax wagon. Seeing your gear, they decide you are the next symbol of tyranny and come at you with knives, clubs and slings.',
+    approaches: [
+      { id: 'anarchist_cause', name: 'Talk Their Language', skill: 'deception', fallbackSkill: 'negotiation', difficulty: 'professional', actionDesc: 'Convince them you hate the tax-lords as much as they do', winTitle: 'Comrade', winDesc: 'They share their wine and point you down a safe road.', rewards: { gold: 5, reputation: 6, morality: 0, items: ['Rations (2)'] }, failDesc: 'They see through you. Clubs land for 4 HP damage.' },
+      { id: 'anarchist_cow', name: 'Break Their Nerve', skill: 'intimidation', fallbackSkill: 'leadership', difficulty: 'professional', actionDesc: 'Stand tall and make the ringleader back down in front of the gang', winTitle: 'Scattered', winDesc: 'The ringleader blinks first, and the gang scatters into the smoke.', rewards: { gold: 10, reputation: 8, morality: 1, items: [] }, failDesc: 'They rush you together: 5 HP damage.' },
+      { id: 'anarchist_brawl', name: 'Brawl Through', skill: 'brawling', fallbackSkill: 'light_weapons', difficulty: 'professional', actionDesc: 'Meet them hand to hand and knock the fight out of them', winTitle: 'Last One Standing', winDesc: 'The last of them limps away; the stolen tax purse is yours to return or keep.', rewards: { gold: 25, reputation: 4, morality: 0, items: [] }, failDesc: 'Too many hands and knives: 6 HP damage.' },
+      { id: 'anarchist_fire', name: 'Use the Fire', skill: 'survival', fallbackSkill: 'perception', difficulty: 'novice', actionDesc: 'Put the burning wagon between you and them and slip away downwind', winTitle: 'Lost in Smoke', winDesc: 'You vanish into the smoke and are miles away by dusk.', rewards: { gold: 0, reputation: 2, morality: 0, items: [] }, failDesc: 'The smoke chokes you and they catch you: 3 HP damage.' },
+    ],
+  },
+  {
+    id: 'inquisition_enforcers',
+    minLevel: 2,
+    title: 'The Inquisition Checkpoint',
+    region: 'region3',
+    regionName: 'Region 3: Frostfire Glacier',
+    intro: 'At a frozen pass, black-mantled Inquisition enforcers in chain and iron demand your papers and your soul. Their captain decides your elemental affinity is heresy and orders you taken alive.',
+    approaches: [
+      { id: 'inquisition_papers', name: 'Present Your Credentials', skill: 'deception', fallbackSkill: 'lore', difficulty: 'professional', actionDesc: 'Produce papers, seals and the right names to pass inspection', winTitle: 'Stamped and Passed', winDesc: 'The captain grudgingly stamps your papers and lets you through.', rewards: { gold: 0, reputation: 8, morality: 0, items: [] }, failDesc: 'Your papers do not satisfy. A mace strikes you for 4 HP before you flee.' },
+      { id: 'inquisition_faith', name: 'Out-Argue the Captain', skill: 'divine_communion', fallbackSkill: 'insight', difficulty: 'veteran', actionDesc: 'Meet the charge of heresy with true doctrine', winTitle: 'Absolved', winDesc: 'The captain cannot answer you. He blesses you, sourly, and steps aside.', rewards: { gold: 0, reputation: 14, morality: 2, items: ['Holy Water'] }, failDesc: 'Your words are named blasphemy: 5 HP damage escaping the pass.' },
+      { id: 'inquisition_fight', name: 'Fight Through the Pass', skill: 'blocking', fallbackSkill: 'heavy_weapons', difficulty: 'veteran', actionDesc: 'Hold your guard against trained enforcers and force the pass', winTitle: 'The Pass Is Yours', winDesc: 'Drilled as they are, they cannot break your guard. They fall back up the mountain.', rewards: { gold: 25, reputation: 8, morality: 1, items: ['Iron Shield'] }, failDesc: 'Their drill beats your guard: 6 HP damage before you break free.' },
+      { id: 'inquisition_climb', name: 'Climb Around', skill: 'athletics', fallbackSkill: 'survival', difficulty: 'professional', actionDesc: 'Leave the road and climb the ice above the checkpoint', winTitle: 'Over the Ice', winDesc: 'You come down past the checkpoint while they are still watching the road.', rewards: { gold: 0, reputation: 2, morality: 0, items: [] }, failDesc: 'You slip on the ice: 4 HP damage.' },
+    ],
+  },
 ];
 
-export function getRandomTravelEncounter(regionId = 'region1') {
-  const matches = TRAVEL_ENCOUNTERS.filter(e => e.region === regionId);
+/** A random road encounter for a region; level 2+ threats join once you have completed an adventure. */
+export function getRandomTravelEncounter(regionId = 'region1', level = 1) {
+  const matches = TRAVEL_ENCOUNTERS.filter(e => e.region === regionId && (e.minLevel || 1) <= level);
   if (matches.length > 0) {
     const idx = Math.floor(Math.random() * matches.length);
     return matches[idx];

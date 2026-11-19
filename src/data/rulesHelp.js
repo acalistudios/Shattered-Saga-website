@@ -148,7 +148,9 @@ export const GAME_RULES_SECTIONS = [
         title: 'Weapons & Fighting Styles',
         content: [
           'Weapons held in one hand use the One-Handed Weapons skill; weapons held in both use Two-Handed Weapons; bows and crossbows use Marksmanship. Each item shows its damage, skill and hands in your inventory and in shops.',
-          'Damage: dagger 1d4+1, shortsword and hatchet 1d6, sword and axe 1d8; two-handed melee weapons (greatsword, warhammer, polearm, war scythe) 1d10.',
+          'One-handed: dagger 1d4+1; shortsword, hatchet 1d6; rapier 1d6 (Finesse, +1 to hit); spear 1d6 (Reach, +1 to your first defence each round); mace 1d6 (Crushing, +2 damage against medium or heavy armour); sword, axe 1d8; flail 1d8 (wraps around shields so they add nothing to a block, but -1 to hit).',
+          'Two-handed: greatsword and war scythe 1d10 (balanced); halberd 1d10 (its haft parries 1d6); warhammer 1d10 (Crushing +1); battle axe 1d12 (unwieldy, -1 to hit).',
+          'Bows: short bow 1d6, two quick shots per action at -2 each; longbow 1d8, +1 to hit; crossbow 1d10+1 whose bolts ignore 2 armour, but it must reload after every shot (the next ranged action reloads). Every item shows its trait in the shop and your inventory.',
           'Dual wielding: hold a one-handed melee weapon in each hand and every melee attack strikes twice, at a penalty that depends on the weapon in each hand. Light weapons (daggers, knives, torches): no penalty in the main hand, -1 to hit in the off hand. Heavier one-handers: main hand -1 to hit, off hand -2 to hit and -1 damage. You can parry with the main-hand weapon, but there is no shield bonus or shield soak.',
           'Fighting styles: two-handed fighters have a small edge on shield fighters, shield fighters on dual wielders, and dual wielders on two-handed fighters. Archers do well against everyone except shields. The edges are small: any style can win any fight. Enemies show their style beside their name in combat.',
           'Heavy blow: a two-handed attack weakens a shield (its block bonus and block die count three-quarters). Quick blows: a shield blocks each of the two strikes of a dual wielder. Arrows: no weapon can parry an arrow, and without a shield you defend against one at -2; a shield blocks arrows normally.',
@@ -287,6 +289,7 @@ export const GAME_RULES_SECTIONS = [
           'Between adventures or during transit across dangerous frontiers, outlaws, brigands, and monsters roam the high roads.',
           'One patrol is available before your first completed adventure. Each newly completed adventure replaces your allowance with two patrols; unused patrols do not bank. Resting does not replenish the allowance.',
           'A patrol is a GM-run scene: choose your own actions, fight, negotiate, or escape. Setting out costs 3 fatigue; at least four hours pass. You must have positive fatigue and sufficient HP to start. Negative fatigue imposes a check penalty of floor(2 × fatigue deficit).',
+          'After your first completed adventure, rougher bands join the roads: zealot processions, toll-road crossbowmen, anarchist gangs and Inquisition enforcers. They attack several times a round with modest blows, so each extra defence is harder and good armour pays for itself. Each can also be talked down, outwitted or avoided.',
           'Patrol spoils are engine-defined: consumables, a chance of one gear item, and gold capped at 2 gp per character level (maximum 20 gp), never above the authored reward. Escaping pays no spoils. Unlocked region maps remain accessible for recovery.'
         ]
       },

@@ -29,10 +29,12 @@ export const DEFAULT_PROGRESSION = {
 // Base weapon stats come from data/gearStats.js (the same table the shop and
 // inventory describe). Unknown hand items fall back to a 1d6 light weapon.
 export function getWeaponProperties(weaponName) {
-  if (!weaponName) return { name: "Unarmed Strike", dice: "1d3", skill: "brawling", hands: 1 };
+  if (!weaponName) return { name: "Unarmed Strike", dice: "1d3", skill: "brawling", hands: 1, traitHit: 0, type: null };
   const type = getWeaponType(weaponName);
-  if (type) return { name: weaponName, dice: type.dice, skill: type.skill, damageType: type.damageType, hands: type.hands, ranged: !!type.ranged };
-  return { name: weaponName, dice: "1d6", skill: "light_weapons", hands: 1 }; // default light weapon
+  // traitHit is kept apart from attackBonus: attackBonus means "magic weapon"
+  // elsewhere (it lets a blade hurt incorporeal foes), and a rapier is not magic.
+  if (type) return { name: weaponName, dice: type.dice, skill: type.skill, damageType: type.damageType, hands: type.hands, ranged: !!type.ranged, traitHit: type.hitMod || 0, type };
+  return { name: weaponName, dice: "1d6", skill: "light_weapons", hands: 1, traitHit: 0, type: null }; // default light weapon
 }
 
 export function getMagicBonus(itemName) {

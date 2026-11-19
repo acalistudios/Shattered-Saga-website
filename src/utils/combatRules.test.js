@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { getArmorPieces, getArmorPieceType, describeGear } from '../data/gearStats';
-import { mundaneImmunityFromArmor, mundaneDamageFactor, isMentalAttack } from './enemyDefense';
+import { getArmorPieces, getArmorPieceType, describeGear, getWeaponType, getParryDie, traitDamageMods } from '../data/gearStats';
+import { mundaneImmunityFromArmor, mundaneDamageFactor, isMentalAttack, rollEnemyDefense } from './enemyDefense';
 import { getAttackPenalty } from './combatModifiers';
 import { getCombatSheet } from './combatSheet';
 
@@ -58,6 +58,39 @@ describe('resist and attack penalties', () => {
     const tired = getAttackPenalty(hero({ daysWithoutFood: 2, stats: { fatigue: -1, maxFatigue: 15 } }));
     expect(tired.total).toBe(-4);
     expect(tired.text).toBe('hunger -2, exhaustion -2');
+  });
+});
+
+describe('weapon traits', () => {
+  it('gives each new weapon its trait and keeps names matched to the right type', () => {
+    expect(getWeaponType('Battle Axe')).toMatchObject({ key: 'battleaxe', dice: '1d12', hands: 2, hitMod: -1 });
+    expect(getWeaponType('Greataxe').key).toBe('battleaxe');
+    expect(getWeaponType('Hand Axe').key).toBe('axe');
+    expect(getWeaponType('Short Bow')).toMatchObject({ quick: { strikes: 2, hit: -2 } });
+    expect(getWeaponType('Hunting Bow').key).toBe('bow');
+    expect(getWeaponType('Crossbow')).toMatchObject({ reload: true, armorPierce: 2, dice: '1d10+1' });
+    expect(getWeaponType('Rapier')).toMatchObject({ key: 'rapier', hitMod: 1 });
+    expect(getWeaponType('Flail')).toMatchObject({ ignoresShield: true, hitMod: -1 });
+    expect(getWeaponType('Warhammer').crushing).toBe(1);
+    expect(getWeaponType('Pit Trident').reach).toBe(1);
+    expect(getParryDie('Halberd')).toBe(6);
+  });
+
+  it('applies crushing only against armoured foes, and pierce always', () => {
+    expect(traitDamageMods(getWeaponType('Mace'), '1d3')).toEqual({ damage: 0, pierce: 0 });
+    expect(traitDamageMods(getWeaponType('Mace'), '1d4')).toEqual({ damage: 2, pierce: 0 });
+    expect(traitDamageMods(getWeaponType('Crossbow'), '1d3')).toEqual({ damage: 0, pierce: 2 });
+  });
+
+  it('lets a flail ignore an enemy shield', () => {
+    const enemy = { style: 'shield', shield: 'Iron Shield', defenses: { dodge: '5', block: '10' } };
+    expect(rollEnemyDefense(enemy, 'none', Number).roll).toBe(13);
+    expect(rollEnemyDefense(enemy, 'none', Number, { ignoreShield: true }).roll).toBe(10);
+  });
+
+  it('shows a short bow as two shots and a rapier with its +1', () => {
+    expect(getCombatSheet(hero({ equipment: { hand_right: 'Short Bow' } }))).toMatchObject({ attacksPerAction: 2 });
+    expect(getCombatSheet(hero({ equipment: { hand_right: 'Rapier' } })).attacks[0].hitMod).toBe(1);
   });
 });
 

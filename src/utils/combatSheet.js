@@ -40,7 +40,8 @@ export function getCombatSheet(character) {
     : [{ item: mainItem, pen: { hit: 0, damage: 0 }, hand: null }];
   const attacks = strikes.map((s) => {
     const w = getRewardWeaponProfile(s.item, character);
-    const hitMod = w.attackBonus + s.pen.hit + pen.total;
+    const quick = w.type?.quick;
+    const hitMod = w.attackBonus + (w.traitHit || 0) + s.pen.hit + pen.total + (quick ? quick.hit : 0);
     const ranged = !!w.ranged;
     const hitAvg = (ranged ? primaryAvg(attrs.coordination) * 2 : primaryAvg(attrs.coordination) + primaryAvg(attrs.power))
       + ranksAvg(skills[w.skill]) + hitMod;
@@ -54,8 +55,11 @@ export function getCombatSheet(character) {
       hitMod,
       damage: `${w.dice}${dmgMod ? signed(dmgMod) : ''}`,
       damageAvg: round1(Math.max(0, diceAvg(w.dice) + dmgMod)),
+      shots: quick ? quick.strikes : 1,
+      trait: w.type?.trait || '',
     };
   });
+  const attacksPerAction = attacks.reduce((t, a) => t + a.shots, 0);
 
   // Armour soak: body armour die + pieces.
   const armorType = getArmorType(eq.body);
@@ -83,7 +87,7 @@ export function getCombatSheet(character) {
 
   return {
     style: { key: style, ...(FIGHTING_STYLES[style] || FIGHTING_STYLES.none) },
-    attacksPerAction: attacks.length,
+    attacksPerAction,
     attacks,
     penalties: pen.text,
     soak: { text: soakText, avg: round1(soakAvg) },

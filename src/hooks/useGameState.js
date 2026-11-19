@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import storage from '../utils/storage';
 import { GMS, SAGA_ENGINES, BASE_SYSTEM_PROMPT, SKILLS_LIST, PROFESSIONS_LIST, ELEMENTS_LIST, getGm, DEFAULT_GM_ID, PREMIUM_TURN_COST } from '../data/gms';
-import { getArmorType, getShieldSoakDie, getShieldRollBonus, getDualWield, getDualWieldPenalty, getParryDie, isShieldName, getPlayerFightingStyle, getMatchupModifiers, inferFightingStyle, getArmorPieces } from '../data/gearStats';
+import { getArmorType, getShieldSoakDie, getShieldRollBonus, getDualWield, getDualWieldPenalty, getParryDie, isShieldName, getPlayerFightingStyle, getMatchupModifiers, inferFightingStyle, getArmorPieces, traitDamageMods, getWeaponType } from '../data/gearStats';
 import { calculateWeightAndVolume, getItemDetails, getEquippedDefenseGear } from '../utils/items';
 import { generateCompletion, executeOpposedCheck, rollDie, rollAttributePrimary, rollAttributeSecondary, rollSkillRanks } from '../utils/ai';
 import { ADVENTURES_LIST } from '../data/adventures';
@@ -4742,7 +4742,10 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     const shieldRollBonus = (defenseSkillId === 'blocking')
       ? Math.floor(getShieldRollBonus(shieldName) * matchup.shieldFactor) + armorPieces.blockPenalty
       : 0;
-    const totalDefModifier = defensePenalty - starvationPenalty - exhaustionPenalty + shieldMagicBonus + shieldRollBonus + matchup.rollBonus + armorCheckPenalty + stanceBonus + keystoneDodgeBonus + loadPenalty;
+    // Spear reach: the first defence each round is easier, the foe has to close.
+    const reachBonus = !isWard && defenseCount === 0 ? (getWeaponType(weaponName)?.reach || 0) : 0;
+    if (reachBonus) matchup.notes.push(`Reach: +${reachBonus} on the first defence this round`);
+    const totalDefModifier = defensePenalty - starvationPenalty - exhaustionPenalty + shieldMagicBonus + shieldRollBonus + matchup.rollBonus + armorCheckPenalty + stanceBonus + keystoneDodgeBonus + loadPenalty + reachBonus;
 
     const playerRollTotal = primaryRoll + secondaryRoll + skillRoll + totalDefModifier;
     const attackModifier = activeEnemy?.attackModifier || 0;
@@ -6059,7 +6062,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     const rollDie = (s) => Math.floor(Math.random() * s) + 1;
     let actionDesc = "";
     let systemNotice = "";
-    let consumesArrow = false;
+    let consumesArrow = 0; // arrows or bolts used this action (a short bow fires two)
     let consumesArcaneSp = false;
     let consumesDivineSp = false;
 
@@ -6108,16 +6111,20 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         for (let i = 0; i < skillRanks; i++) skillRoll += rollDie(2);
 
         // The enemy dodges, or blocks if it carries a shield; style matchups apply.
-        const enemyDef = rollEnemyDefense(activeEnemy, getPlayerFightingStyle(character.equipment, 'melee'));
+        // Weapon traits (data/gearStats.js): flail ignores shields, crushing vs armour.
+        const wType = weaponProps.type;
+        const traitMods = traitDamageMods(wType, activeEnemy.armorSoak);
+        const enemyDef = rollEnemyDefense(activeEnemy, getPlayerFightingStyle(character.equipment, 'melee'), rollDiceExpression, { ignoreShield: !!wType?.ignoresShield });
         const defenseRoll = enemyDef.roll;
-        const matchupStr = enemyDef.notes.length ? ` Matchup: ${enemyDef.notes.join('; ')}.` : '';
-        const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + weaponProps.attackBonus + strike.pen.hit + atkPen.total + (idx === 0 ? (nextRollModifier || 0) : 0);
+        const traitNote = [weaponProps.traitHit ? `${wType.label} ${weaponProps.traitHit > 0 ? '+' : ''}${weaponProps.traitHit} to hit` : '', traitMods.damage ? `crushing +${traitMods.damage} vs armour` : ''].filter(Boolean).join('; ');
+        const matchupStr = (enemyDef.notes.length ? ` Matchup: ${enemyDef.notes.join('; ')}.` : '') + (traitNote ? ` Weapon: ${traitNote}.` : '');
+        const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + weaponProps.attackBonus + weaponProps.traitHit + strike.pen.hit + atkPen.total + (idx === 0 ? (nextRollModifier || 0) : 0);
         const dualStr = strike.label ? ` (${strike.label}, dual wield ${strike.pen.hit} to hit, ${strike.pen.damage} damage)` : '';
         const rollStr = `Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}${atkPenStr}`;
 
         if (totalRoll >= defenseRoll) {
-          const rawDmg = Math.max(0, rollDiceExpression(weaponProps.dice) + dmgBonus + weaponProps.damageBonus + keystoneAtkDmg + strike.pen.damage);
-          const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
+          const rawDmg = Math.max(0, rollDiceExpression(weaponProps.dice) + dmgBonus + weaponProps.damageBonus + keystoneAtkDmg + strike.pen.damage + traitMods.damage);
+          const soak = Math.max(0, rollDiceExpression(activeEnemy.armorSoak || "1d3") - traitMods.pierce);
           const netDmg = applyImmunity(Math.max(1, rawDmg - soak));
           if (netDmg > 0) anyHit = true;
           enemyHp = Math.max(0, enemyHp - netDmg);
@@ -6138,8 +6145,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           notices.push(`[Combat Action: Melee Strike${dualStr} using ${weaponProps.name} vs ${activeEnemy.name}. ${rollStr}${bonusesStr}) vs Defense Roll: ${defenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus${keystoneAtkDmg > 0 ? ` +${keystoneAtkDmg} keystone` : ''}), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${enemyHp}/${activeEnemy.maxHp}.${matchupStr}${immunityStr}]`);
         } else if (enemyDef.defence === 'block') {
           // A shield block still lets part of the blow through (same rule as the player's).
-          const rawDmg = Math.max(0, rollDiceExpression(weaponProps.dice) + dmgBonus + weaponProps.damageBonus + keystoneAtkDmg + strike.pen.damage);
-          const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
+          const rawDmg = Math.max(0, rollDiceExpression(weaponProps.dice) + dmgBonus + weaponProps.damageBonus + keystoneAtkDmg + strike.pen.damage + traitMods.damage);
+          const soak = Math.max(0, rollDiceExpression(activeEnemy.armorSoak || "1d3") - traitMods.pierce);
           const shieldBlock = rollDie(enemyDef.blockDie);
           const netDmg = applyImmunity(Math.max(0, rawDmg - soak - shieldBlock));
           if (netDmg > 0) anyHit = true;
@@ -6164,37 +6171,26 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const bowProfile = getRewardWeaponProfile(bowName, character, activeEnemy, activeAdventureId);
       const bowDice = isCrossbow && !equippedRanged ? "1d8" : bowProfile.dice;
 
-      const attr1Roll = rollAttribute(character.attributes.coordination || 1);
-      const attr2Roll = rollAttribute(character.attributes.coordination || 1);
-      
-      let skillRoll = 0;
-      const skillRanks = character.skills.marksmanship || 0;
-      for (let i = 0; i < skillRanks; i++) {
-        skillRoll += rollDie(2);
-      }
-
+      // Bow traits (data/gearStats.js): a short bow looses two quick shots at a
+      // penalty; a crossbow hits hard and pierces armour but must reload after
+      // every shot, which takes the next ranged action.
+      const bowType = bowProfile.type || getWeaponType(bowName);
       const atkPen = getAttackPenalty(character);
-      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + bowProfile.attackBonus + atkPen.total + (nextRollModifier || 0);
-      // Arrows: a shield blocks them, nothing else parries them (data/gearStats.js).
-      const enemyDef = rollEnemyDefense(activeEnemy, 'ranged');
-      const rangedDefenseRoll = enemyDef.roll;
-      const isHit = totalRoll >= rangedDefenseRoll;
       const immunity = mundaneDamageFactor(activeEnemy, { magical: bowProfile.attackBonus > 0 });
       const applyImmunity = (dmg) => (immunity.factor === 1 ? dmg : Math.floor(dmg * immunity.factor));
-      const matchupStr = (enemyDef.notes.length ? ` Matchup: ${enemyDef.notes.join('; ')}.` : '')
-        + (atkPen.text ? ` Penalties: ${atkPen.text}.` : '') + (immunity.note ? ` ${immunity.note}.` : '');
       setNextRollModifier(0);
 
-      actionDesc = `I shoot a projectile at the ${activeEnemy.name} with my ${bowName}!`;
-      consumesArrow = true;
-
-      if (isHit) {
-        const rawDmg = rollDiceExpression(bowDice) + dmgBonus + bowProfile.damageBonus + keystoneAtkDmg;
-        const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
-        const netDmg = applyImmunity(Math.max(1, rawDmg - soak));
-        const nextHp = Math.max(0, activeEnemy.hp - netDmg);
+      if (bowType?.reload && character.stats?.weaponUnloaded) {
+        actionDesc = `I work the windlass and reload my ${bowName}.`;
+        systemNotice = `[Combat Action: Reload. The ${bowName} is cranked and loaded; no shot this action. It can fire on the next ranged attack.]`;
+        setCharacter(prev => ({ ...prev, stats: { ...prev.stats, weaponUnloaded: false } }));
+      } else {
+        const shots = bowType?.quick ? bowType.quick.strikes : 1;
+        const shotPen = bowType?.quick ? bowType.quick.hit : 0;
+        const traitMods = traitDamageMods(bowType, activeEnemy.armorSoak);
+        const notices = [];
+        let enemyHp = activeEnemy.hp;
         const effectTexts = [];
-
         bowProfile.effects.forEach(effect => {
           if (effect.type === 'cooldown') {
             setCharacter(prev => setItemCooldownOnCharacter(prev, effect.itemName, effect.effectId, effect.reset, 8));
@@ -6204,25 +6200,46 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           }
         });
 
-        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${keystoneAtkDmg > 0 ? `, Cinder Might: +${keystoneAtkDmg}` : ''}${bowProfile.attackBonus ? `, Weapon Bonus: +${bowProfile.attackBonus}` : ''}${bowProfile.damageBonus ? `, Reward Damage Bonus: +${bowProfile.damageBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''}`;
-        systemNotice = `[Combat Action: Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${bonusesStr}) vs Defense Roll: ${rangedDefenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus${keystoneAtkDmg > 0 ? ` +${keystoneAtkDmg} keystone` : ''}), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.${matchupStr}]`;
-
-        if (nextHp === 0) {
-          systemNotice += " [combat_end]";
+        for (let shot = 0; shot < shots && enemyHp > 0; shot++) {
+          const attr1Roll = rollAttribute(character.attributes.coordination || 1);
+          const attr2Roll = rollAttribute(character.attributes.coordination || 1);
+          let skillRoll = 0;
+          for (let i = 0; i < (character.skills.marksmanship || 0); i++) skillRoll += rollDie(2);
+          const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + bowProfile.attackBonus + atkPen.total + shotPen + (shot === 0 ? (nextRollModifier || 0) : 0);
+          // Arrows: a shield blocks them, nothing else parries them (data/gearStats.js).
+          const enemyDef = rollEnemyDefense(activeEnemy, 'ranged');
+          const rangedDefenseRoll = enemyDef.roll;
+          const shotLabel = shots > 1 ? ` (quick shot ${shot + 1} of ${shots}, ${shotPen} to hit)` : '';
+          const notes = [
+            enemyDef.notes.length ? `Matchup: ${enemyDef.notes.join('; ')}.` : '',
+            atkPen.text ? `Penalties: ${atkPen.text}.` : '',
+            traitMods.pierce ? `Bolt pierces ${traitMods.pierce} armour.` : '',
+            immunity.note ? `${immunity.note}.` : '',
+          ].filter(Boolean).join(' ');
+          const rollStr = `Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : ''}${bowProfile.attackBonus ? `, Weapon Bonus: +${bowProfile.attackBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''})`;
+          const rawDmg = rollDiceExpression(bowDice) + dmgBonus + bowProfile.damageBonus + keystoneAtkDmg + traitMods.damage;
+          const soak = Math.max(0, rollDiceExpression(activeEnemy.armorSoak || "1d3") - traitMods.pierce);
+          if (totalRoll >= rangedDefenseRoll) {
+            const netDmg = applyImmunity(Math.max(1, rawDmg - soak));
+            enemyHp = Math.max(0, enemyHp - netDmg);
+            notices.push(`[Combat Action: Ranged Shot${shotLabel} using ${bowName} vs ${activeEnemy.name}. ${rollStr} vs Defense Roll: ${rangedDefenseRoll}. Hit! Raw Damage: ${rawDmg}, Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${enemyHp}/${activeEnemy.maxHp}. ${notes}]`);
+          } else if (enemyDef.defence === 'block') {
+            const shieldBlock = rollDie(enemyDef.blockDie);
+            const netDmg = applyImmunity(Math.max(0, rawDmg - soak - shieldBlock));
+            enemyHp = Math.max(0, enemyHp - netDmg);
+            notices.push(`[Combat Action: Ranged Shot${shotLabel} using ${bowName} vs ${activeEnemy.name}. ${rollStr} vs Block Roll: ${rangedDefenseRoll}. Caught on the shield! Raw Damage: ${rawDmg}, Soak: ${soak}, Shield: 1d${enemyDef.blockDie} (${shieldBlock}). Net Damage: ${netDmg}. Enemy HP is now ${enemyHp}/${activeEnemy.maxHp}. ${notes}]`);
+          } else {
+            notices.push(`[Combat Action: Ranged Shot${shotLabel} using ${bowName} vs ${activeEnemy.name}. ${rollStr} vs Defense Roll: ${rangedDefenseRoll}. Miss! no damage dealt. ${notes}]`);
+          }
+          consumesArrow += 1;
         }
 
-        setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
-      } else if (enemyDef.defence === 'block') {
-        const rawDmg = rollDiceExpression(bowDice) + dmgBonus + bowProfile.damageBonus + keystoneAtkDmg;
-        const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
-        const shieldBlock = rollDie(enemyDef.blockDie);
-        const netDmg = applyImmunity(Math.max(0, rawDmg - soak - shieldBlock));
-        const nextHp = Math.max(0, activeEnemy.hp - netDmg);
-        systemNotice = `[Combat Action: Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}) vs Block Roll: ${rangedDefenseRoll}. Caught on the shield! Raw Damage: ${rawDmg}, Soak: ${soak}, Shield: 1d${enemyDef.blockDie} (${shieldBlock}). Net Damage: ${netDmg}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.${matchupStr}]${nextHp === 0 ? ' [combat_end]' : ''}`;
-        if (netDmg > 0) setActiveEnemy(prev => ({ ...prev, hp: nextHp }));
-      } else {
-        const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : ''}${bowProfile.attackBonus ? `, Weapon Bonus: +${bowProfile.attackBonus}` : ''}`;
-        systemNotice = `[Combat Action: Ranged Shot using ${bowName} vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${bonusesStr}) vs Defense Roll: ${rangedDefenseRoll}. Miss! no damage dealt.${matchupStr}]`;
+        actionDesc = shots > 1
+          ? `I loose a quick pair of arrows at the ${activeEnemy.name} with my ${bowName}!`
+          : `I shoot a projectile at the ${activeEnemy.name} with my ${bowName}!`;
+        systemNotice = notices.join(' ') + (bowType?.reload ? ' [Notice: the crossbow is now unloaded; the next ranged action reloads it.]' : '') + (enemyHp === 0 ? ' [combat_end]' : '');
+        if (enemyHp !== activeEnemy.hp) setActiveEnemy(prev => ({ ...prev, hp: enemyHp }));
+        if (bowType?.reload) setCharacter(prev => ({ ...prev, stats: { ...prev.stats, weaponUnloaded: true } }));
       }
     } else if (maneuverType === 'arcane_attack') {
       const attr1Roll = rollAttribute(character.attributes.attunement || 1);
@@ -6340,7 +6357,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         const nextInv = [...prev.inventory];
         const nextStats = { ...prev.stats };
         
-        if (consumesArrow) {
+        for (let n = 0; n < consumesArrow; n++) {
           const idx = nextInv.findIndex(item => item.toLowerCase().includes('arrow') || item.toLowerCase().includes('bolt'));
           if (idx !== -1) {
             const item = nextInv[idx];
@@ -6413,14 +6430,15 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       }
 
       const atkPen = getAttackPenalty(character);
-      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + weaponProps.attackBonus + atkPen.total;
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + weaponProps.attackBonus + weaponProps.traitHit + atkPen.total;
       const isHit = totalRoll >= enemyDefenseRoll;
       const immunity = mundaneDamageFactor(activeEnemy, { magical: weaponProps.attackBonus > 0 });
+      const counterTrait = traitDamageMods(weaponProps.type, activeEnemy.armorSoak);
 
       actionDesc = `*Reacting instantly, I launch a Melee Counter-Strike at the ${activeEnemy.name} with my ${weaponProps.name}!*`;
 
       if (isHit) {
-        const rawDmg = rollDiceExpression(weaponProps.dice) + dmgBonus + weaponProps.damageBonus + keystoneAtkDmg;
+        const rawDmg = rollDiceExpression(weaponProps.dice) + dmgBonus + weaponProps.damageBonus + keystoneAtkDmg + counterTrait.damage;
         const soak = rollDiceExpression(activeEnemy.armorSoak || "1d3");
         const netDmg = immunity.factor === 1 ? Math.max(1, rawDmg - soak) : Math.floor(Math.max(1, rawDmg - soak) * immunity.factor);
         const nextHp = Math.max(0, activeEnemy.hp - netDmg);

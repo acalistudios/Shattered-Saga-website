@@ -5,12 +5,26 @@ import { SKILLS_LIST } from './gms';
 const validSkills = new Set(SKILLS_LIST.map(s => s.id));
 
 describe('Travel & Roadside Combat Encounters', () => {
-  it('has 8 valid encounter definitions with full tactical branches across all 4 regions', () => {
-    expect(TRAVEL_ENCOUNTERS.length).toBe(8);
+  it('has 8 starting encounters plus 4 level 2+ road threats, all with full tactical branches', () => {
+    expect(TRAVEL_ENCOUNTERS.filter(e => !e.minLevel).length).toBe(8);
+    expect(TRAVEL_ENCOUNTERS.filter(e => e.minLevel === 2).map(e => e.id).sort())
+      .toEqual(['anarchist_street_gang', 'flagellant_zealots', 'inquisition_enforcers', 'tollroad_crossbowmen']);
 
     const regionsCovered = new Set();
 
-    for (const encounter of TRAVEL_ENCOUNTERS) {
+    // The level 2+ threats are written as shorter scenes (4-5 ways out) and
+    // need not cover every school of magic.
+    for (const encounter of TRAVEL_ENCOUNTERS.filter(e => e.minLevel)) {
+      expect(encounter.approaches.length).toBeGreaterThanOrEqual(4);
+      for (const app of encounter.approaches) {
+        expect(validSkills.has(app.skill), `Invalid skill: ${app.skill}`).toBe(true);
+        expect(validSkills.has(app.fallbackSkill), `Invalid fallback skill: ${app.fallbackSkill}`).toBe(true);
+        expect(app.winDesc.length).toBeGreaterThan(10);
+        expect(app.failDesc.length).toBeGreaterThan(10);
+      }
+    }
+
+    for (const encounter of TRAVEL_ENCOUNTERS.filter(e => !e.minLevel)) {
       expect(encounter.id).toBeTruthy();
       expect(encounter.title).toBeTruthy();
       expect(encounter.intro.length).toBeGreaterThan(20);
@@ -57,5 +71,12 @@ describe('Travel & Roadside Combat Encounters', () => {
       expect(enc.region).toBe(reg);
       expect(enc.approaches.length).toBe(5);
     }
+  });
+
+  it('keeps level 2+ road threats away from a level 1 character', () => {
+    for (let i = 0; i < 200; i++) expect(getRandomTravelEncounter('region1', 1).minLevel).toBeUndefined();
+    const seen = new Set(Array.from({ length: 400 }, () => getRandomTravelEncounter('region1', 2).id));
+    expect(seen.has('flagellant_zealots')).toBe(true);
+    expect(seen.has('tollroad_crossbowmen')).toBe(true);
   });
 });

@@ -19,7 +19,7 @@ import { ADVENTURES_LIST } from '../data/adventures';
 import {
   getWeaponType, getArmorType, getArmorPieces, getShieldRollBonus, getShieldSoakDie, getParryDie,
   getDualWield, getDualWieldPenalty, isTwoHandedMelee, TWO_HAND_DAMAGE_BONUS, getPlayerFightingStyle,
-  getMatchupModifiers, isShieldName,
+  getMatchupModifiers, isShieldName, traitDamageMods,
 } from '../data/gearStats';
 import { calculateWeightAndVolume, getItemDetails } from '../utils/items';
 import { enemyStyleFromNpc, rollEnemyDefense, mundaneImmunityFromArmor } from '../utils/enemyDefense';
@@ -89,18 +89,30 @@ function enemyFrom(npc, adventure) {
     defenses: s.defenses,
     style: style.style,
     shield: style.shield,
+    attacksPerRound: npc.attacksPerRound || 1,
+    roadThreat: (npc.attacksPerRound || 1) > 1,
   };
 }
 
 // ---------------------------------------------------------------- builds
 const KIT = ['Bedroll', 'Rations (5)', 'Tinderbox', 'Waterskin', 'Small Backpack'];
 const WEAPONS = {
-  'Two-handed (War Scythe)': { hand_right: 'Iron War Scythe' },
+  'War Scythe': { hand_right: 'Iron War Scythe' },
+  'Battle Axe': { hand_right: 'Battle Axe' },
+  'Halberd': { hand_right: 'Halberd' },
+  'Warhammer': { hand_right: 'Warhammer' },
   'Sword + Iron Shield': { hand_right: 'Steel Sword', hand_left: 'Iron Shield' },
+  'Mace + Iron Shield': { hand_right: 'Mace', hand_left: 'Iron Shield' },
+  'Flail + Iron Shield': { hand_right: 'Flail', hand_left: 'Iron Shield' },
+  'Spear + Iron Shield': { hand_right: 'Spear', hand_left: 'Iron Shield' },
+  'Rapier + Iron Shield': { hand_right: 'Rapier', hand_left: 'Iron Shield' },
   'Sword + Wooden Shield': { hand_right: 'Steel Sword', hand_left: 'Wooden Shield' },
   'Sword + Dagger': { hand_right: 'Steel Sword', hand_left: 'Dagger' },
+  'Rapier + Dagger': { hand_right: 'Rapier', hand_left: 'Dagger' },
   'Two Daggers': { hand_right: 'Dagger', hand_left: 'Dagger' },
   'Longbow': { hand_right: 'Longbow' },
+  'Short Bow': { hand_right: 'Short Bow' },
+  'Crossbow': { hand_right: 'Crossbow' },
   'Sword alone': { hand_right: 'Steel Sword' },
 };
 const ARMOUR = {
@@ -118,10 +130,10 @@ function makeBuild(wName, aName, fName) {
   const equipment = { ...WEAPONS[wName], ...ARMOUR[aName], backpack: 'Small Backpack' };
   const worn = Object.values(equipment).filter(Boolean);
   const inventory = [...new Set([...worn, ...KIT])];
-  if (wName === 'Longbow') inventory.push('Arrows (20)');
+  const ranged = !!getWeaponType(equipment.hand_right)?.ranged;
+  if (ranged) inventory.push('Arrows (20)');
   const character = { attributes: { coordination: 3, power: 3, vigor: 3 }, equipment, inventory };
   const enc = calculateWeightAndVolume(character);
-  const ranged = wName === 'Longbow';
   const style = getPlayerFightingStyle(equipment, ranged ? 'ranged' : 'melee');
   const dual = getDualWield(equipment);
   const mainItem = [equipment.hand_right, equipment.hand_left].find((i) => i && !isShieldName(i));
@@ -155,33 +167,45 @@ const typeMod = (armorType, dt) => {
 function fight(b, e, defence) {
   let php = 16;
   let ehp = e.hp;
+  let unloaded = false;
   for (let round = 0; round < 40; round++) {
     for (const s of b.strikes) {
       if (ehp <= 0) break;
       const w = getWeaponType(s.item);
-      const atk = (b.ranged ? primary(3) + primary(3) : primary(3) + primary(3)) + nd(b.skills.weapon, 2) + s.pen.hit + b.load;
-      const def = rollEnemyDefense(e, b.style, roll);
-      const raw = Math.max(0, roll(w.dice) + (isTwoHandedMelee(w) ? TWO_HAND_DAMAGE_BONUS : 0) + s.pen.damage);
-      if (atk >= def.roll) ehp -= Math.max(1, raw - roll(e.soak));
-      else if (def.defence === 'block') ehp -= Math.max(0, raw - roll(e.soak) - d(def.blockDie));
+      if (w?.reload && unloaded) { unloaded = false; continue; } // crossbow: this action reloads
+      const shots = w?.quick ? w.quick.strikes : 1;
+      const mods = traitDamageMods(w, e.soak);
+      for (let k = 0; k < shots && ehp > 0; k++) {
+        const atk = primary(3) + primary(3) + nd(b.skills.weapon, 2) + s.pen.hit + b.load + (w?.hitMod || 0) + (w?.quick ? w.quick.hit : 0);
+        const def = rollEnemyDefense(e, b.style, roll, { ignoreShield: !!w?.ignoresShield });
+        const raw = Math.max(0, roll(w.dice) + (isTwoHandedMelee(w) ? TWO_HAND_DAMAGE_BONUS : 0) + s.pen.damage + mods.damage);
+        const esoak = Math.max(0, roll(e.soak) - mods.pierce);
+        if (atk >= def.roll) ehp -= Math.max(1, raw - esoak);
+        else if (def.defence === 'block') ehp -= Math.max(0, raw - esoak - d(def.blockDie));
+      }
+      if (w?.reload) unloaded = true;
     }
     if (ehp <= 0) return { win: true, hp: php };
-    // Enemy turn.
-    const m = getMatchupModifiers(e.style, b.style, defence, defence === 'block' && !!b.shield);
-    let pr;
-    if (defence === 'dodge') pr = primary(3) + secondary(3) + nd(b.skills.acrobatics, 2) + b.dodgePen + b.load + m.rollBonus;
-    else pr = primary(3) + secondary(3) + nd(b.skills.blocking, 2) + Math.floor(getShieldRollBonus(b.shield) * m.shieldFactor) + b.load + m.rollBonus + b.blockPen;
-    const er = e.attack();
-    const soak = Math.max(0, (b.bodySoak ? roll(b.bodySoak) + typeMod(b.armorType, e.damageType) : 0)) + b.pieceSoak;
-    let taken = 0;
-    if (pr < er) taken = Math.max(CFG.minHit, roll(e.damage) + Math.floor((er - pr) / 3) - soak);
-    else if (defence === 'block') {
-      const block = b.shield ? d(Math.max(2, Math.floor(getShieldSoakDie(b.shield) * m.shieldFactor)))
-        : (m.canParry && getParryDie(b.strikes[0].item) ? d(getParryDie(b.strikes[0].item)) : 0);
-      taken = Math.max(0, roll(e.damage) - soak - block);
+    // Enemy turn: each attack after the first in a round is -2 cumulative to defend.
+    const reach = getWeaponType(b.strikes[0].item)?.reach || 0;
+    for (let a = 0; a < e.attacksPerRound; a++) {
+      const m = getMatchupModifiers(e.style, b.style, defence, defence === 'block' && !!b.shield);
+      const situational = -2 * a + (a === 0 ? reach : 0);
+      let pr;
+      if (defence === 'dodge') pr = primary(3) + secondary(3) + nd(b.skills.acrobatics, 2) + b.dodgePen + b.load + m.rollBonus + situational;
+      else pr = primary(3) + secondary(3) + nd(b.skills.blocking, 2) + Math.floor(getShieldRollBonus(b.shield) * m.shieldFactor) + b.load + m.rollBonus + b.blockPen + situational;
+      const er = e.attack();
+      const soak = Math.max(0, (b.bodySoak ? roll(b.bodySoak) + typeMod(b.armorType, e.damageType) : 0)) + b.pieceSoak;
+      let taken = 0;
+      if (pr < er) taken = Math.max(CFG.minHit, roll(e.damage) + Math.floor((er - pr) / 3) - soak);
+      else if (defence === 'block') {
+        const block = b.shield ? d(Math.max(2, Math.floor(getShieldSoakDie(b.shield) * m.shieldFactor)))
+          : (m.canParry && getParryDie(b.strikes[0].item) ? d(getParryDie(b.strikes[0].item)) : 0);
+        taken = Math.max(0, roll(e.damage) - soak - block);
+      }
+      php -= taken;
+      if (php <= 0) return { win: false, hp: 0 };
     }
-    php -= taken;
-    if (php <= 0) return { win: false, hp: 0 };
   }
   return { win: false, hp: php };
 }
@@ -206,7 +230,7 @@ describe.skipIf(!RUN)('balance playtest', () => {
     ].filter(Boolean);
     const builds = [];
     for (const w of Object.keys(WEAPONS)) for (const a of Object.keys(ARMOUR)) for (const f of Object.keys(FOCUS)) {
-      if (w === 'Longbow' && f === 'block-trained') continue;
+      if (getWeaponType(WEAPONS[w].hand_right)?.ranged && f === 'block-trained') continue;
       builds.push(makeBuild(w, a, f));
     }
     const rows = builds.map((b) => {
@@ -245,12 +269,21 @@ describe.skipIf(!RUN)('balance playtest', () => {
     };
     const top = rows[0].avg;
     const viable = rows.filter((r) => r.avg >= top - 0.05);
+    // The level 2+ road threats (multi-attack mobs): which armour does best there?
+    const roadIdx = enemies.map((e, i) => (e.roadThreat ? i : -1)).filter((i) => i >= 0);
+    const roadAvg = (r) => roadIdx.reduce((t, i) => t + r.res[i].win, 0) / (roadIdx.length || 1);
+    const roadByArmour = {};
+    for (const r of rows) roadByArmour[r.b.aName] = Math.max(roadByArmour[r.b.aName] || 0, roadAvg(r));
+    const roadByWeapon = {};
+    for (const r of rows) roadByWeapon[r.b.wName] = Math.max(roadByWeapon[r.b.wName] || 0, roadAvg(r));
     const summary = [
       `CFG ${JSON.stringify(CFG)}  enemies ${enemies.length}  N ${N}`,
       'Best by weapon: ' + bestBy('wName').map(([k, r]) => `${k} ${pct(r.avg)} (${r.b.aName}, ${r.b.fName})`).join(' | '),
       'Best by armour: ' + bestBy('aName').map(([k, r]) => `${k} ${pct(r.avg)}`).join(' | '),
       `Within 5 pts of top (${pct(top)}): ${viable.length} builds, weapons: ${[...new Set(viable.map((r) => r.b.wName))].join(', ')}; armour: ${[...new Set(viable.map((r) => r.b.aName))].join(', ')}`,
       'Top 6: ' + rows.slice(0, 6).map((r) => `${r.b.name} ${pct(r.avg)}`).join(' | '),
+      `Road threats (${roadIdx.length}) best by armour: ` + Object.entries(roadByArmour).sort((x, y) => y[1] - x[1]).map(([k, v]) => `${k} ${pct(v)}`).join(' | '),
+      'Road threats best by weapon: ' + Object.entries(roadByWeapon).sort((x, y) => y[1] - x[1]).map(([k, v]) => `${k} ${pct(v)}`).join(' | '),
     ];
     lines.splice(4, 0, ...summary.map((l) => `- ${l}`), '');
     writeFileSync(new URL('./balance-report.md', import.meta.url), lines.join('\n'));

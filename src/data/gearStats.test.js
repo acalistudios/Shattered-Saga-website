@@ -29,7 +29,9 @@ describe('gear stats', () => {
 
   it('describes weapons, shields and armour, and nothing else', () => {
     expect(describeGear('Dagger')).toBe('1d4+1 piercing · One-Handed Weapons skill · one hand · parries 1d2 · dual-wield ±0 main / -1 off hand to hit');
-    expect(describeGear('Iron War Scythe')).toBe('1d10 edged · Two-Handed Weapons skill · two hands · parries 1d4');
+    expect(describeGear('Iron War Scythe')).toBe('1d10 edged · Two-Handed Weapons skill · two hands · parries 1d4 · Balanced: no drawback');
+    expect(describeGear('Halberd')).toContain('Long haft: parries 1d6');
+    expect(describeGear('Halberd')).not.toContain('parries 1d4');
     expect(describeGear('Iron Shield')).toContain('+3 to Blocking rolls, blocks 1d6');
     expect(describeGear('Leather Armor')).toContain('absorbs 1d3');
     expect(describeGear('+1 Shield (Voss Crest)')).toContain('1d6 +1');

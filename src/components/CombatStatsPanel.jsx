@@ -36,13 +36,17 @@ export default function CombatStatsPanel({ character }) {
         </span>
       </div>
 
-      <Row label="Attacks per action" value={s.attacksPerAction} sub={s.attacksPerAction > 1 ? 'Dual wielding: two strikes' : null} />
+      <Row
+        label="Attacks per action"
+        value={s.attacksPerAction}
+        sub={s.attacks.length > 1 ? 'Dual wielding: two strikes' : s.attacksPerAction > 1 ? 'Quick bow: two shots' : null}
+      />
       {s.attacks.map((a) => (
         <Row
           key={`${a.hand || 'main'}-${a.weapon}`}
           label={a.hand ? `${a.hand}: ${a.weapon}` : a.weapon}
           value={`to hit ${a.hitAvg} · ${a.damage}`}
-          sub={`${SKILL_NAMES[a.skill] || a.skill} ${a.ranks}${mod(a.hitMod)} · avg damage ${a.damageAvg}`}
+          sub={`${SKILL_NAMES[a.skill] || a.skill} ${a.ranks}${mod(a.hitMod)} · avg damage ${a.damageAvg}${a.trait ? ` · ${a.trait}` : ''}`}
         />
       ))}
       <Row label="Armour soak" value={`${s.soak.avg} avg`} sub={s.soak.text} />

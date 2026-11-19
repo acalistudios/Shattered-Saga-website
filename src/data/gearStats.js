@@ -11,23 +11,38 @@
 // Skill rule: one-handed melee weapons use One-Handed Weapons, two-handed ones
 // Two-Handed Weapons, bows and crossbows Marksmanship.
 
+// Weapon traits (Hans 2026-11-18): each weapon has one thing that makes it good
+// in some fights and worse in others, so no die size simply wins.
+//   hitMod        +/- to hit (finesse rapier, clumsy flail, unwieldy battle axe)
+//   quick         { strikes, hit }: several shots per action at a penalty (short bow)
+//   reload        shoots every other action; the next one reloads (crossbow)
+//   armorPierce   ignores that much enemy armour soak (crossbow)
+//   crushing      + damage against medium or heavy armour (mace, warhammer)
+//   ignoresShield the enemy's shield adds nothing to its block (flail)
+//   reach         + to your first defence each round (spear)
+//   parryDie      parries with this die instead of the usual (halberd haft)
+// Tuned with the balance playtest (src/sim/balance.playtest.test.js).
 export const WEAPON_TYPES = [
-  // Two-handed melee weapons are all 1d10: 2d6 out-damaged every other style
-  // in scripts/combat-matchups.mjs.
-  { key: 'greatsword', match: ['greatsword'], label: 'Greatsword', dice: '1d10', damageType: 'edged', skill: 'heavy_weapons', hands: 2, valueCp: 500 },
-  { key: 'greataxe', match: ['greataxe'], label: 'Greataxe', dice: '1d10', damageType: 'edged', skill: 'heavy_weapons', hands: 2, valueCp: 500 },
-  { key: 'warhammer', match: ['warhammer', 'maul', 'sledge', 'pickaxe', 'mining pick', 'war pick'], label: 'Warhammer', dice: '1d10', damageType: 'blunt', skill: 'heavy_weapons', hands: 2, valueCp: 500 },
-  { key: 'polearm', match: ['scythe', 'glaive', 'halberd'], label: 'Polearm', dice: '1d10', damageType: 'edged', skill: 'heavy_weapons', hands: 2, valueCp: 500 },
+  // Two-handed melee weapons are 1d10 (2d6 out-damaged every other style in
+  // scripts/combat-matchups.mjs); the battle axe trades accuracy for a d12.
+  { key: 'greatsword', match: ['greatsword'], label: 'Greatsword', dice: '1d10', damageType: 'edged', skill: 'heavy_weapons', hands: 2, valueCp: 500, trait: 'Balanced: no drawback' },
+  { key: 'battleaxe', match: ['battle axe', 'battleaxe', 'greataxe'], label: 'Battle axe', dice: '1d12', damageType: 'edged', skill: 'heavy_weapons', hands: 2, valueCp: 550, hitMod: -1, trait: 'Unwieldy: -1 to hit' },
+  { key: 'warhammer', match: ['warhammer', 'maul', 'sledge', 'pickaxe', 'mining pick', 'war pick'], label: 'Warhammer', dice: '1d10', damageType: 'blunt', skill: 'heavy_weapons', hands: 2, valueCp: 500, crushing: 1, trait: 'Crushing: +1 damage against medium or heavy armour' },
+  { key: 'halberd', match: ['halberd', 'glaive', 'poleaxe', 'bardiche'], label: 'Halberd', dice: '1d10', damageType: 'edged', skill: 'heavy_weapons', hands: 2, valueCp: 550, parryDie: 6, trait: 'Long haft: parries 1d6' },
+  { key: 'polearm', match: ['scythe'], label: 'War scythe', dice: '1d10', damageType: 'edged', skill: 'heavy_weapons', hands: 2, valueCp: 500, trait: 'Balanced: no drawback' },
   { key: 'staff', match: ['quarterstaff', 'staff'], label: 'Staff', dice: '1d6', damageType: 'blunt', skill: 'heavy_weapons', hands: 2, valueCp: 20 },
-  { key: 'crossbow', match: ['crossbow'], label: 'Crossbow', dice: '1d8', damageType: 'piercing', skill: 'marksmanship', hands: 2, valueCp: 500, ranged: true },
-  { key: 'longbow', match: ['longbow'], label: 'Longbow', dice: '1d8', damageType: 'piercing', skill: 'marksmanship', hands: 2, valueCp: 400, ranged: true },
+  { key: 'crossbow', match: ['crossbow'], label: 'Crossbow', dice: '1d10+1', damageType: 'piercing', skill: 'marksmanship', hands: 2, valueCp: 600, ranged: true, reload: true, armorPierce: 2, trait: 'Slow: shoots every other action (the next reloads); bolts ignore 2 armour' },
+  { key: 'longbow', match: ['longbow'], label: 'Longbow', dice: '1d8', damageType: 'piercing', skill: 'marksmanship', hands: 2, valueCp: 400, ranged: true, hitMod: 1, trait: 'Steady: +1 to hit' },
+  { key: 'shortbow', match: ['short bow', 'shortbow'], label: 'Short bow', dice: '1d6', damageType: 'piercing', skill: 'marksmanship', hands: 2, valueCp: 250, ranged: true, quick: { strikes: 2, hit: -2 }, trait: 'Quick: two shots each action, each at -2 to hit' },
   { key: 'bow', match: ['bow'], label: 'Bow', dice: '1d6', damageType: 'piercing', skill: 'marksmanship', hands: 2, valueCp: 300, ranged: true },
   { key: 'dagger', match: ['dagger', 'knife', 'shiv'], label: 'Dagger', dice: '1d4+1', damageType: 'piercing', skill: 'light_weapons', hands: 1, size: 'small', valueCp: 20 },
-  { key: 'shortsword', match: ['shortsword', 'rapier', 'cutlass'], label: 'Shortsword', dice: '1d6', damageType: 'edged', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 100 },
+  { key: 'rapier', match: ['rapier', 'estoc'], label: 'Rapier', dice: '1d6', damageType: 'piercing', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 150, hitMod: 1, trait: 'Finesse: +1 to hit' },
+  { key: 'shortsword', match: ['shortsword', 'cutlass'], label: 'Shortsword', dice: '1d6', damageType: 'edged', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 100 },
   { key: 'hatchet', match: ['hatchet', 'sickle'], label: 'Hatchet', dice: '1d6', damageType: 'edged', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 50 },
   { key: 'club', match: ['club', 'cudgel'], label: 'Club', dice: '1d4', damageType: 'blunt', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 10 },
-  { key: 'mace', match: ['mace', 'flail', 'hammer'], label: 'Mace', dice: '1d6', damageType: 'blunt', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 150 },
-  { key: 'spear', match: ['spear'], label: 'Spear', dice: '1d6', damageType: 'piercing', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 100 },
+  { key: 'flail', match: ['flail', 'morning star', 'morningstar'], label: 'Flail', dice: '1d8', damageType: 'blunt', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 200, hitMod: -1, ignoresShield: true, trait: 'Wraps the guard: enemy shields add nothing to their block; clumsy, -1 to hit' },
+  { key: 'mace', match: ['mace', 'hammer'], label: 'Mace', dice: '1d6', damageType: 'blunt', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 150, crushing: 2, trait: 'Crushing: +2 damage against medium or heavy armour' },
+  { key: 'spear', match: ['spear', 'trident', 'pike'], label: 'Spear', dice: '1d6', damageType: 'piercing', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 100, reach: 1, trait: 'Reach: +1 to your first defence each round' },
   { key: 'axe', match: ['axe'], label: 'Axe', dice: '1d8', damageType: 'edged', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 200 },
   { key: 'sword', match: ['longsword', 'sword', 'blade', 'sabre', 'saber'], label: 'Sword', dice: '1d8', damageType: 'edged', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 200 },
   { key: 'torch', match: ['torch'], label: 'Torch', dice: '1d4', damageType: 'fire', skill: 'light_weapons', hands: 1, size: 'small', valueCp: 1 },
@@ -45,7 +60,17 @@ export const PARRY_DIE = { 1: 2, 2: 4 };
 export function getParryDie(weaponName) {
   const w = getWeaponType(weaponName);
   if (!w || w.ranged) return 0;
-  return PARRY_DIE[w.hands] || 0;
+  return w.parryDie || PARRY_DIE[w.hands] || 0;
+}
+
+/** Enemy armour weight from its soak die (what crushing weapons care about). */
+export const enemyArmorWeight = (armorSoak) => (/1d6/.test(armorSoak || '') ? 'heavy' : /1d4/.test(armorSoak || '') ? 'medium' : 'light');
+
+/** Trait damage against an enemy: crushing bonus and armour pierce. */
+export function traitDamageMods(weaponType, enemyArmorSoak) {
+  if (!weaponType) return { damage: 0, pierce: 0 };
+  const heavyish = enemyArmorWeight(enemyArmorSoak) !== 'light';
+  return { damage: weaponType.crushing && heavyish ? weaponType.crushing : 0, pierce: weaponType.armorPierce || 0 };
 }
 
 // Shields (Hans 2026-11-17): rollBonus is added to the Blocking roll, so a
@@ -169,12 +194,13 @@ export function describeGear(itemName) {
   if (w) {
     const hands = w.hands === 2 ? 'two hands' : 'one hand';
     const twoHand = isTwoHandedMelee(w) && TWO_HAND_DAMAGE_BONUS ? `+${TWO_HAND_DAMAGE_BONUS}` : '';
-    const parry = w.ranged ? '' : ` · parries 1d${PARRY_DIE[w.hands]}`;
+    const parry = w.ranged || w.parryDie ? '' : ` · parries 1d${PARRY_DIE[w.hands]}`;
     const dw = DUAL_WIELD[w.size === 'small' ? 'small' : 'medium'];
     const signed = (n) => (n ? `${n}` : '±0');
     const offHand = w.hands === 1 && !w.ranged ? ` · dual-wield ${signed(dw.main.hit)} main / ${signed(dw.off.hit)} off hand to hit` : '';
-    const ammo = w.ranged ? ' · needs arrows' : '';
-    return `${w.dice}${twoHand}${bonus} ${w.damageType} · ${SKILL_LABELS[w.skill]} skill${bonus ? `, +${plus} to hit` : ''} · ${hands}${parry}${offHand}${ammo}`;
+    const ammo = w.ranged ? (w.key === 'crossbow' ? ' · needs bolts or arrows' : ' · needs arrows') : '';
+    const trait = w.trait ? ` · ${w.trait}` : '';
+    return `${w.dice}${twoHand}${bonus} ${w.damageType} · ${SKILL_LABELS[w.skill]} skill${bonus ? `, +${plus} to hit` : ''} · ${hands}${parry}${offHand}${ammo}${trait}`;
   }
   if (isArmorName(itemName)) {
     const a = ARMOR_TYPES[getArmorType(itemName)];
