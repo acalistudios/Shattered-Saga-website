@@ -113,11 +113,12 @@ export const GAME_RULES_SECTIONS = [
       {
         title: 'Margins of Success',
         content: [
-          'Critical Triumph (+8 or higher): Spectacular victory with bonus tactical effects.',
+          'Critical Triumph (+8 or higher): Spectacular victory; the Game Master adds a bonus to the outcome.',
           'Standard Success (+1 to +7): Clean, decisive execution of intent.',
           'Dynamic Standoff (0 — Tie): Tense stalemate, locked blades, or temporary impasse.',
           'Failure with Complication (-1 to -7): Clean miss or success at heavy cost.',
-          'Catastrophic Fumble (-8 or lower): Disastrous failure, broken weapon, or ambush.'
+          'Catastrophic Fumble (-8 or lower): Disastrous failure; the Game Master adds a mishap.',
+          'In combat the dice decide it: an attack that beats the defence by 8 or more is a critical hit and deals +3 damage. An attack that misses by 8 or more is a fumble and leaves you Off Balance (-2 to your dodges and blocks) until your next action. When you dodge, block or resist a foe by 8 or more, the foe has fumbled and you get a counter-attack for certain.'
         ]
       }
     ]
@@ -153,7 +154,7 @@ export const GAME_RULES_SECTIONS = [
           'Bows: short bow 1d6, two quick shots per action at -2 each; longbow 1d8, +1 to hit; crossbow 1d10+1 whose bolts ignore 2 armour, but it must reload after every shot (the next ranged action reloads). Every item shows its trait in the shop and your inventory.',
           'Throwing: in combat, Throw sends a spare weapon from your pack at the foe (Coordination + Power + Thrown Weapons). The weapon in your hand stays there. Throwing knife 1d4+1, +1 to hit; throwing axe 1d8+1, -1 to hit; javelin 1d6+1, ignores 1 armour. A spare dagger, hatchet or spear can be thrown too, at -1 to hit. Only a shield stops a thrown weapon. Blacksmiths, fletchers, arena quartermasters, hunters and road peddlers sell them.',
           'More to throw: darts (two throws each action, 1d3 each); rocks (1d2, -1 to hit; pick up to 6 for free from the Backpack panel outside a fight); acid flask (2d4 that ignores armour, used up); holy water (2d6 against undead, demons and spirits, 1 against the living; a hit weakens an incorporeal foe so steel can harm it; used up).',
-          'Smoke bomb: acrid smoke gives the foe -3 to hit for 6 rounds. In a melee you are in the cloud too and choke as badly; from range (with a bow or crossbow, or against an archer) you stay clear. Gladiator Net: no damage and no shield can stop it, only a dodge; a caught foe is entangled for 0-3 rounds and can do nothing but struggle free.',
+          'Smoke bomb: acrid smoke gives the foe -3 to hit for 3 rounds. In a melee you are in the cloud too and choke as badly; from range (with a bow or crossbow, or against an archer) you stay clear. Gladiator Net: no damage and no shield can stop it, only a dodge; a caught foe is entangled for 0-3 rounds and can do nothing but struggle free.',
           'Nothing you throw affects an incorporeal foe except holy water.',
           'Ammunition: bows shoot arrows and crossbows shoot bolts. After a fight, Search (Perception) for what you shot: with a good search an arrow that struck comes back half the time and one that missed a third of the time; bolts are sturdier (60% and 40%). A careless search halves those chances. Thrown weapons always come back. Whatever you leave behind is gone once you rest.',
           'Dual wielding: hold a one-handed melee weapon in each hand and every melee attack strikes twice, at a penalty that depends on the weapon in each hand. Light weapons (daggers, knives, torches): no penalty in the main hand, -1 to hit in the off hand. Heavier one-handers: main hand -1 to hit, off hand -2 to hit and -1 damage. You can parry with the main-hand weapon, but there is no shield bonus or shield soak.',

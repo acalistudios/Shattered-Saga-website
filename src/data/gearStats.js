@@ -156,7 +156,7 @@ export const THROWN_ITEMS = [
   { key: 'rocks', match: ['rocks', 'throwing stone'], label: 'Rocks', dice: '1d2', damageType: 'blunt', hit: -1, stack: true, trait: 'A rock: 1d2, -1 to hit; pick more up outside a fight' },
   { key: 'acid', match: ['acid flask'], label: 'Acid flask', dice: '2d4', damageType: 'acid', hit: 0, ignoresArmor: true, consumed: true, made: true, trait: '2d4 acid that ignores armour; the flask breaks' },
   { key: 'holywater', match: ['holy water'], label: 'Holy water', dice: '2d6', damageType: 'holy', hit: 0, ignoresArmor: true, holy: true, consumed: true, made: true, trait: '2d6 against undead, demons and spirits (1 against anything else); a hit weakens an incorporeal foe so steel can harm it; the vial breaks' },
-  { key: 'smoke', match: ['smoke bomb'], label: 'Smoke bomb', effect: 'smoke', consumed: true, made: true, trait: 'Acrid smoke: everyone in the cloud, you included, is -3 to hit for 6 rounds' },
+  { key: 'smoke', match: ['smoke bomb'], label: 'Smoke bomb', effect: 'smoke', consumed: true, made: true, trait: 'Acrid smoke: everyone in the cloud, you included, is -3 to hit for 3 rounds' },
   { key: 'net', match: ['gladiator net'], label: 'Gladiator net', effect: 'entangle', hit: 0, unblockable: true, made: true, trait: 'No damage; a caught foe is entangled for 0-3 rounds and can only struggle free. A shield does not help it' },
 ];
 

@@ -37,8 +37,8 @@ export const rollEntangleRounds = (rollDie) => rollDie(4) - 1;
  * @param bonusDamage morality/magic/keystone bonus for weapon throws
  * Returns { outcome: 'hit'|'blocked'|'miss'|'no_effect', raw, soak, damage, entangleRounds, weakens, note }
  */
-export function resolveThrow({ profile, enemy, hit, blocked = false, blockDie = 0, bonusDamage = 0, roll = rollDiceExpression, rollDie }) {
-  const out = { outcome: 'miss', raw: 0, soak: 0, damage: 0, entangleRounds: 0, weakens: false, note: '' };
+export function resolveThrow({ profile, enemy, hit, blocked = false, blockDie = 0, bonusDamage = 0, critical = 0, roll = rollDiceExpression, rollDie }) {
+  const out = { outcome: 'miss', raw: 0, soak: 0, damage: 0, entangleRounds: 0, weakens: false, critical: 0, note: '' };
   if (isIncorporeal(enemy) && !profile.holy) {
     return { ...out, outcome: 'no_effect', note: `It passes straight through ${enemy.name}: only holy water touches an incorporeal foe` };
   }
@@ -56,7 +56,9 @@ export function resolveThrow({ profile, enemy, hit, blocked = false, blockDie = 
     : roll(profile.dice) + (profile.consumed ? 0 : bonusDamage);
   const soak = profile.ignoresArmor ? 0 : Math.max(0, roll(enemy?.armorSoak || '1d3') - (profile.pierce || 0));
   const shield = blocked ? rollDie(blockDie) : 0;
-  let damage = hit ? Math.max(1, raw - soak) : Math.max(0, raw - soak - shield);
+  // A critical hit (utils/criticals.js) adds its bonus to a clean hit.
+  const crit = hit ? critical : 0;
+  let damage = hit ? Math.max(1, raw - soak) + crit : Math.max(0, raw - soak - shield);
   // Foes that only shrug off mundane harm (not incorporeal) take half from
   // anything but holy water.
   if (!profile.holy) {
@@ -70,8 +72,8 @@ export function resolveThrow({ profile, enemy, hit, blocked = false, blockDie = 
     weakens ? `The holy water burns ${enemy.name}: it is weakened, and steel can now harm it` : '',
     blocked ? `Caught on the shield (1d${blockDie}: ${shield})` : '',
   ].filter(Boolean).join('. ');
-  return { ...out, outcome: hit ? 'hit' : 'blocked', raw, soak, damage, weakens, note };
+  return { ...out, outcome: hit ? 'hit' : 'blocked', raw, soak, damage, weakens, critical: crit, note };
 }
 
-/** Smoke: the number of rounds the choking cloud and its sting last (3 in it, 3 after). */
-export const SMOKE_ROUNDS = 6;
+/** Smoke: the number of rounds the choking cloud lasts. */
+export const SMOKE_ROUNDS = 3;

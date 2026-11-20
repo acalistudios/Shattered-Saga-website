@@ -18,6 +18,7 @@ export const CONDITIONS = {
   frightened: { label: 'Frightened', icon: '😱', attack: -2, defence: 0, resist: -2, desc: '-2 to attacks and Resist.' },
   burning: { label: 'Burning', icon: '🔥', attack: 0, defence: 0, resist: 0, burn: '1d4', desc: 'Takes 1d4 fire damage each round; armour does not help.' },
   stone_mantle: { label: 'Stone Mantle', icon: '⛰️', attack: 0, defence: 0, resist: 0, soak: '1d6', playerOnly: true, desc: '+1d6 soak against physical blows (not curses or terror).' },
+  off_balance: { label: 'Off Balance', icon: '🌀', attack: 0, defence: -2, resist: 0, desc: '-2 to dodges and blocks (after a fumbled attack).' },
   choking: { label: 'Choking Smoke', icon: '💨', attack: -3, defence: 0, resist: 0, desc: '-3 to attacks (acrid smoke stings the eyes and throat).' },
   entangled: { label: 'Entangled', icon: '🕸️', attack: 0, defence: -2, resist: 0, enemyOnly: true, noAttacks: true, desc: 'Caught in a net: it cannot attack, only struggle free; -2 to dodges and blocks.' },
 };
