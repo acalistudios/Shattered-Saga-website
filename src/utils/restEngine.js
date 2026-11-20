@@ -1,5 +1,6 @@
 import { applyRewardRestRecovery, getGameHourStamp } from './rewardEngine';
 import { getKeystoneStatModifiers } from '../data/keystoneShards';
+import { thrownSpent, returnItems } from './ammoRecovery';
 
 export function consumeRationFromInventory(inventory = []) {
   let hasRations = false;
@@ -31,10 +32,13 @@ export function hungryRestFatigue(stats = {}) {
 
 /** A rest restores resources and some HP; it never touches undeath or permanent adventure rewards. */
 export function resolveRest(character) {
-  const { hasRations, updatedInventory } = consumeRationFromInventory(character.inventory);
   const stats = { ...character.stats };
-  // Arrows left lying after a fight are gone once you have moved on and slept.
+  // Arrows left lying after a fight are gone once you have moved on and slept;
+  // thrown weapons are always picked up (utils/ammoRecovery.js).
+  let restInventory = character.inventory || [];
+  for (const [name, n] of Object.entries(thrownSpent(stats.spentAmmo))) restInventory = returnItems(restInventory, name, n);
   stats.spentAmmo = {};
+  const { hasRations, updatedInventory } = consumeRationFromInventory(restInventory);
   const hours = getGameHourStamp(stats.day ?? 1, stats.hour ?? 13) + 8;
   stats.day = Math.floor(hours / 24) + 1;
   stats.hour = hours % 24;
@@ -66,7 +70,7 @@ export function resolveRest(character) {
 
   const rested = {
     ...character, stats,
-    inventory: hasRations ? updatedInventory : character.inventory,
+    inventory: hasRations ? updatedInventory : restInventory,
     daysWithoutFood: hasRations ? 0 : (character.daysWithoutFood || 0) + 1,
   };
   return {

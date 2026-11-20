@@ -50,7 +50,7 @@ import { getSupplyDepot } from '../data/supplyDepot';
 import { rollDiceExpression } from '../utils/dice';
 import { enemyStyleFromNpc, enemyStyleFromWeapon, rollEnemyDefense, mundaneDamageFactor, mundaneImmunityFromArmor } from '../utils/enemyDefense';
 import { getAttackPenalty } from '../utils/combatModifiers';
-import { ammoKindForWeapon, countAmmo, takeOneAmmo, recordSpent, rollRecovery, addAmmo, spentTotal, RECOVERY_SEARCH_DIFFICULTY } from '../utils/ammoRecovery';
+import { ammoKindForWeapon, countAmmo, takeOneAmmo, recordSpent, rollRecovery, returnRecovered, spentTotal, listThrowables, takeItemAt, RECOVERY_SEARCH_DIFFICULTY } from '../utils/ammoRecovery';
 import { conditionMods, conditionText, addCondition, normalizeCondition, tickEnemyConditions, resolveCinderbreath, CINDERBREATH_BURN_ROUNDS, CONDITIONS, MAX_GM_DURATION } from '../utils/conditions';
 import { claimSearchFind, applySearchFind, formatCoin, TREASURE_FINDS_PER_ADVENTURE } from '../data/payouts';
 import { merchantsAtLocation, buyFromMerchant, sellToMerchant, recordHaggle, haggleToday, merchantOffer, undoTrade } from '../utils/adventureTrade';
@@ -1766,7 +1766,13 @@ export default function useGameState() {
     const armorType = getArmorType(armorName);
 
     // 1. Enforce weapon constraints
-    const weaponSkills = ['light_weapons', 'heavy_weapons', 'marksmanship', 'thrown_weapons'];
+    // Thrown Weapons needs a spare to throw, not a weapon in hand (below).
+    const weaponSkills = ['light_weapons', 'heavy_weapons', 'marksmanship'];
+    if (finalSkillFocusId === 'thrown_weapons' && !listThrowables(character.inventory, character.equipment).length) {
+      setIsLoading(false);
+      setApiError('You have nothing spare to throw. Carry throwing knives, axes, javelins or a spare dagger in your pack.');
+      return;
+    }
     if (finalSkillFocusId && weaponSkills.includes(finalSkillFocusId)) {
       if (!weaponName) {
         setIsLoading(false);
@@ -2147,6 +2153,14 @@ export default function useGameState() {
         finalInventory = taken.inventory;
         spentShot = { name: taken.name, kind, hit: Boolean(rollDetails?.success) };
         arrowConsumedNotice = `\n\n[Notice: Loosed 1 ${kind === 'bolt' ? 'bolt' : 'arrow'}. Remaining: ${countAmmo(finalInventory, kind)}.]`;
+      }
+    } else if (finalSkillFocusId === 'thrown_weapons') {
+      // A typed throw also sends a spare weapon flying; it comes back after the fight.
+      const spare = listThrowables(localInventory, character.equipment)[0];
+      if (spare) {
+        finalInventory = takeItemAt(localInventory, spare.index);
+        spentShot = { name: spare.name, kind: 'thrown', hit: Boolean(rollDetails?.success) };
+        arrowConsumedNotice = `\n\n[Notice: Threw the ${spare.name}; it can be picked up afterwards.]`;
       }
     }
     
@@ -5147,14 +5161,14 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     });
     const result = rollRecovery(spent, onlyThrown || check.success);
     setCharacter(prev => {
-      let inventory = prev.inventory || [];
-      for (const [name, n] of Object.entries(result.recovered)) inventory = addAmmo(inventory, name, n);
+      const inventory = returnRecovered(prev.inventory || [], spent, result.recovered);
       return { ...prev, inventory, stats: { ...prev.stats, spentAmmo: {} } };
     });
     const foundStr = Object.entries(result.recovered).map(([name, n]) => `${n} ${name}`).join(', ') || 'nothing usable';
     const lostStr = Object.entries(result.lost).map(([name, n]) => `${n} ${name}`).join(', ');
-    const flavour = result.found === result.total
-      ? 'You gather up every shaft.'
+    const flavour = onlyThrown
+      ? 'You pull your thrown weapons from the ground and the fallen.'
+      : result.found === result.total ? 'You gather up everything you threw and shot.'
       : result.found === 0 ? 'Snapped shafts and bent heads; nothing worth keeping.' : 'Some shafts are whole; the rest are snapped or lost in the undergrowth.';
     setHistory(prev => [...prev, {
       role: 'model',
@@ -6135,6 +6149,10 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         return;
       }
     }
+    if (maneuverType === 'throw' && !listThrowables(character.inventory, character.equipment).length) {
+      setApiError('You have nothing spare to throw. Carry throwing knives, axes, javelins or a spare dagger in your pack.');
+      return;
+    }
     // Start of the round (utils/conditions.js): a burning foe takes its damage
     // and the foe's conditions lose a round, before the player's action rolls.
     const tick = tickEnemyConditions(activeEnemy);
@@ -6157,6 +6175,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     let consumesArrow = 0; // arrows or bolts used this action (a short bow fires two)
     const shotHits = []; // per shot: did it strike (a hit or a shield), for recovery later
     let ammoKind = 'arrow';
+    let thrownItem = null; // { name, hit } the weapon thrown this action
     let consumesArcaneSp = false;
     let consumesDivineSp = false;
 
@@ -6410,6 +6429,50 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       } else {
         systemNotice = `[Combat Action: Divine Smiting Spell vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Empathy: ${attr1Roll}, Willpower: ${attr2Roll}, Divine Manifestation: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
       }
+    } else if (maneuverType === 'throw') {
+      // Throw a spare weapon from the pack (utils/ammoRecovery.js listThrowables):
+      // Coordination + Power + Thrown Weapons. Like an arrow, only a shield can
+      // stop it. The weapon leaves the pack and is always recovered afterwards.
+      const choice = listThrowables(character.inventory, character.equipment)[0];
+      if (!choice) return;
+      const p = choice.profile;
+      const atkPen = getAttackPenalty(character);
+      const magic = getMagicBonus(choice.name);
+      const attr1Roll = rollAttribute(character.attributes.coordination || 1);
+      const attr2Roll = rollAttribute(character.attributes.power || 1);
+      let skillRoll = 0;
+      for (let i = 0; i < (character.skills.thrown_weapons || 0); i++) skillRoll += rollDie(2);
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + p.hit + magic + atkPen.total + (nextRollModifier || 0);
+      setNextRollModifier(0);
+      const enemyDef = rollEnemyDefense(activeEnemy, 'ranged');
+      const immunity = mundaneDamageFactor(activeEnemy, { magical: magic > 0 });
+      const applyImmunity = (dmg) => (immunity.factor === 1 ? dmg : Math.floor(dmg * immunity.factor));
+      const rawDmg = rollDiceExpression(p.dice) + dmgBonus + magic + keystoneAtkDmg;
+      const soak = Math.max(0, rollDiceExpression(activeEnemy.armorSoak || '1d3') - (p.pierce || 0));
+      let enemyHp = activeEnemy.hp;
+      const hit = totalRoll >= enemyDef.roll;
+      const notes = [
+        enemyDef.notes.length ? `Matchup: ${enemyDef.notes.join('; ')}.` : '',
+        p.pierce ? `The ${p.label.toLowerCase()} ignores ${p.pierce} armour.` : '',
+        immunity.note ? `${immunity.note}.` : '',
+      ].filter(Boolean).join(' ');
+      const rollStr = `Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Thrown Weapons: ${skillRoll}${p.hit ? `, ${p.label} ${p.hit > 0 ? '+' : ''}${p.hit}` : ''}${magic ? `, Weapon Bonus: +${magic}` : ''}${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : ''}${atkPen.text ? `, Penalties: ${atkPen.text}` : ''})`;
+      if (hit) {
+        const netDmg = applyImmunity(Math.max(1, rawDmg - soak));
+        enemyHp = Math.max(0, enemyHp - netDmg);
+        systemNotice = `[Combat Action: Throw ${choice.name} vs ${activeEnemy.name}. ${rollStr} vs Defense Roll: ${enemyDef.roll}. Hit! Raw Damage: ${p.dice} (${rawDmg}), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${enemyHp}/${activeEnemy.maxHp}. ${notes}]`;
+      } else if (enemyDef.defence === 'block') {
+        const shieldBlock = rollDie(enemyDef.blockDie);
+        const netDmg = applyImmunity(Math.max(0, rawDmg - soak - shieldBlock));
+        enemyHp = Math.max(0, enemyHp - netDmg);
+        systemNotice = `[Combat Action: Throw ${choice.name} vs ${activeEnemy.name}. ${rollStr} vs Block Roll: ${enemyDef.roll}. Caught on the shield! Raw Damage: ${rawDmg}, Soak: ${soak}, Shield: 1d${enemyDef.blockDie} (${shieldBlock}). Net Damage: ${netDmg}. Enemy HP is now ${enemyHp}/${activeEnemy.maxHp}. ${notes}]`;
+      } else {
+        systemNotice = `[Combat Action: Throw ${choice.name} vs ${activeEnemy.name}. ${rollStr} vs Defense Roll: ${enemyDef.roll}. Miss! no damage dealt. ${notes}]`;
+      }
+      systemNotice += ` [Notice: the ${choice.name} has left your hand; it can be picked up after the fight.]${enemyHp === 0 ? ' [combat_end]' : ''}`;
+      if (enemyHp !== activeEnemy.hp) setActiveEnemy(prev => ({ ...prev, hp: enemyHp }));
+      actionDesc = `I hurl my ${choice.name} at the ${activeEnemy.name}!`;
+      thrownItem = { name: choice.name, hit: hit || enemyDef.defence === 'block' };
     } else if (maneuverType === 'block') {
       setCombatStance('block');
       actionDesc = `I brace myself and raise my defenses to block incoming strikes!`;
@@ -6468,12 +6531,13 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       if (spellPen || enemyCondNote) systemNotice += ` [Spell roll notes:${spellPen ? ` penalties ${spellPen}.` : ''}${enemyCondNote}]`;
     }
 
-    if (['melee', 'ranged', 'arcane_attack', 'divine_attack', 'cinderbreath'].includes(maneuverType)) {
+    if (['melee', 'ranged', 'throw', 'arcane_attack', 'divine_attack', 'cinderbreath'].includes(maneuverType)) {
       const isHit = systemNotice.includes('. Hit!');
       recordDiceRoll({
         type: 'combat_attack',
         title: maneuverType === 'melee' ? 'Melee Strike' :
                maneuverType === 'ranged' ? 'Ranged Shot' :
+               maneuverType === 'throw' ? 'Throw' :
                maneuverType === 'cinderbreath' ? 'Cinderbreath' :
                maneuverType === 'arcane_attack' ? 'Arcane Spell Strike' : 'Divine Smiting Spell',
         subtitle: `vs ${activeEnemy.name}`,
@@ -6501,6 +6565,19 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     // overwritten: arrows were never used up and spells cost no SP.
     const finalPayload = `${tickNotice}${systemNotice} ${actionDesc}`;
     const sending = sendPlayerAction(finalPayload, apiKey, sandbox);
+
+    // The thrown weapon leaves the pack; it is always recovered afterwards.
+    if (thrownItem) {
+      setCharacter(prev => {
+        const spare = listThrowables(prev.inventory, prev.equipment).find(t => t.name === thrownItem.name);
+        if (!spare) return prev;
+        return {
+          ...prev,
+          inventory: takeItemAt(prev.inventory, spare.index),
+          stats: { ...prev.stats, spentAmmo: recordSpent(prev.stats?.spentAmmo, thrownItem.name, 'thrown', thrownItem.hit) },
+        };
+      });
+    }
 
     if (consumesArrow || consumesArcaneSp || consumesDivineSp) {
       setCharacter(prev => {

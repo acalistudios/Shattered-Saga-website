@@ -69,6 +69,8 @@ export const ADVENTURE_ECONOMY_METADATA = {
         location: 'Ashveil Village Square',
         sells: [
           sell('Dagger', 20, 4),
+          sell('Throwing Knife', 25, 4),
+          sell('Throwing Axe', 70, 2),
           sell('Shortsword', 100, 2),
           sell('Wooden Shield', 100, 3),
           sell('Leather Armor', 300, 1),
@@ -261,6 +263,8 @@ export const ADVENTURE_ECONOMY_METADATA = {
         location: 'Training Sand',
         sells: [
           sell('Dagger', 20, 6),
+          sell('Javelin', 60, 4),
+          sell('Throwing Knife', 25, 4),
           sell('Gladiator Net', 80, 3),
           sell('Wooden Shield', 100, 4),
           sell('Bandages (5)', 5, 12),
@@ -313,6 +317,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
         sells: [
           sell('Mara\'s Smoke Bombs', 200, 3),
           sell('Arrows (20)', 10, 8),
+          sell('Javelin', 60, 3),
           sell('Venom Vial', 200, 2),
         ],
         buys: ['alchemy', 'crafting', 'weapons'],
@@ -338,6 +343,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
           sell('Waterskin', 15, 5),
           sell('Torch', 1, 12),
           sell('Dagger', 20, 3),
+          sell('Throwing Knife', 25, 3),
         ],
         buys: ['provisions', 'weapons', 'documents'],
         buyRate: 0.5,

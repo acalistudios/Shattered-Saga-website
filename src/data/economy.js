@@ -52,7 +52,10 @@ const priced = (name, cp, category, notes = '') => ({
 export const GENERIC_ITEM_VALUES = [
   priced('Knife', 5, 'weapons', 'A common utility blade or improvised sidearm.'),
   priced('Dagger', 20, 'weapons', 'Small weapon; use rusty/dull/honed modifiers when appropriate.'),
-  priced('Hatchet', 50, 'weapons', 'Light chopping tool usable as a weapon.'),
+  priced('Hatchet', 50, 'weapons', 'Light chopping tool usable as a weapon; can be thrown.'),
+  priced('Throwing Knife', 25, 'weapons', 'Balanced to throw: 1d4+1, +1 to hit; always recovered.'),
+  priced('Throwing Axe', 70, 'weapons', 'Balanced to throw: 1d8+1, -1 to hit; always recovered.'),
+  priced('Javelin', 60, 'weapons', 'Made to throw: 1d6+1, ignores 1 armour; always recovered.'),
   priced('Shortsword', 100, 'weapons', 'Standard sidearm.'),
   priced('Longsword', 200, 'weapons', 'Standard military blade.'),
   priced('Greatsword', 500, 'weapons', 'Heavy two-handed weapon.'),

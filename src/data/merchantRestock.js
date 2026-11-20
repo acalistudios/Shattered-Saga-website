@@ -32,7 +32,7 @@ export const MERCHANT_RESTOCK = {
     { after: 4, sells: [['Medium Backpack', 100, 1], ['Smithing Tools', 500, 1]] },
   ],
   'Hask of Basalt Ridge': [
-    { after: 2, sells: [['Warhammer', 500, 1], ['Leather Armor', 300, 1]] },
+    { after: 2, sells: [['Warhammer', 500, 1], ['Leather Armor', 300, 1], ['Throwing Axe', 70, 2]] },
     { after: 4, sells: [['Steel Chainmail', 1200, 1], ['Plate Helm', 300, 1]] },
     { after: 6, sells: [['Major Potion or Elixir', 1500, 1]] },
   ],
@@ -48,12 +48,12 @@ export const MERCHANT_RESTOCK = {
     { after: 4, sells: [['Smithing Tools', 500, 1], ['Crossbow', 600, 1]] },
   ],
   'Theron Vell': [
-    { after: 2, sells: [['Bedroll', 20, 2], ['Rope (50 ft)', 100, 2]] },
+    { after: 2, sells: [['Bedroll', 20, 2], ['Rope (50 ft)', 100, 2], ['Javelin', 60, 3]] },
     { after: 4, sells: [['Large Backpack', 200, 1], ['Steel Chainmail', 1200, 1]] },
     { after: 6, sells: [['Major Potion or Elixir', 1500, 1]] },
   ],
   'Savax the Locker-Keeper': [
-    { after: 2, sells: [['Shortsword', 100, 2], ['Leather Armor', 300, 1], ['Rapier', 150, 1], ['Leather Helmet', 60, 1], ['Leather Pants', 80, 1]] },
+    { after: 2, sells: [['Shortsword', 100, 2], ['Leather Armor', 300, 1], ['Rapier', 150, 1], ['Leather Helmet', 60, 1], ['Leather Pants', 80, 1], ['Throwing Axe', 70, 2]] },
     { after: 4, sells: [['Longsword', 200, 1], ['Plate Helm', 300, 1], ['Plate Gauntlets', 250, 1]] },
     { after: 6, sells: [['Greatsword', 500, 1], ['Steel Chainmail', 1200, 1]] },
   ],
@@ -73,7 +73,7 @@ export const MERCHANT_RESTOCK = {
     { after: 4, sells: [['Small Backpack', 50, 1], ['Arrows (20)', 10, 3]] },
   ],
   'Candle Nix': [
-    { after: 2, sells: [['Venom Vial', 200, 1], ['Silver Ring', 200, 1]] },
+    { after: 2, sells: [['Venom Vial', 200, 1], ['Silver Ring', 200, 1], ['Throwing Knife', 25, 4]] },
     { after: 4, sells: [['Longsword', 200, 1], ['Crossbow', 600, 1]] },
   ],
   'Sister Elowen': [
@@ -81,13 +81,13 @@ export const MERCHANT_RESTOCK = {
     { after: 4, sells: [['Minor Potion or Elixir', 500, 1]] },
   ],
   'Velvet Min': [
-    { after: 4, sells: [['Venom Vial', 200, 1], ['Silver Ring', 200, 1]] },
+    { after: 4, sells: [['Venom Vial', 200, 1], ['Silver Ring', 200, 1], ['Throwing Knife', 25, 3]] },
   ],
   'Mother-of-Pearl Jax': [
     { after: 6, sells: [['Major Potion or Elixir', 1500, 1]] },
   ],
   'Alda Reed': [
-    { after: 2, sells: [['Leather Armor', 300, 1], ['Hatchet', 50, 2]] },
+    { after: 2, sells: [['Leather Armor', 300, 1], ['Hatchet', 50, 2], ['Throwing Axe', 70, 2], ['Javelin', 60, 2]] },
     { after: 4, sells: [['Shortsword', 100, 2], ['Plate Helm', 300, 1]] },
   ],
   'Nell Gearwise': [

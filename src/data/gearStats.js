@@ -23,6 +23,13 @@
 //   parryDie      parries with this die instead of the usual (halberd haft)
 // Tuned with the balance playtest (src/sim/balance.playtest.test.js).
 export const WEAPON_TYPES = [
+  // Throwing weapons (Hans 2026-11-20) come first so "Throwing Knife" and
+  // "Throwing Axe" are not read as a plain dagger or axe. `thrown` is what the
+  // Throw action rolls (Thrown Weapons skill); daggers, hatchets and spears
+  // below can be thrown too, less well. Thrown weapons are always recovered.
+  { key: 'throwingknife', match: ['throwing knife', 'throwing knives', 'throwing dagger'], label: 'Throwing knife', dice: '1d4', damageType: 'piercing', skill: 'light_weapons', hands: 1, size: 'small', valueCp: 25, thrown: { dice: '1d4+1', hit: 1, made: true }, trait: 'Made to throw: thrown 1d4+1, +1 to hit' },
+  { key: 'throwingaxe', match: ['throwing axe', 'tomahawk', 'francisca'], label: 'Throwing axe', dice: '1d6', damageType: 'edged', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 70, thrown: { dice: '1d8+1', hit: -1, made: true }, trait: 'Made to throw: thrown 1d8+1, -1 to hit' },
+  { key: 'javelin', match: ['javelin'], label: 'Javelin', dice: '1d6', damageType: 'piercing', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 60, thrown: { dice: '1d6+1', hit: 0, pierce: 1, made: true }, trait: 'Made to throw: thrown 1d6+1, ignores 1 armour' },
   // Two-handed melee weapons are 1d10 (2d6 out-damaged every other style in
   // scripts/combat-matchups.mjs); the battle axe trades accuracy for a d12.
   { key: 'greatsword', match: ['greatsword'], label: 'Greatsword', dice: '1d10', damageType: 'edged', skill: 'heavy_weapons', hands: 2, valueCp: 500, trait: 'Balanced: no drawback' },
@@ -35,14 +42,15 @@ export const WEAPON_TYPES = [
   { key: 'longbow', match: ['longbow'], label: 'Longbow', dice: '1d8', damageType: 'piercing', skill: 'marksmanship', hands: 2, valueCp: 400, ranged: true, hitMod: 1, trait: 'Steady: +1 to hit' },
   { key: 'shortbow', match: ['short bow', 'shortbow'], label: 'Short bow', dice: '1d6', damageType: 'piercing', skill: 'marksmanship', hands: 2, valueCp: 250, ranged: true, quick: { strikes: 2, hit: -2 }, trait: 'Quick: two shots each action, each at -2 to hit' },
   { key: 'bow', match: ['bow'], label: 'Bow', dice: '1d6', damageType: 'piercing', skill: 'marksmanship', hands: 2, valueCp: 300, ranged: true },
-  { key: 'dagger', match: ['dagger', 'knife', 'shiv'], label: 'Dagger', dice: '1d4+1', damageType: 'piercing', skill: 'light_weapons', hands: 1, size: 'small', valueCp: 20 },
+  { key: 'dagger', match: ['dagger', 'knife', 'shiv'], label: 'Dagger', dice: '1d4+1', damageType: 'piercing', skill: 'light_weapons', hands: 1, size: 'small', valueCp: 20, thrown: { dice: '1d4', hit: -1 } },
   { key: 'rapier', match: ['rapier', 'estoc'], label: 'Rapier', dice: '1d6', damageType: 'piercing', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 150, hitMod: 1, trait: 'Finesse: +1 to hit' },
   { key: 'shortsword', match: ['shortsword', 'cutlass'], label: 'Shortsword', dice: '1d6', damageType: 'edged', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 100 },
-  { key: 'hatchet', match: ['hatchet', 'sickle'], label: 'Hatchet', dice: '1d6', damageType: 'edged', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 50 },
+  { key: 'hatchet', match: ['hatchet'], label: 'Hatchet', dice: '1d6', damageType: 'edged', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 50, thrown: { dice: '1d6', hit: -1 } },
+  { key: 'sickle', match: ['sickle'], label: 'Sickle', dice: '1d6', damageType: 'edged', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 50 },
   { key: 'club', match: ['club', 'cudgel'], label: 'Club', dice: '1d4', damageType: 'blunt', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 10 },
   { key: 'flail', match: ['flail', 'morning star', 'morningstar'], label: 'Flail', dice: '1d8', damageType: 'blunt', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 200, hitMod: -1, ignoresShield: true, trait: 'Wraps the guard: enemy shields add nothing to their block; clumsy, -1 to hit' },
   { key: 'mace', match: ['mace', 'hammer'], label: 'Mace', dice: '1d6', damageType: 'blunt', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 150, crushing: 2, trait: 'Crushing: +2 damage against medium or heavy armour' },
-  { key: 'spear', match: ['spear', 'trident', 'pike'], label: 'Spear', dice: '1d6', damageType: 'piercing', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 100, reach: 1, trait: 'Reach: +1 to your first defence each round' },
+  { key: 'spear', match: ['spear', 'trident', 'pike'], label: 'Spear', dice: '1d6', damageType: 'piercing', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 100, reach: 1, thrown: { dice: '1d6', hit: -1 }, trait: 'Reach: +1 to your first defence each round' },
   { key: 'axe', match: ['axe'], label: 'Axe', dice: '1d8', damageType: 'edged', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 200 },
   { key: 'sword', match: ['longsword', 'sword', 'blade', 'sabre', 'saber'], label: 'Sword', dice: '1d8', damageType: 'edged', skill: 'light_weapons', hands: 1, size: 'medium', valueCp: 200 },
   { key: 'torch', match: ['torch'], label: 'Torch', dice: '1d4', damageType: 'fire', skill: 'light_weapons', hands: 1, size: 'small', valueCp: 1 },
@@ -200,7 +208,10 @@ export function describeGear(itemName) {
     const offHand = w.hands === 1 && !w.ranged ? ` · dual-wield ${signed(dw.main.hit)} main / ${signed(dw.off.hit)} off hand to hit` : '';
     const ammo = w.ranged ? (w.key === 'crossbow' ? ' · needs bolts or arrows' : ' · needs arrows') : '';
     const trait = w.trait ? ` · ${w.trait}` : '';
-    return `${w.dice}${twoHand}${bonus} ${w.damageType} · ${SKILL_LABELS[w.skill]} skill${bonus ? `, +${plus} to hit` : ''} · ${hands}${parry}${offHand}${ammo}${trait}`;
+    const thrown = !w.thrown ? ''
+      : w.thrown.made ? ' · thrown with the Thrown Weapons skill; always recovered after the fight'
+        : ` · can be thrown (Thrown Weapons skill): ${w.thrown.dice}, ${w.thrown.hit} to hit`;
+    return `${w.dice}${twoHand}${bonus} ${w.damageType} · ${SKILL_LABELS[w.skill]} skill${bonus ? `, +${plus} to hit` : ''} · ${hands}${parry}${offHand}${ammo}${trait}${thrown}`;
   }
   if (isArmorName(itemName)) {
     const a = ARMOR_TYPES[getArmorType(itemName)];

@@ -8,7 +8,7 @@ import { isMentalAttack } from '../utils/enemyDefense';
 import CombatStatsPanel from '../components/CombatStatsPanel';
 import ConditionChips from '../components/ConditionChips';
 import { cinderbreathDice } from '../utils/conditions';
-import { ammoKindForWeapon, countAmmo, spentTotal } from '../utils/ammoRecovery';
+import { ammoKindForWeapon, countAmmo, spentTotal, listThrowables } from '../utils/ammoRecovery';
 import { LOAN_STATUS_LABEL } from '../utils/discoveries';
 import { ADSENSE_SLOTS, displayAdsEnabled } from '../utils/ads';
 import { SKILLS_LIST, ATTRIBUTE_LIST } from '../data/gms';
@@ -2191,7 +2191,7 @@ export default function PlayScreen({
                 return (
                   <div className="bg-slate-900/80 border border-slate-800 rounded-lg p-3 mb-2 flex items-center justify-between gap-3">
                     <span className="text-2xs text-slate-300">
-                      🏹 {spentCount} spent {spentCount === 1 ? 'shaft lies' : 'shafts lie'} on the field. Arrows that struck come back more often than misses; a Perception check decides how well you search.
+                      🏹 {spentCount} {spentCount === 1 ? 'thing you shot or threw lies' : 'things you shot or threw lie'} on the field. Thrown weapons always come back; arrows and bolts that struck come back more often than misses, and a Perception check decides how well you search.
                     </span>
                     <button
                       type="button"
@@ -2282,6 +2282,28 @@ export default function PlayScreen({
                       </span>
                     </button>
                   </div>
+
+                  {(() => {
+                    const throwables = listThrowables(character.inventory, character.equipment);
+                    if (!throwables.length) return null;
+                    const next = throwables[0];
+                    const total = throwables.reduce((n, t) => n + t.count, 0);
+                    return (
+                      <button
+                        key="throw"
+                        type="button"
+                        onClick={() => onExecuteCombatManeuver('throw', settings.sandboxMode ? '' : settings.keys[activeGm.id], settings.sandboxMode)}
+                        disabled={isLoading}
+                        title="Thrown Weapons skill. Only a shield stops it. Thrown weapons are always picked up after the fight."
+                        className="w-full mb-2.5 py-2 rounded bg-teal-950/30 hover:bg-teal-950/50 border border-teal-800/40 text-teal-400 hover:text-teal-300 text-2xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5"
+                      >
+                        <span>🗡️ Throw {next.name}</span>
+                        <span className="text-[8px] font-sans font-medium text-teal-500/70 normal-case">
+                          {next.profile.dice}{next.profile.hit ? `, ${next.profile.hit > 0 ? '+' : ''}${next.profile.hit} to hit` : ''} | {total} spare {total === 1 ? 'weapon' : 'weapons'} to throw
+                        </span>
+                      </button>
+                    );
+                  })()}
 
                   {(character.stats?.elementalAbility || '').toLowerCase() === 'fire' && (() => {
                     const spent = Boolean(character.stats?.elementalAbilityUsed);

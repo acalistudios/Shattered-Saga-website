@@ -2,7 +2,18 @@ import { describe, expect, it } from 'vitest';
 import {
   RECOVERY_CHANCE, ammoKindOf, ammoKindForWeapon, countAmmo, takeOneAmmo, addAmmo,
   recordSpent, spentTotal, rollRecovery,
+  listThrowables, getThrownProfile, takeItemAt, returnItems, returnRecovered, thrownSpent,
 } from './ammoRecovery';
+import { resolveRest } from './restEngine';
+
+describe('thrown weapons at rest', () => {
+  it('are picked up even if the player never searched', () => {
+    const character = { inventory: ['Rations (1)'], stats: { hp: 5, maxHp: 10, fatigue: 0, maxFatigue: 15, spentAmmo: { Javelin: { kind: 'thrown', hit: 1, miss: 1 }, Arrows: { kind: 'arrow', hit: 3, miss: 0 } } } };
+    const rested = resolveRest(character).character;
+    expect(rested.inventory).toEqual(['Javelin', 'Javelin']);
+    expect(rested.stats.spentAmmo).toEqual({});
+  });
+});
 
 describe('ammunition recovery', () => {
   it('tells arrows, bolts and thrown weapons apart', () => {
@@ -52,6 +63,30 @@ describe('ammunition recovery', () => {
     expect(rollRecovery({ Arrows: { kind: 'arrow', hit: 3, miss: 0 } }, false, () => 0.3).found).toBe(0);
     expect(rollRecovery({ Arrows: { kind: 'arrow', hit: 3, miss: 0 } }, true, () => 0.3).found).toBe(3);
     expect(rollRecovery({ 'Throwing Dagger': { kind: 'thrown', hit: 1, miss: 2 } }, false, () => 0.999).found).toBe(3);
+  });
+
+  it('throws only spares, made throwing weapons first', () => {
+    const inv = ['Dagger', 'Dagger', 'Throwing Knife', 'Rations (2)', 'Longsword'];
+    const eq = { hand_right: 'Dagger', hand_left: 'Longsword' };
+    const list = listThrowables(inv, eq);
+    expect(list.map(t => t.name)).toEqual(['Throwing Knife', 'Dagger']);
+    expect(list[1].count).toBe(1); // one dagger is in hand
+    expect(listThrowables(['Dagger'], { hand_right: 'Dagger' })).toEqual([]);
+    expect(listThrowables(['Javelin (3)'], {})[0].count).toBe(3);
+    expect(getThrownProfile('Javelin')).toMatchObject({ dice: '1d6+1', pierce: 1, made: true });
+    expect(getThrownProfile('Throwing Axe')).toMatchObject({ dice: '1d8+1', hit: -1 });
+    expect(getThrownProfile('Hatchet')).toMatchObject({ dice: '1d6', hit: -1, made: false });
+    expect(getThrownProfile('Longsword')).toBeNull();
+  });
+
+  it('takes one thrown weapon and gives it back as an item', () => {
+    expect(takeItemAt(['Javelin (3)', 'Dagger'], 0)).toEqual(['Javelin (2)', 'Dagger']);
+    expect(takeItemAt(['Throwing Knife', 'Dagger'], 0)).toEqual(['Dagger']);
+    expect(returnItems(['Dagger'], 'Throwing Knife', 2)).toEqual(['Dagger', 'Throwing Knife', 'Throwing Knife']);
+    expect(returnItems(['Javelin (1)'], 'Javelin', 2)).toEqual(['Javelin (3)']);
+    const spent = { 'Throwing Knife': { kind: 'thrown', hit: 1, miss: 1 }, Arrows: { kind: 'arrow', hit: 1, miss: 0 } };
+    expect(returnRecovered(['Arrows (4)'], spent, { 'Throwing Knife': 2, Arrows: 1 })).toEqual(['Arrows (5)', 'Throwing Knife', 'Throwing Knife']);
+    expect(thrownSpent(spent)).toEqual({ 'Throwing Knife': 2 });
   });
 
   it('averages out near the expected rates', () => {

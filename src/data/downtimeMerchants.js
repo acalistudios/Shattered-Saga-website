@@ -259,6 +259,9 @@ export const TAVERNS = {
 export const MERCHANT_POOLS = {
   blacksmith: [
     { item: "Dagger", baseChance: 0.9, maxStock: 3 },
+    { item: "Throwing Knife", baseChance: 0.8, maxStock: 4 },
+    { item: "Throwing Axe", baseChance: 0.6, maxStock: 2 },
+    { item: "Javelin", baseChance: 0.5, maxStock: 3 },
     { item: "Shortsword", baseChance: 0.8, maxStock: 2 },
     { item: "Longsword", baseChance: 0.7, maxStock: 1 },
     { item: "Greatsword", baseChance: 0.4, maxStock: 1 },
@@ -299,6 +302,8 @@ export const MERCHANT_POOLS = {
     { item: "Crossbow", baseChance: 0.5, maxStock: 1 },
     { item: "Arrows (20)", baseChance: 0.95, maxStock: 5 },
     { item: "Crossbow Bolts (20)", baseChance: 0.95, maxStock: 5 },
+    { item: "Javelin", baseChance: 0.7, maxStock: 4 },
+    { item: "Throwing Knife", baseChance: 0.5, maxStock: 3 },
     { item: "Leather Armor", baseChance: 0.6, maxStock: 2 }
   ],
   apothecary: [

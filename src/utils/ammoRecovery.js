@@ -7,6 +7,8 @@
 // come back. Arrows snap in bodies or are lost in grass; bolts are shorter and
 // sturdier, so more of them survive.
 
+import { getWeaponType } from '../data/gearStats';
+
 export const RECOVERY_CHANCE = {
   arrow: { hit: 0.5, miss: 0.33 },
   bolt: { hit: 0.6, miss: 0.4 },
@@ -14,6 +16,89 @@ export const RECOVERY_CHANCE = {
 };
 
 export const RECOVERY_SEARCH_DIFFICULTY = 'easy';
+
+// --- Throwing (Hans 2026-11-20) ---------------------------------------------
+// Only spares are thrown: a weapon held or worn stays put, so a character with
+// one dagger in hand has nothing to throw, while one with three throwing
+// knives in the pack has three.
+
+/** What a thrown item does: { name, dice, hit, pierce, made, damageType } or null. */
+export function getThrownProfile(itemName) {
+  const t = getWeaponType(itemName);
+  if (!t?.thrown) return null;
+  return { name: ammoBaseName(itemName), label: t.label, damageType: t.damageType, pierce: 0, made: false, ...t.thrown };
+}
+
+/** Each throwable spare in the pack: [{ index, name, profile, count }]. */
+export function listThrowables(inventory, equipment = {}) {
+  const reserved = {};
+  for (const name of Object.values(equipment || {})) {
+    if (typeof name === 'string' && name) reserved[name.toLowerCase()] = (reserved[name.toLowerCase()] || 0) + 1;
+  }
+  const out = [];
+  (inventory || []).forEach((item, index) => {
+    if (typeof item !== 'string') return;
+    const profile = getThrownProfile(item);
+    if (!profile) return;
+    const key = item.toLowerCase();
+    const baseKey = ammoBaseName(item).toLowerCase();
+    let count = stackCount(item);
+    for (const k of [key, baseKey]) {
+      const r = Math.min(count, reserved[k] || 0);
+      count -= r;
+      if (reserved[k]) reserved[k] -= r;
+    }
+    if (count > 0) out.push({ index, name: ammoBaseName(item), profile, count });
+  });
+  // Weapons made for throwing come first, then the better throw.
+  return out.sort((a, b) => (Number(b.profile.made) - Number(a.profile.made)) || (b.profile.hit - a.profile.hit) || (a.index - b.index));
+}
+
+export function countThrowables(inventory, equipment) {
+  return listThrowables(inventory, equipment).reduce((n, t) => n + t.count, 0);
+}
+
+/** Remove one item at an index (one from a "(N)" stack). */
+export function takeItemAt(inventory, index) {
+  const inv = [...(inventory || [])];
+  const item = inv[index];
+  if (item === undefined) return inv;
+  const qty = stackCount(item);
+  if (qty > 1 && /\(\d+\)\s*$/.test(item)) inv[index] = `${ammoBaseName(item)} (${qty - 1})`;
+  else inv.splice(index, 1);
+  return inv;
+}
+
+/** Give back n weapons: onto a "(N)" stack if one exists, else as single items. */
+export function returnItems(inventory, name, n) {
+  const inv = [...(inventory || [])];
+  if (!(n > 0)) return inv;
+  const idx = inv.findIndex(item => typeof item === 'string' && /\(\d+\)\s*$/.test(item) && ammoBaseName(item).toLowerCase() === name.toLowerCase());
+  if (idx !== -1) {
+    inv[idx] = `${ammoBaseName(inv[idx])} (${stackCount(inv[idx]) + n})`;
+    return inv;
+  }
+  for (let i = 0; i < n; i++) inv.push(name);
+  return inv;
+}
+
+/** Put recovered things back: ammunition onto its stack, thrown weapons as items. */
+export function returnRecovered(inventory, spent, recovered) {
+  let inv = inventory || [];
+  for (const [name, n] of Object.entries(recovered || {})) {
+    inv = spent?.[name]?.kind === 'thrown' ? returnItems(inv, name, n) : addAmmo(inv, name, n);
+  }
+  return inv;
+}
+
+/** Thrown weapons left in spentAmmo (always recoverable), as { [name]: n }. */
+export function thrownSpent(spent) {
+  const out = {};
+  for (const [name, s] of Object.entries(spent || {})) {
+    if (s.kind === 'thrown') out[name] = (s.hit || 0) + (s.miss || 0);
+  }
+  return out;
+}
 
 /** 'bolt' or 'arrow' for an ammunition item, 'thrown' for a thrown weapon, else null. */
 export function ammoKindOf(itemName) {
