@@ -8,6 +8,7 @@ import { isMentalAttack } from '../utils/enemyDefense';
 import CombatStatsPanel from '../components/CombatStatsPanel';
 import ConditionChips from '../components/ConditionChips';
 import { cinderbreathDice } from '../utils/conditions';
+import { ammoKindForWeapon, countAmmo, spentTotal } from '../utils/ammoRecovery';
 import { LOAN_STATUS_LABEL } from '../utils/discoveries';
 import { ADSENSE_SLOTS, displayAdsEnabled } from '../utils/ads';
 import { SKILLS_LIST, ATTRIBUTE_LIST } from '../data/gms';
@@ -211,6 +212,7 @@ export default function PlayScreen({
   counterOpportunities,
   combatStance,
   onExecuteCombatManeuver,
+  onSearchForSpentAmmo,
   onExecuteCounterAttack,
   onExportSaveFile,
   onOpenAccount,
@@ -2175,26 +2177,33 @@ export default function PlayScreen({
 
             {/* Tactical Combat Maneuvers Panel */}
             {(() => {
-              const getArrowCount = (inv) => {
-                let count = 0;
-                (inv || []).forEach(item => {
-                  if (item.toLowerCase().includes('arrow') || item.toLowerCase().includes('bolt')) {
-                    const match = item.match(/\((\d+)\)/);
-                    if (match) {
-                      count += parseInt(match[1], 10);
-                    } else {
-                      count += 1;
-                    }
-                  }
-                });
-                return count;
-              };
               const rightWep = character.equipment?.hand_right;
               const leftWep = character.equipment?.hand_left;
-              const hasRangedWeapon = (rightWep && (rightWep.toLowerCase().includes('bow') || rightWep.toLowerCase().includes('crossbow'))) ||
-                                      (leftWep && (leftWep.toLowerCase().includes('bow') || leftWep.toLowerCase().includes('crossbow')));
-              const arrowCount = getArrowCount(character.inventory);
-              const hasArrows = arrowCount > 0;
+              const rangedWep = [rightWep, leftWep].find(w => w && /bow/i.test(w));
+              const hasRangedWeapon = Boolean(rangedWep);
+              // A crossbow shoots bolts, a bow arrows (utils/ammoRecovery.js).
+              const ammoKind = ammoKindForWeapon(rangedWep);
+              const arrowCount = countAmmo(character.inventory, ammoKind);
+              const hasArrows = arrowCount > 0 || (ammoKind === 'bolt' && Boolean(character.stats?.weaponUnloaded));
+              const spentCount = spentTotal(character.stats?.spentAmmo);
+
+              if (!activeEnemy && spentCount > 0 && onSearchForSpentAmmo) {
+                return (
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-lg p-3 mb-2 flex items-center justify-between gap-3">
+                    <span className="text-2xs text-slate-300">
+                      🏹 {spentCount} spent {spentCount === 1 ? 'shaft lies' : 'shafts lie'} on the field. Arrows that struck come back more often than misses; a Perception check decides how well you search.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onSearchForSpentAmmo()}
+                      disabled={isLoading}
+                      className="shrink-0 px-3 py-2 rounded bg-sky-955/20 hover:bg-sky-950/40 border border-sky-900/30 text-sky-400 hover:text-sky-300 text-2xs font-extrabold uppercase tracking-wider cursor-pointer"
+                    >
+                      🔍 Search (Perception)
+                    </button>
+                  </div>
+                );
+              }
 
               return activeEnemy && enemyAttacksQueue.length === 0 ? (
                 <div className="bg-slate-900/80 border border-slate-800 rounded-lg p-3 mb-2">
@@ -2231,11 +2240,11 @@ export default function PlayScreen({
                           ? 'bg-sky-955/20 hover:bg-sky-950/40 border border-sky-900/30 text-sky-400 hover:text-sky-300 cursor-pointer'
                           : 'bg-slate-950 text-slate-650 border border-slate-900 cursor-not-allowed'
                       }`}
-                      title={!hasRangedWeapon ? "No bow/crossbow equipped" : !hasArrows ? "No arrows or bolts in inventory" : ""}
+                      title={!hasRangedWeapon ? "No bow/crossbow equipped" : !hasArrows ? (ammoKind === 'bolt' ? 'No crossbow bolts in inventory' : 'No arrows in inventory') : ""}
                     >
                       <span>🏹 Ranged Shot</span>
                       <span className="text-[8px] font-sans font-medium text-sky-500/70">
-                        {arrowCount} Projectiles
+                        {arrowCount} {ammoKind === 'bolt' ? 'Bolts' : 'Arrows'}
                       </span>
                     </button>
 

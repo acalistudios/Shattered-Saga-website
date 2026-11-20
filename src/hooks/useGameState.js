@@ -50,6 +50,7 @@ import { getSupplyDepot } from '../data/supplyDepot';
 import { rollDiceExpression } from '../utils/dice';
 import { enemyStyleFromNpc, enemyStyleFromWeapon, rollEnemyDefense, mundaneDamageFactor, mundaneImmunityFromArmor } from '../utils/enemyDefense';
 import { getAttackPenalty } from '../utils/combatModifiers';
+import { ammoKindForWeapon, countAmmo, takeOneAmmo, recordSpent, rollRecovery, addAmmo, spentTotal, RECOVERY_SEARCH_DIFFICULTY } from '../utils/ammoRecovery';
 import { conditionMods, conditionText, addCondition, normalizeCondition, tickEnemyConditions, resolveCinderbreath, CINDERBREATH_BURN_ROUNDS, CONDITIONS, MAX_GM_DURATION } from '../utils/conditions';
 import { claimSearchFind, applySearchFind, formatCoin, TREASURE_FINDS_PER_ADVENTURE } from '../data/payouts';
 import { merchantsAtLocation, buyFromMerchant, sellToMerchant, recordHaggle, haggleToday, merchantOffer, undoTrade } from '../utils/adventureTrade';
@@ -5142,6 +5143,50 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     return { ...roll, adjustment: roll.success ? Math.min(merchant.negotiationMaxAdjustment ?? 0.25, Math.max(0, roll.margin) * 0.05) : 0 };
   };
 
+  /**
+   * After a fight, search for spent arrows and bolts (utils/ammoRecovery.js):
+   * a Perception check, then each one comes back with a chance that depends on
+   * whether it struck. A failed search halves the chances; thrown weapons
+   * always come back. Rolled here, with no call to the GM.
+   */
+  const searchForSpentAmmo = () => {
+    const spent = character.stats?.spentAmmo || {};
+    if (activeEnemy || isLoading || !spentTotal(spent)) return null;
+    const skill = SKILLS_LIST.find(s => s.id === 'perception');
+    const onlyThrown = Object.values(spent).every(s => s.kind === 'thrown');
+    const check = onlyThrown ? null : executeOpposedCheck({
+      skillName: skill.name,
+      primaryAttr: skill.primary.charAt(0).toUpperCase() + skill.primary.slice(1),
+      primaryScore: character.attributes?.[skill.primary] || 1,
+      secondaryAttr: skill.secondary.charAt(0).toUpperCase() + skill.secondary.slice(1),
+      secondaryScore: character.attributes?.[skill.secondary] || 1,
+      skillRanks: character.skills?.perception || 0,
+      difficulty: RECOVERY_SEARCH_DIFFICULTY,
+      roleplayModifier: 0,
+      resistanceModifier: 0,
+      potencyModifier: 0,
+    });
+    const result = rollRecovery(spent, onlyThrown || check.success);
+    setCharacter(prev => {
+      let inventory = prev.inventory || [];
+      for (const [name, n] of Object.entries(result.recovered)) inventory = addAmmo(inventory, name, n);
+      return { ...prev, inventory, stats: { ...prev.stats, spentAmmo: {} } };
+    });
+    const foundStr = Object.entries(result.recovered).map(([name, n]) => `${n} ${name}`).join(', ') || 'nothing usable';
+    const lostStr = Object.entries(result.lost).map(([name, n]) => `${n} ${name}`).join(', ');
+    const flavour = result.found === result.total
+      ? 'You gather up every shaft.'
+      : result.found === 0 ? 'Snapped shafts and bent heads; nothing worth keeping.' : 'Some shafts are whole; the rest are snapped or lost in the undergrowth.';
+    setHistory(prev => [...prev, {
+      role: 'model',
+      content: `*You comb the ground for your spent ammunition. ${flavour}*\n\n${check ? `${check.text}\n\n` : ''}[Ammunition Recovery: recovered ${result.found} of ${result.total} (${foundStr}).${lostStr ? ` Lost: ${lostStr}.` : ''}${check && !check.success ? ' A careless search: half the usual chance for each.' : ''}]`,
+      imagePrompt: null,
+      imageUrl: null,
+      checkDetails: null,
+    }]);
+    return result;
+  };
+
   /** Tell the story (and so the GM) what changed hands. */
   const recordTradeInStory = (summary) => {
     if (!summary) return;
@@ -6102,6 +6147,15 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
   const executeCombatManeuver = async (maneuverType, apiKey, sandbox) => {
     if (!activeEnemy || isLoading) return;
+    if (maneuverType === 'ranged') {
+      const bow = [character.equipment?.hand_right, character.equipment?.hand_left].find(i => i && /\b(bow|crossbow)\b/i.test(i));
+      const kind = ammoKindForWeapon(bow);
+      const reloading = /crossbow/i.test(bow || '') && character.stats?.weaponUnloaded;
+      if (!reloading && countAmmo(character.inventory, kind) === 0) {
+        setApiError(kind === 'bolt' ? 'Your crossbow needs crossbow bolts.' : 'Your bow needs arrows.');
+        return;
+      }
+    }
     // Start of the round (utils/conditions.js): a burning foe takes its damage
     // and the foe's conditions lose a round, before the player's action rolls.
     const tick = tickEnemyConditions(activeEnemy);
@@ -6122,6 +6176,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     let actionDesc = "";
     let systemNotice = "";
     let consumesArrow = 0; // arrows or bolts used this action (a short bow fires two)
+    const shotHits = []; // per shot: did it strike (a hit or a shield), for recovery later
+    let ammoKind = 'arrow';
     let consumesArcaneSp = false;
     let consumesDivineSp = false;
 
@@ -6246,7 +6302,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         systemNotice = `[Combat Action: Reload. The ${bowName} is cranked and loaded; no shot this action. It can fire on the next ranged attack.]`;
         setCharacter(prev => ({ ...prev, stats: { ...prev.stats, weaponUnloaded: false } }));
       } else {
-        const shots = bowType?.quick ? bowType.quick.strikes : 1;
+        // A crossbow shoots bolts, a bow arrows; a quick pair needs two of them.
+        ammoKind = ammoKindForWeapon(bowName);
+        const shots = Math.min(bowType?.quick ? bowType.quick.strikes : 1, Math.max(1, countAmmo(character.inventory, ammoKind)));
         const shotPen = bowType?.quick ? bowType.quick.hit : 0;
         const traitMods = traitDamageMods(bowType, activeEnemy.armorSoak);
         const notices = [];
@@ -6280,6 +6338,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           const rollStr = `Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Coord: ${attr2Roll}, Marksmanship: ${skillRoll}${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : ''}${bowProfile.attackBonus ? `, Weapon Bonus: +${bowProfile.attackBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''})`;
           const rawDmg = rollDiceExpression(bowDice) + dmgBonus + bowProfile.damageBonus + keystoneAtkDmg + traitMods.damage;
           const soak = Math.max(0, rollDiceExpression(activeEnemy.armorSoak || "1d3") - traitMods.pierce);
+          // A shaft that strikes flesh or a shield is easier to find afterwards.
+          shotHits.push(totalRoll >= rangedDefenseRoll || enemyDef.defence === 'block');
           if (totalRoll >= rangedDefenseRoll) {
             const netDmg = applyImmunity(Math.max(1, rawDmg - soak));
             enemyHp = Math.max(0, enemyHp - netDmg);
@@ -6455,36 +6515,35 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       });
     }
 
-    // Deduct SP/Ammunition
+    // Trigger AI GM prompt payload. sendPlayerAction books the turn (time,
+    // fatigue, inventory) synchronously, before its first await, and in combat
+    // it writes the inventory and SP it read at the start of the turn. So the
+    // maneuver's own costs are applied after that call, or they would be
+    // overwritten: arrows were never used up and spells cost no SP.
+    const finalPayload = `${tickNotice}${systemNotice} ${actionDesc}`;
+    const sending = sendPlayerAction(finalPayload, apiKey, sandbox);
+
     if (consumesArrow || consumesArcaneSp || consumesDivineSp) {
       setCharacter(prev => {
-        const nextInv = [...prev.inventory];
+        let nextInv = [...prev.inventory];
         const nextStats = { ...prev.stats };
-        
+        let spent = nextStats.spentAmmo || {};
+
+        // A crossbow uses bolts and a bow arrows; each shot is remembered as a
+        // hit or a miss for the search after the fight (utils/ammoRecovery.js).
         for (let n = 0; n < consumesArrow; n++) {
-          const idx = nextInv.findIndex(item => item.toLowerCase().includes('arrow') || item.toLowerCase().includes('bolt'));
-          if (idx !== -1) {
-            const item = nextInv[idx];
-            const match = item.match(/\((\d+)\)/);
-            if (match) {
-              const qty = parseInt(match[1], 10);
-              if (qty > 1) {
-                nextInv[idx] = item.replace(/\(\d+\)/, `(${qty - 1})`);
-              } else {
-                nextInv.splice(idx, 1);
-              }
-            } else {
-              nextInv.splice(idx, 1);
-            }
-          }
+          const taken = takeOneAmmo(nextInv, ammoKind);
+          nextInv = taken.inventory;
+          if (taken.name) spent = recordSpent(spent, taken.name, ammoKind, shotHits[n] ?? false);
         }
+        nextStats.spentAmmo = spent;
         if (consumesArcaneSp) {
           nextStats.arcaneSP = Math.max(0, (nextStats.arcaneSP || 0) - 1);
         }
         if (consumesDivineSp) {
           nextStats.divineSP = Math.max(0, (nextStats.divineSP || 0) - 1);
         }
-        
+
         return {
           ...prev,
           inventory: nextInv,
@@ -6493,9 +6552,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       });
     }
 
-    // Trigger AI GM prompt payload
-    const finalPayload = `${tickNotice}${systemNotice} ${actionDesc}`;
-    await sendPlayerAction(finalPayload, apiKey, sandbox);
+    await sending;
   };
 
   const executeCounterAttack = async (counterType, apiKey, sandbox) => {
@@ -6800,6 +6857,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     combatStance,
     setCombatStance,
     executeCombatManeuver,
+    searchForSpentAmmo,
     executeCounterAttack,
     unlockRegion,
     consumeItem,

@@ -33,6 +33,8 @@ export function hungryRestFatigue(stats = {}) {
 export function resolveRest(character) {
   const { hasRations, updatedInventory } = consumeRationFromInventory(character.inventory);
   const stats = { ...character.stats };
+  // Arrows left lying after a fight are gone once you have moved on and slept.
+  stats.spentAmmo = {};
   const hours = getGameHourStamp(stats.day ?? 1, stats.hour ?? 13) + 8;
   stats.day = Math.floor(hours / 24) + 1;
   stats.hour = hours % 24;

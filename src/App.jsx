@@ -126,6 +126,7 @@ function App() {
     counterOpportunities,
     combatStance,
     executeCombatManeuver,
+    searchForSpentAmmo,
     executeCounterAttack,
     unlockRegion,
     consumeItem,
@@ -1164,6 +1165,7 @@ function App() {
             counterOpportunities={counterOpportunities}
             combatStance={combatStance}
             onExecuteCombatManeuver={executeCombatManeuver}
+            onSearchForSpentAmmo={searchForSpentAmmo}
             onExecuteCounterAttack={executeCounterAttack}
             audio={audio}
             nextRollModifier={nextRollModifier}
