@@ -7,6 +7,7 @@
 
 import { getMatchupModifiers, getShieldRollBonus, getShieldSoakDie, inferFightingStyle, isShieldName } from '../data/gearStats';
 import { rollDiceExpression } from './dice';
+import { conditionMods, conditionText } from './conditions';
 
 /**
  * An attack the GM marks "vs Will" (curse, terror, mind control) is resisted
@@ -69,9 +70,12 @@ export function rollEnemyDefense(enemy, attackerStyle, roll = rollDiceExpression
   const base = roll(blocks ? defenses.block : (defenses.dodge || defenses.block || '10'));
   // A flail wraps around the shield: no shield bonus to the block roll.
   const shieldBonus = blocks && !ignoreShield ? Math.floor(getShieldRollBonus(enemy.shield) * m.shieldFactor) : 0;
-  const notes = blocks && ignoreShield ? [...m.notes, 'The flail wraps around the shield: no shield bonus'] : m.notes;
+  const notes = blocks && ignoreShield ? [...m.notes, 'The flail wraps around the shield: no shield bonus'] : [...m.notes];
+  // Stunned, blinded or prone foes defend worse (utils/conditions.js).
+  const cond = conditionMods(enemy?.conditions).defence;
+  if (cond) notes.push(`${enemy.name} is ${conditionText(enemy.conditions, 'defence')} to defend`);
   return {
-    roll: base + (enemy?.defenseModifier || 0) + shieldBonus + m.rollBonus,
+    roll: base + (enemy?.defenseModifier || 0) + shieldBonus + m.rollBonus + cond,
     defence,
     blockDie: blocks ? Math.max(2, Math.floor(getShieldSoakDie(enemy.shield) * m.shieldFactor)) : 0,
     notes,

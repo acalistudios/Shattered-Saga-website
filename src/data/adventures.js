@@ -30,15 +30,15 @@ const BASE_ADVENTURES_LIST = [
     elementalAbilities: {
       fire: {
         name: 'Cinderbreath',
-        properties: 'Once between rests, as one action, unleash a close cone of flame. The GM should resolve it as a Moderate Attunement or Arcane Shaping check against nearby foes; on success, deal 2d6 fire/blunt raw damage split among close enemies or ignite a major hazard. Output [elemental_ability_used].'
+        properties: 'Once between rests, as one action, unleash a close cone of flame. In combat the player uses the Cinderbreath button and the engine resolves it: it cannot be dodged, only a shield can block it, it deals 2d6 fire damage (3d6 from level 5, 4d6 from level 9) past half the armour, and sets the foe Burning for 2 rounds; do not roll its damage yourself. Outside combat it can ignite a hazard or a barrier: narrate it and output [elemental_ability_used].'
       },
       earth: {
         name: 'Stone Mantle',
-        properties: 'Once between rests, as one action, turn skin to living stone for 3 rounds. The GM should apply a defensive status and reduce incoming physical damage by +1d6 soak while active, stacking with armor. Output [status: player stone_mantle 3] and [elemental_ability_used].'
+        properties: 'Once between rests, as one action, turn skin to living stone for 3 rounds. Output [status: player stone_mantle 3] and [elemental_ability_used]; the engine adds +1d6 soak against physical blows, stacking with armour, while it lasts.'
       },
       air: {
         name: 'Gale Flash',
-        properties: 'Once between rests, as one action, burst into a blinding spiral of dust, light, and wind. One visible foe must resist with Perception, Willpower, or Vigor; on failure, they are blinded or disoriented for 2 rounds and suffer disadvantage-like narration on attacks. Output [elemental_ability_used].'
+        properties: 'Once between rests, as one action, burst into a blinding spiral of dust, light, and wind. One visible foe must resist with Perception, Willpower, or Vigor; on failure, output [status: enemy blinded 2] (the engine applies -3 to its attacks and -2 to its defence). Output [elemental_ability_used].'
       },
       water: {
         name: 'Tide Mend',

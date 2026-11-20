@@ -6,6 +6,8 @@ import { describeGear, getDualWield, getDualWieldPenalty, FIGHTING_STYLES } from
 import { merchantsAtLocation } from '../utils/adventureTrade';
 import { isMentalAttack } from '../utils/enemyDefense';
 import CombatStatsPanel from '../components/CombatStatsPanel';
+import ConditionChips from '../components/ConditionChips';
+import { cinderbreathDice } from '../utils/conditions';
 import { LOAN_STATUS_LABEL } from '../utils/discoveries';
 import { ADSENSE_SLOTS, displayAdsEnabled } from '../utils/ads';
 import { SKILLS_LIST, ATTRIBUTE_LIST } from '../data/gms';
@@ -728,6 +730,7 @@ export default function PlayScreen({
                   />
                 )}
               </div>
+              <ConditionChips list={character.stats?.statuses} className="mt-1.5" />
             </div>
 
             {character.stats.bleedingTier > 0 && (
@@ -1958,6 +1961,7 @@ export default function PlayScreen({
                           {FIGHTING_STYLES[activeEnemy.style].icon} {FIGHTING_STYLES[activeEnemy.style].label}
                         </span>
                       )}
+                      <ConditionChips list={activeEnemy.conditions} className="ml-2 align-middle" />
                     </span>
                     <span className="font-mono font-bold text-rose-400">{activeEnemy.hp} / {activeEnemy.maxHp} HP</span>
                   </div>
@@ -2269,6 +2273,29 @@ export default function PlayScreen({
                       </span>
                     </button>
                   </div>
+
+                  {(character.stats?.elementalAbility || '').toLowerCase() === 'fire' && (() => {
+                    const spent = Boolean(character.stats?.elementalAbilityUsed);
+                    return (
+                      <button
+                        key="cinderbreath"
+                        type="button"
+                        onClick={() => onExecuteCombatManeuver('cinderbreath', settings.sandboxMode ? '' : settings.keys[activeGm.id], settings.sandboxMode)}
+                        disabled={isLoading || spent}
+                        title={spent ? 'Spent: rest to recharge' : 'Cannot be dodged; only a shield can block it. The foe Burns for 2 rounds.'}
+                        className={`w-full mb-2.5 py-2 rounded text-2xs font-extrabold uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-0.5 ${
+                          spent
+                            ? 'bg-slate-955 text-slate-650 border border-slate-900 cursor-not-allowed'
+                            : 'bg-orange-950/30 hover:bg-orange-950/50 border border-orange-700/40 text-orange-400 hover:text-orange-300 cursor-pointer'
+                        }`}
+                      >
+                        <span>🔥 Cinderbreath</span>
+                        <span className="text-[8px] font-sans font-medium text-orange-500/70 normal-case">
+                          {spent ? 'Spent: rest to recharge' : `${cinderbreathDice(character.stats?.level || 1)} fire, can't be dodged, sets the foe Burning | once per rest`}
+                        </span>
+                      </button>
+                    );
+                  })()}
 
                   <div className="grid grid-cols-3 gap-2">
                     <button

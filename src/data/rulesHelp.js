@@ -157,6 +157,15 @@ export const GAME_RULES_SECTIONS = [
           'Enemies with a shield block your attacks instead of dodging: a block still lets part of the blow through, after their armour and the shield die.',
           'Hunger, exhaustion and a heavy load lower your attack rolls, dodges and blocks, as well as your skill checks.'
         ]
+      },
+      {
+        title: 'Combat Conditions',
+        content: [
+          'Conditions change the dice for a few rounds, on you or on an enemy. They show as small tags beside your Health Points and beside the enemy name.',
+          'Stunned: -2 to attacks, dodges, blocks and Resist. Blinded: -3 to attacks, -2 to dodges and blocks. Prone: -1 to attacks, -2 to dodges and blocks. Frightened: -2 to attacks and Resist.',
+          'Burning: 1d4 fire damage each round, which armour does not stop. Stone Mantle (yours only): +1d6 soak against physical blows, on top of your armour.',
+          'Conditions come from the story (a shield bash, a blinding flash, a fall) and from powers. The Game Master can set one for at most 3 rounds at a time; the engine counts them down and ends them, and they end with the fight.'
+        ]
       }
     ]
   },
@@ -208,12 +217,12 @@ export const GAME_RULES_SECTIONS = [
       {
         title: 'Signature Elemental Powers',
         content: [
-          'Each power can be used once between rests. The Game Master narrates its effect; the engine tracks whether it has been used.',
-          'Fire (Cinderbreath): Unleash a 2d6 flame cone once between rests; scales up to 4d6 lingering fireburst.',
-          'Earth (Stone Mantle): Gain +1d6 armor soak for 3 rounds once between rests; scales up to +1d10 soak with stun immunity.',
-          'Air (Gale Flash): Disorient a foe for 2 rounds once between rests; scales up to 10-yard blinding tempest.',
-          'Water (Tide Mend): Heal 1d6+2 HP and staunch bleeding once between rests; scales up to 3d6+6 party healing surge.',
-          'Aether (Threadstep): Teleport 15 yards or turn failure into narrow success once between rests; scales up to rerolls with +4 bonus.'
+          'Each power can be used once between rests, and a camp with a ration recharges it.',
+          'Fire (Cinderbreath): a Cinderbreath button in combat. The cone of flame cannot be dodged, so it always hits; only a shield can block it (your Attunement + Power + Arcane Shaping against the foe’s block). It deals 2d6 fire damage (3d6 from level 5, 4d6 from level 9) past half the foe’s armour and sets it Burning for 2 rounds. A shield block takes the shield die off the damage and the flames do not take hold. Creatures of fire are unharmed; creatures of ice take half again as much.',
+          'Earth (Stone Mantle): ask the Game Master to use it; you gain Stone Mantle for 3 rounds (+1d6 soak against physical blows, stacking with armour).',
+          'Air (Gale Flash): ask the Game Master to use it; a foe that fails to resist is Blinded for 2 rounds.',
+          'Water (Tide Mend): ask the Game Master to use it; heal 1d6+2 HP and staunch bleeding.',
+          'Aether (Threadstep): ask the Game Master to use it; step 15 yards along an aether thread, slip a restraint, or turn one failed check (not an attack) into a narrow success.'
         ]
       }
     ]

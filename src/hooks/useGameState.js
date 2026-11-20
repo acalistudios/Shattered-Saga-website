@@ -50,6 +50,7 @@ import { getSupplyDepot } from '../data/supplyDepot';
 import { rollDiceExpression } from '../utils/dice';
 import { enemyStyleFromNpc, enemyStyleFromWeapon, rollEnemyDefense, mundaneDamageFactor, mundaneImmunityFromArmor } from '../utils/enemyDefense';
 import { getAttackPenalty } from '../utils/combatModifiers';
+import { conditionMods, conditionText, addCondition, normalizeCondition, tickEnemyConditions, resolveCinderbreath, CINDERBREATH_BURN_ROUNDS, CONDITIONS, MAX_GM_DURATION } from '../utils/conditions';
 import { claimSearchFind, applySearchFind, formatCoin, TREASURE_FINDS_PER_ADVENTURE } from '../data/payouts';
 import { merchantsAtLocation, buyFromMerchant, sellToMerchant, recordHaggle, haggleToday, merchantOffer, undoTrade } from '../utils/adventureTrade';
 import { recordDiscoveries, resolveLoanRemovals, returnLoan, settleLoansOnLeave, settleMissingLoans, getLoan } from '../utils/discoveries';
@@ -1695,6 +1696,13 @@ export default function useGameState() {
     let activeStatuses = [];
     let statusDecayMsg = '';
     if (!isHealingAction) {
+      // A burning player takes its damage as the round turns (utils/conditions.js).
+      const burnDice = conditionMods(statuses).burn;
+      if (burnDice.length) {
+        const burn = burnDice.reduce((sum, expr) => sum + rollDiceExpression(expr), 0);
+        localHp = Math.max(-5, localHp - burn);
+        statusDecayMsg += `\n[Condition: You are burning and take ${burn} fire damage. HP: ${localHp}/${character.stats.maxHp}]`;
+      }
       statuses.forEach(status => {
         const nextDuration = status.duration - 1;
         if (nextDuration > 0) {
@@ -2255,8 +2263,11 @@ export default function useGameState() {
         ...prev.stats,
         hp: localHp,
         fatigue: localFatigue,
-        arcaneSP,
-        divineSP,
+        // Apply this turn's SP change to the live value. Writing back the
+        // turn-start totals undid the 1 SP that combat spells and barriers had
+        // just spent (executeCombatManeuver), so they were free.
+        arcaneSP: Math.max(0, Math.min(maxArcaneSP || Infinity, (prev.stats.arcaneSP || 0) + (arcaneSP - (character.stats.arcaneSP || 0)))),
+        divineSP: Math.max(0, Math.min(maxDivineSP || Infinity, (prev.stats.divineSP || 0) + (divineSP - (character.stats.divineSP || 0)))),
         day: timeResult.nextDay,
         hour: timeResult.nextHour,
         bleedingTier,
@@ -2511,6 +2522,7 @@ GM Instructions for automated tags:
 - Unlock elemental ability (Elemental Crucible only, the character's own element only): [elemental_ability_unlock: fire|earth|air|water|aether]
 - Mark elemental ability as spent when used: [elemental_ability_used]
 - When the player meets the condition that lets an incorporeal or mundane-immune foe be harmed (its armour text names it: holy water, the seal, the oath, lit braziers, etc.), output [enemy_weakened] once. Until then the engine blocks mundane weapon damage to that foe.
+- Combat conditions change the dice, so apply them only when the story clearly causes one: [status: player <condition> <rounds>] or [status: enemy <condition> <rounds>], at most ${MAX_GM_DURATION} rounds. Conditions: ${Object.entries(CONDITIONS).map(([id, c]) => `${id} (${c.desc})`).join('; ')}. stone_mantle is for the player only. The engine tracks and ends them; do not narrate a condition the tag did not apply.${activeEnemy?.conditions?.length ? ` The current foe is: ${activeEnemy.conditions.map(c => `${c.id || c.name} (${c.duration} rounds)`).join(', ')}.` : ''}${(character.stats?.statuses || []).length ? ` The player is: ${character.stats.statuses.map(s => `${s.name} (${s.duration} rounds)`).join(', ')}.` : ''}
 - Record only known reward objectives/endings for the current adventure: [objective_complete: objective_id], [ending_selected: ending_id]
 - When an enemy strikes at the player, do NOT narrate the hit landing or the player's injury. Emit the attack and let the engine roll the player's defense and apply damage: [enemy_attack: Attacker Name | attack dice | vs Dodge or Block (or vs Will for a curse, terror, possession or other mental/magical attack that armour cannot stop) | dmg damage dice | damage type | weapon], e.g. [enemy_attack: Saltblood Guard | 2d6 | vs Block | dmg 1d6 | blunt | club and wooden shield]. One tag per attack. Name the weapon the foe really uses, and include "shield" if it carries one, "two" or "twin" if it fights with a blade in each hand, or the bow/crossbow if it shoots: the engine uses it for fighting-style matchups.
 - A fight follows the player from room to room: the foe pursues. Emit [combat_end] only when the fight truly ends — the foe is defeated, subdued, bound, surrenders, or flees, or the player escapes in a way that stops the pursuit (locking a door behind them, blocking the passage, losing them). Merely moving to another room does not end a fight.
@@ -2925,6 +2937,19 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         setActiveEnemy(prev => (prev ? { ...prev, weakened: true } : prev));
       }
       cleanedText = cleanedText.replace(weakenedRegex, '').trim();
+
+      // Conditions the GM puts on the foe ([status: enemy stunned 1]) now reach
+      // the dice (utils/conditions.js); before, enemy-targeted tags were dropped.
+      const enemyConditionTags = statusMatches
+        .filter(m => (m[1] || '').toLowerCase() === 'enemy')
+        .map(m => ({ id: normalizeCondition(m[2]), duration: parseInt(m[3], 10) || 1 }))
+        .filter(c => c.id && c.id !== 'stone_mantle');
+      if (enemyConditionTags.length) {
+        setActiveEnemy(prev => (prev ? {
+          ...prev,
+          conditions: enemyConditionTags.reduce((list, c) => addCondition(list, c.id, c.duration, { cap: MAX_GM_DURATION, fresh: true }), prev.conditions || []),
+        } : prev));
+      }
 
       // 13. Story events & choices
       const eventRegex = /\[event:\s*([^\]]+)\]/gi;
@@ -3460,20 +3485,24 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         }
 
         // Status condition additions
+        // Known conditions (utils/conditions.js) are stored under their id so the
+        // dice engine applies them; anything else stays a narrative label. The GM
+        // can hold a condition for at most MAX_GM_DURATION rounds per tag.
         const newStatuses = [];
         statusMatches.forEach(m => {
           const target = m[1] ? m[1].trim().toLowerCase() : 'player';
           if (target === 'player') {
+            const id = normalizeCondition(m[2]);
             newStatuses.push({
-              name: m[2].trim(),
-              duration: parseInt(m[3], 10)
+              name: id || m[2].trim(),
+              duration: Math.min(MAX_GM_DURATION, Math.max(1, parseInt(m[3], 10) || 1))
             });
           }
         });
 
         if (newStatuses.length > 0) {
           const currentStatuses = updated.stats.statuses || [];
-          const merged = [...currentStatuses];
+          const merged = currentStatuses.map(s => ({ ...s }));
           newStatuses.forEach(ns => {
             const idx = merged.findIndex(s => s.name.toLowerCase() === ns.name.toLowerCase());
             if (idx !== -1) {
@@ -4745,10 +4774,18 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     // Spear reach: the first defence each round is easier, the foe has to close.
     const reachBonus = !isWard && defenseCount === 0 ? (getWeaponType(weaponName)?.reach || 0) : 0;
     if (reachBonus) matchup.notes.push(`Reach: +${reachBonus} on the first defence this round`);
-    const totalDefModifier = defensePenalty - starvationPenalty - exhaustionPenalty + shieldMagicBonus + shieldRollBonus + matchup.rollBonus + armorCheckPenalty + stanceBonus + keystoneDodgeBonus + loadPenalty + reachBonus;
+    // Conditions (utils/conditions.js): the player's own slow the defence (Resist
+    // uses its own column); the attacker's slow its attack.
+    const playerConds = character.stats.statuses || [];
+    const playerCondField = isWard ? 'resist' : 'defence';
+    const playerCondMod = conditionMods(playerConds)[playerCondField];
+    if (playerCondMod) matchup.notes.push(`You are ${conditionText(playerConds, playerCondField)}`);
+    const enemyCondAttack = conditionMods(activeEnemy?.conditions).attack;
+    if (enemyCondAttack) matchup.notes.push(`${activeEnemy.name} is ${conditionText(activeEnemy.conditions, 'attack')} to attack`);
+    const totalDefModifier = defensePenalty - starvationPenalty - exhaustionPenalty + shieldMagicBonus + shieldRollBonus + matchup.rollBonus + armorCheckPenalty + stanceBonus + keystoneDodgeBonus + loadPenalty + reachBonus + playerCondMod;
 
     const playerRollTotal = primaryRoll + secondaryRoll + skillRoll + totalDefModifier;
-    const attackModifier = activeEnemy?.attackModifier || 0;
+    const attackModifier = (activeEnemy?.attackModifier || 0) + enemyCondAttack;
     const enemyRollTotal = rollDiceExpression(enemyAttack.diceExpr) + attackModifier;
 
     const margin = playerRollTotal - enemyRollTotal;
@@ -4807,6 +4844,13 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     if (armorPieces.soak > 0) {
       armorSoakBase += armorPieces.soak;
       armorRollStr = `${armorName ? armorRollStr : '0'} + ${armorPieces.soak} helm/legs/feet/hands`;
+    }
+    // Stone Mantle and other soak conditions stack with armour against blows.
+    const condSoakDice = conditionMods(playerConds).soak;
+    if (condSoakDice.length && !isWard) {
+      const r = condSoakDice.reduce((sum, expr) => sum + rollDiceExpression(expr), 0);
+      armorSoakBase += r;
+      armorRollStr = `${armorName || armorPieces.soak > 0 ? armorRollStr : '0'} + ${condSoakDice.join('+')} (${r}) stone mantle`;
     }
     // Armour does nothing against a curse or a terror: a failed Resist takes it all.
     const finalArmorSoak = isWard ? 0 : Math.max(0, armorSoakBase + typeModifier);
@@ -6058,7 +6102,22 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
   const executeCombatManeuver = async (maneuverType, apiKey, sandbox) => {
     if (!activeEnemy || isLoading) return;
+    // Start of the round (utils/conditions.js): a burning foe takes its damage
+    // and the foe's conditions lose a round, before the player's action rolls.
+    const tick = tickEnemyConditions(activeEnemy);
+    if (tick.changed) setActiveEnemy(prev => (prev ? { ...prev, hp: tick.enemy.hp, conditions: tick.enemy.conditions } : prev));
+    const tickNotice = tick.notes.length
+      ? `[Conditions: ${tick.notes.join('; ')}.${tick.damage ? ` Enemy HP is now ${tick.enemy.hp}/${activeEnemy.maxHp}.` : ''}] `
+      : '';
+    if (tick.damage > 0 && tick.enemy.hp <= 0) {
+      await sendPlayerAction(`${tickNotice}[combat_end] The flames finish the ${activeEnemy.name} before I can strike.`, apiKey, sandbox);
+      return;
+    }
+    await runCombatManeuver(maneuverType, apiKey, sandbox, tick.enemy, tickNotice);
+  };
 
+  // `activeEnemy` here is the foe after this round's condition tick.
+  const runCombatManeuver = async (maneuverType, apiKey, sandbox, activeEnemy, tickNotice = '') => {
     const rollDie = (s) => Math.floor(Math.random() * s) + 1;
     let actionDesc = "";
     let systemNotice = "";
@@ -6066,10 +6125,12 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     let consumesArcaneSp = false;
     let consumesDivineSp = false;
 
-    // Retrieve enemy defenses info
+    // Retrieve enemy defenses info (a stunned, blinded or prone foe defends worse)
     const enemyDodgeVal = activeEnemy.defenses?.dodge || activeEnemy.defenses?.block || "10";
-    const defenseModifier = activeEnemy.defenseModifier || 0;
+    const enemyCondDefence = conditionMods(activeEnemy.conditions).defence;
+    const defenseModifier = (activeEnemy.defenseModifier || 0) + enemyCondDefence;
     const enemyDefenseRoll = rollDiceExpression(enemyDodgeVal) + defenseModifier;
+    const enemyCondNote = enemyCondDefence ? ` ${activeEnemy.name} is ${conditionText(activeEnemy.conditions, 'defence')} to defend.` : '';
 
     // Calculate morality bonuses & keystone combat perks
     const { hitBonus, dmgBonus } = getMoralityCombatModifiers(activeEnemy, character.morality || 0);
@@ -6251,7 +6312,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         skillRoll += rollDie(2);
       }
 
-      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + (nextRollModifier || 0);
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + getAttackPenalty(character).total + (nextRollModifier || 0);
       const isHit = totalRoll >= enemyDefenseRoll;
       setNextRollModifier(0);
 
@@ -6286,7 +6347,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         skillRoll += rollDie(2);
       }
 
-      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + (nextRollModifier || 0);
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + getAttackPenalty(character).total + (nextRollModifier || 0);
       const isHit = totalRoll >= enemyDefenseRoll;
       setNextRollModifier(0);
 
@@ -6324,14 +6385,57 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       setCombatStance('divine_block');
       actionDesc = `I conjure a Divine Aegis to shield myself from attacks!`;
       systemNotice = `[Combat Action: Player takes Divine Aegis Stance. Spend 1 Divine SP. Next defense rolls get +6 holy barrier bonus (+4 if dodging).]`;
+    } else if (maneuverType === 'cinderbreath') {
+      // The Fire elemental power, resolved by the engine (utils/conditions.js).
+      // A cone of flame cannot be dodged: it always hits. A foe with a shield
+      // may block it, Attunement + Power + Arcane Shaping against its block;
+      // a winning block takes the brunt on the shield and the foe does not
+      // catch fire. Otherwise the full fire dice land and the foe Burns.
+      if ((character.stats?.elementalAbility || '').toLowerCase() !== 'fire' || character.stats?.elementalAbilityUsed) return;
+      const atkPen = getAttackPenalty(character);
+      const attr1Roll = rollAttribute(character.attributes.attunement || 1);
+      const attr2Roll = rollAttribute(character.attributes.power || 1);
+      let skillRoll = 0;
+      for (let i = 0; i < (character.skills.arcane_shaping || 0); i++) skillRoll += rollDie(2);
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + atkPen.total + (nextRollModifier || 0);
+      setNextRollModifier(0);
+      const enemyDef = rollEnemyDefense(activeEnemy, 'none');
+      const canBlock = enemyDef.defence === 'block';
+      const blocked = canBlock && enemyDef.roll > totalRoll;
+      const shieldBlock = blocked ? rollDie(enemyDef.blockDie) : 0;
+      const fire = resolveCinderbreath({ level: character.stats?.level || 1, enemy: activeEnemy, blocked, shieldBlock });
+      const nextHp = Math.max(0, activeEnemy.hp - fire.net);
+      setActiveEnemy(prev => (prev ? {
+        ...prev,
+        hp: nextHp,
+        conditions: fire.burns ? addCondition(prev.conditions, 'burning', CINDERBREATH_BURN_ROUNDS, { fresh: true }) : (prev.conditions || []),
+      } : prev));
+      setCharacter(prev => ({ ...prev, stats: { ...prev.stats, elementalAbilityUsed: true } }));
+
+      const affinityStr = fire.affinity === 'immune'
+        ? ` ${activeEnemy.name} is a creature of fire: the flames do it no harm.`
+        : fire.affinity === 'vulnerable' ? ` ${activeEnemy.name} is a creature of ice: fire deals half again as much.` : '';
+      const penStr = atkPen.text ? `, Penalties: ${atkPen.text}` : '';
+      actionDesc = `I unleash Cinderbreath, a roaring cone of flame, at the ${activeEnemy.name}!`;
+      const contestStr = canBlock
+        ? `Casting Roll: ${totalRoll} (Attunement: ${attr1Roll}, Power: ${attr2Roll}, Arcane Shaping: ${skillRoll}${penStr}) vs Shield Block: ${enemyDef.roll}. ${blocked ? `Caught on the shield! Shield: 1d${enemyDef.blockDie} (${shieldBlock}); the flames do not take hold.` : 'The flames roar past the shield. Hit!'}`
+        : 'A cone of flame cannot be dodged and the foe has no shield. Hit!';
+      systemNotice = `[Combat Action: Cinderbreath (Fire elemental power, once between rests) vs ${activeEnemy.name}. ${contestStr} Fire Damage: ${fire.dice} (${fire.raw}), armour soak halved to ${fire.soak}.${affinityStr} Net Damage: ${fire.net}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.${fire.burns ? ` ${activeEnemy.name} is set alight: Burning for ${CINDERBREATH_BURN_ROUNDS} rounds, 1d4 each round that armour does not stop.` : ''}${canBlock && enemyDef.notes.length ? ` Block notes: ${enemyDef.notes.join('; ')}.` : ''} The engine has resolved the power and marked it spent; narrate the flames, do not roll damage or output [elemental_ability_used].]${nextHp === 0 ? ' [combat_end]' : ''}`;
     }
 
-    if (['melee', 'ranged', 'arcane_attack', 'divine_attack'].includes(maneuverType)) {
+    // Spells take the same hunger, exhaustion and condition penalties as weapons.
+    if (['arcane_attack', 'divine_attack'].includes(maneuverType)) {
+      const spellPen = getAttackPenalty(character).text;
+      if (spellPen || enemyCondNote) systemNotice += ` [Spell roll notes:${spellPen ? ` penalties ${spellPen}.` : ''}${enemyCondNote}]`;
+    }
+
+    if (['melee', 'ranged', 'arcane_attack', 'divine_attack', 'cinderbreath'].includes(maneuverType)) {
       const isHit = systemNotice.includes('. Hit!');
       recordDiceRoll({
         type: 'combat_attack',
         title: maneuverType === 'melee' ? 'Melee Strike' :
                maneuverType === 'ranged' ? 'Ranged Shot' :
+               maneuverType === 'cinderbreath' ? 'Cinderbreath' :
                maneuverType === 'arcane_attack' ? 'Arcane Spell Strike' : 'Divine Smiting Spell',
         subtitle: `vs ${activeEnemy.name}`,
         target: activeEnemy.name,
@@ -6390,7 +6494,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     }
 
     // Trigger AI GM prompt payload
-    const finalPayload = `${systemNotice} ${actionDesc}`;
+    const finalPayload = `${tickNotice}${systemNotice} ${actionDesc}`;
     await sendPlayerAction(finalPayload, apiKey, sandbox);
   };
 
@@ -6404,9 +6508,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     // Clear the opportunity state immediately
     setCounterOpportunities(null);
 
-    // Retrieve enemy defenses info
+    // Retrieve enemy defenses info (conditions such as stunned lower it)
     const enemyDodgeVal = activeEnemy.defenses?.dodge || activeEnemy.defenses?.block || "10";
-    const defenseModifier = activeEnemy.defenseModifier || 0;
+    const defenseModifier = (activeEnemy.defenseModifier || 0) + conditionMods(activeEnemy.conditions).defence;
     const enemyDefenseRoll = rollDiceExpression(enemyDodgeVal) + defenseModifier;
 
     // Calculate morality bonuses & keystone combat perks
@@ -6533,7 +6637,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         skillRoll += rollDie(2);
       }
 
-      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus;
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + getAttackPenalty(character).total;
       const isHit = totalRoll >= enemyDefenseRoll;
 
       actionDesc = `*In a flash of light, I unleash an Arcane Counter-Strike at the ${activeEnemy.name}!*`;
@@ -6566,7 +6670,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         skillRoll += rollDie(2);
       }
 
-      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus;
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + getAttackPenalty(character).total;
       const isHit = totalRoll >= enemyDefenseRoll;
 
       actionDesc = `*With holy wrath, I strike back with a Divine Counter-Strike at the ${activeEnemy.name}!*`;

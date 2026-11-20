@@ -4,9 +4,9 @@ import { SKILLS_LIST, ELEMENTS_LIST, PROFESSIONS_LIST } from '../data/gms';
 import { getCompanionById } from '../data/companions';
 
 export const ELEMENTAL_ABILITIES = {
-  fire: { name: 'Cinderbreath', icon: '🔥', effect: 'Cone of flame (2d6 fire/blunt damage split or ignite hazard)' },
+  fire: { name: 'Cinderbreath', icon: '🔥', effect: 'Cone of flame: cannot be dodged, only a shield blocks it. 2d6 fire (3d6 from level 5, 4d6 from level 9) past half the armour, and the foe Burns for 2 rounds (1d4 each)' },
   earth: { name: 'Stone Mantle', icon: '⛰️', effect: 'Skin of living stone (+1d6 armor soak for 3 rounds)' },
-  air: { name: 'Gale Flash', icon: '🌪️', effect: 'Blinding spiral of wind/dust (disorients foe for 2 rounds)' },
+  air: { name: 'Gale Flash', icon: '🌪️', effect: 'Blinding spiral of wind/dust (a foe is Blinded for 2 rounds: -3 to attack, -2 to defend)' },
   water: { name: 'Tide Mend', icon: '🌊', effect: 'Heals 1d6+2 HP, stops Bleeding Tier 1/2, cleanses poison' },
   aether: { name: 'Threadstep', icon: '✨', effect: 'Teleport 15 yds along aether thread, escape restraint, or save roll' }
 };
