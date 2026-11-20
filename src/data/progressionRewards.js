@@ -392,6 +392,15 @@ export const ADVENTURE_REWARD_MODELS = {
         itemIds: ['Champion Maul +2'],
         notes: '+2 hit, 1d10+1 blunt heavy weapon. Requires an item table entry before final reward grant.',
       }),
+      // Heavy armour is earned, not bought (Hans 2026-11-20; utils/forging.js).
+      reward({
+        id: 'durns_arena_plate',
+        name: "Durn's Arena Plate",
+        type: 'useful_gear',
+        requires: ['defeat_durn_ashjaw', 'grand_championship'],
+        itemIds: ["Durn's Arena Plate"],
+        notes: 'Heavy armour (1d6 soak) taken from the arena champion. The only plate handed out whole; otherwise a smith forges it from 4 Steel Plates or Iron Ingots.',
+      }),
     ],
     disallowedRewards: ['permanent_attribute_boost', 'spellbooks'],
   },

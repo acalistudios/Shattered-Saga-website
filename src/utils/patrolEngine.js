@@ -168,7 +168,9 @@ export const PATROL_FOES = {
   },
   inquisition_enforcers: {
     name: 'Inquisitor-Captain', type: 'human', attacksPerRound: 2,
-    scaling: { maxAttackers: 2, hpPerAttacker: 8, dodge: 'Coordination d8 + Vigor d4', block: 'Power d6 + Coordination d4', skillKey: 'OneHandedWeapons', damage: ['1d4 edged', '1d4+1 edged'], group: ['enforcer', 'enforcers'] },
+    // From level 7 the Inquisition sends its plate-armoured knights; beating
+    // them can win a Steel Plate (ROAD_SALVAGE below).
+    scaling: { maxAttackers: 2, hpPerAttacker: 8, dodge: 'Coordination d8 + Vigor d4', block: 'Power d6 + Coordination d4', skillKey: 'OneHandedWeapons', damage: ['1d4 edged', '1d4+1 edged'], group: ['enforcer', 'enforcers'], plate: { fromLevel: 7, armor: 'Black plate harness, heavy armor soak 1d6', damage: '1d4 edged' } },
     stats: {
       HP: 24,
       attributes: { Power: 3, Coordination: 4, Vigor: 3, Willpower: 4, Intellect: 2, Charisma: 2, Attunement: 1, Empathy: 1 },
@@ -207,7 +209,11 @@ export function scaleRoadThreat(foe, level) {
   const sc = foe.scaling;
   const attackers = Math.min(sc.maxAttackers, ROAD_CURVE.attackersAt[Math.min(L, ROAD_CURVE.attackersAt.length - 1)]);
   const ranks = ROAD_CURVE.skillRanks(L);
-  const damage = L >= ROAD_CURVE.strongDamageFromLevel ? sc.damage[1] : sc.damage[0];
+  const plated = sc.plate && L >= sc.plate.fromLevel;
+  // Plate knights trade the late damage step for their armour (road sim:
+  // with both they took nearly half a winner's HP at level 7).
+  const damage = plated && sc.plate.damage ? sc.plate.damage
+    : L >= ROAD_CURVE.strongDamageFromLevel ? sc.damage[1] : sc.damage[0];
   const hp = sc.hpPerAttacker * attackers + ROAD_CURVE.hpBonusPerLevel * (L - 1);
   const [one, many] = sc.group;
   const base = foe.stats;
@@ -219,6 +225,7 @@ export function scaleRoadThreat(foe, level) {
     stats: {
       ...base,
       HP: hp,
+      ...(plated ? { armor: sc.plate.armor } : {}),
       skills: { ...(base.skills || {}), [sc.skillKey]: ranks },
       defenses: {
         dodge: `${sc.dodge}${ranks > 1 ? ` + ${ranks - 1}d2` : ''}`,
@@ -409,7 +416,21 @@ export function rollPatrolOutcomeLoot(encounterId, outcome, rng = Math.random, l
   if (pool.length === 0) return { coinCp: 0, items: [], morality: 0 };
   const approach = pool[Math.floor(rng() * pool.length) % pool.length];
   const loot = rollPatrolLoot(approach.rewards, rng);
-  return { ...loot, coinCp: Math.min(loot.coinCp, patrolCoinCapCp(level)) };
+  const salvage = outcome === 'victory' ? rollRoadSalvage(encounterId, level, rng) : [];
+  return { ...loot, items: [...loot.items, ...salvage], coinCp: Math.min(loot.coinCp, patrolCoinCapCp(level)) };
+}
+
+// Heavy armour material from late road fights (Hans 2026-11-20): a beaten
+// plate-armoured Inquisition knight can be stripped of a Steel Plate, and any
+// late road band may carry an Iron Ingot. Victories only, from level 7.
+export const ROAD_SALVAGE = { fromLevel: 7, ingotChance: 0.15, plateChance: { inquisition_enforcers: 0.5 } };
+
+export function rollRoadSalvage(encounterId, level, rng = Math.random) {
+  if (clampLevel(level) < ROAD_SALVAGE.fromLevel) return [];
+  const plateChance = ROAD_SALVAGE.plateChance[encounterId] || 0;
+  if (plateChance && rng() < plateChance) return ['Steel Plate'];
+  if (rng() < ROAD_SALVAGE.ingotChance) return ['Iron Ingot'];
+  return [];
 }
 
 /**

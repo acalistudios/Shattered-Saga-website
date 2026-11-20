@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TAVERNS, EXCLUSIVE_STOCK, getTrainerConfig } from '../data/downtimeMerchants';
+import { countPlateMetal, forgeBlocker, isForgeMerchant, PLATE_RECIPE } from '../utils/forging';
 import { ADVENTURE_ECONOMY_METADATA } from '../data/adventureEconomy';
 import { GENERIC_ITEM_VALUE_BY_NAME, coinValue } from '../data/economy';
 import { ADVENTURES_LIST } from '../data/adventures';
@@ -16,6 +17,7 @@ export default function DowntimeMarketModal({
   triggerPriceRecovery,
   initializeMerchantStock,
   trainSkillWithMerchant,
+  forgePlateArmorAt,
   strongholdChest = [],
   onUpdateStrongholdChest,
   onUpdateCharacterStats
@@ -581,6 +583,17 @@ export default function DowntimeMarketModal({
                       🎓 Skill Training
                     </button>
                   )}
+
+                  {forgePlateArmorAt && isForgeMerchant(selectedMerchant) && (
+                    <button
+                      onClick={() => setActiveTab('forge')}
+                      className={`px-4 py-2 border-b-2 text-3xs font-bold transition-all cursor-pointer ${
+                        activeTab === 'forge' ? 'border-amber-500 text-amber-305' : 'border-transparent text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      ⚒️ Forge
+                    </button>
+                  )}
                 </div>
 
                 {/* Tab Contents */}
@@ -942,6 +955,61 @@ export default function DowntimeMarketModal({
                           </div>
                         </div>
                       )}
+
+                      {/* FORGE TAB: plate armour from Steel Plates / Iron Ingots (utils/forging.js) */}
+                      {activeTab === 'forge' && forgePlateArmorAt && (() => {
+                        const metal = countPlateMetal(character.inventory);
+                        const smithBlocker = forgeBlocker(character, { self: false });
+                        const selfBlocker = forgeBlocker(character, { self: true });
+                        const run = (self) => {
+                          const err = forgePlateArmorAt(selectedMerchant.name, { self });
+                          setInteractMessage(err || (self
+                            ? `You spend ${PLATE_RECIPE.days} days at ${selectedMerchant.name}'s forge and finish a suit of Forged Plate Armor. It is in your pack.`
+                            : `${selectedMerchant.name} forges you a suit of plate armour over ${PLATE_RECIPE.days} days. Forged Plate Armor is in your pack.`));
+                        };
+                        return (
+                          <div className="flex flex-col gap-3">
+                            <div className="p-4 rounded-lg bg-amber-955/10 border border-amber-500/20">
+                              <h4 className="text-3xs font-serif font-black text-amber-300">⚒️ Commission Plate Armour</h4>
+                              <p className="text-[10px] text-slate-400 mt-1 max-w-lg leading-relaxed">
+                                Bring {PLATE_RECIPE.pieces} Steel Plates or Iron Ingots in any mix. Plate armour is heavy armour: it absorbs 1d6 damage (+2 against blades, -2 against blunt blows), costs -2 to dodge, and weighs a lot. Steel Plates come from plate-armoured knights; travelling merchants sell Iron Ingots.
+                              </p>
+                              <p className="text-[10px] text-slate-300 mt-2">
+                                You carry <strong className="text-amber-300">{metal.plates}</strong> Steel Plate{metal.plates === 1 ? '' : 's'} and <strong className="text-amber-300">{metal.ingots}</strong> Iron Ingot{metal.ingots === 1 ? '' : 's'} ({metal.total}/{PLATE_RECIPE.pieces}).
+                              </p>
+                            </div>
+                            <div className="p-3 rounded-lg border border-slate-850 bg-slate-950/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                              <div className="text-[10px] text-slate-300">
+                                <strong className="text-amber-200">{selectedMerchant.name} forges it</strong> · fee {formatCoins(PLATE_RECIPE.smithFeeCp)} · {PLATE_RECIPE.days} days
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => run(false)}
+                                disabled={!!smithBlocker}
+                                title={smithBlocker || ''}
+                                className="px-3.5 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 text-3xs font-extrabold cursor-pointer disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed whitespace-nowrap"
+                              >
+                                Commission
+                              </button>
+                            </div>
+                            <div className="p-3 rounded-lg border border-slate-850 bg-slate-950/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                              <div className="text-[10px] text-slate-300">
+                                <strong className="text-amber-200">Forge it yourself</strong> · Smithing {PLATE_RECIPE.selfSmithingRank} and smithing tools · no fee · {PLATE_RECIPE.days} days
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => run(true)}
+                                disabled={!!selfBlocker}
+                                title={selfBlocker || ''}
+                                className="px-3.5 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-100 text-3xs font-extrabold cursor-pointer disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed whitespace-nowrap"
+                              >
+                                Use the forge
+                              </button>
+                            </div>
+                            {(smithBlocker && selfBlocker) && <p className="text-[10px] text-slate-500 italic">{smithBlocker}</p>}
+                          </div>
+                        );
+                      })()}
 
                       {/* TRAINING TAB */}
                       {activeTab === 'train' && (() => {

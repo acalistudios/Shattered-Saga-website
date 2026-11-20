@@ -47,6 +47,11 @@ export const ITEMS_DATABASE = {
   'Throwing Knife': { weight: 0.5, volume: 0.3, slot: 'hand', subslot: 'small', properties: 'Made to throw' },
   'Throwing Axe': { weight: 1.5, volume: 1.0, slot: 'hand', subslot: 'medium', properties: 'Made to throw' },
   'Javelin': { weight: 2.0, volume: 3.0, slot: 'hand', subslot: 'medium', properties: 'Made to throw' },
+  // Heavy armour and its metal (Hans 2026-11-20; utils/forging.js).
+  'Steel Plate': { weight: 4.0, volume: 2.0, slot: null, subslot: null, properties: 'Armour plate stripped from a plate-armoured knight. A smith forges 4 Steel Plates or Iron Ingots into plate armour.' },
+  'Iron Ingot': { weight: 5.0, volume: 1.0, slot: null, subslot: null, properties: 'Smelted iron. A smith forges 4 Iron Ingots or Steel Plates into plate armour.' },
+  'Forged Plate Armor': { weight: 45.0, volume: 18.0, slot: 'body', properties: 'Heavy armour: absorbs 1d6 damage (+2 against blades, -2 against blunt blows), -2 to dodge, very heavy.' },
+  "Durn's Arena Plate": { weight: 45.0, volume: 18.0, slot: 'body', properties: 'Heavy armour from the arena champion: absorbs 1d6 damage (+2 against blades, -2 against blunt blows), -2 to dodge, very heavy.' },
   'Darts': { weight: 0.5, volume: 0.3, slot: null, subslot: null, properties: 'Thrown two at a time, 1d3 each' },
   'Rocks': { weight: 3.0, volume: 1.5, slot: null, subslot: null, properties: 'Thrown: 1d2, -1 to hit' },
   'Flail': { weight: 5.0, volume: 3.0, slot: 'hand', subslot: 'medium', properties: 'Wraps around shields' },

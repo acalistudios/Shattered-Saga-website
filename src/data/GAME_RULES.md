@@ -176,6 +176,13 @@
 - Enemies with a shield block your attacks instead of dodging: a block still lets part of the blow through, after their armour and the shield die.
 - Hunger, exhaustion and a heavy load lower your attack rolls, dodges and blocks, as well as your skill checks.
 
+### Heavy Armour
+
+- Shops sell nothing heavier than chainmail (medium armour). Plate armour (heavy: absorbs 1d6, +2 against blades, -2 against blunt blows, -2 to dodge, very heavy) is earned.
+- Durn's Arena Plate: the Iron Colosseum's special reward, for defeating the champion or winning the tournament.
+- Forged Plate Armor: a smith (Vance in Ashveil, Hask at Basalt Ridge, the arena quartermaster) forges it from 4 Steel Plates or Iron Ingots in any mix, for a 4 gp fee and 2 days, on the Forge tab. With Smithing 3 and smithing tools you can do the work yourself at their forge, paying nothing but the metal.
+- Steel Plates come from plate-armoured Inquisition knights, who ride the roads from level 7. Iron Ingots are sold by travelling merchants (Jory Pike, Tarn Barley, Pell Windledger) and sometimes found on late road bands. Chainmail cannot be broken down into plates.
+
 ### Combat Conditions
 
 - Conditions change the dice for a few rounds, on you or on an enemy. They show as small tags beside your Health Points and beside the enemy name.

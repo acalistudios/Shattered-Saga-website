@@ -111,6 +111,7 @@ function App() {
     buyTavernService,
     initializeMerchantStock,
     trainSkillWithMerchant,
+    forgePlateArmorAt,
     spendSkillPoints,
     claimPendingRewardChoice,
     pendingResurrection,
@@ -1199,6 +1200,7 @@ function App() {
           triggerPriceRecovery={triggerPriceRecovery}
           initializeMerchantStock={initializeMerchantStock}
           trainSkillWithMerchant={trainSkillWithMerchant}
+          forgePlateArmorAt={forgePlateArmorAt}
           strongholdChest={settings.strongholdChest || []}
           onUpdateStrongholdChest={updateStrongholdChest}
           onUpdateCharacterStats={updateCharacterStats}

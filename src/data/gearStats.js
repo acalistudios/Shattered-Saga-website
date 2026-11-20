@@ -11,6 +11,8 @@
 // Skill rule: one-handed melee weapons use One-Handed Weapons, two-handed ones
 // Two-Handed Weapons, bows and crossbows Marksmanship.
 
+import { describeItemUse } from '../utils/itemUses';
+
 // Weapon traits (Hans 2026-11-18): each weapon has one thing that makes it good
 // in some fights and worse in others, so no die size simply wins.
 //   hitMod        +/- to hit (finesse rapier, clumsy flail, unwieldy battle axe)
@@ -224,6 +226,9 @@ export function describeGear(itemName) {
     const s = getShieldType(itemName);
     return `Shield: +${s.rollBonus} to Blocking rolls, blocks 1d${s.blockDie}${bonus} damage · one hand`;
   }
+  // Items that are used (potions, coatings, scrolls, tools; utils/itemUses.js).
+  const use = describeItemUse(itemName);
+  if (use) return use;
   const thrownItem = getThrownItemType(itemName);
   if (thrownItem) return `Thrown with the Thrown Weapons skill: ${thrownItem.trait}`;
   const w = getWeaponType(itemName);

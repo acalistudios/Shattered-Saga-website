@@ -54,6 +54,7 @@ import { ammoKindForWeapon, countAmmo, takeOneAmmo, recordSpent, rollRecovery, r
 import { resolveThrow, isIncorporeal, SMOKE_ROUNDS } from '../utils/throwing';
 import { critBonus, isFumble, foeFumbled, CRIT_NOTE, FUMBLE_NOTE } from '../utils/criticals';
 import { getCoating, coatingDamage, getScroll, isThrowOnly, isMajorPotion, MAJOR_POTION } from '../utils/itemUses';
+import { forgeBlocker, forgePlateArmor, PLATE_RECIPE } from '../utils/forging';
 import { cannotAttack, conditionMods, conditionText, addCondition, normalizeCondition, tickEnemyConditions, resolveCinderbreath, CINDERBREATH_BURN_ROUNDS, CONDITIONS, MAX_GM_DURATION } from '../utils/conditions';
 import { claimSearchFind, applySearchFind, formatCoin, TREASURE_FINDS_PER_ADVENTURE } from '../data/payouts';
 import { merchantsAtLocation, buyFromMerchant, sellToMerchant, recordHaggle, haggleToday, merchantOffer, undoTrade } from '../utils/adventureTrade';
@@ -6033,6 +6034,29 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     });
   };
 
+  /**
+   * Have a smith forge plate armour from 4 Steel Plates or Iron Ingots
+   * (utils/forging.js), or do it yourself at their forge with Smithing 3 and
+   * smithing tools (no fee). Takes 2 days. Returns an error message or null.
+   */
+  const forgePlateArmorAt = (merchantName, { self = false } = {}) => {
+    const blocker = forgeBlocker(character, { self });
+    if (blocker) return blocker;
+    updateCharacterStats((prev) => {
+      const forged = forgePlateArmor(prev, { self });
+      if (forged === prev) return prev;
+      const stats = { ...forged.stats };
+      const timeResult = advanceTime(stats.day || 1, stats.hour || 13.0, PLATE_RECIPE.days * 24);
+      stats.day = timeResult.nextDay;
+      stats.hour = timeResult.nextHour;
+      const storyEvent = self
+        ? `Spent ${PLATE_RECIPE.days} days at ${merchantName}'s forge hammering out a suit of plate armour.`
+        : `${merchantName} forged a suit of plate armour from the metal you brought, over ${PLATE_RECIPE.days} days.`;
+      return { ...forged, stats, storyEvents: [...(prev.storyEvents || []), storyEvent] };
+    });
+    return null;
+  };
+
   const spendSkillPoints = (skillId) => {
     const currentRank = character.skills?.[skillId] || 0;
     const cost = skillRankCost(currentRank);
@@ -7109,6 +7133,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     executeCombatManeuver,
     searchForSpentAmmo,
     pickUpRocks,
+    forgePlateArmorAt,
     executeCounterAttack,
     unlockRegion,
     consumeItem,

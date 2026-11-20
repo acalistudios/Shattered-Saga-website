@@ -78,6 +78,7 @@ export const ITEM_NOTES = {
   'Ledger of Illegal Sales': "Varro's crimes in writing. Turn the magistrates, the watch or the crowd against him.",
   'Underworks Key': 'Opens the drain tunnels, beast pens and an armoury door: your way out.',
   'Champion Maul +2': "Durn Ashjaw's maul.",
+  "Durn's Arena Plate": "Durn Ashjaw's plate harness, won from the champion.",
   // The Brass Plague of Tinkertown
   'Logic Core Diagram': 'A map of the central clockwork mind. Helps you shut down the conversion network.',
   'Masterwork Tool Kit +1': 'Better crafting.',

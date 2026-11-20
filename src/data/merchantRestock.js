@@ -6,6 +6,8 @@
 // enchanted gear stays a reward of the adventures themselves.
 //
 // Keyed by merchant name (data/adventureEconomy.js). [item, priceCp, stock].
+// Iron Ingots (for plate armour, utils/forging.js) come only from the
+// travelling merchants: Jory Pike, Tarn Barley and Pell Windledger.
 export const RESTOCK_TIERS = [2, 4, 6];
 
 export const MERCHANT_RESTOCK = {
@@ -42,7 +44,7 @@ export const MERCHANT_RESTOCK = {
   ],
   'Pell Windledger': [
     { after: 2, sells: [['Crossbow', 600, 1], ['Crossbow Bolts (20)', 15, 4]] },
-    { after: 4, sells: [['Medium Backpack', 100, 1], ['Major Potion or Elixir', 1500, 1]] },
+    { after: 4, sells: [['Medium Backpack', 100, 1], ['Major Potion or Elixir', 1500, 1], ['Iron Ingot', 200, 2]] },
   ],
   'Gearwise Noma': [
     { after: 4, sells: [['Smithing Tools', 500, 1], ['Crossbow', 600, 1]] },
@@ -69,8 +71,8 @@ export const MERCHANT_RESTOCK = {
     { after: 4, sells: [['Crossbow', 600, 1], ['Crossbow Bolts (20)', 15, 3]] },
   ],
   'Jory Pike': [
-    { after: 2, sells: [['Bedroll', 20, 2], ['Hatchet', 50, 1], ['Darts (10)', 30, 2]] },
-    { after: 4, sells: [['Small Backpack', 50, 1], ['Arrows (20)', 10, 3]] },
+    { after: 2, sells: [['Bedroll', 20, 2], ['Hatchet', 50, 1], ['Darts (10)', 30, 2], ['Iron Ingot', 200, 1]] },
+    { after: 4, sells: [['Small Backpack', 50, 1], ['Arrows (20)', 10, 3], ['Iron Ingot', 200, 1]] },
   ],
   'Candle Nix': [
     { after: 2, sells: [['Venom Vial', 200, 1], ['Silver Ring', 200, 1], ['Throwing Knife', 25, 4]] },
@@ -98,7 +100,7 @@ export const MERCHANT_RESTOCK = {
   ],
   'Tarn Barley': [
     { after: 2, sells: [['Bedroll', 20, 2], ['Waterskin', 15, 3]] },
-    { after: 4, sells: [['Hatchet', 50, 1], ['Medium Backpack', 100, 1]] },
+    { after: 4, sells: [['Hatchet', 50, 1], ['Medium Backpack', 100, 1], ['Iron Ingot', 200, 1]] },
   ],
   'Cale of the Vestry': [
     { after: 4, sells: [['Common Scroll', 300, 1], ['Minor Potion or Elixir', 500, 1]] },

@@ -1136,10 +1136,11 @@ const BASE_ADVENTURES_LIST = [
         }
       }
     ],
-    items: ['Arena Champion Laurel', 'Gladiator Net', 'Ledger of Illegal Sales', 'Underworks Key', 'Champion Maul +2'],
+    items: ['Arena Champion Laurel', 'Gladiator Net', 'Ledger of Illegal Sales', 'Underworks Key', 'Champion Maul +2', "Durn's Arena Plate"],
     itemsDetail: [
       { name: 'Arena Champion Laurel', desc: 'A bronze-and-red laurel awarded before the crowd.', properties: 'Proof of legal arena victory. Grants social leverage in the city and +1 to Performance checks involving arena fame.' },
-      { name: 'Gladiator Net', desc: 'A weighted fighting net used to entangle opponents on the sand.', properties: 'Can be used with Thrown Weapons or Trapping to restrain a target for 1 round on a successful opposed check.' },
+      { name: 'Gladiator Net', desc: 'A weighted fighting net used to entangle opponents on the sand.', properties: 'Thrown with the Thrown Weapons skill from the Throw panel: no damage, only a dodge avoids it, and a caught foe is entangled for 0-3 rounds, unable to attack. Picked up after the fight.' },
+      { name: "Durn's Arena Plate", desc: 'The champion\'s scarred black plate harness, fitted for a giant and refitted by the arena smiths for you.', properties: 'Heavy armour: absorbs 1d6 damage (+2 against blades, -2 against blunt blows), -2 to dodge, very heavy. Earned by defeating Durn Ashjaw or winning the championship ([objective_complete: defeat_durn_ashjaw]).' },
       { name: 'Ledger of Illegal Sales', desc: 'Varro\'s hidden record of unlawful enslavements, bribes, and noble buyers.', properties: 'Evidence item. Grants leverage with magistrates and can turn the crowd or city watch against Varro.' },
       { name: 'Underworks Key', desc: 'A rusted iron key stamped with a beast-gate number.', properties: 'Opens drain tunnels, beast pens, and one armory side door. Grants a major advantage to escape plans.' },
       { name: 'Champion Maul +2', desc: 'Durn Ashjaw\'s black iron maul, etched with victory marks and heavy enough to crater arena sand.', properties: 'Earth-aspected +2 Heavy Weapon. Deals 1d10+1 blunt damage and grants +2 to Two-Handed Weapons checks. Earth-affinity PCs knock targets prone on critical hits.' }
@@ -1154,7 +1155,7 @@ const BASE_ADVENTURES_LIST = [
     },
     rewards: {
       winFreedom: [
-        'Win the tournament and earn legal freedom: Champion Maul +2 or a chosen arena weapon +2, moderate gold, arena fame, and morality gain if defeated foes were spared.',
+        'Win the tournament and earn legal freedom: Champion Maul +2 or a chosen arena weapon +2, Durn\'s Arena Plate (heavy armour), moderate gold, arena fame, and morality gain if defeated foes were spared.',
         'Gain 1 skill point for a skill used during the adventure; gain a second restricted point in Two-Handed Weapons, One-Handed Weapons, Blocking, Brawling, or Performance for an exceptional final match.'
       ],
       revolt: [
