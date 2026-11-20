@@ -224,6 +224,13 @@
 
 ## 🏕️ Survival, Injury & Camping
 
+### Healing & Useful Items
+
+- Bandage: 1 HP and stops bleeding. Healing herbs or a poultice: Vigor die + Healing ranks + 1d6 HP. Healer's satchel: the same with 2d6, stops bleeding and clears conditions.
+- Minor potion: 2d6+2 HP and stops bleeding. Major potion: 4d6+4 HP, stops bleeding and restores 3 Arcane and 3 Divine SP. Holy water, drunk: 1d6 HP, stops bleeding, clears conditions (or throw it at the unholy).
+- Venom vial or ember oil: coat the weapon in your hand; your next 3 melee hits each deal +1d4 that armour does not stop. Venom does nothing to the undead, constructs or spirits; oil does nothing to creatures of fire.
+- Scrolls: study one for +2 (common) or +4 (rare) on your next Lore, Languages or Arcane check. Crafting and smithing tools: +1 to those checks while carried. Fine clothing: +1 to Negotiation, Deception and Performance. A fire-resistant cloak turns 2 of any fire damage.
+
 ### Resting & Camping
 
 - Camp with a ration (8 hours): fully restores Fatigue and Arcane & Divine Energy, recharges your elemental power, and heals 25% of Max HP plus 1 per Healing rank. A character at 0 HP or below needs real healing first.

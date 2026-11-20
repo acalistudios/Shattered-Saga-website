@@ -222,6 +222,11 @@ export function getPassiveRewardSkillBonus(character, skillId) {
     else if (lower.includes("skritt's lockpick shim") && ['thievery', 'trapping'].includes(skillId)) boonBonus = 1;
     else if (lower.includes('clockwork mainspring') && ['crafting', 'arcane_drawing'].includes(skillId)) boonBonus = 1;
     else if (lower.includes('consecrated healing draught') && ['negotiation', 'insight', 'leadership', 'empathy'].includes(skillId)) boonBonus = 1;
+    // Shop tool kits (Hans 2026-11-20): carried, they help the work they are for.
+    else if (/^crafting tools\b/.test(lower) && skillId === 'crafting') boonBonus = 1;
+    else if (/^smithing tools\b/.test(lower) && skillId === 'smithing') boonBonus = 1;
+    // Fine clothes open doors: +1 to talk, bluff and perform.
+    else if (/fine clothing|silk robes/.test(lower) && ['negotiation', 'deception', 'performance'].includes(skillId)) boonBonus = 1;
 
     if (boonBonus > 0) {
       bonus += boonBonus;

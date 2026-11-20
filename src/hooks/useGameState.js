@@ -53,6 +53,7 @@ import { getAttackPenalty } from '../utils/combatModifiers';
 import { ammoKindForWeapon, countAmmo, takeOneAmmo, recordSpent, rollRecovery, returnRecovered, spentTotal, listThrowables, takeItemAt, gatherRocks, RECOVERY_SEARCH_DIFFICULTY } from '../utils/ammoRecovery';
 import { resolveThrow, isIncorporeal, SMOKE_ROUNDS } from '../utils/throwing';
 import { critBonus, isFumble, foeFumbled, CRIT_NOTE, FUMBLE_NOTE } from '../utils/criticals';
+import { getCoating, coatingDamage, getScroll, isThrowOnly, isMajorPotion, MAJOR_POTION } from '../utils/itemUses';
 import { cannotAttack, conditionMods, conditionText, addCondition, normalizeCondition, tickEnemyConditions, resolveCinderbreath, CINDERBREATH_BURN_ROUNDS, CONDITIONS, MAX_GM_DURATION } from '../utils/conditions';
 import { claimSearchFind, applySearchFind, formatCoin, TREASURE_FINDS_PER_ADVENTURE } from '../data/payouts';
 import { merchantsAtLocation, buyFromMerchant, sellToMerchant, recordHaggle, haggleToday, merchantOffer, undoTrade } from '../utils/adventureTrade';
@@ -892,18 +893,20 @@ export default function useGameState() {
   // Adventures, patrols and arena bouts all start with it.
   const chosenGmId = getGm(character?.preferredGm || DEFAULT_GM_ID).id;
 
+  const rollLogDay = character?.stats?.day || 1;
+  const rollLogHour = character?.stats?.hour || 12;
   const recordDiceRoll = useCallback((entry) => {
     const id = entry.id || `roll_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const newEntry = {
       id,
       timestamp: entry.timestamp || Date.now(),
-      day: character?.stats?.day || 1,
-      hour: character?.stats?.hour || 12,
+      day: rollLogDay,
+      hour: rollLogHour,
       ...entry
     };
     setDiceRollLog(prev => [newEntry, ...(prev || [])].slice(0, 50));
     return newEntry;
-  }, [character?.stats?.day, character?.stats?.hour]);
+  }, [rollLogDay, rollLogHour]);
 
   const clearDiceRollLog = useCallback(() => {
     setDiceRollLog([]);
@@ -1495,6 +1498,13 @@ export default function useGameState() {
     let localInventory = [...character.inventory];
     let localFatigue = character.stats.fatigue !== undefined ? character.stats.fatigue : character.stats.maxFatigue;
     let localDaysWithoutFood = character.daysWithoutFood || 0;
+    // Declared before the item block below, which restores SP and reports it.
+    // They used to be declared ~500 lines later, so every Use of a healing item
+    // threw "Cannot access 'arcaneSP' before initialization" and nothing healed.
+    let arcaneSP = character.stats.arcaneSP || 0;
+    const maxArcaneSP = character.stats.maxArcaneSP || 0;
+    let divineSP = character.stats.divineSP || 0;
+    const maxDivineSP = character.stats.maxDivineSP || 0;
 
     // Perform Healing Action Check
     let isHealingAction = false;
@@ -1506,7 +1516,9 @@ export default function useGameState() {
       let isBandage = nameLower.includes('bandage');
       let isHealerKit = nameLower.includes("healer's kit") || nameLower.includes("healer's satchel");
       let isHerb = nameLower.includes('herb') || nameLower.includes('poultice');
-      let isPotion = nameLower.includes('potion') || nameLower.includes('elixir') || nameLower.includes('flask') || nameLower.includes('vial') || nameLower.includes('brew') || nameLower.includes('draught');
+      // Acid, smoke, nets, venoms and oils are not drunk (utils/itemUses.js).
+      let isPotion = !isThrowOnly(inventoryItemUsed) && !getCoating(inventoryItemUsed)
+        && (nameLower.includes('potion') || nameLower.includes('elixir') || nameLower.includes('flask') || nameLower.includes('vial') || nameLower.includes('brew') || nameLower.includes('draught'));
 
       if (isBandage || isHealerKit || isHerb || isPotion) {
         let itemPattern = '';
@@ -1563,6 +1575,14 @@ export default function useGameState() {
             const aidRoll = rollDie(6); // 1d6
             hpHealed = vRoll + healRankRoll + aidRoll;
             logDetail = `consumed Healing Herbs/Poultice. Vigor Roll: ${vRoll} + Healing skill: ${healRankRoll} + Herb Aid: ${aidRoll} (1d6). Restored ${hpHealed} HP.`;
+          } else if (isPotion && isMajorPotion(inventoryItemUsed)) {
+            // The 1,500cp potion: it used to fall through to the 5 SP elixir rule.
+            isHealingAction = true;
+            hpHealed = rollDiceExpression(MAJOR_POTION.heal);
+            stopBleed = true;
+            arcaneSP = Math.min(maxArcaneSP, arcaneSP + MAJOR_POTION.sp);
+            divineSP = Math.min(maxDivineSP, divineSP + MAJOR_POTION.sp);
+            logDetail = `drank a Major Potion. Restored ${hpHealed} HP and ${MAJOR_POTION.sp} Arcane and Divine SP, stopped bleeding.`;
           } else if (isPotion) {
             const isHealingPotion = nameLower.includes('healing') || nameLower.includes('health') || nameLower.includes('minor potion');
             const isHolyWater = nameLower.includes('holy') || nameLower.includes('purifying');
@@ -1615,9 +1635,7 @@ export default function useGameState() {
             statuses = [];
           }
 
-          if (localHp > 0) {
-            character.stats.deathCountdown = null;
-          }
+          // Healed above 0 HP: the death countdown below clears itself.
 
           if (spHealed > 0) {
             if (spType === 'arcane') {
@@ -1916,11 +1934,18 @@ export default function useGameState() {
           consumedCampfireBonus = true;
         }
 
+        // A studied scroll (utils/itemUses.js): a one-off bonus to the next matching check.
+        let studyBonus = 0;
+        if (character.progression?.studyBonus?.skills?.includes(finalSkillFocusId)) {
+          studyBonus = character.progression.studyBonus.bonus || 0;
+          setCharacter(prev => ({ ...prev, progression: { ...(prev.progression || {}), studyBonus: null } }));
+        }
+
         // Keystone Resonance Skill Bonus
         const keystoneMods = getKeystoneStatModifiers(character);
         const keystoneSkillBonus = keystoneMods.skillBonuses?.[finalSkillFocusId] || 0;
 
-        const totalRoleplayModifier = totalModifier + companionBonus + campfireBonus + keystoneSkillBonus;
+        const totalRoleplayModifier = totalModifier + companionBonus + campfireBonus + keystoneSkillBonus + studyBonus;
 
         rollDetails = executeOpposedCheck({
           skillName: skill.name,
@@ -1943,6 +1968,10 @@ export default function useGameState() {
         }
         if (keystoneSkillBonus > 0) {
           rollDetails.keystoneBonus = keystoneSkillBonus;
+        }
+        if (studyBonus > 0) {
+          rollDetails.studyBonus = studyBonus;
+          rollDetails.text += ` [Studied ${character.progression.studyBonus.source}: +${studyBonus} included]`;
         }
 
         // Reset modifier back to 0 immediately
@@ -2075,11 +2104,8 @@ export default function useGameState() {
       localFatigue = maxFatigue * 0.5;
     }
 
-    // SP Deduction, Conversion, and Burnout Outcomes
-    let arcaneSP = character.stats.arcaneSP || 0;
-    const maxArcaneSP = character.stats.maxArcaneSP || 0;
-    let divineSP = character.stats.divineSP || 0;
-    const maxDivineSP = character.stats.maxDivineSP || 0;
+    // SP Deduction, Conversion, and Burnout Outcomes (arcaneSP/divineSP are
+    // declared with the other turn locals above)
     // localHp is already declared above
     let hpDamageBurnout = 0;
     let divineFatigueBurnout = 0;
@@ -4910,6 +4936,13 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       frostfireReduction = Math.min(netDamage, frostfireWard.reduction || 3);
       netDamage = Math.max(0, netDamage - frostfireReduction);
     }
+    // A Fire-Resistant Cloak, worn or carried, takes 2 off any fire damage.
+    let cloakReduction = 0;
+    const hasFireCloak = [...(character.inventory || []), ...Object.values(character.equipment || {})].some(i => typeof i === 'string' && /fire-resistant cloak/i.test(i));
+    if (hasFireCloak && netDamage > 0 && /(fire|heat|flame|burn)/.test(dt)) {
+      cloakReduction = Math.min(netDamage, 2);
+      netDamage -= cloakReduction;
+    }
     let flameWardPrevented = false;
     if (shieldName?.toLowerCase().includes('flame-ward shield +2') && characterHasAffinity(character, 'fire') && netDamage > 0 && /(fire|heat|flame)/.test(dt) && getCooldownReady(character, shieldName, 'fire_ward_prevention')) {
       flameWardPrevented = true;
@@ -5029,6 +5062,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     }
     if (frostfireReduction > 0) {
       combatResultText += ` Frostfire Heart ward reduced elemental damage by ${frostfireReduction} HP.`;
+    }
+    if (cloakReduction > 0) {
+      combatResultText += ` Your Fire-Resistant Cloak turned ${cloakReduction} fire damage.`;
     }
     if (flameWardPrevented) {
       combatResultText += ` Flame-ward Shield +2 ignored this fire damage instance and is on an 8-hour cooldown.`;
@@ -5439,6 +5475,39 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       }
 
       setApiError(`${itemName} has passive engine bonuses but no direct activation.`);
+      return;
+    }
+
+    // Shop items with their own use (utils/itemUses.js), resolved here with no
+    // call to the GM.
+    const engineNote = (content) => setHistory(prev => [...prev, { role: 'model', content, checkDetails: null }]);
+    if (isThrowOnly(itemName)) {
+      setApiError(`${itemName} is thrown, not used: in a fight, choose it in the Throw panel.`);
+      return;
+    }
+    const coating = getCoating(itemName);
+    if (coating) {
+      const blade = [character.equipment?.hand_right, character.equipment?.hand_left].find(i => i && !isShieldName(i) && !/\bbow\b|crossbow/i.test(i));
+      if (!blade) {
+        setApiError(`Hold a melee weapon to coat it with ${itemName}.`);
+        return;
+      }
+      setCharacter(prev => {
+        const { consumed, nextInventory } = consumeInventoryItem(prev.inventory || [], itemName.replace(/\s*\(\d+\)\s*$/, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        if (!consumed) return prev;
+        return { ...prev, inventory: nextInventory, stats: { ...prev.stats, bladeCoating: { id: coating.id, label: coating.label, die: coating.die, damageType: coating.damageType, hits: coating.hits } } };
+      });
+      engineNote(`*You work the ${coating.label.toLowerCase()} into the edge of your ${blade}.*\n\n[Item Used: ${itemName}. Your next ${coating.hits} melee hits each deal +${coating.die} ${coating.damageType} damage that armour does not stop.]`);
+      return;
+    }
+    const scroll = getScroll(itemName);
+    if (scroll) {
+      setCharacter(prev => {
+        const { consumed, nextInventory } = consumeInventoryItem(prev.inventory || [], itemName.replace(/\s*\(\d+\)\s*$/, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        if (!consumed) return prev;
+        return { ...prev, inventory: nextInventory, progression: { ...(prev.progression || {}), studyBonus: { skills: scroll.skills, bonus: scroll.bonus, source: itemName } } };
+      });
+      engineNote(`*You pore over the ${itemName}.*\n\n[Item Used: ${itemName}. +${scroll.bonus} to your next Lore, Languages or Arcane check.]`);
       return;
     }
 
@@ -6213,6 +6282,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     let ammoKind = 'arrow';
     let thrownItem = null; // { name, hit } the weapon thrown this action
     let fumbled = false; // an attack this action missed by 8+ (utils/criticals.js)
+    const bladeCoating = character.stats?.bladeCoating || null; // venom / ember oil
+    let coatingLeft = bladeCoating?.hits || 0;
     let consumesArcaneSp = false;
     let consumesDivineSp = false;
 
@@ -6283,7 +6354,10 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         if (totalRoll >= defenseRoll) {
           const rawDmg = Math.max(0, rollDiceExpression(weaponProps.dice) + dmgBonus + weaponProps.damageBonus + keystoneAtkDmg + strike.pen.damage + traitMods.damage);
           const soak = Math.max(0, rollDiceExpression(activeEnemy.armorSoak || "1d3") - traitMods.pierce);
-          const netDmg = applyImmunity(Math.max(1, rawDmg - soak) + crit);
+          // A coated blade (venom, ember oil; utils/itemUses.js) adds its die past armour.
+          const coat = coatingLeft > 0 ? coatingDamage(bladeCoating, activeEnemy) : { damage: 0, note: '' };
+          if (coatingLeft > 0) coatingLeft -= 1;
+          const netDmg = applyImmunity(Math.max(1, rawDmg - soak) + crit) + coat.damage;
           if (netDmg > 0) anyHit = true;
           enemyHp = Math.max(0, enemyHp - netDmg);
           const effectTexts = [];
@@ -6300,7 +6374,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
             }
           });
           const bonusesStr = `${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}, Morality Dmg Bonus: +${dmgBonus}` : ''}${keystoneAtkDmg > 0 ? `, Cinder Might: +${keystoneAtkDmg}` : ''}${weaponProps.attackBonus ? `, Weapon Bonus: +${weaponProps.attackBonus}` : ''}${weaponProps.damageBonus ? `, Reward Damage Bonus: +${weaponProps.damageBonus}` : ''}${effectTexts.length ? `, Reward Effects: ${effectTexts.join('; ')}` : ''}`;
-          notices.push(`[Combat Action: Melee Strike${dualStr} using ${weaponProps.name} vs ${activeEnemy.name}. ${rollStr}${bonusesStr}) vs Defense Roll: ${defenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus${keystoneAtkDmg > 0 ? ` +${keystoneAtkDmg} keystone` : ''}), Soak: ${soak}.${critStr} Net Damage: ${netDmg}. Enemy HP is now ${enemyHp}/${activeEnemy.maxHp}.${matchupStr}${immunityStr}]`);
+          notices.push(`[Combat Action: Melee Strike${dualStr} using ${weaponProps.name} vs ${activeEnemy.name}. ${rollStr}${bonusesStr}) vs Defense Roll: ${defenseRoll}. Hit! Raw Damage: ${rawDmg} (includes +${dmgBonus} morality bonus${keystoneAtkDmg > 0 ? ` +${keystoneAtkDmg} keystone` : ''}), Soak: ${soak}.${critStr}${coat.note ? ` ${coat.note}.` : ''} Net Damage: ${netDmg}. Enemy HP is now ${enemyHp}/${activeEnemy.maxHp}.${matchupStr}${immunityStr}]`);
         } else if (enemyDef.defence === 'block') {
           // A shield block still lets part of the blow through (same rule as the player's).
           const rawDmg = Math.max(0, rollDiceExpression(weaponProps.dice) + dmgBonus + weaponProps.damageBonus + keystoneAtkDmg + strike.pen.damage + traitMods.damage);
@@ -6319,6 +6393,11 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
       actionDesc = `I strike the ${activeEnemy.name} with my ${names.join(' and ')}!`;
       systemNotice = notices.join(' ') + (enemyHp === 0 ? ' [combat_end]' : '');
+      // Count down the coating; it is gone after its last hit.
+      if (bladeCoating && coatingLeft !== bladeCoating.hits) {
+        setCharacter(prev => ({ ...prev, stats: { ...prev.stats, bladeCoating: coatingLeft > 0 ? { ...bladeCoating, hits: coatingLeft } : null } }));
+        if (coatingLeft === 0) systemNotice += ` [Notice: the ${bladeCoating.label.toLowerCase()} on your blade is spent.]`;
+      }
       if (anyHit) setActiveEnemy(prev => ({ ...prev, hp: enemyHp, statuses: nextEnemyStatuses }));
     } else if (maneuverType === 'ranged') {
       const rightItem = character.equipment?.hand_right;

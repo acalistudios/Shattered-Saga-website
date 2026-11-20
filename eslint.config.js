@@ -24,6 +24,10 @@ export default defineConfig([
       'react-hooks/purity': 'off',
       'react-hooks/refs': 'off',
       'react-hooks/set-state-in-effect': 'off',
+      // A variable read before its `let`/`const` in the same function throws at
+      // runtime. That is how every healing item broke (2026-11-20). References
+      // from inner functions, which run later, are allowed.
+      'no-use-before-define': ['error', { functions: false, classes: false, variables: false }],
     },
   },
 ])
