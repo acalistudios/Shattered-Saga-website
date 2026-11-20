@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import storage from '../utils/storage';
+import { currentModel } from '../utils/ai';
 
 export default function useSettings() {
   const [settings, setSettings] = useState(() => {
@@ -19,7 +20,7 @@ export default function useSettings() {
     const strongholdChest = stored.strongholdChest || [];
     
     const byokProvider = stored.byokProvider || 'gemini';
-    const byokModel = stored.byokModel || 'gemini-1.5-flash';
+    const byokModel = currentModel(stored.byokModel) || 'gemini-2.5-flash';
     const byokKeys = {
       gemini: stored.byokKeys?.gemini || stored.userApiKey || '',
       openai: stored.byokKeys?.openai || '',

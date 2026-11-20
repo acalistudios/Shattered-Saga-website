@@ -1253,7 +1253,7 @@ export default function useGameState() {
         
         const storedSettings = storage.get('settings', {});
         const activeProvider = engineTier === 'byok' ? (storedSettings.byokProvider || 'gemini') : engine.provider;
-        const activeModel = engineTier === 'byok' ? (storedSettings.byokModel || 'gemini-1.5-flash') : engine.model;
+        const activeModel = engineTier === 'byok' ? (storedSettings.byokModel || 'gemini-2.5-flash') : engine.model;
         const activeKey = engineTier === 'byok' ? ((storedSettings.byokKeys || {})[activeProvider] || storedSettings.userApiKey || apiKey) : apiKey;
 
         const useBackend = isBackendConfigured && !sandbox && engineTier !== 'byok';
@@ -2542,7 +2542,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       // BYOK Custom Provider/Model/Key Lookup
       const storedSettings = storage.get('settings', {});
       const activeProvider = engineTier === 'byok' ? (storedSettings.byokProvider || 'gemini') : engine.provider;
-      const activeModel = engineTier === 'byok' ? (storedSettings.byokModel || 'gemini-1.5-flash') : engine.model;
+      const activeModel = engineTier === 'byok' ? (storedSettings.byokModel || 'gemini-2.5-flash') : engine.model;
       const activeKey = engineTier === 'byok' ? ((storedSettings.byokKeys || {})[activeProvider] || storedSettings.userApiKey || apiKey) : apiKey;
 
       // Context History Capping (8 turns for Free, 25 turns for Paid/BYOK)
@@ -6924,6 +6924,11 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     // and remembered for the search after the fight.
     const finalPayload = `${systemNotice} ${actionDesc}`;
     const sending = sendPlayerAction(finalPayload, apiKey, sandbox);
+    // A spell counter costs 1 SP like any combat spell (it used to be free).
+    if (counterType === 'arcane' || counterType === 'divine') {
+      const pool = counterType === 'arcane' ? 'arcaneSP' : 'divineSP';
+      setCharacter(prev => ({ ...prev, stats: { ...prev.stats, [pool]: Math.max(0, (prev.stats?.[pool] || 0) - 1) } }));
+    }
     if (counterType === 'ranged') {
       const bow = [character.equipment?.hand_right, character.equipment?.hand_left].find(i => i && /\b(bow|crossbow)\b/i.test(i));
       const kind = ammoKindForWeapon(bow);

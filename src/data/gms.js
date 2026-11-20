@@ -33,7 +33,7 @@ export const SAGA_ENGINES = [
   {
     id: 'premium',
     name: 'Premium Engine',
-    model: 'gemini-1.5-pro',
+    model: 'gemini-2.5-pro',
     provider: 'gemini',
     description: 'The Loremaster\'s engine: deep, rich narrative depth with maximum memory retention. Each action uses 8 turns from your balance.',
     glowClass: 'shadow-violet-500/20 border-violet-500/40 hover:border-violet-400',
@@ -45,9 +45,9 @@ export const SAGA_ENGINES = [
   {
     id: 'free',
     name: 'Free Engine',
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.5-flash',
     provider: 'gemini',
-    description: 'Fast, responsive, and action-oriented storytelling. Uses Gemini 1.5 Flash. Supported by banner ads.',
+    description: 'Fast, responsive, and action-oriented storytelling. Uses Gemini 2.5 Flash. Supported by banner ads.',
     glowClass: 'shadow-emerald-500/20 border-emerald-500/40 hover:border-emerald-400',
     badgeClass: 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/30',
     icon: '📺',
@@ -57,7 +57,7 @@ export const SAGA_ENGINES = [
   {
     id: 'byok',
     name: 'Sandbox Engine',
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.5-flash',
     provider: 'gemini',
     description: 'Bring Your Own API Key. Direct browser-to-Google connections with unlimited turns and zero ads.',
     glowClass: 'shadow-amber-500/20 border-amber-500/40 hover:border-amber-400',

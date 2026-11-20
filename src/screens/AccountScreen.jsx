@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import AccountSignIn from '../components/AccountSignIn';
 import { GEM_STORE_ITEMS } from '../data/gemStore';
 import { rewardedAdsEnabled, showRewardedAd } from '../utils/ads';
+import { BYOK_MODELS, DEFAULT_BYOK_MODELS, currentModel } from '../utils/ai';
 import {
   startCheckout,
   cancelSubscription,
@@ -48,7 +49,7 @@ export default function AccountScreen({
   
   // BYOK States
   const [selectedProvider, setSelectedProvider] = useState(settings.byokProvider || 'gemini');
-  const [selectedModel, setSelectedModel] = useState(settings.byokModel || 'gemini-1.5-flash');
+  const [selectedModel, setSelectedModel] = useState(currentModel(settings.byokModel) || DEFAULT_BYOK_MODELS.gemini);
   const [localKeys, setLocalKeys] = useState({
     gemini: settings.byokKeys?.gemini || '',
     openai: settings.byokKeys?.openai || '',
@@ -136,9 +137,7 @@ export default function AccountScreen({
   // Handle Provider-specific model defaults
   const handleProviderChange = (provider) => {
     setSelectedProvider(provider);
-    if (provider === 'gemini') setSelectedModel('gemini-1.5-flash');
-    else if (provider === 'openai') setSelectedModel('gpt-4o-mini');
-    else if (provider === 'anthropic') setSelectedModel('claude-3-5-sonnet-20240620');
+    setSelectedModel(DEFAULT_BYOK_MODELS[provider] || '');
   };
 
   const handleKeySave = () => {
@@ -208,7 +207,7 @@ export default function AccountScreen({
       let response;
       if (selectedProvider === 'gemini') {
         response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${keyToTest}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_BYOK_MODELS.gemini}:generateContent?key=${keyToTest}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -245,7 +244,7 @@ export default function AccountScreen({
               'anthropic-dangerous-direct-browser-access': 'true'
             },
             body: JSON.stringify({
-              model: 'claude-3-haiku-20240307',
+              model: 'claude-haiku-5-5',
               messages: [{ role: 'user', content: 'Hello' }],
               max_tokens: 5
             })
@@ -620,24 +619,9 @@ export default function AccountScreen({
                   onChange={(e) => setSelectedModel(e.target.value)}
                   className="w-full px-2 py-1.5 rounded bg-slate-950 border border-slate-850 text-slate-200 text-4xs font-bold focus:outline-none focus:border-amber-500/50 cursor-pointer"
                 >
-                  {selectedProvider === 'gemini' && (
-                    <>
-                      <option value="gemini-1.5-flash">gemini-1.5-flash (Fast & Economic)</option>
-                      <option value="gemini-1.5-pro">gemini-1.5-pro (Rich Narrative)</option>
-                    </>
-                  )}
-                  {selectedProvider === 'openai' && (
-                    <>
-                      <option value="gpt-4o-mini">gpt-4o-mini (Speed & Performance)</option>
-                      <option value="gpt-4o">gpt-4o (Premium IQ)</option>
-                    </>
-                  )}
-                  {selectedProvider === 'anthropic' && (
-                    <>
-                      <option value="claude-3-5-sonnet-20240620">claude-3-5-sonnet (Superb Roleplay)</option>
-                      <option value="claude-3-haiku-20240307">claude-3-haiku (Snappy Dialogues)</option>
-                    </>
-                  )}
+                  {(BYOK_MODELS[selectedProvider] || []).map(m => (
+                    <option key={m.id} value={m.id}>{m.label}</option>
+                  ))}
                 </select>
               </div>
 

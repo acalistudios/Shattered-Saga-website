@@ -1,5 +1,37 @@
 // AI Integration Layer for Shattered Saga (V4)
 
+// Bring-your-own-key models (Hans 2026-11-20). The old list named Gemini 1.5
+// and Claude 3.x models that the providers have since retired. Only the
+// direct browser calls use these; the hosted GMs pick their model on the server.
+export const BYOK_MODELS = {
+  gemini: [
+    { id: 'gemini-2.5-flash', label: 'gemini-2.5-flash (Fast & Economic)' },
+    { id: 'gemini-2.5-pro', label: 'gemini-2.5-pro (Rich Narrative)' },
+  ],
+  openai: [
+    { id: 'gpt-4o-mini', label: 'gpt-4o-mini (Speed & Performance)' },
+    { id: 'gpt-4o', label: 'gpt-4o (Premium IQ)' },
+  ],
+  anthropic: [
+    { id: 'claude-opus-5-5', label: 'Claude Opus 5.5 (Richest Storytelling)' },
+    { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5 (Balanced)' },
+    { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5 (Fast & Economic)' },
+  ],
+};
+export const DEFAULT_BYOK_MODELS = { gemini: 'gemini-2.5-flash', openai: 'gpt-4o-mini', anthropic: 'claude-opus-5-5' };
+
+const RETIRED_MODELS = {
+  'gemini-1.5-flash': 'gemini-2.5-flash',
+  'gemini-1.5-pro': 'gemini-2.5-pro',
+  'claude-3-5-sonnet-20240620': 'claude-sonnet-5-5',
+  'claude-3-5-sonnet': 'claude-sonnet-5-5',
+  'claude-3-haiku-20240307': 'claude-haiku-5-5',
+  'claude-3-haiku': 'claude-haiku-5-5',
+};
+
+/** A saved model id, mapped to its current replacement if the provider retired it. */
+export const currentModel = (model) => RETIRED_MODELS[model] || model;
+
 /**
  * Roll a standard die with N sides.
  */
@@ -381,6 +413,8 @@ async function executeRawCompletion({
 
   // Direct Client-Side Call (BYOK fallback mode for offline/dev configurations)
   try {
+    // Saved settings may still name a model the provider has retired.
+    model = currentModel(model);
     if (provider === 'gemini') {
       const formatted = formatMessages('gemini', systemPrompt, history);
       const action = onChunk ? 'streamGenerateContent' : 'generateContent';
@@ -431,7 +465,7 @@ async function executeRawCompletion({
       else if (provider === 'cerebras') url = 'https://api.cerebras.ai/v1/chat/completions';
       
       const requestBody = {
-        model: model || (provider === 'openai' ? 'gpt-4o-mini' : model),
+        model: model || (provider === 'openai' ? DEFAULT_BYOK_MODELS.openai : model),
         messages: formatted.messages,
         max_tokens: isHandoff ? 1000 : 400,
         temperature: isHandoff ? 0.2 : 0.7,
@@ -482,12 +516,15 @@ async function executeRawCompletion({
       });
 
       const url = 'https://api.anthropic.com/v1/messages';
+      // Current Claude models reject a custom temperature and think before
+      // answering, so: no temperature, low effort for quick narration, room in
+      // max_tokens for the thinking, and the reply read from its text blocks.
       const requestBody = {
-        model: model || 'claude-3-5-sonnet-20240620',
+        model: model || DEFAULT_BYOK_MODELS.anthropic,
         system: systemPrompt,
         messages: messages,
-        max_tokens: isHandoff ? 1000 : 400,
-        temperature: isHandoff ? 0.2 : 0.7,
+        max_tokens: isHandoff ? 8000 : 4000,
+        output_config: { effort: 'low' },
       };
 
       if (onChunk) {
@@ -516,7 +553,8 @@ async function executeRawCompletion({
       }
 
       const data = await res.json();
-      const text = data.content?.[0]?.text || '';
+      if (data.stop_reason === 'refusal') throw new Error('Claude declined to continue this scene.');
+      const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
       const totalTokens = (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0) || 200;
 
       return { text, totalTokens, error: null };

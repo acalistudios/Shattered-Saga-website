@@ -1,6 +1,6 @@
 // Structured Game Rules & Help Content for Shattered Saga
-// Sourced directly from GAME_RULES.md (v7.0 Canonical Edition).
-// Powers in-game help modals, rulebook drawers, and player guides.
+// Powers in-game help modals, rulebook drawers, and player guides. This is the
+// source of truth: GAME_RULES.md is generated from it (data/gameRulesDoc.js).
 
 export const GAME_RULES_SECTIONS = [
   {
@@ -56,7 +56,7 @@ export const GAME_RULES_SECTIONS = [
         content: [
           'Each tactical turn represents ~10 seconds of combat or 10-15 minutes of dungeon/wilderness exploration.',
           'You may take 1 Primary Action (attack, cast, sprint, pick lock) alongside reasonable Free Actions (drawing a blade, dropping an item, battle cries).',
-          'At 18:00 dusk, the engine prompts for your daily evening meal, consuming 1 ration per 24 hours.'
+          'You eat 1 ration each day: one is used from your pack as each midnight passes, and a camp with a ration uses one too. Each day without food is -1 to every roll until you eat.'
         ]
       }
     ]
@@ -258,9 +258,10 @@ export const GAME_RULES_SECTIONS = [
       {
         title: 'Scaled Encumbrance',
         content: [
-          'Tier 1 (1-3 slots over): -1 Acrobatics, +2 Fatigue/turn, no sprinting.',
-          'Tier 2 (4-6 slots over): -3 all physical checks, +5 Fatigue/turn, speed halved.',
-          'Tier 3 (7+ slots over): Immobile / Encumbered Stasis (cannot move or dodge until excess weight is dropped).'
+          // Must match calculateWeightAndVolume in utils/items.js.
+          'Your load is the fuller of your carried weight and your pack volume, against what your build can carry.',
+          'Up to half capacity: no effect. Above half: Encumbered, with -1 to checks, attacks, dodges and blocks for every 10% above half, and fatigue costs rising 2% for every 1% above half.',
+          'Above three-quarters: Slowed. Above full capacity: Overloaded, with heavy penalties and a risk of collapse. Drop or stow gear to recover.'
         ]
       },
       {
