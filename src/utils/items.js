@@ -47,6 +47,8 @@ export const ITEMS_DATABASE = {
   'Throwing Knife': { weight: 0.5, volume: 0.3, slot: 'hand', subslot: 'small', properties: 'Made to throw' },
   'Throwing Axe': { weight: 1.5, volume: 1.0, slot: 'hand', subslot: 'medium', properties: 'Made to throw' },
   'Javelin': { weight: 2.0, volume: 3.0, slot: 'hand', subslot: 'medium', properties: 'Made to throw' },
+  'Darts': { weight: 0.5, volume: 0.3, slot: null, subslot: null, properties: 'Thrown two at a time, 1d3 each' },
+  'Rocks': { weight: 3.0, volume: 1.5, slot: null, subslot: null, properties: 'Thrown: 1d2, -1 to hit' },
   'Flail': { weight: 5.0, volume: 3.0, slot: 'hand', subslot: 'medium', properties: 'Wraps around shields' },
   'Mace': { weight: 4.0, volume: 2.5, slot: 'hand', subslot: 'medium', properties: 'Crushing' },
   'Battle Axe': { weight: 8.0, volume: 5.0, slot: 'hand', subslot: 'large', properties: 'Huge, unwieldy blows' },

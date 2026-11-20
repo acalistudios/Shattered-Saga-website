@@ -50,8 +50,9 @@ import { getSupplyDepot } from '../data/supplyDepot';
 import { rollDiceExpression } from '../utils/dice';
 import { enemyStyleFromNpc, enemyStyleFromWeapon, rollEnemyDefense, mundaneDamageFactor, mundaneImmunityFromArmor } from '../utils/enemyDefense';
 import { getAttackPenalty } from '../utils/combatModifiers';
-import { ammoKindForWeapon, countAmmo, takeOneAmmo, recordSpent, rollRecovery, returnRecovered, spentTotal, listThrowables, takeItemAt, RECOVERY_SEARCH_DIFFICULTY } from '../utils/ammoRecovery';
-import { conditionMods, conditionText, addCondition, normalizeCondition, tickEnemyConditions, resolveCinderbreath, CINDERBREATH_BURN_ROUNDS, CONDITIONS, MAX_GM_DURATION } from '../utils/conditions';
+import { ammoKindForWeapon, countAmmo, takeOneAmmo, recordSpent, rollRecovery, returnRecovered, spentTotal, listThrowables, takeItemAt, gatherRocks, RECOVERY_SEARCH_DIFFICULTY } from '../utils/ammoRecovery';
+import { resolveThrow, isIncorporeal, SMOKE_ROUNDS } from '../utils/throwing';
+import { cannotAttack, conditionMods, conditionText, addCondition, normalizeCondition, tickEnemyConditions, resolveCinderbreath, CINDERBREATH_BURN_ROUNDS, CONDITIONS, MAX_GM_DURATION } from '../utils/conditions';
 import { claimSearchFind, applySearchFind, formatCoin, TREASURE_FINDS_PER_ADVENTURE } from '../data/payouts';
 import { merchantsAtLocation, buyFromMerchant, sellToMerchant, recordHaggle, haggleToday, merchantOffer, undoTrade } from '../utils/adventureTrade';
 import { recordDiscoveries, resolveLoanRemovals, returnLoan, settleLoansOnLeave, settleMissingLoans, getLoan } from '../utils/discoveries';
@@ -2159,8 +2160,12 @@ export default function useGameState() {
       const spare = listThrowables(localInventory, character.equipment)[0];
       if (spare) {
         finalInventory = takeItemAt(localInventory, spare.index);
-        spentShot = { name: spare.name, kind: 'thrown', hit: Boolean(rollDetails?.success) };
-        arrowConsumedNotice = `\n\n[Notice: Threw the ${spare.name}; it can be picked up afterwards.]`;
+        if (spare.profile.consumed) {
+          arrowConsumedNotice = `\n\n[Notice: Threw the ${spare.name}; it is used up.]`;
+        } else {
+          spentShot = { name: spare.name, kind: 'thrown', hit: Boolean(rollDetails?.success) };
+          arrowConsumedNotice = `\n\n[Notice: Threw the ${spare.name}; it can be picked up afterwards.]`;
+        }
       }
     }
     
@@ -2515,7 +2520,7 @@ GM Instructions for automated tags:
 - Unlock elemental ability (Elemental Crucible only, the character's own element only): [elemental_ability_unlock: fire|earth|air|water|aether]
 - Mark elemental ability as spent when used: [elemental_ability_used]
 - When the player meets the condition that lets an incorporeal or mundane-immune foe be harmed (its armour text names it: holy water, the seal, the oath, lit braziers, etc.), output [enemy_weakened] once. Until then the engine blocks mundane weapon damage to that foe.
-- Combat conditions change the dice, so apply them only when the story clearly causes one: [status: player <condition> <rounds>] or [status: enemy <condition> <rounds>], at most ${MAX_GM_DURATION} rounds. Conditions: ${Object.entries(CONDITIONS).map(([id, c]) => `${id} (${c.desc})`).join('; ')}. stone_mantle is for the player only. The engine tracks and ends them; do not narrate a condition the tag did not apply.${activeEnemy?.conditions?.length ? ` The current foe is: ${activeEnemy.conditions.map(c => `${c.id || c.name} (${c.duration} rounds)`).join(', ')}.` : ''}${(character.stats?.statuses || []).length ? ` The player is: ${character.stats.statuses.map(s => `${s.name} (${s.duration} rounds)`).join(', ')}.` : ''}
+- Combat conditions change the dice, so apply them only when the story clearly causes one: [status: player <condition> <rounds>] or [status: enemy <condition> <rounds>], at most ${MAX_GM_DURATION} rounds. Conditions: ${Object.entries(CONDITIONS).map(([id, c]) => `${id} (${c.desc})`).join('; ')}. stone_mantle is for the player only and entangled for foes only (the Gladiator Net; an entangled foe spends its turns struggling free, so emit no [enemy_attack] for it). The engine tracks and ends them; do not narrate a condition the tag did not apply.${activeEnemy?.conditions?.length ? ` The current foe is: ${activeEnemy.conditions.map(c => `${c.id || c.name} (${c.duration} rounds)`).join(', ')}.` : ''}${(character.stats?.statuses || []).length ? ` The player is: ${character.stats.statuses.map(s => `${s.name} (${s.duration} rounds)`).join(', ')}.` : ''}
 - Record only known reward objectives/endings for the current adventure: [objective_complete: objective_id], [ending_selected: ending_id]
 - When an enemy strikes at the player, do NOT narrate the hit landing or the player's injury. Emit the attack and let the engine roll the player's defense and apply damage: [enemy_attack: Attacker Name | attack dice | vs Dodge or Block (or vs Will for a curse, terror, possession or other mental/magical attack that armour cannot stop) | dmg damage dice | damage type | weapon], e.g. [enemy_attack: Saltblood Guard | 2d6 | vs Block | dmg 1d6 | blunt | club and wooden shield]. One tag per attack. Name the weapon the foe really uses, and include "shield" if it carries one, "two" or "twin" if it fights with a blade in each hand, or the bow/crossbow if it shoots: the engine uses it for fighting-style matchups.
 - A fight follows the player from room to room: the foe pursues. Emit [combat_end] only when the fight truly ends — the foe is defeated, subdued, bound, surrenders, or flees, or the player escapes in a way that stops the pursuit (locking a door behind them, blocking the passage, losing them). Merely moving to another room does not end a fight.
@@ -2936,7 +2941,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const enemyConditionTags = statusMatches
         .filter(m => (m[1] || '').toLowerCase() === 'enemy')
         .map(m => ({ id: normalizeCondition(m[2]), duration: parseInt(m[3], 10) || 1 }))
-        .filter(c => c.id && c.id !== 'stone_mantle');
+        .filter(c => c.id && !CONDITIONS[c.id].playerOnly);
       if (enemyConditionTags.length) {
         setActiveEnemy(prev => (prev ? {
           ...prev,
@@ -3486,6 +3491,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           const target = m[1] ? m[1].trim().toLowerCase() : 'player';
           if (target === 'player') {
             const id = normalizeCondition(m[2]);
+            if (id && CONDITIONS[id].enemyOnly) return; // nets are thrown by the player, not at them
             newStatuses.push({
               name: id || m[2].trim(),
               duration: Math.min(MAX_GM_DURATION, Math.max(1, parseInt(m[3], 10) || 1))
@@ -4665,6 +4671,18 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     const enemyAttack = enemyAttacksQueue[attackIndex];
     if (!enemyAttack) return;
 
+    // Caught in the Gladiator Net (utils/conditions.js): the foe can only
+    // struggle free, so its attack never comes.
+    if (cannotAttack(activeEnemy?.conditions)) {
+      setEnemyAttacksQueue(enemyAttacksQueue.filter((_, idx) => idx !== attackIndex));
+      setHistory(prev => [...prev, {
+        role: 'model',
+        content: `*${activeEnemy.name} thrashes against the net instead of striking.*\n\n[Condition: ${activeEnemy.name} is entangled and cannot attack; ${enemyAttack.name} does not happen.]`,
+        checkDetails: null,
+      }]);
+      return;
+    }
+
     if (activeEnemy.statuses?.poisoned) {
       const poisonMissed = Math.random() < 0.25;
       const nextQueue = enemyAttacksQueue.filter((_, idx) => idx !== attackIndex);
@@ -5178,6 +5196,16 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       checkDetails: null,
     }]);
     return result;
+  };
+
+  /** Pick up rocks to throw, up to MAX_ROCKS, outside a fight. Free. */
+  const pickUpRocks = () => {
+    if (activeEnemy || isLoading) return 0;
+    const { added } = gatherRocks(character.inventory);
+    if (!added) return 0;
+    setCharacter(prev => ({ ...prev, inventory: gatherRocks(prev.inventory).inventory }));
+    setHistory(prev => [...prev, { role: 'model', content: `*You pick up ${added} fist-sized rock${added === 1 ? '' : 's'} and stow them for throwing.*`, imagePrompt: null, imageUrl: null, checkDetails: null }]);
+    return added;
   };
 
   /** Tell the story (and so the GM) what changed hands. */
@@ -6138,7 +6166,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     return { hitBonus, dmgBonus };
   };
 
-  const executeCombatManeuver = async (maneuverType, apiKey, sandbox) => {
+  // `itemName` picks what the Throw maneuver throws (default: the first spare).
+  const executeCombatManeuver = async (maneuverType, apiKey, sandbox, itemName = null) => {
     if (!activeEnemy || isLoading) return;
     if (maneuverType === 'ranged') {
       const bow = [character.equipment?.hand_right, character.equipment?.hand_left].find(i => i && /\b(bow|crossbow)\b/i.test(i));
@@ -6164,11 +6193,11 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       await sendPlayerAction(`${tickNotice}[combat_end] The flames finish the ${activeEnemy.name} before I can strike.`, apiKey, sandbox);
       return;
     }
-    await runCombatManeuver(maneuverType, apiKey, sandbox, tick.enemy, tickNotice);
+    await runCombatManeuver(maneuverType, apiKey, sandbox, tick.enemy, tickNotice, itemName);
   };
 
   // `activeEnemy` here is the foe after this round's condition tick.
-  const runCombatManeuver = async (maneuverType, apiKey, sandbox, activeEnemy, tickNotice = '') => {
+  const runCombatManeuver = async (maneuverType, apiKey, sandbox, activeEnemy, tickNotice = '', throwItemName = null) => {
     const rollDie = (s) => Math.floor(Math.random() * s) + 1;
     let actionDesc = "";
     let systemNotice = "";
@@ -6430,49 +6459,77 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         systemNotice = `[Combat Action: Divine Smiting Spell vs ${activeEnemy.name}. Attack Roll: ${totalRoll} (Empathy: ${attr1Roll}, Willpower: ${attr2Roll}, Divine Manifestation: ${skillRoll}) vs Defense Roll: ${enemyDefenseRoll}. Miss! no damage dealt.]`;
       }
     } else if (maneuverType === 'throw') {
-      // Throw a spare weapon from the pack (utils/ammoRecovery.js listThrowables):
-      // Coordination + Power + Thrown Weapons. Like an arrow, only a shield can
-      // stop it. The weapon leaves the pack and is always recovered afterwards.
-      const choice = listThrowables(character.inventory, character.equipment)[0];
+      // Throw from the pack (utils/ammoRecovery.js listThrowables; outcomes in
+      // utils/throwing.js): Coordination + Power + Thrown Weapons. Weapons,
+      // darts, rocks and the net are picked up after the fight; flasks and
+      // smoke bombs are used up. Nothing but holy water touches the incorporeal.
+      const spares = listThrowables(character.inventory, character.equipment);
+      const choice = (throwItemName && spares.find(t => t.name === throwItemName)) || spares[0];
       if (!choice) return;
       const p = choice.profile;
       const atkPen = getAttackPenalty(character);
       const magic = getMagicBonus(choice.name);
-      const attr1Roll = rollAttribute(character.attributes.coordination || 1);
-      const attr2Roll = rollAttribute(character.attributes.power || 1);
-      let skillRoll = 0;
-      for (let i = 0; i < (character.skills.thrown_weapons || 0); i++) skillRoll += rollDie(2);
-      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + p.hit + magic + atkPen.total + (nextRollModifier || 0);
-      setNextRollModifier(0);
-      const enemyDef = rollEnemyDefense(activeEnemy, 'ranged');
-      const immunity = mundaneDamageFactor(activeEnemy, { magical: magic > 0 });
-      const applyImmunity = (dmg) => (immunity.factor === 1 ? dmg : Math.floor(dmg * immunity.factor));
-      const rawDmg = rollDiceExpression(p.dice) + dmgBonus + magic + keystoneAtkDmg;
-      const soak = Math.max(0, rollDiceExpression(activeEnemy.armorSoak || '1d3') - (p.pierce || 0));
+      const throws = Math.min(p.quick || 1, choice.count);
+      const notices = [];
+      const hits = [];
       let enemyHp = activeEnemy.hp;
-      const hit = totalRoll >= enemyDef.roll;
-      const notes = [
-        enemyDef.notes.length ? `Matchup: ${enemyDef.notes.join('; ')}.` : '',
-        p.pierce ? `The ${p.label.toLowerCase()} ignores ${p.pierce} armour.` : '',
-        immunity.note ? `${immunity.note}.` : '',
-      ].filter(Boolean).join(' ');
-      const rollStr = `Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Thrown Weapons: ${skillRoll}${p.hit ? `, ${p.label} ${p.hit > 0 ? '+' : ''}${p.hit}` : ''}${magic ? `, Weapon Bonus: +${magic}` : ''}${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : ''}${atkPen.text ? `, Penalties: ${atkPen.text}` : ''})`;
-      if (hit) {
-        const netDmg = applyImmunity(Math.max(1, rawDmg - soak));
-        enemyHp = Math.max(0, enemyHp - netDmg);
-        systemNotice = `[Combat Action: Throw ${choice.name} vs ${activeEnemy.name}. ${rollStr} vs Defense Roll: ${enemyDef.roll}. Hit! Raw Damage: ${p.dice} (${rawDmg}), Soak: ${soak}. Net Damage: ${netDmg}. Enemy HP is now ${enemyHp}/${activeEnemy.maxHp}. ${notes}]`;
-      } else if (enemyDef.defence === 'block') {
-        const shieldBlock = rollDie(enemyDef.blockDie);
-        const netDmg = applyImmunity(Math.max(0, rawDmg - soak - shieldBlock));
-        enemyHp = Math.max(0, enemyHp - netDmg);
-        systemNotice = `[Combat Action: Throw ${choice.name} vs ${activeEnemy.name}. ${rollStr} vs Block Roll: ${enemyDef.roll}. Caught on the shield! Raw Damage: ${rawDmg}, Soak: ${soak}, Shield: 1d${enemyDef.blockDie} (${shieldBlock}). Net Damage: ${netDmg}. Enemy HP is now ${enemyHp}/${activeEnemy.maxHp}. ${notes}]`;
+      let entangleRounds = 0;
+      let weakens = false;
+      let smokeChokesPlayer = false;
+
+      if (p.effect === 'smoke') {
+        // Acrid smoke on the foe. It chokes you too only when you are in the
+        // melee with it: at range (your bow, or an archer foe) you stay clear.
+        const playerAtRange = [character.equipment?.hand_right, character.equipment?.hand_left].some(i => i && /\b(bow|crossbow)\b/i.test(i));
+        smokeChokesPlayer = !playerAtRange && activeEnemy.style !== 'ranged';
+        const foeNote = isIncorporeal(activeEnemy) ? ` ${activeEnemy.name} does not breathe: the smoke has no effect on it.` : ` ${activeEnemy.name} is Choking (-3 to hit) for ${SMOKE_ROUNDS} rounds.`;
+        const youNote = smokeChokesPlayer ? ` You are in the melee and in the cloud too: you are Choking (-3 to hit) for ${SMOKE_ROUNDS} rounds.` : ' You are at range, clear of the cloud.';
+        notices.push(`[Combat Action: Smoke bomb thrown at ${activeEnemy.name}. Acrid smoke billows out.${foeNote}${youNote}]`);
+        hits.push(false);
       } else {
-        systemNotice = `[Combat Action: Throw ${choice.name} vs ${activeEnemy.name}. ${rollStr} vs Defense Roll: ${enemyDef.roll}. Miss! no damage dealt. ${notes}]`;
+        for (let i = 0; i < throws && enemyHp > 0; i++) {
+          const attr1Roll = rollAttribute(character.attributes.coordination || 1);
+          const attr2Roll = rollAttribute(character.attributes.power || 1);
+          let skillRoll = 0;
+          for (let s = 0; s < (character.skills.thrown_weapons || 0); s++) skillRoll += rollDie(2);
+          const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + (p.hit || 0) + magic + atkPen.total + (i === 0 ? (nextRollModifier || 0) : 0);
+          // A net cannot be caught on a shield: the foe can only dodge it.
+          const enemyDef = p.unblockable
+            ? { roll: enemyDefenseRoll, defence: 'dodge', blockDie: 0, notes: [] }
+            : rollEnemyDefense(activeEnemy, 'ranged');
+          const hit = totalRoll >= enemyDef.roll;
+          const blocked = !hit && enemyDef.defence === 'block';
+          const r = resolveThrow({ profile: p, enemy: { ...activeEnemy, hp: enemyHp }, hit, blocked, blockDie: enemyDef.blockDie, bonusDamage: dmgBonus + magic + keystoneAtkDmg, rollDie });
+          hits.push(hit || blocked);
+          enemyHp = Math.max(0, enemyHp - r.damage);
+          if (r.entangleRounds) entangleRounds = Math.max(entangleRounds, r.entangleRounds);
+          if (r.weakens) weakens = true;
+          const label = throws > 1 ? ` (throw ${i + 1} of ${throws})` : '';
+          const rollStr = `Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Thrown Weapons: ${skillRoll}${p.hit ? `, ${p.label} ${p.hit > 0 ? '+' : ''}${p.hit}` : ''}${magic ? `, Weapon Bonus: +${magic}` : ''}${hitBonus > 0 ? `, Morality Hit Bonus: +${hitBonus}` : ''}${atkPen.text ? `, Penalties: ${atkPen.text}` : ''})`;
+          const result = r.outcome === 'no_effect' ? 'No effect!'
+            : r.outcome === 'miss' ? 'Miss!'
+              : p.effect === 'entangle' ? 'Hit!'
+                : r.outcome === 'blocked' ? `Blocked! Raw Damage: ${r.raw}, Soak: ${r.soak}. Net Damage: ${r.damage}. Enemy HP is now ${enemyHp}/${activeEnemy.maxHp}.`
+                  : `Hit! Raw Damage: ${p.dice} (${r.raw}), Soak: ${r.soak}. Net Damage: ${r.damage}. Enemy HP is now ${enemyHp}/${activeEnemy.maxHp}.`;
+          notices.push(`[Combat Action: Throw ${choice.name}${label} vs ${activeEnemy.name}. ${rollStr} vs ${enemyDef.defence === 'block' ? 'Block' : 'Dodge'} Roll: ${enemyDef.roll}. ${result}${r.note ? ` ${r.note}.` : ''}${enemyDef.notes.length ? ` Matchup: ${enemyDef.notes.join('; ')}.` : ''}]`);
+        }
       }
-      systemNotice += ` [Notice: the ${choice.name} has left your hand; it can be picked up after the fight.]${enemyHp === 0 ? ' [combat_end]' : ''}`;
-      if (enemyHp !== activeEnemy.hp) setActiveEnemy(prev => ({ ...prev, hp: enemyHp }));
-      actionDesc = `I hurl my ${choice.name} at the ${activeEnemy.name}!`;
-      thrownItem = { name: choice.name, hit: hit || enemyDef.defence === 'block' };
+
+      systemNotice = notices.join(' ')
+        + (p.consumed ? ` [Notice: the ${choice.name} is used up.]` : ` [Notice: ${throws > 1 ? `${throws} ${choice.name}` : `the ${choice.name}`} can be picked up after the fight.]`)
+        + (entangleRounds ? ` [Notice: ${activeEnemy.name} is entangled for ${entangleRounds} round${entangleRounds === 1 ? '' : 's'}: it can only struggle free; emit no [enemy_attack] for it until then.]` : '')
+        + (enemyHp === 0 ? ' [combat_end]' : '');
+      setActiveEnemy(prev => {
+        if (!prev) return prev;
+        let conditions = prev.conditions || [];
+        if (entangleRounds) conditions = addCondition(conditions, 'entangled', entangleRounds, { fresh: true });
+        if (p.effect === 'smoke' && !isIncorporeal(activeEnemy)) conditions = addCondition(conditions, 'choking', SMOKE_ROUNDS, { fresh: true });
+        return { ...prev, hp: enemyHp, conditions, ...(weakens ? { weakened: true } : {}) };
+      });
+      actionDesc = p.effect === 'smoke' ? `I hurl a smoke bomb at the ${activeEnemy.name}!`
+        : p.effect === 'entangle' ? `I cast my net over the ${activeEnemy.name}!`
+          : `I hurl my ${choice.name} at the ${activeEnemy.name}!`;
+      thrownItem = { name: choice.name, count: p.effect === 'smoke' ? 1 : hits.length, hits, consumed: Boolean(p.consumed), smokeChokesPlayer };
     } else if (maneuverType === 'block') {
       setCombatStance('block');
       actionDesc = `I brace myself and raise my defenses to block incoming strikes!`;
@@ -6566,16 +6623,23 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     const finalPayload = `${tickNotice}${systemNotice} ${actionDesc}`;
     const sending = sendPlayerAction(finalPayload, apiKey, sandbox);
 
-    // The thrown weapon leaves the pack; it is always recovered afterwards.
+    // What was thrown leaves the pack. Weapons, darts, rocks and the net are
+    // picked up after the fight; flasks and smoke bombs are used up. Smoke in a
+    // melee chokes the thrower too.
     if (thrownItem) {
       setCharacter(prev => {
-        const spare = listThrowables(prev.inventory, prev.equipment).find(t => t.name === thrownItem.name);
-        if (!spare) return prev;
-        return {
-          ...prev,
-          inventory: takeItemAt(prev.inventory, spare.index),
-          stats: { ...prev.stats, spentAmmo: recordSpent(prev.stats?.spentAmmo, thrownItem.name, 'thrown', thrownItem.hit) },
-        };
+        let inventory = prev.inventory;
+        let spentAmmo = prev.stats?.spentAmmo;
+        for (let n = 0; n < thrownItem.count; n++) {
+          const spare = listThrowables(inventory, prev.equipment).find(t => t.name === thrownItem.name);
+          if (!spare) break;
+          inventory = takeItemAt(inventory, spare.index);
+          if (!thrownItem.consumed) spentAmmo = recordSpent(spentAmmo, thrownItem.name, 'thrown', thrownItem.hits[n] ?? false);
+        }
+        const statuses = thrownItem.smokeChokesPlayer
+          ? addCondition(prev.stats?.statuses || [], 'choking', SMOKE_ROUNDS).map(s => ({ ...s, name: s.name || s.id }))
+          : prev.stats?.statuses;
+        return { ...prev, inventory, stats: { ...prev.stats, spentAmmo, statuses } };
       });
     }
 
@@ -6926,6 +6990,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     setCombatStance,
     executeCombatManeuver,
     searchForSpentAmmo,
+    pickUpRocks,
     executeCounterAttack,
     unlockRegion,
     consumeItem,

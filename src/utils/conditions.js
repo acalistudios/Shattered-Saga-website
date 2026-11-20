@@ -10,13 +10,16 @@
 
 import { rollDiceExpression } from './dice';
 
+// Each entry is applied as listed, so keep any penalty small.
 export const CONDITIONS = {
   stunned: { label: 'Stunned', icon: '💫', attack: -2, defence: -2, resist: -2, desc: '-2 to attacks, dodges, blocks and Resist.' },
   blinded: { label: 'Blinded', icon: '🙈', attack: -3, defence: -2, resist: 0, desc: '-3 to attacks, -2 to dodges and blocks.' },
   prone: { label: 'Prone', icon: '⬇️', attack: -1, defence: -2, resist: 0, desc: '-1 to attacks, -2 to dodges and blocks.' },
   frightened: { label: 'Frightened', icon: '😱', attack: -2, defence: 0, resist: -2, desc: '-2 to attacks and Resist.' },
   burning: { label: 'Burning', icon: '🔥', attack: 0, defence: 0, resist: 0, burn: '1d4', desc: 'Takes 1d4 fire damage each round; armour does not help.' },
-  stone_mantle: { label: 'Stone Mantle', icon: '⛰️', attack: 0, defence: 0, resist: 0, soak: '1d6', desc: '+1d6 soak against physical blows (not curses or terror).' },
+  stone_mantle: { label: 'Stone Mantle', icon: '⛰️', attack: 0, defence: 0, resist: 0, soak: '1d6', playerOnly: true, desc: '+1d6 soak against physical blows (not curses or terror).' },
+  choking: { label: 'Choking Smoke', icon: '💨', attack: -3, defence: 0, resist: 0, desc: '-3 to attacks (acrid smoke stings the eyes and throat).' },
+  entangled: { label: 'Entangled', icon: '🕸️', attack: 0, defence: -2, resist: 0, enemyOnly: true, noAttacks: true, desc: 'Caught in a net: it cannot attack, only struggle free; -2 to dodges and blocks.' },
 };
 
 const ALIASES = {
@@ -26,7 +29,14 @@ const ALIASES = {
   afraid: 'frightened', fear: 'frightened', feared: 'frightened', scared: 'frightened', terrified: 'frightened', shaken: 'frightened', panicked: 'frightened',
   burn: 'burning', burned: 'burning', burnt: 'burning', on_fire: 'burning', aflame: 'burning', ignited: 'burning', alight: 'burning',
   stonemantle: 'stone_mantle', stone_skin: 'stone_mantle', stoneskin: 'stone_mantle',
+  smoke: 'choking', smoked: 'choking', choking_smoke: 'choking',
+  netted: 'entangled', tangled: 'entangled', ensnared: 'entangled',
 };
+
+/** True when a foe's conditions stop it attacking (entangled). */
+export function cannotAttack(list) {
+  return (list || []).some(c => (c?.duration || 0) > 0 && CONDITIONS[normalizeCondition(c.id || c.name)]?.noAttacks);
+}
 
 /** The GM may not pin anyone down for long: one tag lasts at most this many rounds. */
 export const MAX_GM_DURATION = 3;

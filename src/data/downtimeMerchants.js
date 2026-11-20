@@ -304,6 +304,7 @@ export const MERCHANT_POOLS = {
     { item: "Crossbow Bolts (20)", baseChance: 0.95, maxStock: 5 },
     { item: "Javelin", baseChance: 0.7, maxStock: 4 },
     { item: "Throwing Knife", baseChance: 0.5, maxStock: 3 },
+    { item: "Darts (10)", baseChance: 0.7, maxStock: 3 },
     { item: "Leather Armor", baseChance: 0.6, maxStock: 2 }
   ],
   apothecary: [

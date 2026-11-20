@@ -69,7 +69,7 @@ export const MERCHANT_RESTOCK = {
     { after: 4, sells: [['Crossbow', 600, 1], ['Crossbow Bolts (20)', 15, 3]] },
   ],
   'Jory Pike': [
-    { after: 2, sells: [['Bedroll', 20, 2], ['Hatchet', 50, 1]] },
+    { after: 2, sells: [['Bedroll', 20, 2], ['Hatchet', 50, 1], ['Darts (10)', 30, 2]] },
     { after: 4, sells: [['Small Backpack', 50, 1], ['Arrows (20)', 10, 3]] },
   ],
   'Candle Nix': [

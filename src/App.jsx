@@ -127,6 +127,7 @@ function App() {
     combatStance,
     executeCombatManeuver,
     searchForSpentAmmo,
+    pickUpRocks,
     executeCounterAttack,
     unlockRegion,
     consumeItem,
@@ -1166,6 +1167,7 @@ function App() {
             combatStance={combatStance}
             onExecuteCombatManeuver={executeCombatManeuver}
             onSearchForSpentAmmo={searchForSpentAmmo}
+            onPickUpRocks={pickUpRocks}
             onExecuteCounterAttack={executeCounterAttack}
             audio={audio}
             nextRollModifier={nextRollModifier}

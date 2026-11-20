@@ -7,7 +7,20 @@
 // come back. Arrows snap in bodies or are lost in grass; bolts are shorter and
 // sturdier, so more of them survive.
 
-import { getWeaponType } from '../data/gearStats';
+import { getWeaponType, getThrownItemType } from '../data/gearStats';
+
+/** Rocks carried at most (picked up for free outside a fight). */
+export const MAX_ROCKS = 6;
+
+/** Add rocks up to MAX_ROCKS; returns { inventory, added }. */
+export function gatherRocks(inventory) {
+  const have = (inventory || []).reduce((n, item) => (getThrownItemType(item)?.key === 'rocks' ? n + stackCount(item) : n), 0);
+  const added = Math.max(0, MAX_ROCKS - have);
+  if (!added) return { inventory: [...(inventory || [])], added: 0 };
+  const inv = [...(inventory || [])].filter(item => getThrownItemType(item)?.key !== 'rocks');
+  inv.push(`Rocks (${MAX_ROCKS})`);
+  return { inventory: inv, added };
+}
 
 export const RECOVERY_CHANCE = {
   arrow: { hit: 0.5, miss: 0.33 },
@@ -24,6 +37,8 @@ export const RECOVERY_SEARCH_DIFFICULTY = 'easy';
 
 /** What a thrown item does: { name, dice, hit, pierce, made, damageType } or null. */
 export function getThrownProfile(itemName) {
+  const item = getThrownItemType(itemName);
+  if (item) return { name: ammoBaseName(itemName), pierce: 0, made: false, hit: 0, ...item };
   const t = getWeaponType(itemName);
   if (!t?.thrown) return null;
   return { name: ammoBaseName(itemName), label: t.label, damageType: t.damageType, pierce: 0, made: false, ...t.thrown };
@@ -50,8 +65,11 @@ export function listThrowables(inventory, equipment = {}) {
     }
     if (count > 0) out.push({ index, name: ammoBaseName(item), profile, count });
   });
-  // Weapons made for throwing come first, then the better throw.
-  return out.sort((a, b) => (Number(b.profile.made) - Number(a.profile.made)) || (b.profile.hit - a.profile.hit) || (a.index - b.index));
+  // Reusable weapons come before flasks, smoke and nets; then weapons made for
+  // throwing, then the better throw. The first is the default throw.
+  const special = (p) => Number(Boolean(p.consumed || p.effect));
+  return out.sort((a, b) => (special(a.profile) - special(b.profile))
+    || (Number(b.profile.made) - Number(a.profile.made)) || ((b.profile.hit || 0) - (a.profile.hit || 0)) || (a.index - b.index));
 }
 
 export function countThrowables(inventory, equipment) {
@@ -76,6 +94,10 @@ export function returnItems(inventory, name, n) {
   const idx = inv.findIndex(item => typeof item === 'string' && /\(\d+\)\s*$/.test(item) && ammoBaseName(item).toLowerCase() === name.toLowerCase());
   if (idx !== -1) {
     inv[idx] = `${ammoBaseName(inv[idx])} (${stackCount(inv[idx]) + n})`;
+    return inv;
+  }
+  if (getThrownItemType(name)?.stack) {
+    inv.push(`${name} (${n})`);
     return inv;
   }
   for (let i = 0; i < n; i++) inv.push(name);

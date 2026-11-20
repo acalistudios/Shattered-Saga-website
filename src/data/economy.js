@@ -56,6 +56,7 @@ export const GENERIC_ITEM_VALUES = [
   priced('Throwing Knife', 25, 'weapons', 'Balanced to throw: 1d4+1, +1 to hit; always recovered.'),
   priced('Throwing Axe', 70, 'weapons', 'Balanced to throw: 1d8+1, -1 to hit; always recovered.'),
   priced('Javelin', 60, 'weapons', 'Made to throw: 1d6+1, ignores 1 armour; always recovered.'),
+  priced('Darts (10)', 30, 'weapons', 'Thrown two at a time, 1d3 each; always recovered.'),
   priced('Shortsword', 100, 'weapons', 'Standard sidearm.'),
   priced('Longsword', 200, 'weapons', 'Standard military blade.'),
   priced('Greatsword', 500, 'weapons', 'Heavy two-handed weapon.'),

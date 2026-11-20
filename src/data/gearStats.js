@@ -141,6 +141,32 @@ export function getArmorPieces(equipment = {}) {
   };
 }
 
+// Things that are only ever thrown (Hans 2026-11-20). Rolled with Thrown
+// Weapons by the Throw action (hooks/useGameState.js). `consumed` items break;
+// the rest are picked up after the fight. Nothing thrown affects an
+// incorporeal foe except holy water.
+//   quick        throws per action (each at `hit`)
+//   ignoresArmor the foe's armour soak does not apply
+//   holy         full dice only against undead, demons and spirits; weakens the incorporeal
+//   effect       'smoke' (no roll: choking cloud on both sides) or 'entangle' (net)
+//   unblockable  a shield does not stop it (the foe can only dodge)
+//   stack        kept as one "(N)" stack in the pack
+export const THROWN_ITEMS = [
+  { key: 'darts', match: ['dart'], label: 'Darts', dice: '1d3', damageType: 'piercing', hit: 0, quick: 2, made: true, stack: true, trait: 'Two throws each action, 1d3 each' },
+  { key: 'rocks', match: ['rocks', 'throwing stone'], label: 'Rocks', dice: '1d2', damageType: 'blunt', hit: -1, stack: true, trait: 'A rock: 1d2, -1 to hit; pick more up outside a fight' },
+  { key: 'acid', match: ['acid flask'], label: 'Acid flask', dice: '2d4', damageType: 'acid', hit: 0, ignoresArmor: true, consumed: true, made: true, trait: '2d4 acid that ignores armour; the flask breaks' },
+  { key: 'holywater', match: ['holy water'], label: 'Holy water', dice: '2d6', damageType: 'holy', hit: 0, ignoresArmor: true, holy: true, consumed: true, made: true, trait: '2d6 against undead, demons and spirits (1 against anything else); a hit weakens an incorporeal foe so steel can harm it; the vial breaks' },
+  { key: 'smoke', match: ['smoke bomb'], label: 'Smoke bomb', effect: 'smoke', consumed: true, made: true, trait: 'Acrid smoke: everyone in the cloud, you included, is -3 to hit for 6 rounds' },
+  { key: 'net', match: ['gladiator net'], label: 'Gladiator net', effect: 'entangle', hit: 0, unblockable: true, made: true, trait: 'No damage; a caught foe is entangled for 0-3 rounds and can only struggle free. A shield does not help it' },
+];
+
+/** The throw-only item for a name, or null. */
+export function getThrownItemType(itemName) {
+  const n = String(itemName || '').toLowerCase();
+  if (!n) return null;
+  return THROWN_ITEMS.find((t) => t.match.some((m) => n.includes(m))) || null;
+}
+
 const SKILL_LABELS ={ light_weapons: 'One-Handed Weapons', heavy_weapons: 'Two-Handed Weapons', marksmanship: 'Marksmanship', blocking: 'Blocking' };
 
 const lowerOf = (name) => String(name || '').toLowerCase();
@@ -198,6 +224,8 @@ export function describeGear(itemName) {
     const s = getShieldType(itemName);
     return `Shield: +${s.rollBonus} to Blocking rolls, blocks 1d${s.blockDie}${bonus} damage · one hand`;
   }
+  const thrownItem = getThrownItemType(itemName);
+  if (thrownItem) return `Thrown with the Thrown Weapons skill: ${thrownItem.trait}`;
   const w = getWeaponType(itemName);
   if (w) {
     const hands = w.hands === 2 ? 'two hands' : 'one hand';

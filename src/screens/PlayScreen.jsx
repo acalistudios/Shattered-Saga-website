@@ -213,6 +213,7 @@ export default function PlayScreen({
   combatStance,
   onExecuteCombatManeuver,
   onSearchForSpentAmmo,
+  onPickUpRocks,
   onExecuteCounterAttack,
   onExportSaveFile,
   onOpenAccount,
@@ -2284,24 +2285,37 @@ export default function PlayScreen({
                   </div>
 
                   {(() => {
+                    // One button per thing you can throw (utils/ammoRecovery.js, utils/throwing.js).
                     const throwables = listThrowables(character.inventory, character.equipment);
                     if (!throwables.length) return null;
-                    const next = throwables[0];
-                    const total = throwables.reduce((n, t) => n + t.count, 0);
+                    const byName = [];
+                    throwables.forEach(t => {
+                      const seen = byName.find(b => b.name === t.name);
+                      if (seen) seen.count += t.count; else byName.push({ ...t });
+                    });
+                    const iconFor = (p) => (p.effect === 'smoke' ? '💨' : p.effect === 'entangle' ? '🕸️' : p.holy ? '💧' : p.key === 'acid' ? '🧪' : p.key === 'rocks' ? '🪨' : '🗡️');
+                    const summary = (p) => (p.effect === 'smoke' ? 'smoke: -3 to hit'
+                      : p.effect === 'entangle' ? 'entangles 0-3 rounds'
+                        : `${p.quick ? `${p.quick}× ` : ''}${p.dice}${p.hit ? `, ${p.hit > 0 ? '+' : ''}${p.hit}` : ''}`);
                     return (
-                      <button
-                        key="throw"
-                        type="button"
-                        onClick={() => onExecuteCombatManeuver('throw', settings.sandboxMode ? '' : settings.keys[activeGm.id], settings.sandboxMode)}
-                        disabled={isLoading}
-                        title="Thrown Weapons skill. Only a shield stops it. Thrown weapons are always picked up after the fight."
-                        className="w-full mb-2.5 py-2 rounded bg-teal-950/30 hover:bg-teal-950/50 border border-teal-800/40 text-teal-400 hover:text-teal-300 text-2xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5"
-                      >
-                        <span>🗡️ Throw {next.name}</span>
-                        <span className="text-[8px] font-sans font-medium text-teal-500/70 normal-case">
-                          {next.profile.dice}{next.profile.hit ? `, ${next.profile.hit > 0 ? '+' : ''}${next.profile.hit} to hit` : ''} | {total} spare {total === 1 ? 'weapon' : 'weapons'} to throw
-                        </span>
-                      </button>
+                      <div className="mb-2.5">
+                        <div className="text-[9px] uppercase tracking-widest text-teal-500/80 font-bold mb-1">Throw (Thrown Weapons)</div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                          {byName.map(t => (
+                            <button
+                              key={t.name}
+                              type="button"
+                              onClick={() => onExecuteCombatManeuver('throw', settings.sandboxMode ? '' : settings.keys[activeGm.id], settings.sandboxMode, t.name)}
+                              disabled={isLoading}
+                              title={describeGear(t.name) || t.profile.trait || ''}
+                              className="py-1.5 px-2 rounded bg-teal-950/30 hover:bg-teal-950/50 border border-teal-800/40 text-teal-400 hover:text-teal-300 text-3xs font-extrabold tracking-wide transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5"
+                            >
+                              <span className="truncate max-w-full">{iconFor(t.profile)} {t.name} ×{t.count}</span>
+                              <span className="text-[8px] font-sans font-medium text-teal-500/70 normal-case">{summary(t.profile)}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     );
                   })()}
 
@@ -2938,8 +2952,21 @@ export default function PlayScreen({
           <div>
             <div className="flex justify-between items-center mb-2">
               <h4 className="text-3xs uppercase tracking-widest text-slate-500 font-bold">Backpack Contents</h4>
-              <span className="text-[10px] text-slate-500 font-bold">
-                {character.inventory?.length || 0} Items
+              <span className="flex items-center gap-2">
+                {onPickUpRocks && !activeEnemy && (
+                  <button
+                    type="button"
+                    onClick={() => onPickUpRocks()}
+                    disabled={isLoading}
+                    title="Pick up rocks to throw (free, up to 6). Not during a fight."
+                    className="text-[10px] px-1.5 py-0.5 rounded border border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-600 cursor-pointer"
+                  >
+                    🪨 Pick up rocks
+                  </button>
+                )}
+                <span className="text-[10px] text-slate-500 font-bold">
+                  {character.inventory?.length || 0} Items
+                </span>
               </span>
             </div>
 
