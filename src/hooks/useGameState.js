@@ -133,34 +133,6 @@ function rollAttribute(score) {
 
 
 
-function getArrowCount(inventory) {
-  for (const item of inventory) {
-    const match = item.match(/Arrows?\s*\((\d+)\)/i);
-    if (match) {
-      return parseInt(match[1], 10);
-    }
-  }
-  return 0;
-}
-
-function consumeArrowFromInventory(inventory) {
-  let consumed = false;
-  const nextInventory = inventory.map(item => {
-    const match = item.match(/Arrows?\s*\((\d+)\)/i);
-    if (match && !consumed) {
-      consumed = true;
-      const count = parseInt(match[1], 10);
-      if (count > 1) {
-        return `Arrows (${count - 1})`;
-      } else {
-        return null; // Consumed last arrow
-      }
-    }
-    return item;
-  }).filter(Boolean);
-  return { consumed, nextInventory };
-}
-
 function getActionCost(skillId) {
   if (!skillId) {
     return { fatigue: 0.01, time: 0.0166 }; // 1 min (1/60 hours)
@@ -1805,10 +1777,11 @@ export default function useGameState() {
 
     // Enforce ammunition constraints
     if (finalSkillFocusId === 'marksmanship') {
-      const arrowCount = getArrowCount(character.inventory);
-      if (arrowCount <= 0) {
+      const bow = [character.equipment?.hand_right, character.equipment?.hand_left].find(i => i && /\b(bow|crossbow)\b/i.test(i));
+      const kind = ammoKindForWeapon(bow);
+      if (countAmmo(character.inventory, kind) <= 0) {
         setIsLoading(false);
-        setApiError("You cannot shoot: you have no arrows remaining! Please choose a different action.");
+        setApiError(`You cannot shoot: you have no ${kind === 'bolt' ? 'crossbow bolts' : 'arrows'} left! Please choose a different action.`);
         return;
       }
     }
@@ -2163,13 +2136,17 @@ export default function useGameState() {
     let starvationMessage = '';
     let arrowConsumedNotice = '';
 
-    // Consume Arrow
+    // A typed Marksmanship shot looses one arrow (or bolt, for a crossbow),
+    // remembered for the search after the fight (utils/ammoRecovery.js).
+    let spentShot = null;
     if (finalSkillFocusId === 'marksmanship') {
-      const { consumed, nextInventory } = consumeArrowFromInventory(localInventory);
-      if (consumed) {
-        finalInventory = nextInventory;
-        const newCount = getArrowCount(finalInventory);
-        arrowConsumedNotice = `\n\n[Notice: Consumed 1 arrow. Arrows remaining: ${newCount}.]`;
+      const bow = [character.equipment?.hand_right, character.equipment?.hand_left].find(i => i && /\b(bow|crossbow)\b/i.test(i));
+      const kind = ammoKindForWeapon(bow);
+      const taken = takeOneAmmo(localInventory, kind);
+      if (taken.name) {
+        finalInventory = taken.inventory;
+        spentShot = { name: taken.name, kind, hit: Boolean(rollDetails?.success) };
+        arrowConsumedNotice = `\n\n[Notice: Loosed 1 ${kind === 'bolt' ? 'bolt' : 'arrow'}. Remaining: ${countAmmo(finalInventory, kind)}.]`;
       }
     }
     
@@ -2274,7 +2251,8 @@ export default function useGameState() {
         bleedingTier,
         defenseCount,
         deathCountdown,
-        statuses: activeStatuses
+        statuses: activeStatuses,
+        ...(spentShot ? { spentAmmo: recordSpent(prev.stats?.spentAmmo, spentShot.name, spentShot.kind, spentShot.hit) } : {})
       }
     }));
     if (!deferActionCosts) commitActionCosts();
@@ -5058,7 +5036,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const leftEquipped = character.equipment?.hand_left;
       const hasRanged = (rightEquipped && rightEquipped.toLowerCase().includes('bow')) ||
                          (leftEquipped && leftEquipped.toLowerCase().includes('bow'));
-      const hasAmmo = getArrowCount(character.inventory) > 0;
+      const counterBow = [rightEquipped, leftEquipped].find(i => i && /\b(bow|crossbow)\b/i.test(i));
+      const hasAmmo = countAmmo(character.inventory, ammoKindForWeapon(counterBow)) > 0;
       
       if (Math.random() < 0.07) activeCounters.push('melee');
       if (hasRanged && hasAmmo && Math.random() < 0.07) activeCounters.push('ranged');
@@ -6765,9 +6744,21 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       detailsText: systemNotice
     });
 
-    // Trigger AI GM prompt payload
+    // Trigger AI GM prompt payload. A ranged counter looses a real arrow or
+    // bolt: taken after sendPlayerAction books the turn (see runCombatManeuver)
+    // and remembered for the search after the fight.
     const finalPayload = `${systemNotice} ${actionDesc}`;
-    await sendPlayerAction(finalPayload, apiKey, sandbox);
+    const sending = sendPlayerAction(finalPayload, apiKey, sandbox);
+    if (counterType === 'ranged') {
+      const bow = [character.equipment?.hand_right, character.equipment?.hand_left].find(i => i && /\b(bow|crossbow)\b/i.test(i));
+      const kind = ammoKindForWeapon(bow);
+      setCharacter(prev => {
+        const taken = takeOneAmmo(prev.inventory, kind);
+        if (!taken.name) return prev;
+        return { ...prev, inventory: taken.inventory, stats: { ...prev.stats, spentAmmo: recordSpent(prev.stats?.spentAmmo, taken.name, kind, isHit) } };
+      });
+    }
+    await sending;
   };
 
   return {
