@@ -1912,7 +1912,7 @@ export default function useGameState() {
       consumedActiveEffectIds.push(aetherReveal.id);
     }
 
-    const passiveRewardBonus = getPassiveRewardSkillBonus(character, finalSkillFocusId);
+    const passiveRewardBonus = getPassiveRewardSkillBonus(character, finalSkillFocusId, { adventureId: activeAdventureId });
     const temporarySkillPenalty = finalSkillFocusId ? (character.progression?.temporarySkillPenalties?.[finalSkillFocusId] || 0) : 0;
     const undeadSocialPenalty = getUndeadSocialPenalty(character, finalSkillFocusId);
     const totalModifier = nextRollModifier - starvationPenalty - exhaustionPenalty + weaponMagicBonus + shieldMagicBonus + passiveRewardBonus.bonus + activeRewardBonus - temporarySkillPenalty - undeadSocialPenalty + armorCheckPenalty + encumbrancePenalty;
@@ -2067,7 +2067,17 @@ export default function useGameState() {
           finalActionText += `\n\n[Notice: Player is Encumbered (${loadPct}% ${loadKind} capacity)! A ${encumbrancePenalty} penalty has been applied to this physical check.]`;
         }
         if (passiveRewardBonus.bonus > 0) {
-          finalActionText += `\n\n[Reward Item Bonus: ${passiveRewardBonus.labels.join(', ')} applied to this check.]`;
+          finalActionText += `\n\n[Reward Item Bonus: ${passiveRewardBonus.labels.join(', ')} applied to this check.${passiveRewardBonus.notes.length ? ` Item text: ${passiveRewardBonus.notes.join('; ')}.` : ''}]`;
+        }
+        // Once-per-adventure charms (utils/itemTextBonuses.js) are spent for this adventure.
+        if (passiveRewardBonus.onceUsed.length) {
+          setCharacter(prev => ({
+            ...prev,
+            progression: {
+              ...(prev.progression || {}),
+              itemBonusUses: { ...(prev.progression?.itemBonusUses || {}), ...Object.fromEntries(passiveRewardBonus.onceUsed.map(k => [k, activeAdventureId])) },
+            },
+          }));
         }
         if (activeRewardBonus > 0) {
           finalActionText += `\n\n[Activated Reward Item Bonus: ${activeRewardLabels.join(', ')} applied and consumed by this check.]`;

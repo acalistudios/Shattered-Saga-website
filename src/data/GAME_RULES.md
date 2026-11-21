@@ -233,6 +233,7 @@
 
 ### Healing & Useful Items
 
+- Items that grant "+1 to a skill" add it to your checks with that skill, as their text says. Relics must be worn or equipped and work anywhere. Adventure items (maps, ledgers, keys, masks) work while carried, during their own adventure. A charm that works "once per adventure" helps one check in each adventure. Items that say "when equipped" must be equipped.
 - Bandage: 1 HP and stops bleeding. Healing herbs or a poultice: Vigor die + Healing ranks + 1d6 HP. Healer's satchel: the same with 2d6, stops bleeding and clears conditions.
 - Minor potion: 2d6+2 HP and stops bleeding. Major potion: 4d6+4 HP, stops bleeding and restores 3 Arcane and 3 Divine SP. Holy water, drunk: 1d6 HP, stops bleeding, clears conditions (or throw it at the unholy).
 - Venom vial or ember oil: coat the weapon in your hand; your next 3 melee hits each deal +1d4 that armour does not stop. Venom does nothing to the undead, constructs or spirits; oil does nothing to creatures of fire.

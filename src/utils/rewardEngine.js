@@ -5,6 +5,7 @@
 import { getRewardItemByName } from '../data/rewardItems';
 import { parseStrungBow, STARFALL_BOWSTRING } from './bowstring';
 import { getWeaponType, isTwoHandedMelee, TWO_HAND_DAMAGE_BONUS } from '../data/gearStats';
+import { getItemTextSkillBonus } from './itemTextBonuses';
 
 // Canonical empty progression block. DEFAULT_CHARACTER in useGameState spreads
 // this so the two cannot drift apart.
@@ -184,21 +185,25 @@ export function characterHasAffinity(character, affinity) {
   return !!affinity && (character?.element || '').toLowerCase() === affinity;
 }
 
-export function getPassiveRewardSkillBonus(character, skillId) {
-  if (!skillId) return { bonus: 0, labels: [] };
+/**
+ * Skill bonuses from gear. Relics and adventure items are read from their own
+ * text (utils/itemTextBonuses.js); companion parting gifts and shop kits are
+ * below. `adventureId` is the adventure being played. Also returns `notes`
+ * (what situational bonuses are meant for) and `onceUsed` (once-per-adventure
+ * charms this check spends).
+ */
+export function getPassiveRewardSkillBonus(character, skillId, { adventureId = null } = {}) {
+  if (!skillId) return { bonus: 0, labels: [], notes: [], onceUsed: [] };
   const equipped = getEquippedItemNames(character);
-  let bonus = 0;
-  const labels = [];
+  const fromText = getItemTextSkillBonus(character, skillId, { adventureId });
+  let bonus = fromText.bonus;
+  const labels = [...fromText.labels];
 
-  // Major equipment items that must be equipped to grant their bonuses
+  // Kaelen's parting gift, which must be equipped.
   equipped.forEach(itemName => {
     const lower = itemName.toLowerCase();
     let itemBonus = 0;
-    if (lower.includes("saint orra's veil +3") && ['insight', 'divine_communion'].includes(skillId)) itemBonus = 3;
-    else if (lower.includes('masterwork tool kit +2') && ['crafting', 'smithing'].includes(skillId)) itemBonus = 2;
-    else if (lower.includes('amulet of tide-taming') && ['survival', 'athletics'].includes(skillId)) itemBonus = 1;
-    else if (lower.includes('living thorn charm') && ['survival', 'tracking', 'animal_rapport'].includes(skillId)) itemBonus = 1;
-    else if (lower.includes("kaelen's tempered sledge") && ['athletics', 'smithing'].includes(skillId)) itemBonus = 1;
+    if (lower.includes("kaelen's tempered sledge") && ['athletics', 'smithing'].includes(skillId)) itemBonus = 1;
 
     if (itemBonus > 0) {
       bonus += itemBonus;
@@ -234,7 +239,7 @@ export function getPassiveRewardSkillBonus(character, skillId) {
     }
   });
 
-  return { bonus, labels };
+  return { bonus, labels, notes: fromText.notes, onceUsed: fromText.onceUsed };
 }
 
 export function getRewardWeaponProfile(rawWeaponName, character, enemy = null, activeAdventureId = null) {
