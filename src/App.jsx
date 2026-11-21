@@ -130,6 +130,7 @@ function App() {
     searchForSpentAmmo,
     pickUpRocks,
     castTideMend,
+    toggleBendLuck,
     executeCounterAttack,
     unlockRegion,
     consumeItem,
@@ -1171,6 +1172,7 @@ function App() {
             onSearchForSpentAmmo={searchForSpentAmmo}
             onPickUpRocks={pickUpRocks}
             onCastTideMend={castTideMend}
+            onToggleBendLuck={toggleBendLuck}
             onExecuteCounterAttack={executeCounterAttack}
             audio={audio}
             nextRollModifier={nextRollModifier}

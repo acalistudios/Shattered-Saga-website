@@ -70,6 +70,7 @@ import {
 import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../utils/authApi';
 import { consumeRationFromInventory, resolveRest, restHealAmount, hungryRestFatigue } from '../utils/restEngine';
 import { canDeferNarrationCosts, createPreparedNarrationTurn } from '../utils/narrationTurn';
+import { luckRank, bendLuckBonus, isLuckArmed, bendRoll, armBendLuck, spendArmedLuck, cancelBendLuck } from '../utils/luck';
 import { getCompanionById, getCompanionForSkill } from '../data/companions';
 import { applyCompanionCampfireDuty } from '../data/campfireInterludes';
 import { getKeystoneStatModifiers } from '../data/keystoneShards';
@@ -1682,9 +1683,15 @@ export default function useGameState() {
 
     // Death countdown tick if unconscious
     let deathCountdown = character.stats.deathCountdown;
+    // Bend Luck (utils/luck.js): while dying, an armed bend holds the
+    // countdown for this action instead of helping a roll.
+    let luckSpent = false;
     if (localHp <= 0 && localHp > -5) {
       if (deathCountdown === null) {
         deathCountdown = 5;
+      } else if (!isHealingAction && isLuckArmed(character)) {
+        luckSpent = true;
+        bleedingTickMsg += `\n[Bend Luck: fortune holds. The death countdown does not advance this action (${deathCountdown} remaining).]`;
       } else if (!isHealingAction) {
         deathCountdown = Math.max(0, deathCountdown - 1);
       }
@@ -1971,8 +1978,10 @@ export default function useGameState() {
           difficulty: finalDifficulty,
           roleplayModifier: totalRoleplayModifier,
           resistanceModifier,
-          potencyModifier
+          potencyModifier,
+          bendLuckBonus: isLuckArmed(character) && !luckSpent ? bendLuckBonus(luckRank(character)) : null
         });
+        if (isLuckArmed(character) && !luckSpent) luckSpent = true;
         if (companionAssist) {
           rollDetails.companionName = companionAssist.name;
           rollDetails.companionBonus = companionBonus;
@@ -2305,9 +2314,12 @@ export default function useGameState() {
       // Only the water-regen stamp changes here. Writing back the whole turn-start
       // progression erased anything set earlier this turn (found-coin records,
       // a consumed campfire bonus).
-      progression: nextProgressionAfterTurn === character.progression
-        ? prev.progression
-        : { ...(prev.progression || {}), lastWaterRegenHour: nextProgressionAfterTurn?.lastWaterRegenHour },
+      progression: (() => {
+        const p = nextProgressionAfterTurn === character.progression
+          ? prev.progression
+          : { ...(prev.progression || {}), lastWaterRegenHour: nextProgressionAfterTurn?.lastWaterRegenHour };
+        return luckSpent ? spendArmedLuck(p) : p; // Bend Luck used this turn
+      })(),
       stats: {
         ...prev.stats,
         hp: localHp,
@@ -4848,7 +4860,12 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     if (enemyCondAttack) matchup.notes.push(`${activeEnemy.name} is ${conditionText(activeEnemy.conditions, 'attack')} to attack`);
     const totalDefModifier = defensePenalty - starvationPenalty - exhaustionPenalty + shieldMagicBonus + shieldRollBonus + matchup.rollBonus + armorCheckPenalty + stanceBonus + keystoneDodgeBonus + loadPenalty + reachBonus + playerCondMod;
 
-    const playerRollTotal = primaryRoll + secondaryRoll + skillRoll + totalDefModifier;
+    // Bend Luck (utils/luck.js): roll the defence dice again, keep the better.
+    const defenceLuck = isLuckArmed(character)
+      ? bendRoll(primaryRoll + secondaryRoll + skillRoll, () => rollAttributePrimary(primaryScore) + rollAttributeSecondary(secondaryScore) + rollSkillRanks(skillRanks), bendLuckBonus(luckRank(character)))
+      : null;
+    if (defenceLuck) matchup.notes.push(defenceLuck.note);
+    const playerRollTotal = primaryRoll + secondaryRoll + skillRoll + (defenceLuck?.gain || 0) + totalDefModifier;
     const attackModifier = (activeEnemy?.attackModifier || 0) + enemyCondAttack;
     const enemyRollTotal = rollDiceExpression(enemyAttack.diceExpr) + attackModifier;
 
@@ -5057,13 +5074,14 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         day: timeResult.nextDay,
         hour: timeResult.nextHour
       };
+      if (defenceLuck) updated.progression = spendArmedLuck(prev.progression);
 
       return updated;
     });
 
     // Add to history
     const defSkillName = defenseSkillId === 'acrobatics' ? 'Dodge (Acrobatics)' : isWard ? 'Resist (Willpower)' : 'Block (Blocking)';
-    const rollText = `[Defense Check: ${defSkillName} vs ${enemyAttack.name}. Player Roll: ${playerRollTotal} (Base ${primaryRoll} + ${secondaryRoll} + Skill ${skillRoll} + Modifiers ${totalDefModifier}), Enemy Roll: ${enemyRollTotal} (Base Roll${attackModifier ? ` + Scaling ${attackModifier}` : ''}). ${defenseSuccess ? 'Success' : 'Failure'} (${margin >= 0 ? '+' : ''}${margin} margin)]`;
+    const rollText = `[Defense Check: ${defSkillName} vs ${enemyAttack.name}. Player Roll: ${playerRollTotal} (Base ${primaryRoll} + ${secondaryRoll} + Skill ${skillRoll}${defenceLuck?.gain ? ` + Luck ${defenceLuck.gain}` : ''} + Modifiers ${totalDefModifier}), Enemy Roll: ${enemyRollTotal} (Base Roll${attackModifier ? ` + Scaling ${attackModifier}` : ''}). ${defenseSuccess ? 'Success' : 'Failure'} (${margin >= 0 ? '+' : ''}${margin} margin)]`;
 
     let combatResultText;
     if (defenseSuccess) {
@@ -5272,6 +5290,19 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     if (activeEnemy || isLoading) return;
     if ((character.stats?.elementalAbility || '').toLowerCase() !== 'water' || character.stats?.elementalAbilityUsed) return;
     return sendPlayerAction('I draw cooling water through my body with Tide Mend.', apiKey, sandbox, null, 'moderate', 0, null, 'free', 'tide_mend');
+  };
+
+  /**
+   * Bend Luck (utils/luck.js): arm it for the next roll, or press again to
+   * cancel and get the use back. Free; the roll that follows spends it.
+   */
+  const toggleBendLuck = () => {
+    if (isLoading) return;
+    setCharacter(prev => {
+      if (isLuckArmed(prev)) return { ...prev, progression: cancelBendLuck(prev.progression) };
+      const armed = armBendLuck(prev);
+      return armed ? { ...prev, progression: armed } : prev;
+    });
   };
 
   /** Pick up rocks to throw, up to MAX_ROCKS, outside a fight. Free. */
@@ -6340,6 +6371,22 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     let fumbled = false; // an attack this action missed by 8+ (utils/criticals.js)
     let stoneMantle = 0; // rounds of Stone Mantle the Earth power grants this action
     let elementalPower = null; // 'tide_mend': resolved inside sendPlayerAction
+    // Bend Luck (utils/luck.js): an armed bend goes on this action's first
+    // attack roll: the dice are rolled again with its bonus, the better kept.
+    let luckUsed = false;
+    let luckNote = '';
+    const rollPair = (a, b, ranks) => {
+      let total = rollAttribute(a || 1) + rollAttribute(b || 1);
+      for (let i = 0; i < (ranks || 0); i++) total += rollDie(2);
+      return total;
+    };
+    const bendAttack = (firstDice, a, b, ranks) => {
+      if (luckUsed || !isLuckArmed(character)) return 0;
+      luckUsed = true;
+      const bent = bendRoll(firstDice, () => rollPair(a, b, ranks), bendLuckBonus(luckRank(character)));
+      luckNote = ` [${bent.note}; the attack roll above includes it.]`;
+      return bent.gain;
+    };
     const bladeCoating = character.stats?.bladeCoating || null; // venom / ember oil
     let coatingLeft = bladeCoating?.hits || 0;
     let consumesArcaneSp = false;
@@ -6399,7 +6446,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         const defenseRoll = enemyDef.roll;
         const traitNote = [weaponProps.traitHit ? `${wType.label} ${weaponProps.traitHit > 0 ? '+' : ''}${weaponProps.traitHit} to hit` : '', traitMods.damage ? `crushing +${traitMods.damage} vs armour` : ''].filter(Boolean).join('; ');
         const matchupStr = (enemyDef.notes.length ? ` Matchup: ${enemyDef.notes.join('; ')}.` : '') + (traitNote ? ` Weapon: ${traitNote}.` : '');
-        const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + weaponProps.attackBonus + weaponProps.traitHit + strike.pen.hit + atkPen.total + (idx === 0 ? (nextRollModifier || 0) : 0);
+        const luckGain = bendAttack(attr1Roll + attr2Roll + skillRoll, character.attributes.coordination, character.attributes.power, skillRanks);
+        const totalRoll = attr1Roll + attr2Roll + skillRoll + luckGain + hitBonus + weaponProps.attackBonus + weaponProps.traitHit + strike.pen.hit + atkPen.total + (idx === 0 ? (nextRollModifier || 0) : 0);
         const dualStr = strike.label ? ` (${strike.label}, dual wield ${strike.pen.hit} to hit, ${strike.pen.damage} damage)` : '';
         const rollStr = `Attack Roll: ${totalRoll} (Coord: ${attr1Roll}, Power: ${attr2Roll}, Skill: ${skillRoll}${atkPenStr}`;
 
@@ -6502,7 +6550,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           const attr2Roll = rollAttribute(character.attributes.coordination || 1);
           let skillRoll = 0;
           for (let i = 0; i < (character.skills.marksmanship || 0); i++) skillRoll += rollDie(2);
-          const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + bowProfile.attackBonus + atkPen.total + shotPen + (shot === 0 ? (nextRollModifier || 0) : 0);
+          const luckGain = bendAttack(attr1Roll + attr2Roll + skillRoll, character.attributes.coordination, character.attributes.coordination, character.skills.marksmanship);
+          const totalRoll = attr1Roll + attr2Roll + skillRoll + luckGain + hitBonus + bowProfile.attackBonus + atkPen.total + shotPen + (shot === 0 ? (nextRollModifier || 0) : 0);
           // Arrows: a shield blocks them, nothing else parries them (data/gearStats.js).
           const enemyDef = rollEnemyDefense(activeEnemy, 'ranged');
           const rangedDefenseRoll = enemyDef.roll;
@@ -6553,7 +6602,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         skillRoll += rollDie(2);
       }
 
-      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + getAttackPenalty(character).total + (nextRollModifier || 0);
+      const luckGain = bendAttack(attr1Roll + attr2Roll + skillRoll, character.attributes.attunement, character.attributes.intellect, skillRanks);
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + luckGain + hitBonus + getAttackPenalty(character).total + (nextRollModifier || 0);
       const isHit = totalRoll >= enemyDefenseRoll;
       setNextRollModifier(0);
 
@@ -6589,7 +6639,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         skillRoll += rollDie(2);
       }
 
-      const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + getAttackPenalty(character).total + (nextRollModifier || 0);
+      const luckGain = bendAttack(attr1Roll + attr2Roll + skillRoll, character.attributes.empathy, character.attributes.willpower, skillRanks);
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + luckGain + hitBonus + getAttackPenalty(character).total + (nextRollModifier || 0);
       const isHit = totalRoll >= enemyDefenseRoll;
       setNextRollModifier(0);
 
@@ -6648,7 +6699,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           const attr2Roll = rollAttribute(character.attributes.power || 1);
           let skillRoll = 0;
           for (let s = 0; s < (character.skills.thrown_weapons || 0); s++) skillRoll += rollDie(2);
-          const totalRoll = attr1Roll + attr2Roll + skillRoll + hitBonus + (p.hit || 0) + magic + atkPen.total + (i === 0 ? (nextRollModifier || 0) : 0);
+          const luckGain = bendAttack(attr1Roll + attr2Roll + skillRoll, character.attributes.coordination, character.attributes.power, character.skills.thrown_weapons);
+          const totalRoll = attr1Roll + attr2Roll + skillRoll + luckGain + hitBonus + (p.hit || 0) + magic + atkPen.total + (i === 0 ? (nextRollModifier || 0) : 0);
           // A net cannot be caught on a shield: the foe can only dodge it.
           const enemyDef = p.unblockable
             ? { roll: enemyDefenseRoll, defence: 'dodge', blockDie: 0, notes: [] }
@@ -6713,7 +6765,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
       const attr2Roll = rollAttribute(character.attributes.power || 1);
       let skillRoll = 0;
       for (let i = 0; i < (character.skills.arcane_shaping || 0); i++) skillRoll += rollDie(2);
-      const totalRoll = attr1Roll + attr2Roll + skillRoll + atkPen.total + (nextRollModifier || 0);
+      const luckGain = bendAttack(attr1Roll + attr2Roll + skillRoll, character.attributes.attunement, character.attributes.power, character.skills.arcane_shaping);
+      const totalRoll = attr1Roll + attr2Roll + skillRoll + luckGain + atkPen.total + (nextRollModifier || 0);
       setNextRollModifier(0);
       const enemyDef = rollEnemyDefense(activeEnemy, 'none');
       const canBlock = enemyDef.defence === 'block';
@@ -6795,10 +6848,13 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     // it writes the inventory and SP it read at the start of the turn. So the
     // maneuver's own costs are applied after that call, or they would be
     // overwritten: arrows were never used up and spells cost no SP.
-    const finalPayload = `${tickNotice}${systemNotice} ${actionDesc}`;
+    const finalPayload = `${tickNotice}${systemNotice}${luckNote} ${actionDesc}`;
     const sending = elementalPower
       ? sendPlayerAction(finalPayload, apiKey, sandbox, null, 'moderate', 0, null, 'free', elementalPower)
       : sendPlayerAction(finalPayload, apiKey, sandbox);
+
+    // The bend is spent on this action's roll (utils/luck.js).
+    if (luckUsed) setCharacter(prev => ({ ...prev, progression: spendArmedLuck(prev.progression) }));
 
     // Stone Mantle takes hold after this turn's tick (utils/conditions.js).
     if (stoneMantle) {
@@ -7198,6 +7254,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     searchForSpentAmmo,
     pickUpRocks,
     castTideMend,
+    toggleBendLuck,
     forgePlateArmorAt,
     executeCounterAttack,
     unlockRegion,

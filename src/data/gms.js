@@ -170,7 +170,7 @@ export const SKILLS_LIST = [
   { id: 'light_weapons', name: 'One-Handed Weapons', primary: 'coordination', secondary: 'power', desc: 'Anything held in one hand: swords, axes, maces, daggers.' },
   { id: 'lockpicking', name: 'Lockpicking', primary: 'coordination', secondary: 'intellect', desc: 'Picking locks, opening chests.' },
   { id: 'lore', name: 'Lore', primary: 'intellect', secondary: 'empathy', desc: 'History, legends, planar knowledge.' },
-  { id: 'luck', name: 'Luck', primary: 'attunement', secondary: 'willpower', desc: 'Bending chance, escaping death.' },
+  { id: 'luck', name: 'Luck', primary: 'attunement', secondary: 'willpower', desc: 'Bending chance, escaping death. Each 2 ranks give another Bend Luck per rest (roll twice, keep the better).' },
   { id: 'marksmanship', name: 'Marksmanship', primary: 'coordination', secondary: 'intellect', desc: 'Aiming and shooting bows/crossbows.' },
   { id: 'negotiation', name: 'Negotiation', primary: 'charisma', secondary: 'empathy', desc: 'Persuading, bartering, gaining trust.' },
   { id: 'perception', name: 'Perception', primary: 'intellect', secondary: 'empathy', desc: 'Spotting traps, secrets, details.' },

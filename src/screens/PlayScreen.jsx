@@ -8,6 +8,7 @@ import { isMentalAttack } from '../utils/enemyDefense';
 import CombatStatsPanel from '../components/CombatStatsPanel';
 import ConditionChips from '../components/ConditionChips';
 import { cinderbreathDice, stoneMantleRounds, tideMendDice } from '../utils/conditions';
+import { luckRank, isLuckArmed, bendLuckLeft, bendLuckBonus, bendLuckUses } from '../utils/luck';
 import { ammoKindForWeapon, countAmmo, spentTotal, listThrowables } from '../utils/ammoRecovery';
 import { LOAN_STATUS_LABEL } from '../utils/discoveries';
 import { ADSENSE_SLOTS, displayAdsEnabled } from '../utils/ads';
@@ -215,6 +216,7 @@ export default function PlayScreen({
   onSearchForSpentAmmo,
   onPickUpRocks,
   onCastTideMend,
+  onToggleBendLuck,
   onExecuteCounterAttack,
   onExportSaveFile,
   onOpenAccount,
@@ -2185,6 +2187,35 @@ export default function PlayScreen({
                 )}
               </div>
             )}
+
+            {/* Bend Luck (utils/luck.js): armed here, spent by the next roll. */}
+            {onToggleBendLuck && luckRank(character) > 0 && (() => {
+              const rank = luckRank(character);
+              const armed = isLuckArmed(character);
+              const left = bendLuckLeft(character);
+              const bonus = bendLuckBonus(rank);
+              const canArm = armed || left > 0;
+              return (
+                <button
+                  type="button"
+                  onClick={() => onToggleBendLuck()}
+                  disabled={isLoading || !canArm}
+                  title={armed
+                    ? 'Armed: your next skill check, attack or defence is rolled twice and the better kept. Press again to cancel.'
+                    : `Roll your next skill check, attack or defence twice${bonus ? ` (the second at +${bonus})` : ''} and keep the better. While dying, it holds the death countdown for one action instead.`}
+                  className={`flex items-center gap-1 px-2 py-1 rounded border text-2xs font-extrabold transition-all ${
+                    armed
+                      ? 'bg-emerald-900/50 border-emerald-500/60 text-emerald-300 animate-pulse cursor-pointer'
+                      : canArm
+                        ? 'bg-slate-900 border-emerald-800/50 text-emerald-400 hover:text-emerald-300 hover:border-emerald-600/60 cursor-pointer'
+                        : 'bg-slate-955 border-slate-900 text-slate-600 cursor-not-allowed'
+                  }`}
+                >
+                  <span>🍀 {armed ? 'Luck bent: next roll' : 'Bend Luck'}</span>
+                  <span className="font-medium">{armed ? '(cancel)' : `${left}/${bendLuckUses(rank)}${bonus ? `, +${bonus}` : ''}`}</span>
+                </button>
+              );
+            })()}
           </div>
 
             {/* Tactical Combat Maneuvers Panel */}

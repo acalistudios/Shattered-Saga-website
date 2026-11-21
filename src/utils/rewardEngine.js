@@ -172,7 +172,10 @@ export function applyRewardRestRecovery(character) {
       ...DEFAULT_PROGRESSION,
       ...(resetCharacter.progression || {}),
       temporarySkillPenalties: {},
-      activeItemEffects: []
+      activeItemEffects: [],
+      // Bend Luck recharges at rest (utils/luck.js).
+      bendLuckUsed: 0,
+      bendLuckArmed: false
     }
   };
 }

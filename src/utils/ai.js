@@ -120,12 +120,22 @@ export function executeOpposedCheck({
   difficulty,
   roleplayModifier = 0,
   resistanceModifier = 0,
-  potencyModifier = 0
+  potencyModifier = 0,
+  bendLuckBonus = null // a number when Bend Luck is spent on this check (utils/luck.js)
 }) {
   const primaryRoll = rollAttributePrimary(primaryScore);
   const secondaryRoll = rollAttributeSecondary(secondaryScore);
   const skillRoll = rollSkillRanks(skillRanks);
-  const playerTotal = primaryRoll + secondaryRoll + skillRoll + roleplayModifier + potencyModifier;
+  // Bend Luck: roll the dice again with its bonus and keep the better.
+  let luckGain = 0;
+  let luckNote = '';
+  if (bendLuckBonus !== null) {
+    const first = primaryRoll + secondaryRoll + skillRoll;
+    const second = rollAttributePrimary(primaryScore) + rollAttributeSecondary(secondaryScore) + rollSkillRanks(skillRanks) + bendLuckBonus;
+    luckGain = Math.max(0, second - first);
+    luckNote = ` Bend Luck: rerolled ${second - bendLuckBonus}${bendLuckBonus ? ` +${bendLuckBonus}` : ''} = ${second} against ${first}; kept ${Math.max(first, second)}.`;
+  }
+  const playerTotal = primaryRoll + secondaryRoll + skillRoll + luckGain + roleplayModifier + potencyModifier;
 
   const resistanceBase = rollResistance(difficulty);
   const resistanceTotal = resistanceBase + resistanceModifier;
@@ -151,7 +161,8 @@ export function executeOpposedCheck({
     margin,
     success,
     tie,
-    text: `[Check: ${skillName} vs ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)} Challenge. Player Roll: ${playerTotal} (${primaryAttr} ${primaryRoll} + ${secondaryAttr} ${secondaryRoll} + Skill ${skillRoll}${modifierText}${potencyText}), Resistance: ${resistanceTotal} (Base ${resistanceBase}${complexityText}). ${resultString} (${margin >= 0 ? '+' : ''}${margin} margin)]`
+    luckGain,
+    text: `[Check: ${skillName} vs ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)} Challenge. Player Roll: ${playerTotal} (${primaryAttr} ${primaryRoll} + ${secondaryAttr} ${secondaryRoll} + Skill ${skillRoll}${luckGain ? ` + Luck ${luckGain}` : ''}${modifierText}${potencyText}), Resistance: ${resistanceTotal} (Base ${resistanceBase}${complexityText}). ${resultString} (${margin >= 0 ? '+' : ''}${margin} margin).${luckNote}]`
   };
 }
 

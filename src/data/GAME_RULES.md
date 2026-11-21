@@ -105,6 +105,13 @@
 - Catastrophic Fumble (-8 or lower): Disastrous failure; the Game Master adds a mishap.
 - In combat the dice decide it: an attack that beats the defence by 8 or more is a critical hit and deals +3 damage. An attack that misses by 8 or more is a fumble and leaves you Off Balance (-2 to your dodges and blocks) until your next action. When you dodge, block or resist a foe by 8 or more, the foe has fumbled and you get a counter-attack for certain.
 
+### Bend Luck
+
+- With at least one rank of Luck, press Bend Luck (beside Skill Focus) before a roll. Your next skill check, attack or defence is rolled twice and the better result kept; the second roll gets +1 for every 2 ranks of Luck. Press it again before rolling to cancel and keep the use.
+- Uses recharge at rest. Luck 1: 1 use, no bonus. Luck 2: 1 use, +1. Luck 3: 2 uses, +1. Luck 4: 2 uses, +2. Luck 5: 3 uses, +2. Luck 6: 3 uses, +3.
+- An attack that strikes twice (two weapons, a short bow) bends only its first roll. Counter-attacks do not use it.
+- While you are dying, a bent use holds the death countdown for one action instead of helping a roll.
+
 ### Skills (primary + secondary attribute)
 
 - **Acrobatics** (Coordination + Vigor): Balance, dodging, tumbling.
@@ -129,7 +136,7 @@
 - **Leadership** (Charisma + Willpower): Rallying allies, maintaining morale.
 - **Lockpicking** (Coordination + Intellect): Picking locks, opening chests.
 - **Lore** (Intellect + Empathy): History, legends, planar knowledge.
-- **Luck** (Attunement + Willpower): Bending chance, escaping death.
+- **Luck** (Attunement + Willpower): Bending chance, escaping death. Each 2 ranks give another Bend Luck per rest (roll twice, keep the better).
 - **Marksmanship** (Coordination + Intellect): Aiming and shooting bows/crossbows.
 - **Negotiation** (Charisma + Empathy): Persuading, bartering, gaining trust.
 - **One-Handed Weapons** (Coordination + Power): Anything held in one hand: swords, axes, maces, daggers.
