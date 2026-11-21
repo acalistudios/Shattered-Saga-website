@@ -169,3 +169,43 @@ export function resolveCinderbreath({ level, enemy, blocked = false, shieldBlock
   const burns = !blocked && affinity !== 'immune';
   return { dice, raw, soak, net, burns, affinity, blocked, shieldBlock };
 }
+
+// --- Stone Mantle and Tide Mend: Earth and Water, resolved by the engine ----
+
+/** Stone Mantle lasts longer as the hero grows: 3 rounds, 4 from level 5, 5 from level 9. */
+export function stoneMantleRounds(level = 1) {
+  if (level >= 9) return 5;
+  if (level >= 5) return 4;
+  return 3;
+}
+
+/** Tide Mend heals 1d6+2, 2d6+2 from level 5, 3d6+2 from level 9. */
+export function tideMendDice(level = 1) {
+  if (level >= 9) return '3d6+2';
+  if (level >= 5) return '2d6+2';
+  return '1d6+2';
+}
+
+/** Bleeding tiers Tide Mend staunches: Tier 1 and 2 stop; worse wounds ease by 2. */
+export const TIDE_MEND_STAUNCH = 2;
+
+const DOUSED = /burn|poison|venom/i;
+
+/**
+ * Resolve Tide Mend (the Water power): cooling water heals, staunches up to
+ * two tiers of bleeding, and washes out burning and poison. Statuses are the
+ * player's stats.statuses ({name|id, duration}).
+ */
+export function resolveTideMend({ level = 1, hp = 0, maxHp = 10, bleedingTier = 0, statuses = [], roll = rollDiceExpression }) {
+  const dice = tideMendDice(level);
+  const healed = roll(dice);
+  const nextHp = Math.min(maxHp, hp + healed);
+  const nextBleed = Math.max(0, bleedingTier - TIDE_MEND_STAUNCH);
+  const cleansed = [];
+  const nextStatuses = (statuses || []).filter(s => {
+    const name = s.name || s.id || '';
+    if (DOUSED.test(name)) { cleansed.push(name); return false; }
+    return true;
+  });
+  return { dice, healed, hp: nextHp, bleedingTier: nextBleed, staunched: bleedingTier - nextBleed, statuses: nextStatuses, cleansed };
+}

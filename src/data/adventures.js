@@ -34,7 +34,7 @@ const BASE_ADVENTURES_LIST = [
       },
       earth: {
         name: 'Stone Mantle',
-        properties: 'Once between rests, as one action, turn skin to living stone for 3 rounds. Output [status: player stone_mantle 3] and [elemental_ability_used]; the engine adds +1d6 soak against physical blows, stacking with armour, while it lasts.'
+        properties: 'Once between rests, as one action, turn skin to living stone: +1d6 soak against physical blows, stacking with armour, for 3 rounds (4 from level 5, 5 from level 9). In combat the player uses the Stone Mantle button and the engine applies it; do not output a tag for it. If the player calls on it some other way, output [status: player stone_mantle 3] and [elemental_ability_used].'
       },
       air: {
         name: 'Gale Flash',
@@ -42,7 +42,7 @@ const BASE_ADVENTURES_LIST = [
       },
       water: {
         name: 'Tide Mend',
-        properties: 'Once between rests, as one action, draw cooling water through the body. Restore 1d6+2 HP, stop Bleeding Tier 1 or 2, or cleanse one poison/fatigue condition at GM discretion. Use [heal: X] for HP restored and output [elemental_ability_used].'
+        properties: 'Once between rests, as one action, draw cooling water through the body: heal 1d6+2 HP (2d6+2 from level 5, 3d6+2 from level 9), ease bleeding by 2 tiers (Tier 1 and 2 stop), and wash out burning and poison. The player uses the Tide Mend button, in or out of combat, and the engine applies all of it; do not output [heal:] or [elemental_ability_used] for it.'
       },
       aether: {
         name: 'Threadstep',

@@ -129,6 +129,7 @@ function App() {
     executeCombatManeuver,
     searchForSpentAmmo,
     pickUpRocks,
+    castTideMend,
     executeCounterAttack,
     unlockRegion,
     consumeItem,
@@ -1169,6 +1170,7 @@ function App() {
             onExecuteCombatManeuver={executeCombatManeuver}
             onSearchForSpentAmmo={searchForSpentAmmo}
             onPickUpRocks={pickUpRocks}
+            onCastTideMend={castTideMend}
             onExecuteCounterAttack={executeCounterAttack}
             audio={audio}
             nextRollModifier={nextRollModifier}

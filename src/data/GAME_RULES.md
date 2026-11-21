@@ -224,9 +224,9 @@
 
 - Each power can be used once between rests, and a camp with a ration recharges it.
 - Fire (Cinderbreath): a Cinderbreath button in combat. The cone of flame cannot be dodged, so it always hits; only a shield can block it (your Attunement + Power + Arcane Shaping against the foe’s block). It deals 2d6 fire damage (3d6 from level 5, 4d6 from level 9) past half the foe’s armour and sets it Burning for 2 rounds. A shield block takes the shield die off the damage and the flames do not take hold. Creatures of fire are unharmed; creatures of ice take half again as much.
-- Earth (Stone Mantle): ask the Game Master to use it; you gain Stone Mantle for 3 rounds (+1d6 soak against physical blows, stacking with armour).
+- Earth (Stone Mantle): a Stone Mantle button in combat. It takes your action and needs no roll: for 3 rounds (4 from level 5, 5 from level 9) you have +1d6 soak against physical blows, on top of your armour. It does not help against curses or terror.
 - Air (Gale Flash): ask the Game Master to use it; a foe that fails to resist is Blinded for 2 rounds.
-- Water (Tide Mend): ask the Game Master to use it; heal 1d6+2 HP and staunch bleeding.
+- Water (Tide Mend): a Tide Mend button, in combat or on your character panel outside it. It takes your action and needs no roll: heal 1d6+2 HP (2d6+2 from level 5, 3d6+2 from level 9), ease bleeding by 2 tiers (Tier 1 and 2 stop), and wash out burning and poison.
 - Aether (Threadstep): ask the Game Master to use it; step 15 yards along an aether thread, slip a restraint, or turn one failed check (not an attack) into a narrow success.
 
 ## 🏕️ Survival, Injury & Camping

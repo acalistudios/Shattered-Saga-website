@@ -7,7 +7,7 @@ import { merchantsAtLocation } from '../utils/adventureTrade';
 import { isMentalAttack } from '../utils/enemyDefense';
 import CombatStatsPanel from '../components/CombatStatsPanel';
 import ConditionChips from '../components/ConditionChips';
-import { cinderbreathDice } from '../utils/conditions';
+import { cinderbreathDice, stoneMantleRounds, tideMendDice } from '../utils/conditions';
 import { ammoKindForWeapon, countAmmo, spentTotal, listThrowables } from '../utils/ammoRecovery';
 import { LOAN_STATUS_LABEL } from '../utils/discoveries';
 import { ADSENSE_SLOTS, displayAdsEnabled } from '../utils/ads';
@@ -214,6 +214,7 @@ export default function PlayScreen({
   onExecuteCombatManeuver,
   onSearchForSpentAmmo,
   onPickUpRocks,
+  onCastTideMend,
   onExecuteCounterAttack,
   onExportSaveFile,
   onOpenAccount,
@@ -865,6 +866,16 @@ export default function PlayScreen({
                     <div className="text-3xs text-slate-400 leading-tight">
                       {ability.effect}
                     </div>
+                    {elemKey === 'water' && onCastTideMend && !activeEnemy && !isUsed && (
+                      <button
+                        type="button"
+                        onClick={() => onCastTideMend(settings.sandboxMode ? '' : settings.keys[activeGm.id], settings.sandboxMode)}
+                        disabled={isLoading}
+                        className="mt-1.5 w-full py-1 rounded bg-sky-950/30 hover:bg-sky-950/50 border border-sky-700/40 text-sky-400 hover:text-sky-300 text-3xs font-extrabold uppercase tracking-wider transition-all cursor-pointer"
+                      >
+                        🌊 Use Tide Mend
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -2319,24 +2330,34 @@ export default function PlayScreen({
                     );
                   })()}
 
-                  {(character.stats?.elementalAbility || '').toLowerCase() === 'fire' && (() => {
+                  {(() => {
+                    // The engine-run elemental powers (utils/conditions.js). Air
+                    // and Aether stay with the Game Master.
+                    const level = character.stats?.level || 1;
+                    const powers = {
+                      fire: { id: 'cinderbreath', label: '🔥 Cinderbreath', note: `${cinderbreathDice(level)} fire, can't be dodged, sets the foe Burning`, title: 'Cannot be dodged; only a shield can block it. The foe Burns for 2 rounds.', style: 'bg-orange-950/30 hover:bg-orange-950/50 border border-orange-700/40 text-orange-400 hover:text-orange-300', noteStyle: 'text-orange-500/70' },
+                      earth: { id: 'stone_mantle', label: '⛰️ Stone Mantle', note: `+1d6 soak against blows for ${stoneMantleRounds(level)} rounds`, title: 'Living stone: +1d6 soak against physical blows, on top of your armour. Uses your action.', style: 'bg-stone-900/40 hover:bg-stone-900/60 border border-stone-600/40 text-stone-300 hover:text-stone-200', noteStyle: 'text-stone-400/70' },
+                      water: { id: 'tide_mend', label: '🌊 Tide Mend', note: `heal ${tideMendDice(level)}, staunch bleeding, wash out burning and poison`, title: 'Heals, eases bleeding by 2 tiers, and puts out burning and poison. Uses your action.', style: 'bg-sky-950/30 hover:bg-sky-950/50 border border-sky-700/40 text-sky-400 hover:text-sky-300', noteStyle: 'text-sky-500/70' },
+                    };
+                    const power = powers[(character.stats?.elementalAbility || '').toLowerCase()];
+                    if (!power) return null;
                     const spent = Boolean(character.stats?.elementalAbilityUsed);
                     return (
                       <button
-                        key="cinderbreath"
+                        key={power.id}
                         type="button"
-                        onClick={() => onExecuteCombatManeuver('cinderbreath', settings.sandboxMode ? '' : settings.keys[activeGm.id], settings.sandboxMode)}
+                        onClick={() => onExecuteCombatManeuver(power.id, settings.sandboxMode ? '' : settings.keys[activeGm.id], settings.sandboxMode)}
                         disabled={isLoading || spent}
-                        title={spent ? 'Spent: rest to recharge' : 'Cannot be dodged; only a shield can block it. The foe Burns for 2 rounds.'}
+                        title={spent ? 'Spent: rest to recharge' : power.title}
                         className={`w-full mb-2.5 py-2 rounded text-2xs font-extrabold uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-0.5 ${
                           spent
                             ? 'bg-slate-955 text-slate-650 border border-slate-900 cursor-not-allowed'
-                            : 'bg-orange-950/30 hover:bg-orange-950/50 border border-orange-700/40 text-orange-400 hover:text-orange-300 cursor-pointer'
+                            : `${power.style} cursor-pointer`
                         }`}
                       >
-                        <span>🔥 Cinderbreath</span>
-                        <span className="text-[8px] font-sans font-medium text-orange-500/70 normal-case">
-                          {spent ? 'Spent: rest to recharge' : `${cinderbreathDice(character.stats?.level || 1)} fire, can't be dodged, sets the foe Burning | once per rest`}
+                        <span>{power.label}</span>
+                        <span className={`text-[8px] font-sans font-medium normal-case ${spent ? '' : power.noteStyle}`}>
+                          {spent ? 'Spent: rest to recharge' : `${power.note} | once per rest`}
                         </span>
                       </button>
                     );

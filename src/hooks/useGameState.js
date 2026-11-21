@@ -55,7 +55,7 @@ import { resolveThrow, isIncorporeal, SMOKE_ROUNDS } from '../utils/throwing';
 import { critBonus, isFumble, foeFumbled, CRIT_NOTE, FUMBLE_NOTE } from '../utils/criticals';
 import { getCoating, coatingDamage, getScroll, isThrowOnly, isMajorPotion, MAJOR_POTION } from '../utils/itemUses';
 import { forgeBlocker, forgePlateArmor, PLATE_RECIPE } from '../utils/forging';
-import { cannotAttack, conditionMods, conditionText, addCondition, normalizeCondition, tickEnemyConditions, resolveCinderbreath, CINDERBREATH_BURN_ROUNDS, CONDITIONS, MAX_GM_DURATION } from '../utils/conditions';
+import { cannotAttack, conditionMods, conditionText, addCondition, normalizeCondition, tickEnemyConditions, resolveCinderbreath, CINDERBREATH_BURN_ROUNDS, CONDITIONS, MAX_GM_DURATION, resolveTideMend, stoneMantleRounds } from '../utils/conditions';
 import { claimSearchFind, applySearchFind, formatCoin, TREASURE_FINDS_PER_ADVENTURE } from '../data/payouts';
 import { merchantsAtLocation, buyFromMerchant, sellToMerchant, recordHaggle, haggleToday, merchantOffer, undoTrade } from '../utils/adventureTrade';
 import { recordDiscoveries, resolveLoanRemovals, returnLoan, settleLoansOnLeave, settleMissingLoans, getLoan } from '../utils/discoveries';
@@ -1320,7 +1320,8 @@ export default function useGameState() {
     difficulty = 'moderate', 
     spSpend = 0, 
     inventoryItemUsed = null,
-    engineTier = 'free'
+    engineTier = 'free',
+    elementalPower = null
   ) => {
     if (!activeGmId || isLoading) return;
 
@@ -1649,6 +1650,18 @@ export default function useGameState() {
           healingDetailsMsg = `\n\n[Item Used: Player ${logDetail} HP is now ${localHp}/${maxHp}. Arcane SP: ${arcaneSP}/${maxArcaneSP || 0}. Divine SP: ${divineSP}/${maxDivineSP || 0}. Bleeding Tier: ${bleedingTier}.]`;
         }
       }
+    }
+
+    // Tide Mend, the Water power (utils/conditions.js): resolved here with the
+    // healing items so the heal is part of this turn's HP, and like them it
+    // spares the turn's bleeding and condition ticks.
+    if (elementalPower === 'tide_mend') {
+      isHealingAction = true;
+      const mend = resolveTideMend({ level: character.stats.level || 1, hp: localHp, maxHp: character.stats.maxHp || 10, bleedingTier, statuses });
+      localHp = mend.hp;
+      bleedingTier = mend.bleedingTier;
+      statuses = mend.statuses;
+      healingDetailsMsg += `\n\n[Power Used: Tide Mend (Water elemental power, once between rests). Healing: ${mend.dice} (${mend.healed}). HP is now ${localHp}/${character.stats.maxHp || 10}.${mend.staunched ? ` Bleeding eased by ${mend.staunched} tier${mend.staunched === 1 ? '' : 's'}, now Tier ${bleedingTier}.` : ''}${mend.cleansed.length ? ` Washed away: ${mend.cleansed.join(', ')}.` : ''} The engine has applied this and marked the power spent; narrate the water, do not output [heal:] or [elemental_ability_used].]`;
     }
 
     // Reset defenseCount since the player is taking an active turn action
@@ -2238,7 +2251,8 @@ export default function useGameState() {
     // Append Notices to player action text for GM/Display
     const displayTime = formatTime(timeResult.nextDay, timeResult.nextHour);
     const timeDeltaMins = Math.round(timeDelta * 60);
-    const deferActionCosts = canDeferNarrationCosts(finalSkillFocusId, activeEnemy, character.stats);
+    // A spent elemental power is booked at once, so its effect is too.
+    const deferActionCosts = !elementalPower && canDeferNarrationCosts(finalSkillFocusId, activeEnemy, character.stats);
     finalActionText += `\n\n[Notice: ${deferActionCosts ? 'Pending narration acceptance' : 'Time passed'}: ${timeDeltaMins} mins. ${deferActionCosts ? 'Resulting' : 'Current'} time: ${displayTime}. Fatigue: ${localFatigue.toFixed(1)}/${maxFatigue.toFixed(1)}]`;
     
     if (localFatigue < 0) {
@@ -2299,6 +2313,7 @@ export default function useGameState() {
         defenseCount,
         deathCountdown,
         statuses: activeStatuses,
+        ...(elementalPower ? { elementalAbilityUsed: true } : {}),
         ...(spentShot ? { spentAmmo: recordSpent(prev.stats?.spentAmmo, spentShot.name, spentShot.kind, spentShot.hit) } : {})
       }
     }));
@@ -5242,6 +5257,13 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     return result;
   };
 
+  /** Tide Mend outside a fight (in combat it is a maneuver). Once between rests. */
+  const castTideMend = (apiKey, sandbox) => {
+    if (activeEnemy || isLoading) return;
+    if ((character.stats?.elementalAbility || '').toLowerCase() !== 'water' || character.stats?.elementalAbilityUsed) return;
+    return sendPlayerAction('I draw cooling water through my body with Tide Mend.', apiKey, sandbox, null, 'moderate', 0, null, 'free', 'tide_mend');
+  };
+
   /** Pick up rocks to throw, up to MAX_ROCKS, outside a fight. Free. */
   const pickUpRocks = () => {
     if (activeEnemy || isLoading) return 0;
@@ -6306,6 +6328,8 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     let ammoKind = 'arrow';
     let thrownItem = null; // { name, hit } the weapon thrown this action
     let fumbled = false; // an attack this action missed by 8+ (utils/criticals.js)
+    let stoneMantle = 0; // rounds of Stone Mantle the Earth power grants this action
+    let elementalPower = null; // 'tide_mend': resolved inside sendPlayerAction
     const bladeCoating = character.stats?.bladeCoating || null; // venom / ember oil
     let coatingLeft = bladeCoating?.hits || 0;
     let consumesArcaneSp = false;
@@ -6703,6 +6727,22 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         ? `Casting Roll: ${totalRoll} (Attunement: ${attr1Roll}, Power: ${attr2Roll}, Arcane Shaping: ${skillRoll}${penStr}) vs Shield Block: ${enemyDef.roll}. ${blocked ? `Caught on the shield! Shield: 1d${enemyDef.blockDie} (${shieldBlock}); the flames do not take hold.` : 'The flames roar past the shield. Hit!'}`
         : 'A cone of flame cannot be dodged and the foe has no shield. Hit!';
       systemNotice = `[Combat Action: Cinderbreath (Fire elemental power, once between rests) vs ${activeEnemy.name}. ${contestStr} Fire Damage: ${fire.dice} (${fire.raw}), armour soak halved to ${fire.soak}.${affinityStr} Net Damage: ${fire.net}. Enemy HP is now ${nextHp}/${activeEnemy.maxHp}.${fire.burns ? ` ${activeEnemy.name} is set alight: Burning for ${CINDERBREATH_BURN_ROUNDS} rounds, 1d4 each round that armour does not stop.` : ''}${canBlock && enemyDef.notes.length ? ` Block notes: ${enemyDef.notes.join('; ')}.` : ''} The engine has resolved the power and marked it spent; narrate the flames, do not roll damage or output [elemental_ability_used].]${nextHp === 0 ? ' [combat_end]' : ''}`;
+    } else if (maneuverType === 'stone_mantle') {
+      // The Earth power: no roll, it simply takes hold. The mantle is added
+      // after sendPlayerAction ticks this turn's conditions, so it covers the
+      // foe's reply and the rounds after it.
+      if ((character.stats?.elementalAbility || '').toLowerCase() !== 'earth' || character.stats?.elementalAbilityUsed) return;
+      const rounds = stoneMantleRounds(character.stats?.level || 1);
+      stoneMantle = rounds;
+      actionDesc = 'I call on Stone Mantle, and my skin hardens into living stone!';
+      systemNotice = `[Combat Action: Stone Mantle (Earth elemental power, once between rests). For ${rounds} rounds the player has +1d6 soak against physical blows, stacking with armour (not against curses or terror). The engine has applied it and marked the power spent; narrate it, do not output [status:] or [elemental_ability_used]. ${activeEnemy.name} acts as normal.]`;
+      recordDiceRoll({ type: 'combat_stance', title: 'Stone Mantle', subtitle: `+1d6 soak for ${rounds} rounds`, maneuverType, detailsText: systemNotice });
+    } else if (maneuverType === 'tide_mend') {
+      // The Water power: resolved in sendPlayerAction with the healing items.
+      if ((character.stats?.elementalAbility || '').toLowerCase() !== 'water' || character.stats?.elementalAbilityUsed) return;
+      elementalPower = 'tide_mend';
+      actionDesc = 'I draw cooling water through my body with Tide Mend!';
+      systemNotice = `[Combat Action: Tide Mend (Water elemental power), the player's action this round; see the Power Used line for the healing. ${activeEnemy.name} acts as normal.]`;
     }
 
     // Spells take the same hunger, exhaustion and condition penalties as weapons.
@@ -6746,7 +6786,21 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     // maneuver's own costs are applied after that call, or they would be
     // overwritten: arrows were never used up and spells cost no SP.
     const finalPayload = `${tickNotice}${systemNotice} ${actionDesc}`;
-    const sending = sendPlayerAction(finalPayload, apiKey, sandbox);
+    const sending = elementalPower
+      ? sendPlayerAction(finalPayload, apiKey, sandbox, null, 'moderate', 0, null, 'free', elementalPower)
+      : sendPlayerAction(finalPayload, apiKey, sandbox);
+
+    // Stone Mantle takes hold after this turn's tick (utils/conditions.js).
+    if (stoneMantle) {
+      setCharacter(prev => ({
+        ...prev,
+        stats: {
+          ...prev.stats,
+          elementalAbilityUsed: true,
+          statuses: addCondition(prev.stats?.statuses || [], 'stone_mantle', stoneMantle).map(s => ({ ...s, name: s.name || s.id })),
+        },
+      }));
+    }
 
     // What was thrown leaves the pack. Weapons, darts, rocks and the net are
     // picked up after the fight; flasks and smoke bombs are used up. Smoke in a
@@ -7133,6 +7187,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     executeCombatManeuver,
     searchForSpentAmmo,
     pickUpRocks,
+    castTideMend,
     forgePlateArmorAt,
     executeCounterAttack,
     unlockRegion,

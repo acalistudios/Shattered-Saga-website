@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CONDITIONS, normalizeCondition, conditionMods, addCondition, tickEnemyConditions,
   cinderbreathDice, resolveCinderbreath, fireAffinityOf, MAX_GM_DURATION,
+  stoneMantleRounds, tideMendDice, resolveTideMend,
 } from './conditions';
 import { getAttackPenalty } from './combatModifiers';
 import { rollEnemyDefense } from './enemyDefense';
@@ -104,5 +105,29 @@ describe('Cinderbreath', () => {
     expect(resolveCinderbreath({ level: 1, enemy: { name: 'Ember Maw' }, roll }).net).toBe(0);
     expect(resolveCinderbreath({ level: 1, enemy: { name: 'Ember Maw' }, roll }).burns).toBe(false);
     expect(resolveCinderbreath({ level: 1, enemy: { name: 'Frost Wolf', armorSoak: '1d3' }, roll }).net).toBe(10);
+  });
+});
+
+describe('Stone Mantle and Tide Mend', () => {
+  it('Stone Mantle lasts longer with level', () => {
+    expect(stoneMantleRounds(1)).toBe(3);
+    expect(stoneMantleRounds(5)).toBe(4);
+    expect(stoneMantleRounds(9)).toBe(5);
+    expect(conditionMods(addCondition([], 'stone_mantle', stoneMantleRounds(5))).soak).toContain('1d6');
+  });
+
+  it('Tide Mend heals, staunches two tiers, and washes out burning and poison', () => {
+    expect(tideMendDice(1)).toBe('1d6+2');
+    expect(tideMendDice(5)).toBe('2d6+2');
+    expect(tideMendDice(9)).toBe('3d6+2');
+    const r = resolveTideMend({
+      level: 1, hp: 3, maxHp: 12, bleedingTier: 3,
+      statuses: [{ name: 'burning', duration: 2 }, { name: 'poisoned', duration: 3 }, { name: 'stunned', duration: 1 }],
+      roll: () => 6,
+    });
+    expect(r).toMatchObject({ healed: 6, hp: 9, bleedingTier: 1, staunched: 2 });
+    expect(r.cleansed).toEqual(['burning', 'poisoned']);
+    expect(r.statuses.map(s => s.name)).toEqual(['stunned']);
+    expect(resolveTideMend({ hp: 10, maxHp: 12, bleedingTier: 1, roll: () => 8 })).toMatchObject({ hp: 12, bleedingTier: 0, staunched: 1 });
   });
 });
