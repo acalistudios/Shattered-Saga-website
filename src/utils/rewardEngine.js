@@ -175,7 +175,9 @@ export function applyRewardRestRecovery(character) {
       activeItemEffects: [],
       // Bend Luck recharges at rest (utils/luck.js).
       bendLuckUsed: 0,
-      bendLuckArmed: false
+      bendLuckArmed: false,
+      // Counts ration rests (first one shows the first-camp painting).
+      restsTaken: (resetCharacter.progression?.restsTaken || 0) + 1
     }
   };
 }

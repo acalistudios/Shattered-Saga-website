@@ -74,6 +74,7 @@ import { luckRank, bendLuckBonus, isLuckArmed, bendRoll, armBendLuck, spendArmed
 import { getCompanionById, getCompanionForSkill } from '../data/companions';
 import { applyCompanionCampfireDuty } from '../data/campfireInterludes';
 import { getKeystoneStatModifiers } from '../data/keystoneShards';
+import { detectArtMoments, markArtSeen } from '../utils/artMoments';
 
 function addCopperToCurrency(currency = {}, amountCp = 0) {
   const currentCp = (currency.gp || currency.gold || 0) * 100 + (currency.sp || 0) * 10 + (currency.cp || 0);
@@ -680,6 +681,30 @@ export default function useGameState() {
       storage.set(`slot_${activeSlotIndex}_history`, history);
     }
   }, [history, activeSlotIndex, character?.name]);
+
+  // Standard artwork moments (utils/artMoments.js): fixed paintings shown once
+  // per character, attached to the latest narration. The adventure's opening
+  // narration only sets the scene, so NPCs it names are not "met" yet.
+  useEffect(() => {
+    if (!character?.name || history.length === 0) return;
+    const lastIndex = history.length - 1;
+    const last = history[lastIndex];
+    if (last?.role !== 'model') return;
+    const due = detectArtMoments({
+      character,
+      adventureId: activeAdventureId,
+      narration: lastIndex === 0 ? '' : String(last.content || '')
+    }).slice(0, 3);
+    if (due.length === 0) return;
+    setHistory(prev => {
+      const i = prev.length - 1;
+      if (i < 0 || prev[i] !== last) return prev;
+      const next = [...prev];
+      next[i] = { ...last, momentImages: [...(last.momentImages || []), ...due] };
+      return next;
+    });
+    setCharacter(prev => ({ ...prev, progression: markArtSeen(prev.progression, due) }));
+  }, [character, history, activeAdventureId]);
 
   useEffect(() => {
     if (character && character.name) {

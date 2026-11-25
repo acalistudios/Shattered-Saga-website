@@ -1763,6 +1763,20 @@ export default function PlayScreen({
                       
                       {renderMessageContent(turn.content, narrationDestinations)}
 
+                      {(turn.momentImages || []).map(moment => (
+                        <figure key={moment.key} className="mt-4 rounded-lg overflow-hidden border border-amber-900/40 bg-slate-950 shadow-md">
+                          <img
+                            src={moment.src}
+                            alt={moment.caption}
+                            className="w-full h-auto object-cover object-center"
+                            loading="lazy"
+                          />
+                          <figcaption className="bg-slate-900/60 p-2 text-4xs uppercase tracking-widest text-amber-200/80 text-center border-t border-slate-900">
+                            {moment.caption}
+                          </figcaption>
+                        </figure>
+                      ))}
+
                       {turn.imageUrl && (
                         <div className="mt-4 rounded-lg overflow-hidden border border-slate-800 bg-slate-950 shadow-md">
                           <img
