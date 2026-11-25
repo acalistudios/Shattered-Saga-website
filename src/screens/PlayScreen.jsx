@@ -4,6 +4,7 @@ import TradeModal from '../components/TradeModal';
 import GmPickerModal from '../components/GmPicker';
 import { describeGear, getDualWield, getDualWieldPenalty, FIGHTING_STYLES } from '../data/gearStats';
 import { merchantsAtLocation } from '../utils/adventureTrade';
+import { vendorPortraits } from '../utils/artMoments';
 import { isMentalAttack } from '../utils/enemyDefense';
 import CombatStatsPanel from '../components/CombatStatsPanel';
 import ConditionChips from '../components/ConditionChips';
@@ -548,6 +549,8 @@ export default function PlayScreen({
   const activeRoomImage = activeRoom ? activeAdventure?.settingImages?.[activeRoom] : null;
   // Merchants in this room can be traded with directly (utils/adventureTrade.js).
   const merchantsHere = activeAdventureId ? merchantsAtLocation(activeAdventureId, activeRoom) : [];
+  // Vendors' portraits stay visible for as long as the player is in their room.
+  const vendorsHere = activeAdventureId ? vendorPortraits(activeAdventureId, activeRoom) : [];
   const [isTradeOpen, setIsTradeOpen] = useState(false);
   const getSkillLabel = (skillId) => (
     SKILLS_LIST.find((skill) => skill.id === skillId)?.name || skillId.replace(/_/g, ' ')
@@ -2072,6 +2075,24 @@ export default function PlayScreen({
               );
             })()}
 
+            {vendorsHere.length > 0 && (
+              <div className="grid grid-cols-2 gap-2 mb-1">
+                {vendorsHere.map((v) => (
+                  <figure key={v.name} className="rounded border border-slate-850 bg-slate-900/35 overflow-hidden">
+                    <img
+                      src={v.src}
+                      alt={v.name}
+                      className="w-full aspect-[16/9] object-cover object-top"
+                      onError={(event) => { event.currentTarget.style.display = 'none'; }}
+                    />
+                    <figcaption className="px-2 py-1 text-3xs text-slate-300">
+                      <span className="font-bold text-amber-300">{v.name}</span>
+                      {v.role && <span className="text-slate-500"> · {v.role}</span>}
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+            )}
             {merchantsHere.length > 0 && onTrade && (
               <button
                 type="button"

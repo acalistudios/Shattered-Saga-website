@@ -683,17 +683,18 @@ export default function useGameState() {
   }, [history, activeSlotIndex, character?.name]);
 
   // Standard artwork moments (utils/artMoments.js): fixed paintings shown once
-  // per character, attached to the latest narration. The adventure's opening
-  // narration only sets the scene, so NPCs it names are not "met" yet.
+  // per character, attached to the latest narration. Story NPC portraits come
+  // from the room the player is in (tagged in data/adventures.js), never from
+  // what the GM happens to write.
   useEffect(() => {
     if (!character?.name || history.length === 0) return;
-    const lastIndex = history.length - 1;
-    const last = history[lastIndex];
+    const last = history[history.length - 1];
     if (last?.role !== 'model') return;
+    const adventure = ADVENTURES_LIST.find(a => a.id === activeAdventureId);
     const due = detectArtMoments({
       character,
       adventureId: activeAdventureId,
-      narration: lastIndex === 0 ? '' : String(last.content || '')
+      location: currentLocation || adventure?.settings?.[0] || ''
     }).slice(0, 3);
     if (due.length === 0) return;
     setHistory(prev => {
@@ -704,7 +705,7 @@ export default function useGameState() {
       return next;
     });
     setCharacter(prev => ({ ...prev, progression: markArtSeen(prev.progression, due) }));
-  }, [character, history, activeAdventureId]);
+  }, [character, history, activeAdventureId, currentLocation]);
 
   useEffect(() => {
     if (character && character.name) {

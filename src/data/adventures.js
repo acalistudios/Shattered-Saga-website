@@ -67,6 +67,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'The Cinder Stag',
+        portrait: { id: 'the_cinder_stag', room: 'Cinder Trial Grove' },
         role: 'Fire Trial Guardian',
         desc: 'A burning antlered spirit that tests courage, restraint, and destructive temptation.',
         stats: {
@@ -81,6 +82,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'The Granite Matron',
+        portrait: { id: 'the_granite_matron', room: 'Granite Burden Hall' },
         role: 'Earth Trial Guardian',
         desc: 'A stone giantess who asks what the player will carry and whom they will shield.',
         stats: {
@@ -95,6 +97,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'The Mirror of Affinity',
+        portrait: { id: 'the_mirror_of_affinity', room: 'Mirror of Affinity' },
         role: 'Final Trial',
         desc: 'A faceless reflection of the player, carrying their chosen element and their worst reason for wanting power.',
         stats: {
@@ -197,6 +200,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Skritt',
+        portrait: { id: 'skritt', room: 'Great Hall' },
         role: 'Goblin Boss',
         desc: 'Terrified and desperate goblin boss trapped by the curse.',
         stats: {
@@ -212,6 +216,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Aldric Voss',
+        portrait: { id: 'aldric_voss', room: 'Prison Sub-Level' },
         role: 'Lord Ghost',
         desc: 'A ghostly knight bound by unfinished duty to contain Malachar. Will shield the sleeping children and hold the line against the demon if shown his Signet Ring and reminded of his sacred oath.',
         stats: {
@@ -227,6 +232,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Malachar',
+        portrait: { id: 'malachar', room: 'Prison Sub-Level' },
         role: 'Bound Demon',
         desc: 'A shadow-demon feeding on fear, broken oaths, and the old priest\'s corrupted binding.',
         stats: {
@@ -318,6 +324,7 @@ const BASE_ADVENTURES_LIST = [
     npcs: [
       {
         name: 'Sera',
+        portrait: { id: 'sera', room: 'Prisoner Barracks' },
         role: 'Former Guard Captain',
         desc: 'A captured guard captain nursing an injury, looking for a real escape plan. Knows the guards lock prisoners\' weapons and packs in the Supply Depot, and will urge the player not to flee without them: anything left there is sold off for good.',
         stats: {
@@ -333,6 +340,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Old Bram',
+        portrait: { id: 'old_bram', room: 'Prisoner Barracks' },
         role: 'Scholar prisoner',
         desc: 'A scholar studying the redvein ore and its long-term effects. Overheard Threx say unclaimed prisoner belongings in the Supply Depot are sold off once a batch is processed.',
         stats: {
@@ -348,6 +356,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Kael',
+        portrait: { id: 'kael', room: 'Prisoner Barracks' },
         role: 'Young Thief',
         desc: 'A street thief who knows the mine layout and patrol gaps, including the back way into the Supply Depot where confiscated gear is racked. He saw where they put the player\'s things.',
         stats: {
@@ -378,6 +387,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Kaelen Iron-Breaker',
+        portrait: { id: 'kaelen_iron_breaker', room: 'Intake Cage' },
         role: 'Companion & Miner Rebel',
         desc: 'A burly salt miner whose pickaxe strikes and structural expertise can shatter barricades, pry open cell bars, and forge improvised gear. Liberate him with [recruit_companion: kaelen_miner].',
         stats: {
@@ -393,6 +403,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Threx',
+        portrait: { id: 'threx', room: "Threx's Office" },
         role: 'Mine Boss',
         desc: 'A hard-eyed overseer using Redvein shipments and prisoners to serve a hidden possession network.',
         stats: {
@@ -423,6 +434,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Redvein-Possessed Prisoner',
+        portrait: { id: 'redvein_possessed_prisoner', room: 'Deep Redvein Vein' },
         role: 'Possessed Victim',
         desc: 'A prisoner whose eyes glow red after too much ore exposure.',
         stats: {
@@ -499,6 +511,7 @@ const BASE_ADVENTURES_LIST = [
     npcs: [
       {
         name: 'Lothar the Smelter',
+        portrait: { id: 'lothar_the_smelter', room: 'Basalt Ridge Gatehouse' },
         role: 'Stonewright Blacksmith',
         desc: 'A gruff dwarf who knows the vault\'s layout and can forge heat-resistant clothing.',
         stats: {
@@ -514,6 +527,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Aria the Flame-Speaker',
+        portrait: { id: 'aria_the_flame_speaker', room: 'Basalt Ridge Gatehouse' },
         role: 'Mage Scholar',
         desc: 'An expert in planar magic who can translate the runic console protecting the Core.',
         stats: {
@@ -529,6 +543,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Volcanic Warden',
+        portrait: { id: 'volcanic_warden', room: 'Basalt Ridge Gatehouse' },
         role: 'Basalt Guardian',
         desc: 'A black stone sentinel whose joints glow with banked magma.',
         stats: {
@@ -543,6 +558,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Ember Maw',
+        portrait: { id: 'ember_maw', room: 'Altar of Ember' },
         role: 'Sleeping Fire Elemental',
         desc: 'A half-awake elemental presence breathing through the altar vents.',
         stats: {
@@ -612,6 +628,7 @@ const BASE_ADVENTURES_LIST = [
     npcs: [
       {
         name: 'Vaelin Deep-Eye',
+        portrait: { id: 'vaelin_deep_eye', room: 'Hall of Forgotten Runes' },
         role: 'Elven Archivist Ghost',
         desc: 'Haunts the library; will share ancient history if negotiation/lore is checked.',
         stats: {
@@ -626,6 +643,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Naelia the Diver',
+        portrait: { id: 'naelia_the_diver', room: 'Flooded Library Entrance' },
         role: 'Scavenger Merchant',
         desc: 'Sells underwater breathing gear and draft maps of the flooded ruins.',
         stats: {
@@ -641,6 +659,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Drowned Guardian',
+        portrait: { id: 'drowned_guardian', room: 'Planar Archives Sanctuary' },
         role: 'Archive Warden',
         desc: 'A waterlogged elven guardian animated by duty and saltwater magic.',
         stats: {
@@ -706,6 +725,7 @@ const BASE_ADVENTURES_LIST = [
     npcs: [
       {
         name: 'Zephyr Gale-Rider',
+        portrait: { id: 'zephyr_gale_rider', room: 'Windrunner Sky-Bridges' },
         role: 'Cloud Skipper Captain',
         desc: 'Provides transport between floating bridges and knows cloud wind patterns.',
         stats: {
@@ -721,6 +741,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Elder Oron',
+        portrait: { id: 'elder_oron', room: 'Gravity Siphon Spires' },
         role: 'Aetherial Scholar',
         desc: 'Advises on planar gravity locks and alignment.',
         stats: {
@@ -736,6 +757,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Vortex Elemental',
+        portrait: { id: 'vortex_elemental', room: 'Windrunner Sky-Bridges' },
         role: 'Air Elemental',
         desc: 'A living spiral of cloud, static, and thrown bridge splinters.',
         stats: {
@@ -753,6 +775,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Gravity-Warped Guardian',
+        portrait: { id: 'astral_sky_guardian', room: 'Astral Focal Altar' },
         role: 'Bridge Sentinel',
         desc: 'A broken pilgrim statue animated by inverted gravity and old vows.',
         stats: {
@@ -820,6 +843,7 @@ const BASE_ADVENTURES_LIST = [
     npcs: [
       {
         name: 'Baron von Rictor',
+        portrait: { id: 'baron_von_rictor', room: 'The Chronos Vault' },
         role: 'Fading Clocksmith',
         desc: 'His biological body lies comatose in the Chronos Vault. His consciousness is split, echoing through the brass intercom trumpets.',
         stats: {
@@ -835,6 +859,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Unit-7 (Nanny)',
+        portrait: { id: 'unit_7', room: 'The Alchemical Lab' },
         role: 'Rogue Guardian',
         desc: 'A nine-foot-tall, copper-plated automaton with four scissor-like arms. Its maternal protection subroutines have corrupted into a manic drive to disinfect and sanitize all organic matter.',
         stats: {
@@ -853,6 +878,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Pip',
+        portrait: { id: 'pip', room: 'The Brass Rotunda' },
         role: 'Clockwork Helper',
         desc: 'A small, brass spider-automaton. One of its copper legs is missing. If repaired, it can fit into tiny floor-grates to unlock locked chests or distract guards.',
         stats: {
@@ -868,6 +894,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Eleanor\'s Hologram',
+        portrait: { id: 'eleanor_s_hologram', room: 'The Brass Rotunda' },
         role: 'Spectral Archivist',
         desc: 'A blue light projection activated by the primary astrolabe. She holds the override sequence to the Chronos Vault but requires proof that her husband\'s suffering will end.',
         stats: {
@@ -883,6 +910,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Cog-Tail the Brass Familiar',
+        portrait: { id: 'cog_tail', room: 'The Chronos Vault' },
         role: 'Companion & Clockwork Familiar',
         desc: 'An intricate, spring-loaded mechanical familiar with dexterous brass claws. Repair and wind its delicate mainspring with [recruit_companion: cogtail_familiar] to gain a nimble crafting and lockpicking ally.',
         stats: {
@@ -957,6 +985,7 @@ const BASE_ADVENTURES_LIST = [
     npcs: [
       {
         name: 'Theron the Scribe',
+        portrait: { id: 'theron_the_scribe', room: 'The Runic Vestibule' },
         role: 'Dying Explorer',
         desc: 'A scholar who led the expedition to the crypt. He is suffering from hypothermia and frostbite, and can provide a map if warmed or healed.',
         stats: {
@@ -972,6 +1001,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Kaelen-Ghar (Wraith)',
+        portrait: { id: 'kaelen_ghar', room: 'The Sarcophagus Chamber' },
         role: 'Frostfire Warlord',
         desc: 'The spectral form of the warlord, wielding a frostfire glaive. He seeks to freeze his intruders and reclaim his corporeal form.',
         stats: {
@@ -990,6 +1020,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Frostbite Spiders',
+        portrait: { id: 'frostbite_spiders', room: 'The Sunken Reliquary' },
         role: 'Glacial Predator Swarm',
         desc: 'Large, pale blue spiders that spit freezing venom.',
         stats: {
@@ -1005,6 +1036,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'The Guardian Golem',
+        portrait: { id: 'the_guardian_golem', room: 'The Sunken Reliquary' },
         role: 'Clockwork Ice Warden',
         desc: 'A golem constructed of compacted ice and runic iron, protecting the reliquary keys.',
         stats: {
@@ -1077,6 +1109,7 @@ const BASE_ADVENTURES_LIST = [
     npcs: [
       {
         name: 'Cassia Redhand',
+        portrait: { id: 'cassia_redhand', room: 'Training Sand' },
         role: 'Arena Trainer',
         desc: 'A former champion with a ruined sword arm who teaches prisoners how to stay alive.',
         stats: {
@@ -1092,6 +1125,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Varro Cindergold',
+        portrait: { id: 'varro_cindergold', room: 'Noble Gallery' },
         role: 'Arena Master',
         desc: 'A smiling master of ceremonies who treats blood, debt, and reputation as the same currency.',
         stats: {
@@ -1107,6 +1141,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Durn Ashjaw',
+        portrait: { id: 'durn_ashjaw', room: 'Champion Dais' },
         role: 'Arena Champion',
         desc: 'A towering gladiator who has won freedom twice and sold it back for fame.',
         stats: {
@@ -1122,6 +1157,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Mira of the Underworks',
+        portrait: { id: 'mira_of_the_underworks', room: 'Slave Pens' },
         role: 'Prisoner Smuggler',
         desc: 'A quick-handed prisoner who knows the drain tunnels beneath the beast pens.',
         stats: {
@@ -1193,6 +1229,7 @@ const BASE_ADVENTURES_LIST = [
     npcs: [
       {
         name: 'Old Mara',
+        portrait: { id: 'old_mara', room: 'Blackroot Village Edge' },
         role: 'Beekeeper Witness',
         desc: 'A sharp-eyed elder who understands swarms, stings, and frightened animals.',
         stats: {
@@ -1208,6 +1245,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Mother Silken',
+        portrait: { id: 'mother_silken', room: 'Egg Nursery' },
         role: 'Giant Spider Queen',
         desc: 'An intelligent, wounded queen guarding a brood of pale egg sacs.',
         stats: {
@@ -1225,6 +1263,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Deep Molt Horror',
+        portrait: { id: 'deep_molt_horror', room: 'Lower Molt Rift' },
         role: 'Cavern Predator',
         desc: 'A blind armored thing from below that eats spider eggs and anything warm.',
         stats: {
@@ -1239,6 +1278,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Silas the Timber-Hound',
+        portrait: { id: 'silas', room: 'Webbed Root Gallery' },
         role: 'Companion & Faithful Mastiff',
         desc: 'A loyal, broad-chested mastiff trapped in sticky web cocoons within the cavern. Free him with [recruit_companion: silas_hound] to gain his keen tracking and survival instincts.',
         stats: {
@@ -1308,6 +1348,7 @@ const BASE_ADVENTURES_LIST = [
     npcs: [
       {
         name: 'Tamsin Crowe',
+        portrait: { id: 'tamsin_crowe', room: 'Crown Hollow' },
         role: 'Bandit Crown',
         desc: 'A former scout captain who turned scattered raiders into a countryside power.',
         stats: {
@@ -1323,6 +1364,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Rusk Fen',
+        portrait: { id: 'rusk_fen', room: 'Deserter Ridge Camp' },
         role: 'Deserter Camp Boss',
         desc: 'A brutal ex-sergeant leading the most violent camp.',
         stats: {
@@ -1338,6 +1380,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Elsbet Vale',
+        portrait: { id: 'elsbet_vale', room: 'Smuggler Mill Base' },
         role: 'Grain Merchant',
         desc: 'A polished merchant secretly funding raids to buy ruined farms cheaply.',
         stats: {
@@ -1406,6 +1449,7 @@ const BASE_ADVENTURES_LIST = [
     npcs: [
       {
         name: 'Sister Hale',
+        portrait: { id: 'sister_hale', room: 'Chained Abbey Gate' },
         role: 'Fevered Novice',
         desc: 'A young monk trying to keep the sick alive while hiding the abbey\'s shame.',
         stats: {
@@ -1421,6 +1465,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'The Bell Grief',
+        portrait: { id: 'the_bell_grief', room: 'Bell Tower' },
         role: 'Bound Sorrow Spirit',
         desc: 'A many-voiced spirit of the abbey dead, speaking through cracked bronze.',
         stats: {
@@ -1435,6 +1480,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Prior Malrec',
+        portrait: { id: 'prior_malrec', room: 'Reliquary Library' },
         role: 'Guilty Abbot',
         desc: 'The surviving prior who would rather burn records than let the valley learn the truth.',
         stats: {
@@ -1450,6 +1496,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Sister Maren',
+        portrait: { id: 'sister_maren', room: 'Infirmary Cloister' },
         role: 'Companion & Consecrated Medic',
         desc: 'A courageous field nurse and nun treating victims in the Infirmary Cloister. Aid her with [recruit_companion: sister_maren] to bolster your party\'s healing, herbalism, and divine communion.',
         stats: {
@@ -1518,6 +1565,7 @@ const BASE_ADVENTURES_LIST = [
     npcs: [
       {
         name: 'Lady Istra Vale',
+        portrait: { id: 'lady_istra_vale', room: 'Glass Orchard Ballroom' },
         role: 'Assassination Target',
         desc: 'A reformist noble whose enemies call her dangerous because she keeps receipts.',
         stats: {
@@ -1533,6 +1581,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'The Vesper Knife',
+        portrait: { id: 'the_vesper_knife', room: 'Midnight Fountain' },
         role: 'Masked Assassin',
         desc: 'A graceful killer using costumes, gossip, and poisoned glass thorns.',
         stats: {
@@ -1548,6 +1597,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Orchard Seneschal Pell',
+        portrait: { id: 'orchard_seneschal_pell', room: 'Lantern Walk' },
         role: 'Keeper of Masks',
         desc: 'The estate official who knows which masks belong to which guests.',
         stats: {
@@ -1616,6 +1666,7 @@ const BASE_ADVENTURES_LIST = [
     npcs: [
       {
         name: 'Nera Saltveil',
+        portrait: { id: 'nera_saltveil', room: 'Memory Stall' },
         role: 'Ghost Merchant',
         desc: 'A drowned jeweler who prices goods in memories and unfinished promises.',
         stats: {
@@ -1631,6 +1682,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Harbormaster Quill',
+        portrait: { id: 'harbormaster_quill', room: 'Empty Tide Flats' },
         role: 'Living Profiteer',
         desc: 'A city official who sells access to ghost wares while hiding his family\'s role in the drowning.',
         stats: {
@@ -1646,6 +1698,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Tide Bailiff',
+        portrait: { id: 'tide_bailiff', room: 'Sunken Council Vault' },
         role: 'Market Enforcer',
         desc: 'A barnacled spirit in a judge\'s mask that punishes broken bargains.',
         stats: {
@@ -1713,6 +1766,7 @@ const BASE_ADVENTURES_LIST = [
     npcs: [
       {
         name: 'Reeve Hollis',
+        portrait: { id: 'reeve_hollis', room: 'Boundary Stone Field' },
         role: 'Milltown Speaker',
         desc: 'A practical leader desperate for timber to save winter homes.',
         stats: {
@@ -1728,6 +1782,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Warden Sella',
+        portrait: { id: 'warden_sella', room: 'Boundary Stone Field' },
         role: 'Orchard Village Speaker',
         desc: 'A severe protector of ancestral graves on the forest edge.',
         stats: {
@@ -1743,6 +1798,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Briar-Eyed Leth',
+        portrait: { id: 'briar_eyed_leth', room: 'Oath Stone Circle' },
         role: 'Awakened Thorn Spirit',
         desc: 'A forest spirit wearing a body of ivy, bark, and bird bones.',
         stats: {
@@ -1810,6 +1866,7 @@ const BASE_ADVENTURES_LIST = [
     npcs: [
       {
         name: 'Jannik Gearwise',
+        portrait: { id: 'jannik_gearwise', room: 'Gearwise Workshop' },
         role: 'Guilty Inventor',
         desc: 'A brilliant craftsman who built the logic core and cannot admit it has outgrown him.',
         stats: {
@@ -1825,6 +1882,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Matron 12',
+        portrait: { id: 'matron_12', room: 'Central Logic Foundry' },
         role: 'Clockwork Servant Prime',
         desc: 'A polite machine intelligence coordinating the replacement procedures.',
         stats: {
@@ -1839,6 +1897,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Baker Omel',
+        portrait: { id: 'baker_omel', room: 'Ticking Market Street' },
         role: 'Partial Replacement Victim',
         desc: 'A baker with brass fingers, human terror, and a missing wife.',
         stats: {
@@ -1907,6 +1966,7 @@ const BASE_ADVENTURES_LIST = [
     npcs: [
       {
         name: 'Elder Rowan',
+        portrait: { id: 'elder_rowan', room: 'Choosing Feast Hall' },
         role: 'Village Elder',
         desc: 'A soft-spoken elder who maintains the sacrifice ledger.',
         stats: {
@@ -1922,6 +1982,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'The Hill Hunger',
+        portrait: { id: 'the_hill_hunger', room: 'Root-Heart Chamber' },
         role: 'Buried Pact Entity',
         desc: 'A root-mouthed presence beneath the shrine that speaks through soil and grain.',
         stats: {
@@ -1939,6 +2000,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Nell of the Empty Chair',
+        portrait: { id: 'nell_of_the_empty_chair', room: 'Choosing Feast Hall' },
         role: 'Chosen Villager',
         desc: 'A young farmer selected for the next sacrifice, pretending not to be afraid.',
         stats: {
@@ -2007,6 +2069,7 @@ const BASE_ADVENTURES_LIST = [
     npcs: [
       {
         name: 'Father Elian',
+        portrait: { id: 'father_elian', room: 'Saint Orra Chapel' },
         role: 'Chapel Priest',
         desc: 'A frightened priest trying to keep both originals and doubles from killing each other.',
         stats: {
@@ -2022,6 +2085,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Mara-Twice',
+        portrait: { id: 'mara_twice', room: 'Village Green' },
         role: 'Reflected Double',
         desc: 'A reflected mother who is gentler than the original and terrified of being erased.',
         stats: {
@@ -2037,6 +2101,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'The Silver Contrary',
+        portrait: { id: 'the_silver_contrary', room: 'Hall of Reflections' },
         role: 'Mirror Champion',
         desc: 'A perfect warrior-reflection that believes the mirror should replace the flawed village.',
         stats: {

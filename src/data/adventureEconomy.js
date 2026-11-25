@@ -21,6 +21,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
     merchants: [
       {
         name: 'Ilyra of the Fivefold Font',
+        portrait: 'ilyra_of_the_fivefold_font', // public/images/npcs/<adventure>/ilyra_of_the_fivefold_font.webp, shown in the room panel
         role: 'elemental shrine caretaker',
         location: 'Fivefold Gate',
         sells: [
@@ -49,6 +50,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
     merchants: [
       {
         name: 'Martha Greaves',
+        portrait: 'martha', // public/images/npcs/<adventure>/martha.webp, shown in the room panel
         role: 'village provisioner',
         location: 'Ashveil Village Square',
         sells: [
@@ -65,6 +67,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
       },
       {
         name: 'Vance Coalhand',
+        portrait: 'vance', // public/images/npcs/<adventure>/vance.webp, shown in the room panel
         role: 'blacksmith',
         location: 'Ashveil Village Square',
         sells: [
@@ -92,6 +95,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
     merchants: [
       {
         name: 'Mirra Fen',
+        portrait: 'mirra', // public/images/npcs/<adventure>/mirra.webp, shown in the room panel
         role: 'resistance healer',
         location: 'Prisoner Barracks',
         sells: [

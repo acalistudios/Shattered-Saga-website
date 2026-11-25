@@ -1,19 +1,36 @@
 // Fixed paintings shown once per character at standard story beats
-// (data/artMoments.js). Pure: given the character and the GM's latest
-// narration, returns the paintings due now. The caller attaches them to the
-// narration message and records their keys in progression.artSeen.
+// (data/artMoments.js). Pure: given the character and where they are,
+// returns the paintings due now. Nothing here reads the GM's narration.
+// The caller attaches them to the latest narration message and records their
+// keys in progression.artSeen.
 import manifest from '../data/artManifest.json';
 import {
-  NPC_PORTRAITS, npcPortraitPath, COMPANION_PORTRAITS, CAMPAIGN_MOMENTS, momentPath,
+  npcPortraitPath, COMPANION_PORTRAITS, CAMPAIGN_MOMENTS, momentPath,
   ADVENTURE_CLIMAX_ENDINGS, climaxPath, endingPath
 } from '../data/artMoments';
 import { getArmorType } from '../data/gearStats';
 import { getKeystoneCount } from '../data/keystoneShards';
+import { ADVENTURES_LIST } from '../data/adventures';
+import { merchantsAtLocation } from './adventureTrade';
 
 const PAINTED = new Set(manifest);
 
-const escapeRe = (s) => s.replace(/[.*+?^${}()[\]\\]/g, '\\$&');
-const mentions = (text, match) => match.split('|').some(m => new RegExp(`(^|[^A-Za-z])${escapeRe(m)}(?![A-Za-z])`).test(text));
+const norm = (s) => String(s || '').trim().toLowerCase();
+
+/** Story NPCs whose portrait is tagged to this room in data/adventures.js. */
+export function storyNpcsInRoom(adventureId, location) {
+  const here = norm(location);
+  if (!here) return [];
+  const adventure = ADVENTURES_LIST.find(a => a.id === adventureId);
+  return (adventure?.npcs || []).filter(n => n.portrait && norm(n.portrait.room) === here);
+}
+
+/** Painted portraits of the merchants standing in this room (room panel). */
+export function vendorPortraits(adventureId, location) {
+  return merchantsAtLocation(adventureId, location)
+    .filter(m => m.portrait && PAINTED.has(npcPortraitPath(adventureId, m.portrait)))
+    .map(m => ({ name: m.name, role: m.role, src: npcPortraitPath(adventureId, m.portrait) }));
+}
 
 // Campaign-wide moments whose condition holds for this character.
 function campaignMomentIds(character) {
@@ -35,7 +52,7 @@ function campaignMomentIds(character) {
  * @returns {{key:string, src:string, caption:string}[]} paintings to show now,
  *   in story order, skipping ones already seen or not yet painted.
  */
-export function detectArtMoments({ character, adventureId, narration = '' }) {
+export function detectArtMoments({ character, adventureId, location = '' }) {
   const seen = new Set(character?.progression?.artSeen || []);
   const due = [];
   const add = (key, src, caption) => {
@@ -43,12 +60,9 @@ export function detectArtMoments({ character, adventureId, narration = '' }) {
     due.push({ key, src, caption });
   };
 
-  // First mention of a named NPC in this adventure, in narration order.
-  const npcs = (NPC_PORTRAITS[adventureId] || [])
-    .filter(n => mentions(narration, n.match))
-    .map(n => ({ n, at: Math.min(...n.match.split('|').map(m => { const i = narration.indexOf(m); return i < 0 ? Infinity : i; })) }))
-    .sort((a, b) => a.at - b.at);
-  npcs.forEach(({ n }) => add(`npc:${adventureId}:${n.id}`, npcPortraitPath(adventureId, n.id), n.name));
+  // Story NPCs tagged to the room the player is in (first visit only).
+  storyNpcsInRoom(adventureId, location)
+    .forEach(n => add(`npc:${adventureId}:${n.portrait.id}`, npcPortraitPath(adventureId, n.portrait.id), n.name));
 
   (character?.companions || []).forEach(c => {
     const id = c?.id || c;
