@@ -110,6 +110,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
       },
       {
         name: 'Old Salk',
+        portrait: 'old_salk',
         role: 'mine scavenger',
         location: 'Supply Depot',
         sells: [
@@ -134,6 +135,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
     merchants: [
       {
         name: 'Hask of Basalt Ridge',
+        portrait: 'hask_of_basalt_ridge',
         role: 'volcanic prospector',
         location: 'Basalt Ridge Gatehouse',
         sells: [
@@ -157,6 +159,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
     merchants: [
       {
         name: 'Neris Tidehand',
+        portrait: 'neris_tidehand',
         role: 'salvage diver',
         location: 'Flooded Library Entrance',
         sells: [
@@ -182,6 +185,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
     merchants: [
       {
         name: 'Pell Windledger',
+        portrait: 'pell_windledger',
         role: 'sky-isle trader',
         location: 'Floating Leyline Isles',
         sells: [
@@ -210,6 +214,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
     merchants: [
       {
         name: 'Gearwise Noma',
+        portrait: 'gearwise_noma',
         role: 'clockwork tinkerer',
         location: 'The Alchemical Lab',
         sells: [
@@ -238,6 +243,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
     merchants: [
       {
         name: 'Theron Vell',
+        portrait: 'theron_vell',
         role: 'expedition quartermaster',
         location: 'The Runic Vestibule',
         sells: [
@@ -263,6 +269,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
     merchants: [
       {
         name: 'Savax the Locker-Keeper',
+        portrait: 'savax_the_locker_keeper',
         role: 'arena quartermaster',
         location: 'Training Sand',
         sells: [
@@ -281,6 +288,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
       },
       {
         name: 'Mirel Voss',
+        portrait: 'mirel_voss',
         role: 'noble broker',
         location: 'Noble Gallery',
         sells: [
@@ -303,6 +311,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
     merchants: [
       {
         name: 'Etta Bramble',
+        portrait: 'etta_bramble',
         role: 'village storekeeper',
         location: 'Blackroot Village Edge',
         sells: [
@@ -317,6 +326,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
       },
       {
         name: 'Mara Voss',
+        portrait: 'mara_voss',
         role: 'monster hunter',
         location: 'Abandoned Mine Mouth',
         sells: [
@@ -341,6 +351,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
     merchants: [
       {
         name: 'Jory Pike',
+        portrait: 'jory_pike',
         role: 'road peddler',
         location: 'Greywash Road',
         sells: [
@@ -357,6 +368,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
       },
       {
         name: 'Candle Nix',
+        portrait: 'candle_nix',
         role: 'smuggler fence',
         location: 'Smuggler Mill Base',
         sells: [
@@ -381,6 +393,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
     merchants: [
       {
         name: 'Sister Elowen',
+        portrait: 'sister_elowen',
         role: 'abbey infirmarian',
         location: 'Infirmary Cloister',
         sells: [
@@ -406,6 +419,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
     merchants: [
       {
         name: 'Velvet Min',
+        portrait: 'velvet_min',
         role: 'masked supplier',
         location: 'Servant Passage',
         sells: [
@@ -430,6 +444,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
     merchants: [
       {
         name: 'Mother-of-Pearl Jax',
+        portrait: 'mother_of_pearl_jax',
         role: 'ghost-market broker',
         location: 'Ghost Bazaar Aisles',
         sells: [
@@ -455,6 +470,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
     merchants: [
       {
         name: 'Alda Reed',
+        portrait: 'alda_reed',
         role: 'milltown quartermaster',
         location: 'Milltown Hall',
         sells: [
@@ -479,6 +495,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
     merchants: [
       {
         name: 'Nell Gearwise',
+        portrait: 'nell_gearwise',
         role: 'workshop factor',
         location: 'Gearwise Workshop',
         sells: [
@@ -493,6 +510,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
       },
       {
         name: 'Baker Pell',
+        portrait: 'baker_pell',
         role: 'care ward supplier',
         location: 'Converted Bakery',
         sells: [
@@ -516,6 +534,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
     merchants: [
       {
         name: 'Tarn Barley',
+        portrait: 'tarn_barley',
         role: 'harvest peddler',
         location: 'Golden Wheat Road',
         sells: [
@@ -540,6 +559,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
     merchants: [
       {
         name: 'Cale of the Vestry',
+        portrait: 'cale_of_the_vestry',
         role: 'chapel caretaker',
         location: 'Saint Orra Chapel',
         sells: [
@@ -551,6 +571,317 @@ export const ADVENTURE_ECONOMY_METADATA = {
         buys: ['documents', 'relics', 'jewelry', 'healing'],
         buyRate: 0.5,
         negotiationMaxAdjustment: 0.25,
+      },
+    ],
+  },
+
+  // Peoples (data/peoples.js). The goblin traders met on patrol, keyed by
+  // their patrol adventure id, and the goblin village found through them.
+  'patrol:goblin_traders': {
+    itemValues: {},
+    merchants: [
+      {
+        name: 'Nettle Snagtooth',
+        portrait: 'gutterstone_warren/nettle_snagtooth', // a goblin woman: she/her
+        role: 'goblin trader',
+        location: 'The Goblin Wagon Camp',
+        sells: [
+          sell('Rations (5)', 20, 4),
+          sell('Torch', 1, 8),
+          sell('Lockpicks', 220, 2),
+          sell('Rope (50 ft)', 80, 2),
+          sell('Healing Herbs', 22, 3),
+          sell('Throwing Knife', 22, 3),
+        ],
+        buys: ['provisions', 'tools', 'weapons', 'treasure', 'misc'],
+        buyRate: 0.5,
+        negotiationMaxAdjustment: 0.25,
+        notes: 'Trades with friends of Skritt. Loves shiny scrap and hates being cheated.',
+      },
+    ],
+  },
+  gutterstone_warren: {
+    itemValues: {},
+    merchants: [
+      {
+        name: 'Nettle Snagtooth',
+        portrait: 'gutterstone_warren/nettle_snagtooth', // a goblin woman: she/her
+        role: 'goblin trader',
+        location: 'Gutterstone Warren',
+        sells: [
+          sell('Rations (5)', 20, 6),
+          sell('Torch', 1, 12),
+          sell('Lockpicks', 200, 3),
+          sell('Rope (50 ft)', 80, 3),
+          sell('Healing Herbs', 20, 4),
+          sell('Throwing Knife', 22, 4),
+          sell('Short Bow', 180, 1),
+        ],
+        buys: ['provisions', 'tools', 'weapons', 'treasure', 'misc'],
+        buyRate: 0.5,
+        negotiationMaxAdjustment: 0.25,
+        notes: 'At home in the Warren her prices are kinder, and her stock is bigger.',
+      },
+      {
+        name: 'Tinker Skabble',
+        portrait: 'gutterstone_warren/tinker_skabble',
+        role: 'goblin scrap-smith',
+        location: 'Gutterstone Warren',
+        sells: [
+          sell('Dagger', 18, 3),
+          sell('Wooden Shield', 90, 2),
+          sell('Leather Helmet', 60, 1),
+          sell('Iron Ingot', 220, 1),
+        ],
+        buys: ['weapons', 'armor', 'tools', 'treasure'],
+        buyRate: 0.5,
+        negotiationMaxAdjustment: 0.25,
+        notes: 'Turns battlefield scrap into usable gear. Will buy any metal at all.',
+      },
+    ],
+  },
+  'patrol:dwarf_caravan': {
+    itemValues: {},
+    merchants: [
+      {
+        name: 'Hulda Ashbraid',
+        portrait: 'emberdeep_hold/hulda_ashbraid', // a dwarf woman: she/her
+        role: 'dwarf caravan master',
+        location: 'The Caravan Halt',
+        sells: [
+          sell('Iron Ingot', 220, 2),
+          sell('Steel Chainmail', 1250, 1),
+          sell('Iron Shield', 320, 1),
+          sell('Warhammer', 520, 1),
+          sell('Rations (5)', 25, 4),
+          sell('Torch', 1, 8),
+        ],
+        buys: ['weapons', 'armor', 'tools', 'jewelry', 'treasure'],
+        buyRate: 0.5,
+        negotiationMaxAdjustment: 0.25,
+        notes: 'Trades only with those the clans respect. Pays well for good metal and gems.',
+      },
+    ],
+  },
+  emberdeep_hold: {
+    itemValues: {},
+    merchants: [
+      {
+        name: 'Hulda Ashbraid',
+        portrait: 'emberdeep_hold/hulda_ashbraid', // a dwarf woman: she/her
+        role: 'dwarf caravan master',
+        location: 'Emberdeep Hold',
+        sells: [
+          sell('Iron Ingot', 200, 3),
+          sell('Steel Chainmail', 1200, 1),
+          sell('Iron Shield', 300, 2),
+          sell('Warhammer', 500, 1),
+          sell('Battle Axe', 550, 1),
+          sell('Rations (5)', 25, 6),
+        ],
+        buys: ['weapons', 'armor', 'tools', 'jewelry', 'treasure'],
+        buyRate: 0.5,
+        negotiationMaxAdjustment: 0.25,
+        notes: 'At home in the Hold her stock is deeper and her prices kinder.',
+      },
+      {
+        name: 'Runesmith Orrin Deepvein',
+        portrait: 'emberdeep_hold/orrin_deepvein',
+        role: 'young dwarf runesmith',
+        location: 'Emberdeep Hold',
+        sells: [
+          sell('Plate Helm', 300, 1),
+          sell('Plate Gauntlets', 250, 1),
+          sell('Plate Greaves', 350, 1),
+          sell('Steel Sabatons', 250, 1),
+          sell('Longsword', 200, 1),
+        ],
+        buys: ['weapons', 'armor', 'relics', 'tools'],
+        buyRate: 0.5,
+        negotiationMaxAdjustment: 0.25,
+        notes: 'Forges plate pieces in the old way. Will buy any relic with runes on it.',
+      },
+    ],
+  },
+  'patrol:elf_wayfarers': {
+    itemValues: {},
+    merchants: [
+      {
+        name: 'Ithiel Moonwake',
+        portrait: 'silverlight_refuge/ithiel_moonwake', // a living elf woman: she/her
+        role: 'living elf scholar',
+        location: 'The Lantern Causeway',
+        sells: [
+          sell('Common Scroll', 320, 2),
+          sell('Rations (5)', 25, 3),
+          sell('Healing Herbs', 22, 3),
+          sell('Holy Water', 110, 1),
+        ],
+        buys: ['lore', 'documents', 'relics', 'healing', 'jewelry'],
+        buyRate: 0.5,
+        negotiationMaxAdjustment: 0.25,
+        notes: 'Trades scrolls and old knowledge with those who honour the elven dead.',
+      },
+    ],
+  },
+  silverlight_refuge: {
+    itemValues: {},
+    merchants: [
+      {
+        name: 'Ithiel Moonwake',
+        portrait: 'silverlight_refuge/ithiel_moonwake', // a living elf woman: she/her
+        role: 'living elf scholar',
+        location: 'Silverlight Refuge',
+        sells: [
+          sell('Common Scroll', 300, 3),
+          sell('Rare Scroll', 1000, 1),
+          sell('Rations (5)', 25, 4),
+          sell('Healing Herbs', 20, 4),
+          sell('Holy Water', 100, 2),
+        ],
+        buys: ['lore', 'documents', 'relics', 'healing', 'jewelry'],
+        buyRate: 0.5,
+        negotiationMaxAdjustment: 0.25,
+        notes: 'At home in the Refuge she keeps her rarest scrolls.',
+      },
+      {
+        name: 'Lorekeeper Aerandir',
+        portrait: 'silverlight_refuge/lorekeeper_aerandir', // an elven ghost: he/him
+        role: 'elven ghost archivist',
+        location: 'Silverlight Refuge',
+        sells: [
+          sell('Common Scroll', 300, 2),
+          sell('Rare Scroll', 950, 2),
+          sell('Minor Potion or Elixir', 500, 1),
+        ],
+        buys: ['lore', 'documents', 'relics'],
+        buyRate: 0.5,
+        negotiationMaxAdjustment: 0.25,
+        notes: 'A ghost who still keeps the catalogue. Pays well for any page saved from the Sunken Spire.',
+      },
+    ],
+  },
+  'patrol:tidefolk_traders': {
+    itemValues: {},
+    merchants: [
+      {
+        name: 'Coral Venn',
+        portrait: 'pearlgate_grotto/coral_venn', // a young tide-folk man: he/him
+        role: 'tide-folk salvager',
+        location: 'The Reef Landing',
+        sells: [
+          sell('Rope (50 ft)', 90, 2),
+          sell('Waterskin', 15, 4),
+          sell('Rations (5)', 25, 4),
+          sell('Spear', 100, 1),
+          sell('Silver Ring', 220, 1),
+        ],
+        buys: ['treasure', 'jewelry', 'tools', 'weapons', 'misc'],
+        buyRate: 0.5,
+        negotiationMaxAdjustment: 0.25,
+        notes: 'Salvage from the deep, fairly priced for fair dealers.',
+      },
+    ],
+  },
+  pearlgate_grotto: {
+    itemValues: {},
+    merchants: [
+      {
+        name: 'Coral Venn',
+        portrait: 'pearlgate_grotto/coral_venn', // a young tide-folk man: he/him
+        role: 'tide-folk salvager',
+        location: 'Pearlgate Grotto',
+        sells: [
+          sell('Rope (50 ft)', 90, 3),
+          sell('Waterskin', 15, 6),
+          sell('Rations (5)', 22, 6),
+          sell('Spear', 95, 2),
+          sell('Javelin', 55, 4),
+          sell('Silver Ring', 200, 2),
+        ],
+        buys: ['treasure', 'jewelry', 'tools', 'weapons', 'misc'],
+        buyRate: 0.5,
+        negotiationMaxAdjustment: 0.25,
+        notes: 'His family stall in the Grotto has more than his boat ever could.',
+      },
+      {
+        name: 'Shellwright Amarra',
+        portrait: 'pearlgate_grotto/shellwright_amarra', // an elderly tide-folk woman: she/her
+        role: 'old tide-folk armourer',
+        location: 'Pearlgate Grotto',
+        sells: [
+          sell('Leather Armor', 300, 1),
+          sell('Spear', 100, 2),
+          sell('Javelin', 60, 4),
+          sell('Bandages (5)', 5, 6),
+          sell('Poultice', 50, 2),
+        ],
+        buys: ['armor', 'weapons', 'treasure', 'healing'],
+        buyRate: 0.5,
+        negotiationMaxAdjustment: 0.25,
+        notes: 'Makes shell-scale armour and harpoons. Buys pearls and anything from a wreck.',
+      },
+    ],
+  },
+  'patrol:skyfolk_skiff_traders': {
+    itemValues: {},
+    merchants: [
+      {
+        name: 'Talon Ashwing',
+        portrait: 'hightether_aerie/talon_ashwing', // a sky-folk man: he/him
+        role: 'sky-folk skiff trader',
+        location: 'The Mooring Post',
+        sells: [
+          sell('Arrows (20)', 10, 4),
+          sell('Short Bow', 260, 1),
+          sell('Rope (50 ft)', 95, 2),
+          sell('Rations (5)', 25, 3),
+          sell('Leather Gloves', 40, 1),
+        ],
+        buys: ['weapons', 'tools', 'treasure', 'jewelry', 'misc'],
+        buyRate: 0.5,
+        negotiationMaxAdjustment: 0.25,
+        notes: 'Trades with friends of the sky. Pays well for anything that floats.',
+      },
+    ],
+  },
+  hightether_aerie: {
+    itemValues: {},
+    merchants: [
+      {
+        name: 'Talon Ashwing',
+        portrait: 'hightether_aerie/talon_ashwing', // a sky-folk man: he/him
+        role: 'sky-folk skiff trader',
+        location: 'Hightether Aerie',
+        sells: [
+          sell('Arrows (20)', 9, 6),
+          sell('Short Bow', 240, 2),
+          sell('Rope (50 ft)', 90, 3),
+          sell('Rations (5)', 24, 5),
+          sell('Leather Gloves', 38, 2),
+          sell('Leather Boots', 48, 2),
+        ],
+        buys: ['weapons', 'tools', 'treasure', 'jewelry', 'misc'],
+        buyRate: 0.5,
+        negotiationMaxAdjustment: 0.25,
+        notes: 'At home his prices are kinder and his stall is fuller.',
+      },
+      {
+        name: 'Bowyer Kree Windhollow',
+        portrait: 'hightether_aerie/kree_windhollow', // an elderly sky-folk woman: she/her
+        role: 'old sky-folk bowyer',
+        location: 'Hightether Aerie',
+        sells: [
+          sell('Longbow', 400, 1),
+          sell('Hunting Bow', 300, 1),
+          sell('Short Bow', 250, 2),
+          sell('Arrows (20)', 10, 8),
+          sell('Javelin', 60, 4),
+        ],
+        buys: ['weapons', 'tools', 'materials'],
+        buyRate: 0.5,
+        negotiationMaxAdjustment: 0.25,
+        notes: 'Has made bows for sixty years. Says she can tell an archer by their handshake.',
       },
     ],
   },

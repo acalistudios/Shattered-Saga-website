@@ -14,6 +14,7 @@
 import { describe, it } from 'vitest';
 import { writeFileSync } from 'node:fs';
 import { PATROL_FOES, scaleRoadThreat } from '../utils/patrolEngine';
+import { TRAVEL_ENCOUNTERS } from '../data/travelEncounters';
 import { enemyFrom, makeBuild, playerAt, winRate } from './simCore';
 
 const RUN = !!process.env.BALANCE;
@@ -41,6 +42,7 @@ describe.skipIf(!RUN)('road threat scaling', () => {
     for (const level of LEVELS) {
       const player = playerAt(level);
       for (const [id, foe] of threats) {
+        if (level < (TRAVEL_ENCOUNTERS.find((t) => t.id === id)?.minLevel || 1)) continue; // magic bandits start later
         const scaled = scaleRoadThreat(foe, level);
         const e = enemyFrom(scaled, id);
         const typical = TYPICAL.map((t) => winRate(makeBuild(...t, player), e, N));

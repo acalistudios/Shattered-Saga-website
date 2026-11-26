@@ -419,6 +419,7 @@ const BASE_ADVENTURES_LIST = [
       },
       {
         name: 'Saltblood Guard',
+        portrait: { id: 'saltblood_guard', room: 'Intake Cage' },
         role: 'Mine Guard',
         desc: 'A low-level armed guard paid to watch prisoners and ignore screams from below.',
         stats: {

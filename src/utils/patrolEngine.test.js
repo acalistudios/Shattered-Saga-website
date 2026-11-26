@@ -6,7 +6,7 @@ import {
   PATROL_HOURS, PATROL_FATIGUE, PATROL_FOES, canBeginPatrol, getPatrolAllowance, patrolCoinCapCp,
   selectPatrolChoices, getPatrolChoices, patrolEncounterIdOf, patrolLevelOf, scaleRoadThreat,
 } from './patrolEngine';
-import { TRAVEL_ENCOUNTERS } from '../data/travelEncounters';
+import { TRAVEL_ENCOUNTERS, getRandomTravelEncounter } from '../data/travelEncounters';
 import { SKILLS_LIST } from '../data/gms';
 
 describe('random patrol skill suggestions', () => {
@@ -282,5 +282,51 @@ describe('non-bankable patrol allowance', () => {
     expect(patrolCoinCapCp(1)).toBe(80);
     expect(patrolCoinCapCp(18)).toBe(860);
     expect(patrolCoinCapCp(5)).toBeGreaterThan(patrolCoinCapCp(1));
+  });
+});
+
+describe('road encounter paintings match the band you fight', () => {
+  const imageAt = (id, level) => buildPatrolAdventure(patrolIdFor(id, level)).settingImages['The Ambush Site'];
+  it('lone foe at level 1, a pair from level 3, plate knights from level 7', () => {
+    expect(imageAt('tollroad_crossbowmen', 1)).toBe('/images/encounters/tollroad_crossbowmen_lone.webp');
+    expect(imageAt('tollroad_crossbowmen', 4)).toBe('/images/encounters/tollroad_crossbowmen.webp');
+    expect(imageAt('inquisition_enforcers', 1)).toBe('/images/encounters/inquisition_enforcers_lone.webp');
+    expect(imageAt('inquisition_enforcers', 5)).toBe('/images/encounters/inquisition_enforcers.webp');
+    expect(imageAt('inquisition_enforcers', 8)).toBe('/images/encounters/inquisition_enforcers_plate.webp');
+    expect(imageAt('highway_bandit_ambush', 9)).toBe('/images/encounters/highway_bandit_ambush.webp');
+  });
+  it('every road encounter has its paintings', () => {
+    for (const e of TRAVEL_ENCOUNTERS) {
+      for (const level of [1, 4, 8, 10].filter(l => l >= (e.minLevel || 1))) {
+        const adv = buildPatrolAdventure(patrolIdFor(e.id, level));
+        expect(Object.values(adv.settingImages)[0], `${e.id} @${level}`).toBeTruthy();
+      }
+    }
+  });
+});
+
+describe('magic bandits', () => {
+  it('walk every region\'s roads, but only from their level', () => {
+    for (const region of ['region1', 'region2', 'region3', 'region4']) {
+      const at = (level) => new Set(Array.from({ length: 400 }, () => getRandomTravelEncounter(region, level).id));
+      expect(at(4).has('hedge_mage_brigands')).toBe(false);
+      expect(at(5).has('hedge_mage_brigands')).toBe(true);
+      expect(at(7).has('hooked_eye_cultists')).toBe(false);
+      expect(at(8).has('hooked_eye_cultists')).toBe(true);
+    }
+  });
+  it('field a fighter and a caster whose spell goes through armour', () => {
+    for (const [id, level] of [['hedge_mage_brigands', 5], ['hooked_eye_cultists', 8]]) {
+      const foe = scaleRoadThreat(PATROL_FOES[id], level);
+      expect(foe.attacksPerRound).toBe(2);
+      expect(foe.stats.attacks).toHaveLength(2);
+      expect(foe.stats.attacks[1].vs).toBe('Ward');
+    }
+    expect(scaleRoadThreat(PATROL_FOES.hooked_eye_cultists, 8).stats.attacks[1].damage).toBe('1d4 necrotic');
+  });
+  it('remember the road they were met on, for gear recovery', () => {
+    const c = beginPatrol(traveller(), 'hedge_mage_brigands', undefined, 'region3');
+    expect(c.progression.activePatrol.regionId).toBe('region3');
+    expect(beginPatrol(traveller(), 'highway_bandit_ambush').progression.activePatrol.regionId).toBe('region1');
   });
 });

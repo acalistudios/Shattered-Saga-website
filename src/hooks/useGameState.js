@@ -5,6 +5,7 @@ import { getArmorType, getShieldSoakDie, getShieldRollBonus, getDualWield, getDu
 import { calculateWeightAndVolume, getItemDetails, getEquippedDefenseGear } from '../utils/items';
 import { generateCompletion, executeOpposedCheck, rollDie, rollAttributePrimary, rollAttributeSecondary, rollSkillRanks } from '../utils/ai';
 import { ADVENTURES_LIST } from '../data/adventures';
+import { renameMerchantKeys } from '../utils/merchantRenames';
 import { getAdventureById } from '../data/adventureLookup';
 import { checkSafetyViolation, getGMStrikeWarning, getGMSternWarning, calculateLockoutExpiry, isGloballyBanned } from '../utils/safety';
 import { generateMerchantStock, TAVERNS, getTrainerConfig } from '../data/downtimeMerchants';
@@ -372,7 +373,8 @@ const renameLegacyItem = (item) => (typeof item === 'string' && LEGACY_ITEM_NAME
 
 export function validateCharacterSchema(raw) {
   if (!raw) return DEFAULT_CHARACTER;
-  
+  if (raw.localEconomy) raw = { ...raw, localEconomy: renameMerchantKeys(raw.localEconomy) };
+
   const skills = { ...DEFAULT_CHARACTER.skills };
   if (raw.skills) {
     for (const key in raw.skills) {
@@ -2530,8 +2532,9 @@ This session is in a peaceful, roleplay-centric "Free Roam" mode.
     if (activeAdventure?.isPatrol) {
       const hunted = character.progression?.pendingGearRecovery?.patrolEncounterId === activeAdventure.patrolEncounterId;
       systemPrompt += `\n\n[MODE: ROAD PATROL]
-This is a short roadside ambush on a patrol between adventures, not an adventure. One scene, resolved in about six exchanges. Run it like any adventure encounter: the player decides what to do, you call for checks, and enemy strikes go through [enemy_attack]. The engine tracks ${activeAdventure.npcs[0].name} in combat; treat the rest of the band as narrative (they break when their leader falls or yields).
-The engine selected these three suggested approaches for this patrol (not exclusive actions):
+This is a short roadside ${activeAdventure.patrolPeaceful ? 'meeting' : 'ambush'} on a patrol between adventures, not an adventure. One scene, resolved in about six exchanges. Run it like any adventure encounter: the player decides what to do, you call for checks, and enemy strikes go through [enemy_attack]. The engine tracks ${activeAdventure.npcs[0].name} in combat; treat the rest of the band as narrative (they break when their leader falls or yields).
+${activeAdventure.patrolGmNote ? `${activeAdventure.patrolGmNote}
+` : ''}The engine selected these three suggested approaches for this patrol (not exclusive actions):
 ${getPatrolChoices(character).map(c => `- ${c.text} [${c.skill}, ${c.difficulty}]`).join('\n')}
 Respect the engine's supplied check result when the player uses a suggestion; do not substitute a different skill or reroll. Freeform actions remain available.
 ${hunted ? `This is the band that killed the player on this road and took their gear. ${activeAdventure.npcs[0].name} has it. Make that recognisable, but do not hand it over: the engine returns it if the player wins.\n` : ''}End the patrol by emitting exactly one of these, once, when it is truly over:
@@ -4021,7 +4024,11 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         completed_quests: nextCompletedQuests,
         completed_adventures: nextCompletedAdventures,
         skillPoints: (prev.skillPoints || 0) + (isFirstCompletion ? skillPointsAwarded : 0),
-        progression: nextProgression,
+        // Companions part ways here; remember who they were (data/peoples.js:
+        // e.g. the goblin clans know Skritt travelled with you).
+        progression: currentCompanions.length > 0
+          ? { ...nextProgression, partedCompanions: [...new Set([...(nextProgression.partedCompanions || []), ...currentCompanions.map(c => c?.id || c)])] }
+          : nextProgression,
         availableTrainings: nextTrainingSlots,
         trainingSlots: nextTrainingSlots,
         storyEvents: nextEvents,
@@ -4147,7 +4154,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
    * an adventure start nothing is refilled, re-equipped or backed up; the
    * fatigue cost is paid now and the rest when it ends (utils/patrolEngine.js).
    */
-  const startPatrol = (encounterId) => {
+  const startPatrol = (encounterId, regionId = null) => {
     if (activeAdventureId || !canBeginPatrol(character)) return false;
     const patrolId = patrolIdFor(encounterId, character.stats?.level || 1);
     const adventure = getAdventureById(patrolId);
@@ -4156,7 +4163,7 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
 
     // Draw once in the event, not in an updater React may replay.
     const choices = selectPatrolChoices(encounterId);
-    setCharacter(prev => beginPatrol(prev, encounterId, choices));
+    setCharacter(prev => beginPatrol(prev, encounterId, choices, regionId));
     setActiveAdventureId(patrolId);
     setActiveGmId(chosenGmId);
     setCurrentLocation(adventure.settings[0]);

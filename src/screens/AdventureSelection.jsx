@@ -169,9 +169,9 @@ export default function AdventureSelection({
     const targetRegion = mapLevel === 'world' ? selectedRegionId : mapLevel;
     // If a foe on this region's roads took your gear, the patrol finds them.
     const huntedId = pendingPatrolEncounterFor(character, targetRegion);
-    const encounter = (huntedId && TRAVEL_ENCOUNTERS.find(e => e.id === huntedId)) || getRandomTravelEncounter(targetRegion, character?.stats?.level || 1);
+    const encounter = (huntedId && TRAVEL_ENCOUNTERS.find(e => e.id === huntedId)) || getRandomTravelEncounter(targetRegion, character?.stats?.level || 1, character);
     // Played out on the play screen with the GM, like an adventure encounter.
-    if (encounter) onStartPatrol?.(encounter.id);
+    if (encounter) onStartPatrol?.(encounter.id, targetRegion);
   };
 
   const rollDie = (s) => Math.floor(Math.random() * s) + 1;

@@ -47,6 +47,10 @@ export function enemyFrom(npc, source) {
   const lower = armorText.toLowerCase();
   const soak = /heavy|1d6/.test(lower) ? '1d6' : /medium|1d4/.test(lower) ? '1d4' : '1d3';
   const style = enemyStyleFromNpc(npc);
+  // A caster's spell (second attack "vs Ward"): resisted with Willpower +
+  // Empathy (+ ward ranks), and armour does not soak it.
+  const spellAtk = (s.attacks || []).find((a, i) => i > 0 && /ward/i.test(a.vs || ''));
+  const spellDmg = spellAtk && String(spellAtk.damage || '1d4').match(/(\d*d\d+(?:\s*[+-]\s*\d+)?)/i);
   return {
     name: `${npc.name} (${source})`,
     hp: s.HP,
@@ -58,6 +62,10 @@ export function enemyFrom(npc, source) {
     style: style.style,
     shield: style.shield,
     attacksPerRound: npc.attacksPerRound || 1,
+    spell: spellAtk ? {
+      attack: () => primary(attrs.Attunement || 3) + secondary(attrs.Intellect || 2) + nd(ranks, 2),
+      damage: spellDmg ? spellDmg[1].replace(/\s/g, '') : '1d4',
+    } : null,
     roadThreat: (npc.attacksPerRound || 1) > 1 || !!npc.scaling,
   };
 }
@@ -180,6 +188,15 @@ export function fight(b, e, defence, CFG = DEFAULT_CFG) {
     // Enemy turn: each attack after the first in a round is -2 cumulative to defend.
     const reach = getWeaponType(b.strikes[0].item)?.reach || 0;
     for (let a = 0; a < e.attacksPerRound; a++) {
+      // The caster's attack is the round's last: Resist (Willpower), no armour.
+      if (e.spell && a === e.attacksPerRound - 1) {
+        if (round % 2 === 0) continue; // drawing the sigil this round
+        const pr = primary(A.willpower || 2) + secondary(A.empathy || 2) + nd(b.player.wardRanks || 0, 2) - 2 * a;
+        const er = e.spell.attack();
+        if (pr < er) php -= Math.max(CFG.minHit, roll(e.spell.damage) + Math.floor((er - pr) / 3));
+        if (php <= 0) return { win: false, hp: 0 };
+        continue;
+      }
       const m = getMatchupModifiers(e.style, b.style, defence, defence === 'block' && !!b.shield);
       const situational = -2 * a + (a === 0 ? reach : 0);
       let pr;

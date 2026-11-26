@@ -25,11 +25,19 @@ export function storyNpcsInRoom(adventureId, location) {
   return (adventure?.npcs || []).filter(n => n.portrait && norm(n.portrait.room) === here);
 }
 
+/**
+ * A merchant's portrait. Most live under their adventure; a portrait given as
+ * "folder/id" (e.g. "gutterstone_warren/nettle_snagtooth") lives in that
+ * folder, for people met in more than one place.
+ */
+export const merchantPortraitPath = (adventureId, portrait) =>
+  String(portrait).includes('/') ? `/images/npcs/${portrait}.webp` : npcPortraitPath(adventureId, portrait);
+
 /** Painted portraits of the merchants standing in this room (room panel). */
 export function vendorPortraits(adventureId, location) {
   return merchantsAtLocation(adventureId, location)
-    .filter(m => m.portrait && PAINTED.has(npcPortraitPath(adventureId, m.portrait)))
-    .map(m => ({ name: m.name, role: m.role, src: npcPortraitPath(adventureId, m.portrait) }));
+    .filter(m => m.portrait && PAINTED.has(merchantPortraitPath(adventureId, m.portrait)))
+    .map(m => ({ name: m.name, role: m.role, src: merchantPortraitPath(adventureId, m.portrait) }));
 }
 
 // Campaign-wide moments whose condition holds for this character.

@@ -16,6 +16,8 @@ import { getMapReadiness } from './mapReadiness';
 import { patrolCoinCapCp as nextAdventurePatrolCapCp, formatCoin } from '../data/payouts';
 import { isGearTrailCold } from './resurrectionEngine';
 import { SKILLS_LIST } from '../data/gms';
+import artManifest from '../data/artManifest.json';
+import { applyPeoplePatrolOutcome } from '../data/peoples';
 
 const ROAD_APPROACHES = [
   { skill: 'athletics', text: 'Reach defensible ground before the ambushers surround me', difficulty: 'professional' },
@@ -121,6 +123,26 @@ export const PATROL_FOES = {
   cinder_coast_corsairs: { name: 'Corsair Captain', type: 'human', stats: humanStats(18, 'Corsair Cutlass', '1d8 slashing') },
   astral_rift_void_stalkers: { name: 'Phase-Raider Captain', type: 'human', stats: humanStats(20, 'Phase Blade', '1d8 slashing') },
 
+  // Goblins (data/peoples.js): small, quick, lightly armed.
+  goblin_traders: { name: 'Nettle Snagtooth', type: 'goblin', stats: { ...humanStats(12, 'Hooked Knife', '1d4 edged'), attributes: { Power: 2, Coordination: 4, Vigor: 2, Willpower: 2, Intellect: 3, Charisma: 3, Attunement: 1, Empathy: 2 } } },
+  goblin_toll: { name: 'Rattle, Goblin Toll-Chief', type: 'goblin', stats: { ...humanStats(12, 'Short Spear', '1d6 piercing'), attributes: { Power: 2, Coordination: 4, Vigor: 2, Willpower: 2, Intellect: 2, Charisma: 2, Attunement: 1, Empathy: 1 } } },
+  goblin_raiders: { name: 'Gash Ironear, Goblin War-Boss', type: 'goblin', stats: { ...humanStats(16, 'Jagged Blade', '1d6 edged'), attributes: { Power: 3, Coordination: 4, Vigor: 3, Willpower: 3, Intellect: 2, Charisma: 2, Attunement: 1, Empathy: 1 } } },
+
+  // Dwarves (data/peoples.js): heavily armoured, slow to break.
+  dwarf_caravan: { name: 'Hulda Ashbraid', type: 'dwarf', stats: { ...humanStats(20, 'Forge Hammer', '1d8 blunt'), armor: 'Mail coat, medium armor soak 1d4', attributes: { Power: 4, Coordination: 2, Vigor: 4, Willpower: 3, Intellect: 3, Charisma: 3, Attunement: 1, Empathy: 2 } } },
+  dwarf_hold_patrol: { name: 'Warden Torvald Blackgrit', type: 'dwarf', stats: { ...humanStats(20, 'Bearded Axe', '1d6 edged'), armor: 'Heavy mail and round shield, medium armor soak 1d4', attributes: { Power: 4, Coordination: 2, Vigor: 4, Willpower: 3, Intellect: 2, Charisma: 2, Attunement: 1, Empathy: 1 } } },
+  dwarf_war_party: { name: 'Thane Ragna Coalfist', type: 'dwarf', stats: { ...humanStats(24, 'Great Hammer', '1d8 blunt'), armor: 'Blackened plate, heavy armor soak 1d6', attributes: { Power: 5, Coordination: 2, Vigor: 4, Willpower: 4, Intellect: 2, Charisma: 3, Attunement: 1, Empathy: 1 } } },
+
+  // Elves (data/peoples.js): a living scholar, or the elven dead.
+  elf_wayfarers: { name: 'Ithiel Moonwake', type: 'elf', stats: { ...humanStats(14, 'Moonsteel Knife', '1d4 edged'), attributes: { Power: 2, Coordination: 4, Vigor: 2, Willpower: 4, Intellect: 5, Charisma: 3, Attunement: 4, Empathy: 3 } } },
+  elf_ghost_procession: { name: 'The Mourning Herald', type: 'spirit', stats: { ...humanStats(16, 'Grave-Cold Touch', '1d4 + 1 Fatigue'), armor: 'Spectral: mundane blows strike at -2; Holy Water and blessed weapons strike fully, light armor soak 1d3', attributes: { Power: 2, Coordination: 3, Vigor: 3, Willpower: 5, Intellect: 3, Charisma: 3, Attunement: 4, Empathy: 2 } } },
+  elf_ghost_wardens: { name: 'Ser Calathir the Drowned Knight', type: 'spirit', stats: { ...humanStats(22, 'Spectral Longsword', '1d8 edged'), armor: 'Spectral: mundane blows strike at -2; Holy Water and blessed weapons strike fully, light armor soak 1d3', attributes: { Power: 4, Coordination: 4, Vigor: 3, Willpower: 5, Intellect: 3, Charisma: 3, Attunement: 4, Empathy: 1 } } },
+
+  // Tide-folk (data/peoples.js): quick in the water, nets and tridents.
+  tidefolk_traders: { name: 'Coral Venn', type: 'tidefolk', stats: { ...humanStats(14, 'Salvage Knife', '1d4 edged'), attributes: { Power: 3, Coordination: 4, Vigor: 3, Willpower: 2, Intellect: 3, Charisma: 4, Attunement: 2, Empathy: 2 } } },
+  tidefolk_reef_toll: { name: 'Warden Kailo Deepcurrent', type: 'tidefolk', stats: { ...humanStats(18, 'Coral Trident', '1d6 piercing'), armor: 'Shell scale, light armor soak 1d3', attributes: { Power: 3, Coordination: 4, Vigor: 3, Willpower: 3, Intellect: 2, Charisma: 2, Attunement: 2, Empathy: 1 } } },
+  tidefolk_raiders: { name: 'Skarra the Drowner', type: 'tidefolk', stats: { ...humanStats(20, 'Barbed Trident', '1d8 piercing'), armor: 'Shell scale, light armor soak 1d3', attributes: { Power: 3, Coordination: 5, Vigor: 3, Willpower: 3, Intellect: 2, Charisma: 2, Attunement: 2, Empathy: 1 } } },
+
   // Road threats (Hans 2026-11-18): several accurate, modest attacks a round,
   // so armour that soaks every hit beats dodging (src/sim playtest). These
   // stats are the level 2 shape; scaleRoadThreat() sizes them to the
@@ -181,6 +203,47 @@ export const PATROL_FOES = {
       equipment: ['Arming Sword', 'Iron Shield'],
     },
   },
+
+  // Sky-folk (data/peoples.js): light and quick, archers and javelins.
+  skyfolk_skiff_traders: { name: 'Talon Ashwing', type: 'skyfolk', stats: { ...humanStats(14, 'Sky-Knife', '1d4 edged'), attributes: { Power: 2, Coordination: 5, Vigor: 2, Willpower: 3, Intellect: 3, Charisma: 4, Attunement: 3, Empathy: 2 } } },
+  skyfolk_wind_wardens: { name: 'Warden Aeris Stormcrest', type: 'skyfolk', stats: { ...humanStats(16, 'Wind-Spear', '1d6 piercing'), attributes: { Power: 2, Coordination: 5, Vigor: 3, Willpower: 3, Intellect: 2, Charisma: 2, Attunement: 3, Empathy: 1 } } },
+  skyfolk_storm_raiders: { name: 'Storm-Captain Harrow', type: 'skyfolk', stats: { ...humanStats(18, 'Storm Javelins', '1d6 piercing'), attributes: { Power: 3, Coordination: 5, Vigor: 3, Willpower: 3, Intellect: 2, Charisma: 3, Attunement: 3, Empathy: 1 }, attacks: [{ name: 'Storm Javelin', skill: 'Thrown Weapons', damage: '1d6 piercing', note: 'Harrow throws; her gliding archers are narrative cover fire.' }] } },
+
+  // Magic bandits (Hans 2026-11-25): a fighter plus a caster. The caster's
+  // spell is the second attack; it goes "vs Ward" (Resist), so armour does
+  // not soak it. Gated by the encounter's minLevel, so always a pair.
+  hedge_mage_brigands: {
+    name: 'Brigand and Hedge-Mage', type: 'human', attacksPerRound: 2,
+    scaling: { maxAttackers: 2, hpPerAttacker: 6, dodge: 'Coordination d8 + Vigor d4', skillKey: 'OneHandedWeapons', damage: ['1d4 edged', '1d4+1 edged'], group: ['brigand', 'brigands'], spell: { damage: ['1d3 arcane', '1d3 arcane'] } },
+    stats: {
+      HP: 24,
+      attributes: { Power: 3, Coordination: 3, Vigor: 3, Willpower: 3, Intellect: 3, Charisma: 2, Attunement: 2, Empathy: 1 },
+      skills: { OneHandedWeapons: 2, ArcaneShaping: 3 },
+      defenses: { dodge: 'Coordination d8 + Vigor d4' },
+      armor: 'Patched leather, light armor soak 1d3',
+      attacks: [
+        { name: 'Brigand Blade', skill: 'One-Handed Weapons', damage: '1d6 edged', note: 'The brigand: a blade strike, defended with Dodge or Block.' },
+        { name: 'Arcane Bolt', skill: 'Arcane Shaping', damage: '1d4 arcane', vs: 'Ward', note: 'The hedge-mage: a spell every OTHER round (she spends the round between drawing the sigil, when a hit, feint or ward stops it), emitted "vs Ward" so the player resists with Willpower; armour does not help. A hit, a feint or a ward that breaks her concentration stops it.' },
+      ],
+      equipment: ['Notched Sword', 'Sigil Chalk'],
+    },
+  },
+  hooked_eye_cultists: {
+    name: 'Hooked Eye Blade-Adept and Priest', type: 'human', attacksPerRound: 2,
+    scaling: { maxAttackers: 2, hpPerAttacker: 7, dodge: 'Coordination d8 + Vigor d4', skillKey: 'OneHandedWeapons', damage: ['1d4 edged', '1d4+1 edged'], group: ['cultist', 'cultists'], spell: { damage: ['1d3 necrotic', '1d4 necrotic'] } },
+    stats: {
+      HP: 26,
+      attributes: { Power: 3, Coordination: 4, Vigor: 3, Willpower: 4, Intellect: 3, Charisma: 3, Attunement: 2, Empathy: 1 },
+      skills: { OneHandedWeapons: 3, Intimidation: 3 },
+      defenses: { dodge: 'Coordination d8 + Vigor d4' },
+      armor: 'Red-lined robes over leather, light armor soak 1d3',
+      attacks: [
+        { name: 'Curved Knife', skill: 'One-Handed Weapons', damage: '1d6 edged', note: 'The blade-adept: a knife strike, defended with Dodge or Block.' },
+        { name: 'Blood Curse', skill: 'Demonic Pact', damage: '1d6 necrotic', vs: 'Ward', note: 'The cult priest: a curse every OTHER round (he spends the round between chanting, when a hit or Holy Water stops it), emitted "vs Ward" so the player resists with Willpower; armour does not help. Holy Water on the priest or the blood bowl breaks the chant for 2 rounds.' },
+      ],
+      equipment: ['Curved Knife', 'Hooked-Eye Amulet', 'Blood Bowl'],
+    },
+  },
 };
 
 // How road threats grow with the character (Hans 2026-11-18): never too hard,
@@ -234,8 +297,12 @@ export function scaleRoadThreat(foe, level) {
       attacks: [{
         ...attack,
         damage,
-        note: `${who}: make${attackers === 1 ? 's' : ''} ${attackers} attack${attackers === 1 ? '' : 's'} every round (one [enemy_attack] each, ${attack.skill} ${ranks}). HP is the whole group; it breaks when HP runs out. A road skirmish, not a death trap: they flee or yield once badly hurt.`,
-      }],
+        note: sc.spell
+          ? `Two foes: the ${one} strikes every round with ${attack.skill} ${ranks}; the caster casts the spell below only every other round (one round to prepare it, one to cast). One [enemy_attack] per strike or spell. HP is the whole group; it breaks when HP runs out. A road skirmish, not a death trap: they flee or yield once badly hurt.`
+          : `${who}: make${attackers === 1 ? 's' : ''} ${attackers} attack${attackers === 1 ? '' : 's'} every round (one [enemy_attack] each, ${attack.skill} ${ranks}). HP is the whole group; it breaks when HP runs out. A road skirmish, not a death trap: they flee or yield once badly hurt.`,
+      },
+      // A caster's spell keeps its own line, sized like the blade.
+      ...(sc.spell && base.attacks[1] ? [{ ...base.attacks[1], damage: L >= ROAD_CURVE.strongDamageFromLevel ? sc.spell.damage[1] : sc.spell.damage[0] }] : [])],
     },
   };
 }
@@ -246,10 +313,38 @@ const PARLEY_APPROACHES = new Set([
   'gladiator_code', 'pack_negotiate', 'medical_triage_parley', 'planar_bargain',
   'zealot_sermon', 'zealot_read', 'toll_pay', 'toll_expose', 'anarchist_cause', 'anarchist_cow',
   'inquisition_papers', 'inquisition_faith',
+  'goblin_trade_haggle', 'goblin_trade_news', 'goblin_trade_heal', 'goblin_trade_ward',
+  'goblin_toll_rations', 'goblin_toll_cow', 'goblin_toll_bless', 'goblin_toll_spark', 'goblin_raid_amends',
+  'dwarf_trade_haggle', 'dwarf_trade_smith', 'dwarf_trade_bless', 'dwarf_trade_rune',
+  'dwarf_patrol_tithe', 'dwarf_patrol_honest', 'dwarf_patrol_strength', 'dwarf_patrol_ward', 'dwarf_war_restitution',
+  'elf_wayfarer_lore', 'elf_wayfarer_trade', 'elf_wayfarer_bless', 'elf_wayfarer_light',
+  'elf_procession_kneel', 'elf_procession_elvish', 'elf_procession_pray', 'elf_procession_ward', 'elf_wardens_amends', 'elf_wardens_ward',
+  'tide_trade_haggle', 'tide_trade_sea', 'tide_trade_heal', 'tide_trade_bless',
+  'tide_toll_pay', 'tide_toll_swim', 'tide_toll_respect', 'tide_toll_trick', 'tide_raid_amends',
+  'hedge_bargain',
+  'sky_trade_haggle', 'sky_trade_winds', 'sky_trade_mend', 'sky_trade_bless',
+  'sky_warden_toll', 'sky_warden_walk', 'sky_warden_respect', 'sky_warden_ward', 'sky_raid_amends',
 ]);
 export const isParleyApproach = (approach) => PARLEY_APPROACHES.has(approach?.id);
 
 const adventureCache = new Map();
+const PAINTED = new Set(artManifest);
+
+/**
+ * The ambush painting that matches the band actually fighting: scaled road
+ * threats have a lone-foe picture (one attacker), a group picture, and the
+ * Inquisition a plate-knight picture from level 7 (public/images/encounters).
+ * Null until painted.
+ */
+export function encounterImage(encounterId, foe) {
+  const size = foe?.scaling && foe.attacksPerRound === 1 ? '_lone' : '';
+  const plated = foe?.scaling?.plate && /plate/i.test(foe.stats?.armor || '') ? '_plate' : '';
+  const src = `/images/encounters/${encounterId}${plated || size}.webp`;
+  if (PAINTED.has(src)) return src;
+  // A band never met alone (its minLevel is past the lone-foe levels) has only the group painting.
+  const group = `/images/encounters/${encounterId}.webp`;
+  return PAINTED.has(group) ? group : null;
+}
 
 /**
  * The synthetic "adventure" a patrol is played as, in the shape the GM prompt
@@ -263,7 +358,7 @@ export function buildPatrolAdventure(patrolId) {
   // Scaled road threats are sized to the level in the id; the general
   // difficulty bands then leave them alone (threatRole 'road').
   const foe = baseFoe.scaling ? scaleRoadThreat(baseFoe, patrolLevelOf(patrolId) || 1) : baseFoe;
-  const setting = 'The Ambush Site';
+  const setting = encounter.setting || 'The Ambush Site';
   const adventure = {
     id: patrolId,
     isPatrol: true,
@@ -275,12 +370,18 @@ export function buildPatrolAdventure(patrolId) {
     backstory: encounter.intro,
     suggestedGm: 'narrator',
     startingPrompt: encounter.intro,
-    objectives: ['Survive the ambush: defeat or rout the band, talk or buy your way past, or escape.'],
+    objectives: [encounter.peaceful
+      ? 'Meet the travellers on the road: trade, talk, or move on.'
+      : 'Survive the ambush: defeat or rout the band, talk or buy your way past, or escape.'],
+    ...(encounter.people ? { people: encounter.people } : {}),
+    ...(encounter.gmNote ? { patrolGmNote: encounter.gmNote } : {}),
+    ...(encounter.peaceful ? { patrolPeaceful: true } : {}),
     settings: [setting],
     settingDescriptions: { [setting]: encounter.intro },
+    settingImages: (() => { const img = encounterImage(encounter.id, foe); return img ? { [setting]: img } : {}; })(),
     npcs: [{
       name: foe.name,
-      role: foe.type === 'beast' ? 'Pack Leader' : 'Ambush Leader',
+      role: foe.type === 'beast' ? 'Pack Leader' : encounter.peaceful ? 'Trader' : foe.type === 'spirit' ? 'Restless Dead' : 'Ambush Leader',
       desc: `Leads the ambush. ${foe.type === 'beast' ? 'A beast: it cannot be reasoned with, only driven off or calmed.' : 'Can be fought, threatened, bargained with, or escaped.'}`,
       stats: foe.stats,
       ...(foe.scaling ? { threatRole: 'road' } : {}),
@@ -289,6 +390,7 @@ export function buildPatrolAdventure(patrolId) {
     itemsDetail: [],
     playabilityGuidance: [
       'This is a short roadside encounter, not an adventure: one scene, resolved in about six exchanges.',
+      ...(encounter.gmNote ? [encounter.gmNote] : []),
       'Approaches that suit this ambush (let the player find their own; these are hints, not a menu):',
       ...encounter.approaches.map(a => `- ${a.name} (${a.skill.replace(/_/g, ' ')}): ${a.actionDesc}`),
     ].join('\n'),
@@ -366,7 +468,7 @@ export function addLootToInventory(inventory = [], items = []) {
 const hourStamp = (stats = {}) => ((stats.day || 1) - 1) * 24 + (stats.hour || 0);
 
 /** Setting out on patrol: spend the fatigue and remember when and where it began. */
-export function beginPatrol(character, encounterId, choices = selectPatrolChoices(encounterId)) {
+export function beginPatrol(character, encounterId, choices = selectPatrolChoices(encounterId), regionId = null) {
   const encounter = TRAVEL_ENCOUNTERS.find(e => e.id === encounterId);
   if (!encounter || !canBeginPatrol(character)) return character;
   const allowance = getPatrolAllowance(character);
@@ -379,7 +481,8 @@ export function beginPatrol(character, encounterId, choices = selectPatrolChoice
       patrolAllowance: { completions: allowance.completions, used: allowance.used + 1 },
       activePatrol: {
         encounterId,
-        regionId: encounter?.region || null,
+        // The road actually travelled: 'any'-region bands meet you where you are.
+        regionId: regionId || (encounter?.region !== 'any' ? encounter?.region : null) || null,
         startedAtHours: hourStamp(character.stats),
         fought: false,
         choices,
@@ -477,6 +580,9 @@ export function finishPatrol(character, { outcome, loot, pursuitDamage = 0 }) {
     };
   }
 
+  // Standing with a people, and places they show you (data/peoples.js).
+  next = applyPeoplePatrolOutcome(next, TRAVEL_ENCOUNTERS.find(e => e.id === active.encounterId), outcome);
+
   next = {
     ...next,
     progression: {
@@ -491,7 +597,8 @@ export function finishPatrol(character, { outcome, loot, pursuitDamage = 0 }) {
 /** Gear-recovery record for a patrol death: no authored map, so it is tied to the region's road. */
 export function patrolGearRecovery({ encounterId, regionId, diedAtHours, coldAfterHours = 72 }) {
   const foe = PATROL_FOES[encounterId] || { name: 'Road Ambusher', type: 'human' };
-  const carries = foe.type === 'human';
+  // People (humans, goblins...) carry your gear off; beasts and spirits leave it where you fell.
+  const carries = !['beast', 'spirit'].includes(foe.type);
   return {
     mode: carries ? 'carrier' : 'cache',
     carries,

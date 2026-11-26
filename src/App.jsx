@@ -26,6 +26,8 @@ import {
   getToken,
 } from './utils/authApi';
 import { buyWithLocalGems } from './data/gemStore';
+
+const SHOW_DEV_TOOLBAR = import.meta.env.DEV || (typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname));
 import {
   spendGems,
   buyStoreItem,
@@ -1041,8 +1043,8 @@ function App() {
           <AdventureSelection
             character={character}
             userProfile={userProfile}
-            onStartPatrol={(encounterId) => {
-              if (startPatrol(encounterId)) setScreen('play');
+            onStartPatrol={(encounterId, regionId) => {
+              if (startPatrol(encounterId, regionId)) setScreen('play');
             }}
             onStartArena={(bracketId) => {
               if (startArenaBout(bracketId)) setScreen('play');
@@ -1215,7 +1217,9 @@ function App() {
 
   return (
     <div className="w-full h-full flex flex-col bg-slate-950 text-slate-200 select-none overflow-hidden">
-      {/* Dev Viewport Toggle Bar */}
+      {/* Dev Viewport Toggle Bar: development only. On the live site it made
+          the game look unfinished (AdSense review, 2026-11-26). */}
+      {SHOW_DEV_TOOLBAR && (
       <div className="w-full bg-slate-900 border-b border-amber-500/20 px-4 py-2 flex items-center justify-between z-50 text-2xs select-none">
         <div className="flex items-center gap-2">
           <span className="font-bold text-amber-500/70 font-serif uppercase tracking-wider">Dev Toolbar:</span>
@@ -1239,6 +1243,7 @@ function App() {
           ))}
         </div>
       </div>
+      )}
 
       {/* Main App Content Viewport */}
       <div className="flex-1 flex flex-col overflow-hidden w-full h-full relative">

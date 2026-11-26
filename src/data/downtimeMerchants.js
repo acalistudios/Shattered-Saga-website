@@ -5,6 +5,7 @@ export const TAVERNS = {
   elemental_crucible: {
     name: "Fivefold Shrine Sanctuary",
     keeper: "Ilyra of the Fivefold Font",
+    portrait: "ilyra_of_the_fivefold_font", // public/images/npcs/<adventure>/ilyra_of_the_fivefold_font.webp
     location: "Fivefold Gate",
     mealName: "Font Communion & Consecrated Nectar",
     mealPriceCp: 10,
@@ -19,6 +20,7 @@ export const TAVERNS = {
   ashveil_keep: {
     name: "Dermot's Hearthstone Inn",
     keeper: "Dermot Greaves",
+    portrait: "dermot_greaves", // public/images/npcs/<adventure>/dermot_greaves.webp
     location: "Ashveil Village Square",
     mealName: "Hearty Mutton Stew & Crusty Bread",
     mealPriceCp: 10,
@@ -33,6 +35,7 @@ export const TAVERNS = {
   saltblood_mines: {
     name: "The Rusty Shackle Mess",
     keeper: "Krag",
+    portrait: "krag", // public/images/npcs/<adventure>/krag.webp
     location: "Prisoner Barracks",
     mealName: "Salted Moss Gruel & Weak Ale",
     mealPriceCp: 10,
@@ -47,6 +50,7 @@ export const TAVERNS = {
   clockwork_conservatory: {
     name: "The Steam & Spindle Tavern",
     keeper: "Vian",
+    portrait: "vian", // public/images/npcs/<adventure>/vian.webp
     location: "Steam-Weaving Gallery",
     mealName: "Steam-Cooked Sausages & Potato Mash",
     mealPriceCp: 10,
@@ -60,7 +64,8 @@ export const TAVERNS = {
   },
   obsidian_vault: {
     name: "The Basalt Tankard Tavern",
-    keeper: "Brak",
+    keeper: "Breka",
+    portrait: "breka", // public/images/npcs/<adventure>/breka.webp (dwarf woman; she/her, never he/him)
     location: "Basalt Ridge Gatehouse",
     mealName: "Spiced Lava-Ridge Roasted Tubers",
     mealPriceCp: 10,
@@ -75,6 +80,7 @@ export const TAVERNS = {
   sunken_spire: {
     name: "Archivist's Sanctuary",
     keeper: "Faelar",
+    portrait: "faelar", // public/images/npcs/<adventure>/faelar.webp
     location: "Flooded Library Entrance",
     mealName: "Submerged Elven Rations & Kelp Tea",
     mealPriceCp: 10,
@@ -89,6 +95,7 @@ export const TAVERNS = {
   astral_sky: {
     name: "The Windrunner's Rest Stop",
     keeper: "Sora",
+    portrait: "sora", // public/images/npcs/<adventure>/sora.webp
     location: "Windrunner Sky-Bridges",
     mealName: "Airdraft Nectar & Sweet-Grain Wafers",
     mealPriceCp: 10,
@@ -103,6 +110,7 @@ export const TAVERNS = {
   iron_colosseum: {
     name: "The Gladiator's Quarters",
     keeper: "Garr",
+    portrait: "garr", // public/images/npcs/<adventure>/garr.webp
     location: "Slave Pens",
     mealName: "Gladiator Slop & Barley Tea",
     mealPriceCp: 10,
@@ -117,6 +125,7 @@ export const TAVERNS = {
   blackroot_hollow: {
     name: "The Silk Weaver's Hearth Inn",
     keeper: "Huld",
+    portrait: "huld", // public/images/npcs/<adventure>/huld.webp
     location: "Blackroot Village Edge",
     mealName: "Roasted Cave Mushroom & Onion Soup",
     mealPriceCp: 10,
@@ -131,6 +140,7 @@ export const TAVERNS = {
   greywash_bandit_crown: {
     name: "The Smuggler's Cask Inn",
     keeper: "Dermot",
+    portrait: "dermot", // public/images/npcs/<adventure>/dermot.webp
     location: "Smuggler Mill Base",
     mealName: "Forest Venison Jerky & Honey Mead",
     mealPriceCp: 10,
@@ -145,6 +155,7 @@ export const TAVERNS = {
   merrin_abbey_plague_bells: {
     name: "The Chained Bell Tavern",
     keeper: "Eamon",
+    portrait: "eamon", // public/images/npcs/<adventure>/eamon.webp
     location: "Sickfield Hamlet",
     mealName: "Thin Onion Broth & Stale Rye Bread",
     mealPriceCp: 10,
@@ -159,6 +170,7 @@ export const TAVERNS = {
   glass_orchard_masquerade: {
     name: "The Crystal Goblet Lounge",
     keeper: "Lord Julian",
+    portrait: "lord_julian", // public/images/npcs/<adventure>/lord_julian.webp
     location: "Glass Orchard Ballroom",
     mealName: "Spiced Masquerade Wine & Sweet Fruit Skewers",
     mealPriceCp: 10,
@@ -173,6 +185,7 @@ export const TAVERNS = {
   drowned_market: {
     name: "The Drowned Sailor's Ethereal Tap",
     keeper: "Ghostly Bill",
+    portrait: "ghostly_bill", // public/images/npcs/<adventure>/ghostly_bill.webp
     location: "Ghost Bazaar Aisles",
     mealName: "Tidal Eel Stew & Ghostly Ale",
     mealPriceCp: 10,
@@ -187,6 +200,7 @@ export const TAVERNS = {
   thorn_treaty: {
     name: "The Boundary Stone Inn",
     keeper: "Fletcher",
+    portrait: "fletcher", // public/images/npcs/<adventure>/fletcher.webp
     location: "Boundary Stone Field",
     mealName: "Spit-Roasted Pheasant & Hard Cider",
     mealPriceCp: 10,
@@ -201,6 +215,7 @@ export const TAVERNS = {
   brass_plague_tinkertown: {
     name: "The Gearwise Taproom",
     keeper: "Gizmo",
+    portrait: "gizmo", // public/images/npcs/<adventure>/gizmo.webp
     location: "Ticking Market Street",
     mealName: "Lubricated Mushroom Stew & Barley Tea",
     mealPriceCp: 10,
@@ -215,6 +230,7 @@ export const TAVERNS = {
   harvest_hill_hunger: {
     name: "The Feast Hall Hearth",
     keeper: "Elder Thomas",
+    portrait: "elder_thomas", // public/images/npcs/<adventure>/elder_thomas.webp
     location: "Choosing Feast Hall",
     mealName: "Thick Cornbread & Sweet Squash Mash",
     mealPriceCp: 10,
@@ -229,6 +245,7 @@ export const TAVERNS = {
   mirror_war_saint_orra: {
     name: "The Chapel Hospice",
     keeper: "Sister Clara",
+    portrait: "sister_clara", // public/images/npcs/<adventure>/sister_clara.webp
     location: "Saint Orra Chapel",
     mealName: "Blessed Wheat Loaf & Spring Water",
     mealPriceCp: 10,
@@ -243,6 +260,7 @@ export const TAVERNS = {
   frostfire_crypt: {
     name: "Frostfire Altar Rest",
     keeper: "Crypt-keeper Silas",
+    portrait: "crypt_keeper_silas", // public/images/npcs/<adventure>/crypt_keeper_silas.webp
     location: "Frostfire Crypt Vault",
     mealName: "Ember-Baked Tubers & Melted Ice-Water",
     mealPriceCp: 10,
@@ -252,6 +270,86 @@ export const TAVERNS = {
       "Silas was once a royal scribe before the frost froze the crypt gates.",
       "Frostfire weapons require both coal and frost shards to retain their properties.",
       "The royal tomb is sealed with a combination key matching the Voss coat of arms."
+    ]
+  },
+  // Peoples hub (data/peoples.js): the goblin village, found through the goblin traders.
+  gutterstone_warren: {
+    name: "The Leaky Kettle",
+    keeper: "Grub-Mother Wickit",
+    portrait: "gutterstone_warren/grub_mother_wickit", // an elderly goblin woman: she/her
+    location: "Gutterstone Warren",
+    mealName: "Mushroom-and-Snail Stew with Acorn Bread",
+    mealPriceCp: 6,
+    mealFatigueReduce: 2,
+    rumorPriceCp: 30,
+    rumors: [
+      "Skritt was born in the Warren. He sends word home when he can, and he speaks well of the friend who spared him.",
+      "The clans keep a long memory. A goblin helped is a debt; a goblin hurt is a feud.",
+      "Gash Ironear's war band camps in the gorse when they hunt the ones who wronged the clans."
+    ]
+  },
+  // Peoples hub (data/peoples.js): the dwarf forge hold, found through the dwarf caravan.
+  emberdeep_hold: {
+    name: "The Anvil and Ember",
+    keeper: "Old Durgan Coalbeard",
+    portrait: "emberdeep_hold/durgan_coalbeard", // an elderly dwarf man: he/him
+    location: "Emberdeep Hold",
+    mealName: "Smoked Mountain Goat and Black Rye",
+    mealPriceCp: 12,
+    mealFatigueReduce: 3,
+    rumorPriceCp: 60,
+    rumors: [
+      "Lothar the Smelter still argues that the Fire Core should never have been touched. He argues it loudly.",
+      "Breka of the Basalt Tankard was born in Emberdeep. She left to see the world above and never came back for long.",
+      "The clans weigh a stranger by one thing: what they did with the Fire Core."
+    ]
+  },
+  // Peoples hub (data/peoples.js): the last elven home, found through the elven wayfarers.
+  silverlight_refuge: {
+    name: "The Last Lantern",
+    keeper: "Lady Senna of the Last Lantern",
+    portrait: "silverlight_refuge/lady_senna", // an elven ghost: she/her
+    location: "Silverlight Refuge",
+    mealName: "Moonleaf Tea and Honeyed Waybread",
+    mealPriceCp: 10,
+    mealFatigueReduce: 3,
+    rumorPriceCp: 60,
+    rumors: [
+      "Faelar of the Archivist's Sanctuary is the only living elf who chose to live among humans. The Refuge still argues about it.",
+      "Vaelin Deep-Eye was the last archivist of the Sunken Spire. If he was freed, the dead say he is at peace at last.",
+      "The elven dead do not forgive easily, but they remember every prayer said for them."
+    ]
+  },
+  // Peoples hub (data/peoples.js): the tide-folk town, found through the tide-folk salvagers.
+  pearlgate_grotto: {
+    name: "The Tidewrack Tavern",
+    keeper: "Tobin Saltgill",
+    portrait: "pearlgate_grotto/tobin_saltgill", // a tide-folk man: he/him
+    location: "Pearlgate Grotto",
+    mealName: "Kelp-Wrapped Fish and Sea-Salt Bread",
+    mealPriceCp: 8,
+    mealFatigueReduce: 2,
+    rumorPriceCp: 40,
+    rumors: [
+      "Mother-of-Pearl Jax of the drowned market is tide-folk. Half the Grotto owes her a favour; the other half owes her money.",
+      "The corsairs of the Boiling Sea hunt tide-folk for their pearls. Nobody here sails east.",
+      "Skarra the Drowner leads the raiders who punish grave-robbers. Nobody here will say where she sleeps."
+    ]
+  },
+  // Peoples hub (data/peoples.js): the sky-folk town, found through the skiff traders.
+  hightether_aerie: {
+    name: "The Updraft",
+    keeper: "Cirrus Lightfoot",
+    portrait: "hightether_aerie/cirrus_lightfoot", // a young sky-folk man: he/him
+    location: "Hightether Aerie",
+    mealName: "Skyfruit Stew and Cloudbread",
+    mealPriceCp: 9,
+    mealFatigueReduce: 2,
+    rumorPriceCp: 50,
+    rumors: [
+      "Sora of the Windrunner's Rest Stop was born here in the Aerie. She went down to the bridges to keep groundlings from falling off them.",
+      "Elder Oron is the only groundling scholar the sky-folk elders will listen to.",
+      "Storm-Captain Harrow hunts the one who claimed the Focal Core. The elders pretend not to know."
     ]
   }
 };
@@ -463,7 +561,7 @@ export const TRAINING_EXPERTS = {
 
   // The Obsidian Vault
   "Hask of Basalt Ridge": { skills: ["survival", "blocking"], reqReputation: 15 },
-  "Brak": { skills: ["intimidation", "brawling"], reqReputation: 10 },
+  "Breka": { skills: ["intimidation", "brawling"], reqReputation: 10 },
 
   // Whispers of the Sunken Spire
   "Faelar": { skills: ["languages", "lore"], reqReputation: 30 },

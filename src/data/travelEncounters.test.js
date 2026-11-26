@@ -6,9 +6,9 @@ const validSkills = new Set(SKILLS_LIST.map(s => s.id));
 
 describe('Travel & Roadside Combat Encounters', () => {
   it('has 8 classic encounters plus 4 level-scaled road threats, all with full tactical branches', () => {
-    expect(TRAVEL_ENCOUNTERS.filter(e => !e.scalesWithLevel).length).toBe(8);
+    expect(TRAVEL_ENCOUNTERS.filter(e => !e.scalesWithLevel && !e.people).length).toBe(8);
     expect(TRAVEL_ENCOUNTERS.filter(e => e.scalesWithLevel).map(e => e.id).sort())
-      .toEqual(['anarchist_street_gang', 'flagellant_zealots', 'inquisition_enforcers', 'tollroad_crossbowmen']);
+      .toEqual(['anarchist_street_gang', 'flagellant_zealots', 'hedge_mage_brigands', 'hooked_eye_cultists', 'inquisition_enforcers', 'tollroad_crossbowmen']);
 
     const regionsCovered = new Set();
 
@@ -24,7 +24,8 @@ describe('Travel & Roadside Combat Encounters', () => {
       }
     }
 
-    for (const encounter of TRAVEL_ENCOUNTERS.filter(e => !e.scalesWithLevel)) {
+    // Peoples' encounters are checked in peoples.test.js.
+    for (const encounter of TRAVEL_ENCOUNTERS.filter(e => !e.scalesWithLevel && !e.people)) {
       expect(encounter.id).toBeTruthy();
       expect(encounter.title).toBeTruthy();
       expect(encounter.intro.length).toBeGreaterThan(20);

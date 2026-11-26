@@ -5,6 +5,11 @@ import { ADVENTURE_ECONOMY_METADATA } from '../data/adventureEconomy';
 import { GENERIC_ITEM_VALUE_BY_NAME, coinValue } from '../data/economy';
 import { ADVENTURES_LIST } from '../data/adventures';
 import { SKILLS_LIST } from '../data/gms';
+import artManifest from '../data/artManifest.json';
+import { discoveredPeopleHubs } from '../data/peoples';
+import { merchantPortraitPath } from '../utils/artMoments';
+
+const PAINTED = new Set(artManifest);
 
 export default function DowntimeMarketModal({
   character,
@@ -99,7 +104,7 @@ export default function DowntimeMarketModal({
     const hasEconomy = ADVENTURE_ECONOMY_METADATA[adv.id]?.merchants?.length > 0;
     const hasTavern = !!TAVERNS[adv.id];
     return isCompleted && (hasEconomy || hasTavern);
-  });
+  }).concat(discoveredPeopleHubs(character)); // e.g. the goblin village (data/peoples.js)
 
   // Default to first unlocked hub if none selected
   if (unlockedHubs.length > 0 && !selectedHubId) {
@@ -123,6 +128,7 @@ export default function DowntimeMarketModal({
       role: 'Tavern Keeper',
       location: tavernDef.location,
       isTavern: true,
+      portrait: tavernDef.portrait,
       notes: `Proprietor of ${tavernDef.name}.`
     });
   }
@@ -131,6 +137,10 @@ export default function DowntimeMarketModal({
   if (merchantsList.length > 0 && (!selectedMerchant || !merchantsList.find(m => m.name === selectedMerchant.name))) {
     setSelectedMerchant(merchantsList[0]);
   }
+
+  // The selected merchant's or keeper's portrait, once it has been painted.
+  const portraitSrc = activeHub && selectedMerchant?.portrait ? merchantPortraitPath(activeHub.id, selectedMerchant.portrait) : null;
+  const merchantPortrait = portraitSrc && PAINTED.has(portraitSrc) ? portraitSrc : null;
 
   const isBanned = standing <= -30;
 
@@ -499,7 +509,16 @@ export default function DowntimeMarketModal({
 
                 {/* Merchant Bio & Relation Banner */}
                 <div className="bg-slate-950/80 border border-slate-850 rounded-xl p-3 md:p-4 mb-3 md:mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 relative">
-                  <div>
+                  <div className="flex items-center gap-3 min-w-0">
+                  {merchantPortrait && (
+                    <img
+                      src={merchantPortrait}
+                      alt={selectedMerchant.name}
+                      className="w-28 md:w-36 aspect-[16/9] object-cover object-top rounded border border-slate-800 shrink-0"
+                      onError={(event) => { event.currentTarget.style.display = 'none'; }}
+                    />
+                  )}
+                  <div className="min-w-0">
                     <h3 className="text-base font-extrabold text-amber-300 font-serif flex items-center gap-1.5">
                       {selectedMerchant.name}
                       <span className="text-4xs font-sans px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 italic">
@@ -509,6 +528,7 @@ export default function DowntimeMarketModal({
                     <p className="text-3xs text-slate-400 mt-1 max-w-lg leading-relaxed">
                       {selectedMerchant.notes || "Ready to trade and supply you for your journeys."}
                     </p>
+                  </div>
                   </div>
                   
                   {/* Reputation Badge */}

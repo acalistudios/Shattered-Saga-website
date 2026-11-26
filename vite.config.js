@@ -1,4 +1,6 @@
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, createServer } from 'vite'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -23,6 +25,41 @@ function adsensePlugin(client) {
   }
 }
 
+
+// Crawlable content pages (src/content/sitePages.js), written into dist after
+// the build: the adventure pages, peoples, the game manual, the landing page's
+// text inside #root, sitemap.xml and robots.txt. Without them a crawler, and
+// AdSense review, sees only an empty single-page-app shell (Hans 2026-11-26).
+function sitePagesPlugin() {
+  let outDir = 'dist'
+  return {
+    name: 'shattered-saga-site-pages',
+    apply: 'build',
+    configResolved(config) { outDir = config.build.outDir },
+    async closeBundle() {
+      const server = await createServer({ configFile: false, logLevel: 'error', server: { middlewareMode: true, hmr: false }, appType: 'custom' })
+      try {
+        const { buildSitePages } = await server.ssrLoadModule('/src/content/sitePages.js')
+        const rules = readFileSync('src/data/GAME_RULES.md', 'utf8')
+        const { pages, sitemap, robots, home } = buildSitePages(rules)
+        for (const page of pages) {
+          const file = join(outDir, page.path, 'index.html')
+          mkdirSync(dirname(file), { recursive: true })
+          writeFileSync(file, page.html)
+        }
+        writeFileSync(join(outDir, 'sitemap.xml'), sitemap)
+        writeFileSync(join(outDir, 'robots.txt'), robots)
+        const indexFile = join(outDir, 'index.html')
+        const index = readFileSync(indexFile, 'utf8')
+        writeFileSync(indexFile, index.replace('<div id="root"></div>', `<div id="root">${home}</div>`))
+        console.log(`site pages: ${pages.length} pages, sitemap.xml, robots.txt`)
+      } finally {
+        await server.close()
+      }
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -31,6 +68,7 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       adsensePlugin(env.VITE_ADSENSE_CLIENT),
+      sitePagesPlugin(),
     ],
     build: {
       // Must stay true: with emptyOutDir disabled, dist/ accumulated stale assets
