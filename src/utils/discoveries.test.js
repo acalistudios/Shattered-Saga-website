@@ -101,7 +101,7 @@ describe('the other loans', () => {
   const SPIRE = 'sunken_spire';
   const spire = (inventory, bought = 0) => hero({
     inventory,
-    progression: bought ? { adventureTrades: { [SPIRE]: { 'Neris Tidehand': { bought: { [ELIXIR]: bought } } } } } : {},
+    progression: bought ? { adventureTrades: { [SPIRE]: { 'Naelia the Diver': { bought: { [ELIXIR]: bought } } } } } : {},
   });
 
   it("Bram's notebook: returned in the barracks, kept if you leave with it", () => {

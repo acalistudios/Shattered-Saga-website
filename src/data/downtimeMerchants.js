@@ -565,7 +565,7 @@ export const TRAINING_EXPERTS = {
 
   // Whispers of the Sunken Spire
   "Faelar": { skills: ["languages", "lore"], reqReputation: 30 },
-  "Neris Tidehand": { skills: ["escapology", "athletics"], reqReputation: 15 },
+  "Naelia the Diver": { skills: ["escapology", "athletics"], reqReputation: 15 },
 
   // Threads of the Astral Sky
   "Pell Windledger": { skills: ["marksmanship", "perception"], reqReputation: 20 },
@@ -576,7 +576,7 @@ export const TRAINING_EXPERTS = {
   "Vian": { skills: ["alchemy", "performance"], reqReputation: 10 },
 
   // The Frostfire Crypt
-  "Theron Vell": { skills: ["survival", "light_weapons"], reqReputation: 15 },
+  "Corwin Vell": { skills: ["survival", "light_weapons"], reqReputation: 15 },
   "Crypt-keeper Silas": { skills: ["languages", "perception"], reqReputation: 30 },
 
   // Chains of the Iron Colosseum
@@ -586,7 +586,7 @@ export const TRAINING_EXPERTS = {
 
   // Blackroot Hollow
   "Etta Bramble": { skills: ["crafting", "herbalism"], reqReputation: 10 },
-  "Mara Voss": { skills: ["tracking", "stealth"], reqReputation: 20 },
+  "Kessa Voss": { skills: ["tracking", "stealth"], reqReputation: 20 },
   "Huld": { skills: ["thrown_weapons", "animal_rapport"], reqReputation: 10 },
 
   // Greywash Bandit Crown

@@ -38,7 +38,7 @@ export const MERCHANT_RESTOCK = {
     { after: 4, sells: [['Steel Chainmail', 1200, 1], ['Plate Helm', 300, 1]] },
     { after: 6, sells: [['Major Potion or Elixir', 1500, 1]] },
   ],
-  'Neris Tidehand': [
+  'Naelia the Diver': [
     { after: 4, sells: [['Silver Ring', 200, 2], ['Common Scroll', 300, 1]] },
     { after: 6, sells: [['Gold Ring', 1000, 1]] },
   ],
@@ -49,7 +49,7 @@ export const MERCHANT_RESTOCK = {
   'Gearwise Noma': [
     { after: 4, sells: [['Smithing Tools', 500, 1], ['Crossbow', 600, 1]] },
   ],
-  'Theron Vell': [
+  'Corwin Vell': [
     { after: 2, sells: [['Bedroll', 20, 2], ['Rope (50 ft)', 100, 2], ['Javelin', 60, 3]] },
     { after: 4, sells: [['Large Backpack', 200, 1], ['Steel Chainmail', 1200, 1]] },
     { after: 6, sells: [['Major Potion or Elixir', 1500, 1]] },
@@ -66,7 +66,7 @@ export const MERCHANT_RESTOCK = {
     { after: 2, sells: [['Waterskin', 15, 3], ['Bandages (5)', 5, 4]] },
     { after: 4, sells: [['Medium Backpack', 100, 1], ['Poultice', 50, 2]] },
   ],
-  'Mara Voss': [
+  'Kessa Voss': [
     { after: 2, sells: [['Hunting Bow', 300, 1], ['Hatchet', 50, 1], ['Short Bow', 250, 1], ['Longbow', 400, 1]] },
     { after: 4, sells: [['Crossbow', 600, 1], ['Crossbow Bolts (20)', 15, 3]] },
   ],

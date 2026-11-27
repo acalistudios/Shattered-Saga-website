@@ -158,8 +158,8 @@ export const ADVENTURE_ECONOMY_METADATA = {
     },
     merchants: [
       {
-        name: 'Neris Tidehand',
-        portrait: 'neris_tidehand',
+        name: 'Naelia the Diver', // the same person as the story NPC in adventures.js
+        portrait: 'naelia_the_diver',
         role: 'salvage diver',
         location: 'Flooded Library Entrance',
         sells: [
@@ -242,8 +242,8 @@ export const ADVENTURE_ECONOMY_METADATA = {
     },
     merchants: [
       {
-        name: 'Theron Vell',
-        portrait: 'theron_vell',
+        name: 'Corwin Vell',
+        portrait: 'corwin_vell',
         role: 'expedition quartermaster',
         location: 'The Runic Vestibule',
         sells: [
@@ -325,8 +325,8 @@ export const ADVENTURE_ECONOMY_METADATA = {
         negotiationMaxAdjustment: 0.25,
       },
       {
-        name: 'Mara Voss',
-        portrait: 'mara_voss',
+        name: 'Kessa Voss',
+        portrait: 'kessa_voss',
         role: 'monster hunter',
         location: 'Abandoned Mine Mouth',
         sells: [

@@ -5,7 +5,7 @@ import { getArmorType, getShieldSoakDie, getShieldRollBonus, getDualWield, getDu
 import { calculateWeightAndVolume, getItemDetails, getEquippedDefenseGear } from '../utils/items';
 import { generateCompletion, executeOpposedCheck, rollDie, rollAttributePrimary, rollAttributeSecondary, rollSkillRanks } from '../utils/ai';
 import { ADVENTURES_LIST } from '../data/adventures';
-import { renameMerchantKeys } from '../utils/merchantRenames';
+import { renameMerchantKeys, renameAdventureTrades } from '../utils/merchantRenames';
 import { getAdventureById } from '../data/adventureLookup';
 import { checkSafetyViolation, getGMStrikeWarning, getGMSternWarning, calculateLockoutExpiry, isGloballyBanned } from '../utils/safety';
 import { generateMerchantStock, TAVERNS, getTrainerConfig } from '../data/downtimeMerchants';
@@ -375,6 +375,7 @@ const renameLegacyItem = (item) => (typeof item === 'string' && LEGACY_ITEM_NAME
 export function validateCharacterSchema(raw) {
   if (!raw) return DEFAULT_CHARACTER;
   if (raw.localEconomy) raw = { ...raw, localEconomy: renameMerchantKeys(raw.localEconomy) };
+  if (raw.progression?.adventureTrades) raw = { ...raw, progression: renameAdventureTrades(raw.progression) };
 
   const skills = { ...DEFAULT_CHARACTER.skills };
   if (raw.skills) {
