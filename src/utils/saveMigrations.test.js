@@ -15,3 +15,12 @@ describe('saves holding Mara\'s Smoke Bombs', () => {
     expect(out.progression.adventureTrades.blackroot_hollow).toEqual({ 'Kessa Voss': { bought: { "Hedda's Smoke Bombs": 1 } } });
   });
 });
+
+describe('journal from an older or imported save', async () => {
+  const { normalizeJournal } = await import('../hooks/useGameState');
+  it('always has storySoFar and a recentTurns list', () => {
+    expect(normalizeJournal({ summary: 'Old shape.' })).toMatchObject({ storySoFar: 'Old shape.', recentTurns: [] });
+    expect(normalizeJournal(null)).toEqual({ storySoFar: '', recentTurns: [] });
+    expect(normalizeJournal({ storySoFar: 'x', recentTurns: ['a'] })).toEqual({ storySoFar: 'x', recentTurns: ['a'] });
+  });
+});

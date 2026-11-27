@@ -381,6 +381,18 @@ const renameLegacyItemsDeep = (value) => {
   return JSON.parse(json);
 };
 
+// A save's journal may come from an older version or an imported file with a
+// different shape (e.g. { summary }); a missing recentTurns list used to blank
+// the whole Play screen.
+export function normalizeJournal(raw) {
+  const j = raw && typeof raw === 'object' ? raw : {};
+  return {
+    ...j,
+    storySoFar: typeof j.storySoFar === 'string' ? j.storySoFar : (typeof j.summary === 'string' ? j.summary : ''),
+    recentTurns: Array.isArray(j.recentTurns) ? j.recentTurns : [],
+  };
+}
+
 export function validateCharacterSchema(raw) {
   if (!raw) return DEFAULT_CHARACTER;
   if (raw.localEconomy) raw = { ...raw, localEconomy: renameMerchantKeys(raw.localEconomy) };
@@ -600,7 +612,7 @@ export default function useGameState() {
   const [activeGmId, setActiveGmId] = useState(() => storage.get(`slot_${activeSlotIndex}_active_gm_id`, null));
   const [gmEnergies, setGmEnergies] = useState(() => storage.get(`slot_${activeSlotIndex}_gm_energies`, DEFAULT_ENERGIES));
   const [history, setHistory] = useState(() => storage.get(`slot_${activeSlotIndex}_history`, []));
-  const [journal, setJournal] = useState(() => storage.get(`slot_${activeSlotIndex}_journal`, { storySoFar: '', recentTurns: [] }));
+  const [journal, setJournal] = useState(() => normalizeJournal(storage.get(`slot_${activeSlotIndex}_journal`, null)));
   // Skill tally for the adventure step
   const [skillTally, setSkillTally] = useState(() => storage.get(`slot_${activeSlotIndex}_skill_tally`, {}));
   const [lastCheck, setLastCheck] = useState(() => storage.get(`slot_${activeSlotIndex}_last_check`, null));
