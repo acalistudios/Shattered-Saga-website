@@ -369,13 +369,24 @@ const DEFAULT_CHARACTER = {
 // Items renamed after release; saves still holding the old name get the new one.
 const LEGACY_ITEM_NAMES = {
   "Vance's Consecrated Forge Wedge": "Vance's Blessed Iron Keystone",
+  // Old Mara of Blackroot Hollow is now Old Hedda (Hans, 2026-11-27).
+  "Mara's Smoke Bombs": "Hedda's Smoke Bombs",
 };
 const renameLegacyItem = (item) => (typeof item === 'string' && LEGACY_ITEM_NAMES[item]) || item;
+// Vendor stock and trade logs also store item names; rename those exact strings.
+const renameLegacyItemsDeep = (value) => {
+  if (value == null) return value;
+  let json = JSON.stringify(value);
+  for (const [from, to] of Object.entries(LEGACY_ITEM_NAMES)) json = json.split(JSON.stringify(from)).join(JSON.stringify(to));
+  return JSON.parse(json);
+};
 
 export function validateCharacterSchema(raw) {
   if (!raw) return DEFAULT_CHARACTER;
   if (raw.localEconomy) raw = { ...raw, localEconomy: renameMerchantKeys(raw.localEconomy) };
   if (raw.progression?.adventureTrades) raw = { ...raw, progression: renameAdventureTrades(raw.progression) };
+  if (raw.localEconomy) raw = { ...raw, localEconomy: renameLegacyItemsDeep(raw.localEconomy) };
+  if (raw.progression?.adventureTrades) raw = { ...raw, progression: { ...raw.progression, adventureTrades: renameLegacyItemsDeep(raw.progression.adventureTrades) } };
 
   const skills = { ...DEFAULT_CHARACTER.skills };
   if (raw.skills) {

@@ -1218,7 +1218,7 @@ const BASE_ADVENTURES_LIST = [
     artwork: ancientBanner,
     startingDay: 1,
     startingHour: 6.5, // 6:30 AM
-    startingPrompt: 'Morning fog clings to Blackroot Hollow as villagers gather beside a goat pen wrapped in rope-thick webbing. A mine cart lies overturned near the forest line, its wheels still spinning in the mud. Old Mara the beekeeper points to drag marks leading toward the black roots under the hill and says something larger than a wolf took the last child. The webbed cavern waits in the dim green woods. Ask the player how they begin the hunt.',
+    startingPrompt: 'Morning fog clings to Blackroot Hollow as villagers gather beside a goat pen wrapped in rope-thick webbing. A mine cart lies overturned near the forest line, its wheels still spinning in the mud. Old Hedda the beekeeper points to drag marks leading toward the black roots under the hill and says something larger than a wolf took the last child. The webbed cavern waits in the dim green woods. Ask the player how they begin the hunt.',
     objectives: [
       'Track the spider trails from village, mine, or forest edge.',
       'Enter the old root cavern and locate missing villagers.',
@@ -1226,11 +1226,11 @@ const BASE_ADVENTURES_LIST = [
       'Discover what drove the spiders upward from the deeper caves.',
       'Return with proof, survivors, or a lasting solution for Blackroot Hollow.'
     ],
-    backstory: 'Blackroot Hollow has always lived beside old caves, but the spiders beneath the hill were once shy things that fed on blind fish and deep beetles. Something in the lower dark has driven the brood upward, making them large, hungry, and desperate enough to web livestock pens and mine shafts. The villagers want fire and steel, the apothecary wants venom, and Old Mara suspects the spider queen is guarding eggs from a deeper predator. The player can turn the cavern into a battlefield, a bargain, a harvest site, or a sealed wound in the countryside.',
+    backstory: 'Blackroot Hollow has always lived beside old caves, but the spiders beneath the hill were once shy things that fed on blind fish and deep beetles. Something in the lower dark has driven the brood upward, making them large, hungry, and desperate enough to web livestock pens and mine shafts. The villagers want fire and steel, the apothecary wants venom, and Old Hedda suspects the spider queen is guarding eggs from a deeper predator. The player can turn the cavern into a battlefield, a bargain, a harvest site, or a sealed wound in the countryside.',
     npcs: [
       {
-        name: 'Old Mara',
-        portrait: { id: 'old_mara', room: 'Blackroot Village Edge' },
+        name: 'Old Hedda',
+        portrait: { id: 'old_hedda', room: 'Blackroot Village Edge' },
         role: 'Beekeeper Witness',
         desc: 'A sharp-eyed elder who understands swarms, stings, and frightened animals.',
         stats: {
@@ -1294,12 +1294,12 @@ const BASE_ADVENTURES_LIST = [
         }
       }
     ],
-    items: ['Spider-Silk Bundle', 'Queen Venom Vial', 'Blackroot Egg Sac', 'Mara\'s Smoke Bombs'],
+    items: ['Spider-Silk Bundle', 'Queen Venom Vial', 'Blackroot Egg Sac', 'Hedda\'s Smoke Bombs'],
     itemsDetail: [
       { name: 'Spider-Silk Bundle', desc: 'Strong, pale silk harvested from anchor webs.', properties: 'Crafting material. Can be sold or used to make light armor lining; grants +1 to Crafting checks involving rope, nets, or soft armor.' },
       { name: 'Queen Venom Vial', desc: 'A dark green venom taken from Mother Silken.', properties: 'One use. Applied to an edged or piercing weapon; on hit, target resists with Vigor or suffers -1 to Power and Coordination checks for one scene.' },
       { name: 'Blackroot Egg Sac', desc: 'A warm, translucent sac containing living spider young.', properties: 'Evidence, bargaining tool, or dangerous alchemical ingredient. Using it for profit causes morality loss.' },
-      { name: 'Mara\'s Smoke Bombs', desc: 'Waxed clay pellets packed with bitter herbs and bee-smoker ash.', properties: 'Three uses. Grants +1 to Survival, Animal Rapport, or Stealth checks against spiders and swarms for one scene.' }
+      { name: 'Hedda\'s Smoke Bombs', desc: 'Waxed clay pellets packed with bitter herbs and bee-smoker ash.', properties: 'Three uses. Grants +1 to Survival, Animal Rapport, or Stealth checks against spiders and swarms for one scene.' }
     ],
     settings: ['Blackroot Village Edge', 'Abandoned Mine Mouth', 'Webbed Root Gallery', 'Egg Nursery', 'Lower Molt Rift'],
     settingDescriptions: {
@@ -1315,7 +1315,7 @@ const BASE_ADVENTURES_LIST = [
         'Gain 1 skill point for a skill used during the adventure.'
       ],
       relocate: [
-        'Relocate the brood after stopping the deeper predator: higher morality gain, Mara as an ally, Spider-Silk Bundle, and future access to safe silk harvest.',
+        'Relocate the brood after stopping the deeper predator: higher morality gain, Hedda as an ally, Spider-Silk Bundle, and future access to safe silk harvest.',
         'Gain 1 skill point for a skill used during the adventure; Animal Rapport, Survival, or Tracking are especially fitting.'
       ],
       harvest: [

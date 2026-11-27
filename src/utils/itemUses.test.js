@@ -21,7 +21,7 @@ describe('shop item uses', () => {
     expect(getScroll('Rare Scroll').bonus).toBe(4);
     expect(getScroll('Common Scroll').bonus).toBe(2);
     expect(isThrowOnly('Acid Flask')).toBe(true);
-    expect(isThrowOnly("Mara's Smoke Bombs")).toBe(true);
+    expect(isThrowOnly("Hedda's Smoke Bombs")).toBe(true);
     expect(isThrowOnly('Holy Water')).toBe(false); // can still be drunk
     expect(isMajorPotion('Major Potion or Elixir')).toBe(true);
     expect(isMajorPotion('Minor Potion or Elixir')).toBe(false);

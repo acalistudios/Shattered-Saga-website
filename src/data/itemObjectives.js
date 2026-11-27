@@ -23,7 +23,7 @@ export const ITEM_NOTES = {
   'Spider-Silk Bundle': 'Fine crafting silk: sell it or use it for rope, nets or armour lining.',
   'Queen Venom Vial': "One dose of Mother Silken's venom for a blade.",
   'Blackroot Egg Sac': 'Living spider young: evidence, a bargaining chip, or a dangerous ingredient. Profiting from it is wrong.',
-  "Mara's Smoke Bombs": 'Three uses: keep spiders and swarms at bay.',
+  "Hedda's Smoke Bombs": 'Three uses: keep spiders and swarms at bay.',
   // The Thorn Treaty
   'Original Thorn Treaty': 'The real border treaty. Use it to settle the dispute lawfully.',
   'Living Thorn Charm': 'Once per adventure, helps with forest survival and tracking.',

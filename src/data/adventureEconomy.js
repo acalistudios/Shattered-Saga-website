@@ -306,7 +306,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
       'Spider-Silk Bundle': itemValue(250, 'crafting', 'Valuable textile and bowstring material.'),
       'Queen Venom Vial': itemValue(500, 'alchemy', 'Potent monster venom reagent.'),
       'Blackroot Egg Sac': itemValue(250, 'crafting', 'Crafting material or unusual salvage.'),
-      'Mara\'s Smoke Bombs': itemValue(300, 'treasure', 'Estimated adventuring value; adjust for local demand.'),
+      'Hedda\'s Smoke Bombs': itemValue(300, 'treasure', 'Estimated adventuring value; adjust for local demand.'),
     },
     merchants: [
       {
@@ -330,7 +330,7 @@ export const ADVENTURE_ECONOMY_METADATA = {
         role: 'monster hunter',
         location: 'Abandoned Mine Mouth',
         sells: [
-          sell('Mara\'s Smoke Bombs', 200, 3),
+          sell('Hedda\'s Smoke Bombs', 200, 3),
           sell('Arrows (20)', 10, 8),
           sell('Javelin', 60, 3),
           sell('Venom Vial', 200, 2),

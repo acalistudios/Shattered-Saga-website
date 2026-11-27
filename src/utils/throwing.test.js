@@ -16,7 +16,7 @@ describe('throwable items', () => {
     expect(getThrownProfile('Rocks (6)')).toMatchObject({ dice: '1d2', hit: -1, stack: true });
     expect(getThrownProfile('Acid Flask')).toMatchObject({ dice: '2d4', ignoresArmor: true, consumed: true });
     expect(getThrownProfile('Holy Water')).toMatchObject({ holy: true, consumed: true });
-    expect(getThrownProfile("Mara's Smoke Bombs")).toMatchObject({ effect: 'smoke', consumed: true });
+    expect(getThrownProfile("Hedda's Smoke Bombs")).toMatchObject({ effect: 'smoke', consumed: true });
     expect(getThrownProfile('Gladiator Net')).toMatchObject({ effect: 'entangle', unblockable: true });
     expect(getThrownProfile('Fishing Net')).toBeNull(); // only the gladiator net
     expect(getThrownProfile('Bottle of Wine')).toBeNull();

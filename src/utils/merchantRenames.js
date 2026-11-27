@@ -7,7 +7,7 @@
 //   Neris Tidehand IS Naelia the Diver (one person, one portrait); the
 //   Frostfire quartermaster Theron Vell becomes Corwin Vell (Theron the Scribe
 //   keeps his name); the Blackroot hunter Mara Voss becomes Kessa Voss (Old
-//   Mara keeps hers).
+//   Mara was later renamed Old Hedda).
 export const MERCHANT_RENAMES = {
   Brak: 'Breka',
   'Neris Tidehand': 'Naelia the Diver',

@@ -132,7 +132,7 @@ export const ADVENTURE_REWARD_MODELS = {
   },
   blackroot_hollow: {
     wave: '2a',
-    permanentUnlock: 'safe silk access or Mara as a wilderness contact',
+    permanentUnlock: 'safe silk access or Hedda as a wilderness contact',
     tier: 1,
     recommendedLevelRange: [2, 3],
     maxCurrencyBudgetCp: 90,
