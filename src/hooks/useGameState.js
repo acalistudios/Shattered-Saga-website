@@ -68,7 +68,7 @@ import {
   isArenaId, arenaIdFor, beginArenaBout, markArenaFought, normalizeArenaOutcome,
   finishArenaBout, describeArenaResult, canEnterArena,
 } from '../utils/arenaEngine';
-import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../utils/authApi';
+import { isBackendConfigured, fetchMe, generateViaBackend, summarizeViaBackend, getToken } from '../utils/authApi';
 import { localSlotsOwnedByOtherAccount, prepareLocalSlotsForAccount } from '../utils/cloudSaves';
 import { consumeRationFromInventory, resolveRest, restHealAmount, hungryRestFatigue } from '../utils/restEngine';
 import { canDeferNarrationCosts, createPreparedNarrationTurn } from '../utils/narrationTurn';
@@ -1326,15 +1326,10 @@ export default function useGameState() {
 
         const useBackend = isBackendConfigured && !sandbox && engineTier !== 'byok';
 
+        // Server play: the Worker's free /api/summarize (its own prompt; never
+        // charged; skipped when no summary is due yet).
         const response = useBackend
-          ? await generateViaBackend({
-              systemPrompt: summaryPrompt,
-              history: newHistory.slice(-10),
-              // Summaries never need the premium model, which costs the
-              // player 8 turns (Worker turns.ts PREMIUM_TURN_COST).
-              premiumTurn: false,
-              model: activeModel,
-            })
+          ? await summarizeViaBackend({ history: newHistory.slice(-10) })
           : await generateCompletion({
               provider: activeProvider,
               model: activeModel,
@@ -2721,6 +2716,12 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
           });
 
       setIsLoading(false);
+
+      // The Worker reports the balance after charging this turn; show it now
+      // instead of waiting for the next profile refresh.
+      if (typeof response.energy_remaining === 'number') {
+        setUserProfile(prev => (prev ? { ...prev, energy_balance: response.energy_remaining } : prev));
+      }
 
       if (response.error) {
         setApiError(response.error);

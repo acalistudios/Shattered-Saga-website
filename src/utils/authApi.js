@@ -139,6 +139,18 @@ export async function generateViaBackend({ systemPrompt, history, premiumTurn = 
   }
 }
 
+// Free "story so far" summary (Hans, 2026-11-27). The Worker writes it with its
+// own fixed prompt and only when one is due (every few charged turns), so it
+// never costs a turn; skipped=true means not due yet, keep the old summary.
+export async function summarizeViaBackend({ history }) {
+  try {
+    const data = await post('/api/summarize', { history }, true);
+    return { text: data.text || '', skipped: !!data.skipped, error: null };
+  } catch (e) {
+    return { text: '', skipped: false, error: e.message || 'Summary failed.' };
+  }
+}
+
 // --- billing ---------------------------------------------------------------
 
 /** Whether real payments are configured server-side (so the UI can hide buttons). */
