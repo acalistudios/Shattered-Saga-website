@@ -1,6 +1,6 @@
 // Duel simulator for weapon balance (Hans 2026-11-17).
 //
-//   cd C:\Users\hansi\_ACALI\work\ss-web
+//   cd <your ss-web checkout>
 //   node scripts/combat-sim.mjs
 //
 // Mirrors the engine's rolls in hooks/useGameState.js (executeCombatManeuver,

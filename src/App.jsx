@@ -16,6 +16,7 @@ import { ADVENTURES_LIST } from './data/adventures';
 import { isGloballyBanned } from './utils/safety';
 import { spendGemBalance, usesServerGems } from './utils/gemLedger';
 import storage from './utils/storage';
+import { consumeAccountReturn, safeBackScreen } from './utils/accountReturn';
 import {
   isBackendConfigured,
   signUpEmail,
@@ -153,7 +154,10 @@ function App() {
     if (screen !== 'account') setPrevScreen(screen);
     setAccountInitialSection(section || 'overview');
     if (options.message) setAccountNotice(options.message);
+    // Where to land after an OAuth/Stripe redirect. Always overwrite both keys
+    // (no stale section from an earlier visit); they are consumed on return.
     if (section) storage.set('account_return_section', section);
+    else storage.remove('account_return_section');
     if (screen !== 'account') storage.set('account_return_screen', screen);
     if (options.reason === 'insufficient_gems') {
       setAccountNotice(options.message || 'You need more gems for that purchase. Buy a gem pack here, then return to continue.');
@@ -255,9 +259,9 @@ function App() {
     if (!outcome) return;
 
     window.history.replaceState(null, '', window.location.pathname);
-    const returnScreen = storage.get('account_return_screen');
+    const { screen: returnScreen, section: returnSection } = consumeAccountReturn();
     setPrevScreen(['play', 'adventure_selection'].includes(returnScreen) ? returnScreen : 'splash');
-    setAccountInitialSection(storage.get('account_return_section') === 'subscriptions' ? 'subscriptions' : 'store');
+    setAccountInitialSection(returnSection === 'subscriptions' ? 'subscriptions' : 'store');
     setScreen('account');
 
     if (outcome === 'success') {
@@ -292,9 +296,9 @@ function App() {
     if (authError === 'INVALID_TOKEN' && !authProvider && !authLinked && !authSuccess) return;
 
     window.history.replaceState(null, '', window.location.pathname);
-    const returnScreen = storage.get('account_return_screen');
+    const { screen: returnScreen, section: returnSection } = consumeAccountReturn();
     setPrevScreen(['play', 'adventure_selection'].includes(returnScreen) ? returnScreen : 'splash');
-    setAccountInitialSection(authError ? 'support' : storage.get('account_return_section') === 'subscriptions' ? 'subscriptions' : 'overview');
+    setAccountInitialSection(authError ? 'support' : returnSection === 'subscriptions' ? 'subscriptions' : 'overview');
     setScreen('account');
 
     if (authError === 'account_not_linked') {
@@ -555,6 +559,17 @@ function App() {
       await apiSignOut(); // clears the Better Auth bearer token
       clearLocalSlots();
       prepareLocalSlotsForGuest();
+      storage.remove('shattered_username');
+      storage.remove('shattered_email');
+      storage.remove('supabase_session_token');
+      // The signed-out player's character is still in memory, and the persist
+      // effects would write it into the now-guest slots on the next change,
+      // where the next player to sign in could claim it (grok-bot S1). Restart
+      // clean, with no React update first so nothing re-renders and writes it
+      // back, and only once storage has really dropped the old keys.
+      await storage.settle();
+      window.location.reload();
+      return;
     }
     storage.remove('shattered_username');
     storage.remove('shattered_email');
@@ -713,7 +728,9 @@ function App() {
 
   const handleCreateCharacter = (charDetails) => {
     createCharacter(charDetails);
-    // Choose a play plan before the first adventure; free play remains available.
+    // Choose a play plan before the first adventure. Every plan, Free included,
+    // needs a signed-in account (Hans, 2026-11-27): Free play spends the
+    // account's turn balance, so AccountScreen refuses it to guests.
     setPrevScreen('adventure_selection');
     setAccountInitialSection('subscriptions');
     setAccountNotice('Your character is ready. Choose Free, BYOK Supporter, or a premium plan to begin.');
@@ -1069,7 +1086,7 @@ function App() {
 
         {screen === 'account' && (
           <AccountScreen
-            onBack={() => setScreen(prevScreen)}
+            onBack={() => setScreen(safeBackScreen(prevScreen, character, activeAdventureId))}
             initialSection={accountInitialSection}
             onEmailPasswordAuth={handleEmailPasswordAuth}
             onSocialLogin={handleSocialLogin}

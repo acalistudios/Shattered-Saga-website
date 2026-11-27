@@ -3,6 +3,16 @@ import { Preferences } from '@capacitor/preferences';
 let memoryCache = {};
 let isInitialized = false;
 
+// Outstanding async Capacitor writes/removes. A page reload abandons pending
+// promises, so anything that reloads right after changing storage (sign-out)
+// must `await storage.settle()` first, or the old values come back on init.
+const pending = new Set();
+const track = (promise) => {
+  pending.add(promise);
+  promise.finally(() => pending.delete(promise));
+  return promise;
+};
+
 const normalizeKey = (key) => {
   if (key.startsWith('shatteredsaga_') || key.startsWith('shattered_') || key === 'supabase_session_token') {
     return key;
@@ -145,9 +155,9 @@ const storage = {
     memoryCache[fullKey] = normalizedValue;
 
     // Async Capacitor write
-    Preferences.set({ key: fullKey, value: JSON.stringify(normalizedValue) }).catch(err => {
+    track(Preferences.set({ key: fullKey, value: JSON.stringify(normalizedValue) }).catch(err => {
       console.error(`[Storage] Capacitor set failed for key ${fullKey}:`, err);
-    });
+    }));
 
     // Sync localStorage write (keeps DevTools storage tab inspectable)
     try {
@@ -166,9 +176,9 @@ const storage = {
     delete memoryCache[fullKey];
 
     // Async Capacitor remove
-    Preferences.remove({ key: fullKey }).catch(err => {
+    track(Preferences.remove({ key: fullKey }).catch(err => {
       console.error(`[Storage] Capacitor remove failed for key ${fullKey}:`, err);
-    });
+    }));
 
     // Sync localStorage remove
     try {
@@ -177,6 +187,11 @@ const storage = {
       console.error(`[Storage] LocalStorage remove failed for key ${fullKey}:`, e);
     }
     return true;
+  },
+
+  /** Resolves once every pending Capacitor write/remove has finished. */
+  settle: async () => {
+    while (pending.size) await Promise.allSettled([...pending]);
   },
 
   /**

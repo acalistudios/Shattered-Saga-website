@@ -69,6 +69,7 @@ import {
   finishArenaBout, describeArenaResult, canEnterArena,
 } from '../utils/arenaEngine';
 import { isBackendConfigured, fetchMe, generateViaBackend, getToken } from '../utils/authApi';
+import { localSlotsOwnedByOtherAccount, prepareLocalSlotsForAccount } from '../utils/cloudSaves';
 import { consumeRationFromInventory, resolveRest, restHealAmount, hungryRestFatigue } from '../utils/restEngine';
 import { canDeferNarrationCosts, createPreparedNarrationTurn } from '../utils/narrationTurn';
 import { luckRank, bendLuckBonus, isLuckArmed, bendRoll, armBendLuck, spendArmedLuck, cancelBendLuck } from '../utils/luck';
@@ -479,9 +480,19 @@ export default function useGameState() {
   const fetchUserProfile = useCallback(async () => {
     // Better Auth backend: read tier + energy from the Worker's /api/me.
     if (isBackendConfigured) {
-      setProfileStatus('checking');
+      // Re-checks while already signed in (e.g. the post-checkout poll) keep
+      // showing 'authenticated' instead of flickering to 'checking'.
+      setProfileStatus(s => (s === 'authenticated' ? s : 'checking'));
       try {
         const me = await fetchMe();
+        // Identity changed under a running session: wipe the other account's
+        // slots and restart, so its character is never saved into this one.
+        if (me && localSlotsOwnedByOtherAccount(me.id || me.email)) {
+          prepareLocalSlotsForAccount(me.id || me.email);
+          await storage.settle();
+          window.location.reload();
+          return null;
+        }
         const profile = me
           ? {
               id: me.id,

@@ -1,6 +1,8 @@
 import { describe, it } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
+import process from 'process';
 import { ADVENTURES_LIST } from './adventures';
 import { ADVENTURE_PROGRESSION_METADATA } from './adventureProgression';
 import { SKILLS_LIST } from './gms';
@@ -220,11 +222,10 @@ describe('18-Adventure Campaign Playability and Challenge Audit', () => {
     // Sort adventures by campaignOrder
     report.adventures.sort((a, b) => a.campaignOrder - b.campaignOrder);
 
-    // Save JSON audit log to artifacts scratch directory
-    const artifactDir = 'C:\\Users\\hansi\\.gemini\\antigravity\\brain\\d917b103-4655-435d-9a0d-cf433fb73ff2\\scratch';
-    if (!fs.existsSync(artifactDir)) {
-      fs.mkdirSync(artifactDir, { recursive: true });
-    }
+    // Save the JSON audit to the OS temp folder (no machine-specific paths in
+    // this public repo). Set AUDIT_DIR to write it somewhere else.
+    const artifactDir = process.env.AUDIT_DIR || path.join(os.tmpdir(), 'shattered-saga-audit');
+    fs.mkdirSync(artifactDir, { recursive: true });
     const outputPath = path.join(artifactDir, 'campaign_18_adventures_audit.json');
     fs.writeFileSync(outputPath, JSON.stringify(report, null, 2), 'utf-8');
     console.log(`Campaign Audit Complete: Saved to ${outputPath}`);

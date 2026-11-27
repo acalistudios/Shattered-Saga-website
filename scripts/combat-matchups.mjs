@@ -1,6 +1,6 @@
 // Style-vs-style duel simulator (Hans 2026-11-17).
 //
-//   cd C:\Users\hansi\_ACALI\work\ss-web
+//   cd <your ss-web checkout>
 //   node scripts/combat-matchups.mjs
 //
 // Two fighters with identical stats (Coord/Power/Vigor 3, skills 2, light

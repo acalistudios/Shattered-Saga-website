@@ -4,7 +4,7 @@
 // a character who levels normally (simCore playerAt). Reports win rate and the
 // share of HP lost by the winners. Skipped in normal runs:
 //
-//   cd C:\Users\hansi\_ACALI\work\ss-web
+//   cd <your ss-web checkout>
 //   $env:BALANCE = '1'; npx vitest run src/sim/roadThreats.playtest.test.js; Remove-Item Env:BALANCE
 //
 // Target: typical builds win about 90%+ while losing roughly a quarter to a

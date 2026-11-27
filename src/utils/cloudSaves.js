@@ -106,6 +106,19 @@ export function prepareLocalSlotsForAccount(accountId) {
   setLocalSaveOwner(accountId);
 }
 
+/**
+ * True when this device's local slots belong to a different real account
+ * than `accountId`. Seeing that mid-session means the identity changed under
+ * us (e.g. a stale bearer token fell back to another user's cookie session),
+ * so the in-memory character must not be written into the new account's
+ * slots (grok-bot S3).
+ */
+export function localSlotsOwnedByOtherAccount(accountId) {
+  if (!accountId) return false;
+  const currentOwner = storage.get(SAVE_OWNER_KEY);
+  return !!currentOwner && currentOwner !== GUEST_OWNER && currentOwner !== accountId;
+}
+
 export function prepareLocalSlotsForGuest() {
   setLocalSaveOwner(GUEST_OWNER);
 }

@@ -3,7 +3,7 @@
 // defence and matchup code (combat model in ./simCore.js). Skipped in normal
 // test runs; run it with
 //
-//   cd C:\Users\hansi\_ACALI\work\ss-web
+//   cd <your ss-web checkout>
 //   $env:BALANCE = '1'; npx vitest run src/sim/balance.playtest.test.js; Remove-Item Env:BALANCE
 //
 // Writes a report to src/sim/balance-report.md. The player is a level 1
