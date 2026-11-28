@@ -24,7 +24,7 @@ import storage from '../utils/storage';
 import { calculateWeightAndVolume, getItemDetails, getItemSlot, getEquippedDefenseGear } from '../utils/items';
 import AccountStatusPills from '../components/AccountStatusPills';
 import ResurrectionModal from '../components/ResurrectionModal';
-import { stripEngineTags } from '../utils/playerInput';
+import { stripEngineTags, stripJournalTags } from '../utils/playerInput';
 import { getToken } from '../utils/authApi';
 import { skillRankCost } from '../data/progressionRewards';
 import { getCompanionById } from '../data/companions';
@@ -2630,9 +2630,9 @@ export default function PlayScreen({
             
             <div className="space-y-1">
               <h4 className="text-3xs uppercase font-bold text-amber-505">The Story So Far</h4>
-              {journal.storySoFar ? (
+              {stripJournalTags(journal.storySoFar) ? (
                 <p className="text-xs text-slate-350 leading-relaxed italic">
-                  "{journal.storySoFar}"
+                  "{stripJournalTags(journal.storySoFar)}"
                 </p>
               ) : (
                 <p className="text-xs text-slate-500 italic">
@@ -2649,7 +2649,7 @@ export default function PlayScreen({
                 <ul className="space-y-2">
                   {journal.recentTurns.map((turn, idx) => (
                     <li key={idx} className="text-xs p-2 rounded bg-slate-950/40 border border-slate-900/50 text-slate-400 font-medium">
-                      ⚔️ "{turn}"
+                      ⚔️ "{stripJournalTags(turn)}"
                     </li>
                   ))}
                 </ul>

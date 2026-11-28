@@ -68,7 +68,7 @@ footer{margin-top:48px;padding-top:16px;padding-bottom:32px;border-top:1px solid
 `;
 
 /** A complete standalone HTML page in the site's look. */
-export function renderPage({ path, title, description, body, image }) {
+export function renderPage({ path, title, description, body, image, robots }) {
   const url = SITE_ORIGIN + path;
   return `<!doctype html>
 <html lang="en">
@@ -77,8 +77,7 @@ export function renderPage({ path, title, description, body, image }) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}">
-<link rel="canonical" href="${url}">
-<meta property="og:title" content="${esc(title)}">
+${robots ? `<meta name="robots" content="${esc(robots)}">\n` : `<link rel="canonical" href="${url}">\n`}<meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
 ${image ? `<meta property="og:image" content="${SITE_ORIGIN}${image}">\n` : ''}<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -218,7 +217,23 @@ export function rulesPage(rulesMarkdown) {
   return { path: '/rules/', title: 'Game manual — Shattered Saga', description: 'The complete rules of Shattered Saga: checks, combat, magic, armour, gear, companions, death and resurrection.', body };
 }
 
-/** Every content page, plus sitemap.xml and robots.txt. */
+/** Custom 404 page: having dist/404.html disables Cloudflare Pages SPA fallback
+ * so missing /assets/*.js chunks return HTTP 404 instead of 200 text/html. */
+export function notFoundPage() {
+  const body = `<h1>Page Not Found</h1>
+<p class="lede">The path you followed leads beyond the charted realm.</p>
+<p>If you arrived here from an older cached version of Shattered Saga, reload the home page to pick up the latest build.</p>
+<p><a class="play" href="/">Return to Shattered Saga</a> &nbsp; <a href="/adventures/">Browse adventures</a></p>`;
+  return renderPage({
+    path: '/404.html',
+    title: 'Page Not Found — Shattered Saga',
+    description: 'The requested page or asset could not be found on Shattered Saga.',
+    body,
+    robots: 'noindex',
+  });
+}
+
+/** Every content page, plus sitemap.xml, robots.txt, and 404.html. */
 export function buildSitePages(rulesMarkdown) {
   const pages = [adventuresIndexPage(), ...playable().map(adventurePage), peoplesPage(), rulesPage(rulesMarkdown)];
   const urls = ['/', ...pages.map(p => p.path), '/privacy', '/terms'];
@@ -229,5 +244,5 @@ ${urls.map(u => `  <url><loc>${SITE_ORIGIN}${u}</loc><lastmod>${today}</lastmod>
 </urlset>
 `;
   const robots = `User-agent: *\nAllow: /\n\nSitemap: ${SITE_ORIGIN}/sitemap.xml\n`;
-  return { pages: pages.map(p => ({ ...p, html: renderPage(p) })), sitemap, robots, home: homeContent() };
+  return { pages: pages.map(p => ({ ...p, html: renderPage(p) })), sitemap, robots, home: homeContent(), notFound: notFoundPage() };
 }

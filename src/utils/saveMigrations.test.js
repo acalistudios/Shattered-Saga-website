@@ -23,4 +23,15 @@ describe('journal from an older or imported save', async () => {
     expect(normalizeJournal(null)).toEqual({ storySoFar: '', recentTurns: [] });
     expect(normalizeJournal({ storySoFar: 'x', recentTurns: ['a'] })).toEqual({ storySoFar: 'x', recentTurns: ['a'] });
   });
+
+  it('strips leaked engine and music tags from storySoFar and recentTurns', () => {
+    const out = normalizeJournal({
+      storySoFar: 'Entered the keep [location: Great Hall] and chose mercy [choice: spare_goblin] [tension].',
+      recentTurns: ['Speak to Skritt [location: Courtyard] [hazard]', 'Hold position [stealth_start]'],
+    });
+    expect(out).toEqual({
+      storySoFar: 'Entered the keep and chose mercy .',
+      recentTurns: ['Speak to Skritt', 'Hold position'],
+    });
+  });
 });

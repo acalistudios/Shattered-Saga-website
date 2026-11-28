@@ -42,4 +42,11 @@ describe('crawlable site pages', () => {
   it('the landing page text names the real adventure count', () => {
     expect(site.home).toContain(`${ADVENTURES_LIST.filter(a => a.settings?.length && !a.isPatrol && !a.isArena).length} adventures`);
   });
+
+  it('generates a noindex 404.html excluded from sitemap.xml', () => {
+    expect(site.notFound).toContain('<meta name="robots" content="noindex">');
+    expect(site.notFound).toContain('href="/"');
+    expect(site.notFound).not.toContain('<link rel="canonical"');
+    expect(site.sitemap).not.toContain('404');
+  });
 });

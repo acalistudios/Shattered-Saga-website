@@ -28,6 +28,10 @@ const ENGINE_TAG_RE = new RegExp(
   'gi'
 );
 
+// Music cue tags stay in chat history for useAudioPlayer, but should never
+// appear in the Adventure Journal summary or recent turns.
+const MUSIC_CUE_TAG_RE = /\[\s*(?:tension|hazard|stealth_start)\s*\]/gi;
+
 /**
  * Remove engine control tags from text the PLAYER typed or clicked.
  * Never apply this to engine-generated payloads (combat maneuvers append their
@@ -36,4 +40,13 @@ const ENGINE_TAG_RE = new RegExp(
 export function stripEngineTags(text) {
   if (typeof text !== 'string') return text;
   return text.replace(ENGINE_TAG_RE, '').replace(/[ \t]{2,}/g, ' ').trim();
+}
+
+/**
+ * Remove engine control tags and music cue tags from Adventure Journal text
+ * (both legacy saves and newly generated summaries/recent turns).
+ */
+export function stripJournalTags(text) {
+  if (typeof text !== 'string') return text;
+  return stripEngineTags(text.replace(MUSIC_CUE_TAG_RE, ''));
 }

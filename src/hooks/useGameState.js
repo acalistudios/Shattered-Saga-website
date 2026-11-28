@@ -6,6 +6,7 @@ import { calculateWeightAndVolume, getItemDetails, getEquippedDefenseGear } from
 import { generateCompletion, executeOpposedCheck, rollDie, rollAttributePrimary, rollAttributeSecondary, rollSkillRanks } from '../utils/ai';
 import { ADVENTURES_LIST } from '../data/adventures';
 import { renameMerchantKeys, renameAdventureTrades } from '../utils/merchantRenames';
+import { stripJournalTags } from '../utils/playerInput';
 import { getAdventureById } from '../data/adventureLookup';
 import { checkSafetyViolation, getGMStrikeWarning, getGMSternWarning, calculateLockoutExpiry, isGloballyBanned } from '../utils/safety';
 import { generateMerchantStock, TAVERNS, getTrainerConfig } from '../data/downtimeMerchants';
@@ -386,10 +387,12 @@ const renameLegacyItemsDeep = (value) => {
 // the whole Play screen.
 export function normalizeJournal(raw) {
   const j = raw && typeof raw === 'object' ? raw : {};
+  const rawStory = typeof j.storySoFar === 'string' ? j.storySoFar : (typeof j.summary === 'string' ? j.summary : '');
+  const rawTurns = Array.isArray(j.recentTurns) ? j.recentTurns : [];
   return {
     ...j,
-    storySoFar: typeof j.storySoFar === 'string' ? j.storySoFar : (typeof j.summary === 'string' ? j.summary : ''),
-    recentTurns: Array.isArray(j.recentTurns) ? j.recentTurns : [],
+    storySoFar: stripJournalTags(rawStory),
+    recentTurns: rawTurns.map(t => (typeof t === 'string' ? stripJournalTags(t) : t)),
   };
 }
 
@@ -1345,10 +1348,10 @@ export default function useGameState() {
           const recentUserActions = newHistory
             .filter(h => h.role === 'user')
             .slice(-3)
-            .map(h => h.content);
+            .map(h => stripJournalTags(h.content));
 
           setJournal({
-            storySoFar: response.text.trim(),
+            storySoFar: stripJournalTags(response.text),
             recentTurns: recentUserActions
           });
         }
@@ -1356,7 +1359,7 @@ export default function useGameState() {
         const recentUserActions = newHistory
           .filter(h => h.role === 'user')
           .slice(-3)
-          .map(h => h.content);
+          .map(h => stripJournalTags(h.content));
 
         setJournal(prev => ({
           ...prev,

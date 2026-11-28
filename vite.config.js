@@ -42,7 +42,7 @@ function sitePagesPlugin() {
       try {
         const { buildSitePages } = await server.ssrLoadModule('/src/content/sitePages.js')
         const rules = readFileSync('src/data/GAME_RULES.md', 'utf8')
-        const { pages, sitemap, robots, home } = buildSitePages(rules)
+        const { pages, sitemap, robots, home, notFound } = buildSitePages(rules)
         for (const page of pages) {
           const file = join(outDir, page.path, 'index.html')
           mkdirSync(dirname(file), { recursive: true })
@@ -50,10 +50,11 @@ function sitePagesPlugin() {
         }
         writeFileSync(join(outDir, 'sitemap.xml'), sitemap)
         writeFileSync(join(outDir, 'robots.txt'), robots)
+        writeFileSync(join(outDir, '404.html'), notFound)
         const indexFile = join(outDir, 'index.html')
         const index = readFileSync(indexFile, 'utf8')
         writeFileSync(indexFile, index.replace('<div id="root"></div>', `<div id="root">${home}</div>`))
-        console.log(`site pages: ${pages.length} pages, sitemap.xml, robots.txt`)
+        console.log(`site pages: ${pages.length} pages, sitemap.xml, robots.txt, 404.html`)
       } finally {
         await server.close()
       }
