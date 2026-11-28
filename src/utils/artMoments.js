@@ -12,6 +12,7 @@ import { getArmorType } from '../data/gearStats';
 import { getKeystoneCount } from '../data/keystoneShards';
 import { ADVENTURES_LIST } from '../data/adventures';
 import { merchantsAtLocation } from './adventureTrade';
+import { isIndoorRestLocation } from './restEngine';
 
 const PAINTED = new Set(manifest);
 
@@ -41,11 +42,11 @@ export function vendorPortraits(adventureId, location) {
 }
 
 // Campaign-wide moments whose condition holds for this character.
-function campaignMomentIds(character) {
+function campaignMomentIds(character, location = '') {
   const stats = character?.stats || {};
   const prog = character?.progression || {};
   const ids = [];
-  if ((prog.restsTaken || 0) >= 1) ids.push('first_rest');
+  if ((prog.restsTaken || 0) >= 1 && !isIndoorRestLocation(location)) ids.push('first_rest');
   if ((stats.level || 1) >= 2) ids.push('level_up');
   if (stats.elementalAbility) ids.push(`awaken_${String(stats.elementalAbility).toLowerCase()}`);
   if ((prog.resurrectionCount || 0) >= 1) ids.push('resurrection');
@@ -80,7 +81,7 @@ export function detectArtMoments({ character, adventureId, location = '' }) {
     add(`companion:${id}`, npcPortraitPath(p.adventureId, p.npcId), p.caption);
   });
 
-  campaignMomentIds(character).forEach(id => add(`moment:${id}`, momentPath(id), CAMPAIGN_MOMENTS[id].caption));
+  campaignMomentIds(character, location).forEach(id => add(`moment:${id}`, momentPath(id), CAMPAIGN_MOMENTS[id].caption));
 
   if (adventureId) {
     const endings = character?.progression?.completedEndings?.[adventureId] || [];

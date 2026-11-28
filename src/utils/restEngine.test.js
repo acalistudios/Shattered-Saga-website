@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { consumeRationFromInventory, resolveRest } from './restEngine';
+import { consumeRationFromInventory, resolveRest, isIndoorRestLocation } from './restEngine';
 
 const hero = (overrides = {}) => ({
   inventory: ['Rations (2)', 'Dagger'], daysWithoutFood: 2,
@@ -56,5 +56,12 @@ describe('deterministic manual rest', () => {
     expect(consumeRationFromInventory(['Rations (0)']).hasRations).toBe(false);
     expect(consumeRationFromInventory(['Rations (0)', 'Rations (3)', 'Rations (2)']).updatedInventory)
       .toEqual(['Rations (0)', 'Rations (2)', 'Rations (2)']);
+  });
+  it('grants bonus rest healing for Bedroll (+2) and Waterskin (+1) and distinguishes indoor locations', () => {
+    const withGear = resolveRest(hero({ inventory: ['Rations (2)', 'Bedroll', 'Waterskin'] }));
+    expect(withGear.character.stats.hp).toBe(9); // 1 + 5 (25% of 20) + 2 (Bedroll) + 1 (Waterskin)
+    expect(isIndoorRestLocation('Great Hall')).toBe(true);
+    expect(isIndoorRestLocation('Prison Sub-Level')).toBe(true);
+    expect(isIndoorRestLocation('Ashveil Village Square')).toBe(false);
   });
 });

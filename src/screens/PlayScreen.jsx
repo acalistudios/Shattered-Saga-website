@@ -285,6 +285,11 @@ export default function PlayScreen({
   const [isStatsOpen, setIsStatsOpen] = useState(isWideDesktop);
   const [isEquipmentOpen, setIsEquipmentOpen] = useState(false);
   const [activeItemMenu, setActiveItemMenu] = useState(null);
+  const [openItemInfo, setOpenItemInfo] = useState(null);
+  const [usedRoomChoices, setUsedRoomChoices] = useState({});
+  const [showMilestoneModal, setShowMilestoneModal] = useState(false);
+  const [isAreaMapOpen, setIsAreaMapOpen] = useState(false);
+  const [visitedRooms, setVisitedRooms] = useState({});
   const [isCurrencyOpen, setIsCurrencyOpen] = useState(false);
   const [isStorageOpen, setIsStorageOpen] = useState(false);
   const [isStrongholdsOpen, setIsStrongholdsOpen] = useState(false);
@@ -530,8 +535,18 @@ export default function PlayScreen({
     baseCurrencyCp: 0
   };
   const activeRoom = currentLocation || activeAdventure?.settings?.[0] || null;
+  const roomChoiceScope = `${activeAdventureId || ''}:${activeRoom || ''}`;
+  const dismissedChoiceIds = usedRoomChoices[roomChoiceScope] || [];
+  const hasSkritt = (character.companions || []).some((c) => (c?.id || c) === 'skritt_goblin');
   const activeRoomChoices = activeRoom
-    ? (isPatrol ? getPatrolChoices(character) : (activeAdventure?.settingChoices?.[activeRoom] || [])).map(choice => {
+    ? (isPatrol ? getPatrolChoices(character) : (activeAdventure?.settingChoices?.[activeRoom] || []))
+      .filter((choice) => {
+        const key = choice.id || choice.text;
+        if (dismissedChoiceIds.includes(key)) return false;
+        if (hasSkritt && (choice.id === 'gh_parley' || choice.id === 'gh_stealth')) return false;
+        return true;
+      })
+      .map(choice => {
         const scaling = activeAdventure ? getDifficultyScaling(character, activeAdventure) : null;
         const scaledDifficulty = applyChoiceDifficultyScaling(choice.difficulty, scaling);
         return {
@@ -555,6 +570,12 @@ export default function PlayScreen({
 
   const handleSuggestedChoice = (choice) => {
     if (!choice || isLoading) return;
+    const key = choice.id || choice.text;
+    const toDismiss = [key, ...(choice.excludes || [])];
+    setUsedRoomChoices((prev) => ({
+      ...prev,
+      [roomChoiceScope]: [...new Set([...(prev[roomChoiceScope] || []), ...toDismiss])],
+    }));
 
     const rank = character.skills?.[choice.skill] || 0;
     const suggestedSpSpend = ['arcane_shaping', 'divine_manifestation'].includes(choice.skill)
@@ -567,6 +588,20 @@ export default function PlayScreen({
     setDifficulty('professional');
     setSpSpend(0);
   };
+
+  // Track visited rooms for the compact dungeon mini-map & reset modal gate on new adventures
+  useEffect(() => {
+    if (!activeAdventureId || !activeRoom) return;
+    setVisitedRooms((prev) => {
+      const existing = prev[activeAdventureId] || [];
+      if (existing.includes(activeRoom)) return prev;
+      return { ...prev, [activeAdventureId]: [...existing, activeRoom] };
+    });
+  }, [activeAdventureId, activeRoom]);
+
+  useEffect(() => {
+    if (!isUpgradeScreenVisible) setShowMilestoneModal(false);
+  }, [isUpgradeScreenVisible]);
 
   return (
     <div className={`flex-1 min-h-0 flex h-full bg-slate-950 relative ${isDesktopLayout ? 'flex-row overflow-hidden' : 'flex-col overflow-y-auto'}`}>
@@ -1067,13 +1102,26 @@ export default function PlayScreen({
                 const isHerb = nameLower.includes('herb') || nameLower.includes('poultice');
                 const isPotion = nameLower.includes('potion') || nameLower.includes('elixir') || nameLower.includes('flask') || nameLower.includes('vial') || nameLower.includes('brew');
                 const isUsable = isBandage || isHealerKit || isHerb || isPotion;
+                const itemDetails = getItemDetails(item);
+                const itemHelp = itemDetails?.properties || itemDetails?.desc || describeGear(item) || 'Standard adventuring gear.';
+                const infoKey = `side-${idx}`;
                 return (
-                  <li key={idx} className="flex items-center justify-between gap-2 capitalize border-b border-slate-900/40 py-1">
-                    <span className="flex items-center gap-2 truncate pr-2" title={item}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0" />
-                      <span className="truncate">{item}</span>
-                    </span>
-                    <div className="flex gap-1.5 items-center flex-shrink-0">
+                  <li key={idx} className="border-b border-slate-900/40 py-1">
+                    <div className="flex items-center justify-between gap-2 capitalize">
+                      <span className="flex items-center gap-1.5 truncate pr-1" title={item}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0" />
+                        <span className="truncate">{item}</span>
+                        <button
+                          type="button"
+                          onClick={() => setOpenItemInfo(openItemInfo === infoKey ? null : infoKey)}
+                          aria-label={`About ${item}`}
+                          title={itemHelp}
+                          className="w-4 h-4 rounded-full bg-slate-900 border border-slate-700 hover:border-amber-400 text-[9px] font-bold text-slate-400 hover:text-amber-300 flex items-center justify-center flex-shrink-0 cursor-pointer"
+                        >
+                          ?
+                        </button>
+                      </span>
+                      <div className="flex gap-1.5 items-center flex-shrink-0">
                       {isRiteItem(item) && canPerformRite && (
                         <button
                           type="button"
@@ -1132,7 +1180,14 @@ export default function PlayScreen({
                           </button>
                         );
                       })()}
+                      </div>
                     </div>
+                    {openItemInfo === infoKey && (
+                      <p className="mt-1 px-2 py-1 rounded bg-slate-900/80 border border-slate-800 text-[10px] normal-case text-slate-300 leading-snug">
+                        {itemHelp}
+                        <span className="text-slate-500 ml-1">({itemDetails.weight} lbs · {itemDetails.volume} L)</span>
+                      </p>
+                    )}
                   </li>
                 );
               })}
@@ -1815,6 +1870,25 @@ export default function PlayScreen({
             </div>
           )}
 
+          {/* Non-blocking Adventure Concluded banner so the player reads the epilogue first */}
+          {isUpgradeScreenVisible && !showMilestoneModal && (
+            <div className="p-4 rounded-lg border-2 border-emerald-500/60 bg-emerald-950/35 text-center space-y-2 shadow-lg">
+              <h4 className="font-serif text-sm font-extrabold uppercase tracking-wider text-emerald-300">
+                🏆 Adventure Concluded
+              </h4>
+              <p className="text-xs text-slate-300">
+                Take a moment to read your epilogue above, then claim your rewards and return to the world map.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowMilestoneModal(true)}
+                className="px-5 py-2 rounded bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold uppercase tracking-widest cursor-pointer transition-all shadow"
+              >
+                Claim Rewards &amp; Conclude Adventure
+              </button>
+            </div>
+          )}
+
           {apiError && (
             <div className="p-4 rounded border border-rose-500/30 bg-rose-950/20 text-rose-455 text-xs font-semibold leading-relaxed">
               <h4 className="font-bold mb-1 text-rose-400">An Error Obstructed the Saga:</h4>
@@ -2121,6 +2195,56 @@ export default function PlayScreen({
               />
             )}
 
+            {/* Compact collapsible Area / Dungeon Mini-Map */}
+            {activeAdventure?.settings?.length > 1 && activeRoom && (
+              <div className="rounded border border-slate-850 bg-slate-900/40 overflow-hidden mb-1">
+                <button
+                  type="button"
+                  onClick={() => setIsAreaMapOpen(!isAreaMapOpen)}
+                  className="w-full px-3 py-1.5 flex items-center justify-between text-3xs uppercase tracking-widest text-amber-400/90 font-bold hover:bg-slate-900/70 cursor-pointer"
+                >
+                  <span>🗺️ Area Map · {activeRoom}</span>
+                  <span className="text-slate-500">{isAreaMapOpen ? '▲ Hide' : '▼ Show'}</span>
+                </button>
+                {isAreaMapOpen && (() => {
+                  const visited = new Set(visitedRooms[activeAdventureId] || [activeRoom]);
+                  const exits = activeAdventure.settingConnections?.[activeRoom] || [];
+                  return (
+                    <div className="px-3 pb-2.5 pt-1 border-t border-slate-850/70 space-y-1.5">
+                      <div className="flex flex-wrap gap-1.5">
+                        {activeAdventure.settings.map((room) => {
+                          const isHere = room === activeRoom;
+                          const isAdjacent = exits.includes(room);
+                          const isSeen = visited.has(room);
+                          return (
+                            <span
+                              key={room}
+                              className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                                isHere
+                                  ? 'bg-amber-500/20 border-amber-400 text-amber-200'
+                                  : isAdjacent
+                                  ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
+                                  : isSeen
+                                  ? 'bg-slate-900 border-slate-700 text-slate-300'
+                                  : 'bg-slate-950/60 border-slate-850 text-slate-500'
+                              }`}
+                            >
+                              {isHere ? '📍 ' : isAdjacent ? '→ ' : isSeen ? '✓ ' : '? '}{room}
+                            </span>
+                          );
+                        })}
+                      </div>
+                      {exits.length > 0 && (
+                        <p className="text-[10px] text-slate-400">
+                          Connected from here: <span className="text-emerald-300 font-medium">{exits.join(' · ')}</span>
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
             {(activeRoomImage || activeRoomChoices.length > 0) && (
               <div className="rounded border border-slate-850 bg-slate-900/35 overflow-hidden mb-1">
                 {activeRoomImage && (
@@ -2154,7 +2278,7 @@ export default function PlayScreen({
                             disabled={isLoading}
                             className="min-h-20 rounded border border-slate-800 bg-slate-950/60 hover:bg-slate-900 hover:border-amber-500/35 disabled:opacity-45 disabled:hover:border-slate-800 disabled:hover:bg-slate-950/60 text-left p-3 transition-all cursor-pointer"
                           >
-                            <span className="block text-xs font-bold text-slate-200 leading-snug">{choice.text}</span>
+                            <span className="block text-xs font-bold text-slate-200 leading-snug">{stripEngineTags(choice.text)}</span>
                             <span className="block mt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                               {skillName} | {difficultyLabel} | Rank {rank}
                             </span>
@@ -2642,7 +2766,7 @@ export default function PlayScreen({
 
 
       {/* ----------------- MILESTONE LEVEL UP SCREEN OVERLAY ----------------- */}
-      {isUpgradeScreenVisible && (
+      {isUpgradeScreenVisible && showMilestoneModal && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md p-4 overflow-y-auto">
           <div className="w-full max-w-lg rounded-lg border-2 border-emerald-500 bg-slate-900 p-6 shadow-2xl shadow-emerald-500/20 text-left relative animate-scaleUp">
             
@@ -3063,15 +3187,26 @@ export default function PlayScreen({
                       }`}
                     >
                       <div className="flex justify-between items-start gap-2">
-                        <span className="text-2xs font-semibold text-slate-300 truncate" title={item}>
-                          {item}
+                        <span className="flex items-center gap-1.5 text-2xs font-semibold text-slate-300 truncate" title={item}>
+                          <span className="truncate">{item}</span>
+                          <button
+                            type="button"
+                            onClick={() => setOpenItemInfo(openItemInfo === `pack-${idx}` ? null : `pack-${idx}`)}
+                            aria-label={`About ${item}`}
+                            title={details.properties || details.desc || describeGear(item) || 'Standard adventuring gear.'}
+                            className="w-4 h-4 rounded-full bg-slate-900 border border-slate-700 hover:border-amber-400 text-[9px] font-bold text-slate-400 hover:text-amber-300 flex items-center justify-center flex-shrink-0 cursor-pointer"
+                          >
+                            ?
+                          </button>
                         </span>
                         <span className="text-[10px] text-slate-555 flex-shrink-0 font-medium">
                           {details.weight} lbs / {details.volume} L
                         </span>
                       </div>
-                      {describeGear(item) && (
-                        <span className="text-[10px] text-sky-300/80 leading-snug mt-0.5">{describeGear(item)}</span>
+                      {openItemInfo === `pack-${idx}` && (
+                        <span className="text-[10px] text-sky-300/90 bg-slate-950/80 border border-slate-800 rounded px-2 py-1 leading-snug mt-1">
+                          {details.properties || details.desc || describeGear(item) || 'Standard adventuring gear.'}
+                        </span>
                       )}
 
                       <div className="flex justify-between items-center mt-1.5 border-t border-slate-950 pt-1.5">
@@ -3237,6 +3372,7 @@ export default function PlayScreen({
       {/* Campfire Interlude & Companion Rest Duties */}
       <CampfireModal
         character={character}
+        location={activeRoom}
         isOpen={isCampfireOpen}
         onClose={() => setIsCampfireOpen(false)}
         onConfirmRest={(companionDutyId) => {

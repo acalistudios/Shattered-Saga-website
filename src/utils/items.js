@@ -5,9 +5,9 @@ import { gearValue } from '../data/gearStats';
 
 export const ITEMS_DATABASE = {
   // Backpacks (Gear Slot: backpack)
-  'Small Backpack': { weight: 2.0, volume: 0, slot: 'backpack', capacity: 20.0, desc: 'A basic canvas backpack.' },
-  'Medium Backpack': { weight: 3.5, volume: 0, slot: 'backpack', capacity: 35.0, desc: 'A reinforced leather backpack.' },
-  'Large Backpack': { weight: 5.0, volume: 0, slot: 'backpack', capacity: 50.0, desc: 'A heavy-duty frame backpack.' },
+  'Small Backpack': { weight: 2.0, volume: 0, slot: 'backpack', capacity: 25.0, desc: 'A basic canvas backpack holding up to 25 L of gear.' },
+  'Medium Backpack': { weight: 3.5, volume: 0, slot: 'backpack', capacity: 40.0, desc: 'A reinforced leather backpack holding up to 40 L of gear.' },
+  'Large Backpack': { weight: 5.0, volume: 0, slot: 'backpack', capacity: 60.0, desc: 'A heavy-duty frame backpack holding up to 60 L of gear.' },
 
   // Belt / Hip Gear (Gear Slot: hip_left, hip_right)
   'Weapon Sheath': { weight: 1.0, volume: 1.0, slot: 'hip', desc: 'A leather belt frog to sheath a small or medium weapon.' },
@@ -87,19 +87,19 @@ export const ITEMS_DATABASE = {
   'Gold Ring': { weight: 0.1, volume: 0.1, slot: 'ring', properties: 'Valuable gold band' },
 
   // Base Items & Consumables (Inventory only)
-  'Bedroll': { weight: 4.0, volume: 5.0 },
-  'Tinderbox': { weight: 0.5, volume: 0.5 },
-  'Waterskin': { weight: 1.0, volume: 1.5 },
+  'Bedroll': { weight: 3.0, volume: 3.5, desc: 'Cushioned travel roll. Carrying one grants +2 bonus HP recovery whenever you take a fed 8-hour rest.' },
+  'Tinderbox': { weight: 0.5, volume: 0.5, desc: 'Flint, steel, and dry charcloth. Lights campfires and torches reliably without a survival check.' },
+  'Waterskin': { weight: 1.0, volume: 1.0, desc: 'Holds clean drinking water. Carrying one keeps you hydrated on the road and grants +1 bonus HP recovery on a fed rest.' },
   'Spider-Silk Bundle': { weight: 1.0, volume: 1.5, properties: 'Crafting material. During downtime, upgrade one body armor to gain +1 soak against piercing damage.' },
-  'Rations (5)': { weight: 2.5, volume: 2.5 },
-  'Rations (4)': { weight: 2.0, volume: 2.0 },
-  'Rations (3)': { weight: 1.5, volume: 1.5 },
-  'Rations (2)': { weight: 1.0, volume: 1.0 },
-  'Rations (1)': { weight: 0.5, volume: 0.5 },
-  'Holy Water': { weight: 1.0, volume: 1.0 },
-  'Water-Breathing Elixir': { weight: 0.5, volume: 0.5 },
-  'Freezing Venom Vial': { weight: 0.5, volume: 0.5 },
-  'Alchemical Acid Flask': { weight: 1.0, volume: 1.0 },
+  'Rations (5)': { weight: 2.5, volume: 2.5, desc: '5 days of trail food. Consuming 1 ration during rest restores full fatigue, SP, and HP.' },
+  'Rations (4)': { weight: 2.0, volume: 2.0, desc: '4 days of trail food. Consuming 1 ration during rest restores full fatigue, SP, and HP.' },
+  'Rations (3)': { weight: 1.5, volume: 1.5, desc: '3 days of trail food. Consuming 1 ration during rest restores full fatigue, SP, and HP.' },
+  'Rations (2)': { weight: 1.0, volume: 1.0, desc: '2 days of trail food. Consuming 1 ration during rest restores full fatigue, SP, and HP.' },
+  'Rations (1)': { weight: 0.5, volume: 0.5, desc: '1 day of trail food. Consuming 1 ration during rest restores full fatigue, SP, and HP.' },
+  'Holy Water': { weight: 1.0, volume: 1.0, desc: 'Consecrated vial. Throw in combat for 2d6 radiant damage against unholy foes and to weaken incorporeal spirits.' },
+  'Water-Breathing Elixir': { weight: 0.5, volume: 0.5, desc: 'Alchemical draught granting safe underwater breathing for one scene. Consumed on use.' },
+  'Freezing Venom Vial': { weight: 0.5, volume: 0.5, desc: 'Coat a weapon before striking to add frost-venom damage on your next hit. Consumed on use.' },
+  'Alchemical Acid Flask': { weight: 1.0, volume: 1.0, desc: 'Throw in combat for 2d4 corrosive damage that ignores armour.' },
   'Chronicle Hourglass': { weight: 1.0, volume: 1.0, desc: 'A magical hourglass that allows you to replay a completed quest. Consumed on use.' },
   'Pearl Memory Scale': { weight: 0.5, volume: 0.5, properties: 'Once per rest, reroll a failed Lore, Insight, Perception, Negotiation, or Deception check. Cost: -1 to that skill until rest or surrender one journal memory scene. Aether affinity can reject the reroll with no cost.' },
   'Masterwork Tool Kit +2': { weight: 5.0, volume: 4.0, slot: 'backpack', properties: '+2 Crafting and +2 Smithing checks when equipped or unpacked. Air affinity completes one field repair in half time once per rest.' },
@@ -289,10 +289,10 @@ export function calculateWeightAndVolume(character) {
   // Max weight = 30 + 15 * Power + 5 * Vigor
   const maxWeight = 30 + 15 * power + 5 * vigor;
 
-  // Max volume is determined by equipped backpack (default pockets = 5 L)
+  // Max volume is determined by equipped backpack (default pockets = 8 L)
   const backpackItem = character.equipment?.backpack;
   const backpackDetails = backpackItem ? getItemDetails(backpackItem) : null;
-  const maxVolume = backpackDetails?.capacity || 5.0;
+  const maxVolume = backpackDetails?.capacity || 8.0;
 
   let totalWeight = 0;
   let totalVolume = 0;
@@ -365,20 +365,20 @@ export function calculateWeightAndVolume(character) {
     isOverloaded = true;
     isSlowed = true;
     isEncumbered = true;
-  } else if (activeRatio > 0.75) {
+  } else if (activeRatio > 0.85) {
     isSlowed = true;
     isEncumbered = true;
-  } else if (activeRatio > 0.5) {
+  } else if (activeRatio > 0.7) {
     isEncumbered = true;
   }
 
-  // Calculate scaling penalty: 2% reduction & 2% fatigue increase per 1% above 50% ratio
-  if (activeRatio > 0.5) {
-    const pctAbove = (activeRatio - 0.5) * 100;
+  // Scaling penalty starts at 70% capacity so normal starting gear + loot stay Light Load
+  if (activeRatio > 0.7) {
+    const pctAbove = (activeRatio - 0.7) * 100;
     penaltyPercentage = Math.round(pctAbove * 2);
     
-    // Flat roll modifier penalty: -1 for every 10% above 50% capacity
-    rollModifier = -Math.floor(pctAbove / 10);
+    // Flat roll modifier penalty: -1 for every 15% above 70% capacity
+    rollModifier = -Math.max(1, Math.floor(pctAbove / 15));
   }
 
   return {

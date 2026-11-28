@@ -20,9 +20,19 @@ export function consumeRationFromInventory(inventory = []) {
 // Used by the Rest button and by the GM's [rest] tag, so both agree.
 export const REST_HEAL_FRACTION = 0.25;
 
+const INDOOR_REST_RE = /\b(hall|study|chapel|sub-level|crypt|vault|mine|mines|cavern|cell|cage|barracks|abbey|spire|keep|chamber|dungeon|colosseum|tunnel|basement|catacomb|sanctum|gallery|library|workshop|forge|tavern|inn|manor|tower|tomb|sewer|depot)\b/i;
+
+/** True when the player is resting indoors/underground rather than camping outdoors. */
+export function isIndoorRestLocation(location = '') {
+  return INDOOR_REST_RE.test(String(location || ''));
+}
+
 export function restHealAmount(character) {
   const maxHp = character?.stats?.maxHp ?? 10;
-  return Math.ceil(maxHp * REST_HEAL_FRACTION) + (character?.skills?.healing || 0);
+  const inv = (character?.inventory || []).map((i) => String(i).toLowerCase());
+  const bedrollBonus = inv.some((i) => i.includes('bedroll')) ? 2 : 0;
+  const waterskinBonus = inv.some((i) => i.includes('waterskin')) ? 1 : 0;
+  return Math.ceil(maxHp * REST_HEAL_FRACTION) + (character?.skills?.healing || 0) + bedrollBonus + waterskinBonus;
 }
 
 export function hungryRestFatigue(stats = {}) {

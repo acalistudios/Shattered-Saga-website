@@ -631,6 +631,7 @@ export default function useGameState() {
   const [activeAdventureId, setActiveAdventureId] = useState(() => storage.get(`slot_${activeSlotIndex}_active_adventure_id`, null));
   const [safetyState, setSafetyState] = useState(() => storage.get(`slot_${activeSlotIndex}_safety_state`, DEFAULT_SAFETY_STATE));
   const [nextRollModifier, setNextRollModifier] = useState(() => storage.get(`slot_${activeSlotIndex}_next_roll_modifier`, 0));
+  const [sceneFailStreak, setSceneFailStreak] = useState({ room: '', count: 0 });
   const [lastActionParams, setLastActionParams] = useState(null);
   useEffect(() => {
     if (!lastActionParams) return;
@@ -1834,8 +1835,9 @@ export default function useGameState() {
 
     // Calculate encumbrance first
     const encumbrance = calculateWeightAndVolume(character);
+    const FINE_MOTOR_SKILLS = ['lockpicking', 'thievery'];
     const isPhysicalAction = (skillId) => {
-      if (!skillId) return false;
+      if (!skillId || FINE_MOTOR_SKILLS.includes(skillId)) return false;
       const skill = SKILLS_LIST.find(s => s.id === skillId);
       if (!skill) return false;
       return ['power', 'coordination', 'vigor'].includes(skill.primary);
@@ -2022,7 +2024,13 @@ export default function useGameState() {
         const keystoneMods = getKeystoneStatModifiers(character);
         const keystoneSkillBonus = keystoneMods.skillBonuses?.[finalSkillFocusId] || 0;
 
-        const totalRoleplayModifier = totalModifier + companionBonus + campfireBonus + keystoneSkillBonus + studyBonus;
+        // Persistence bonus (+2 per consecutive failed check in the same room, max +6)
+        // so players are never stuck in an endless failure loop on story-critical checks.
+        const persistenceBonus = sceneFailStreak.room === (currentLocation || '')
+          ? Math.min(6, sceneFailStreak.count * 2)
+          : 0;
+
+        const totalRoleplayModifier = totalModifier + companionBonus + campfireBonus + keystoneSkillBonus + studyBonus + persistenceBonus;
 
         rollDetails = executeOpposedCheck({
           skillName: skill.name,
@@ -2037,6 +2045,15 @@ export default function useGameState() {
           potencyModifier,
           bendLuckBonus: isLuckArmed(character) && !luckSpent ? bendLuckBonus(luckRank(character)) : null
         });
+        if (persistenceBonus > 0) {
+          rollDetails.persistenceBonus = persistenceBonus;
+          rollDetails.text += ` [Persistence: +${persistenceBonus} on retry]`;
+        }
+        setSceneFailStreak(
+          rollDetails.isSuccess
+            ? { room: currentLocation || '', count: 0 }
+            : { room: currentLocation || '', count: (sceneFailStreak.room === (currentLocation || '') ? sceneFailStreak.count : 0) + 1 }
+        );
         if (isLuckArmed(character) && !luckSpent) luckSpent = true;
         if (companionAssist) {
           rollDetails.companionName = companionAssist.name;
@@ -2624,12 +2641,19 @@ Encumbrance Status:
 Days Starving: ${character.daysWithoutFood || 0} (Roll Penalty: -${character.daysWithoutFood || 0})
 
 [CAMPAIGN STATE]
-Current Time: ${displayTime}
+Current Time: ${displayTime} (${(character.stats?.hour ?? 13) < 6 ? 'pre-dawn night' : (character.stats?.hour ?? 13) < 12 ? 'morning' : (character.stats?.hour ?? 13) < 17 ? 'afternoon' : (character.stats?.hour ?? 13) < 20 ? 'dusk' : 'night'}) — STRICT CLOCK RULE: your narration MUST match this exact day and time of day; never invent contradictory times or sudden day/night jumps.
 Story So Far: ${journal.storySoFar}
+Active Companions: ${(character.companions || []).length > 0 ? character.companions.map(c => { const id = c?.id || c; const comp = getCompanionById(id); return comp ? `${comp.name} (${comp.role}; skills: ${comp.skills.join(', ')})` : id; }).join('; ') : 'None'}
 Active Quests:
 ${(character.active_quests || []).map(q => `- ${q}`).join('\n')}
 Completed Quests:
 ${(character.completed_quests || []).map(q => `- ${q}`).join('\n')}
+
+GM Pacing & Storytelling Rules:
+- FIRST NPC CONVERSATION: On the player's first conversation with ANY local NPC in the starting area (whether Martha, Vance, or a villager), naturally introduce the current crisis, stakes, and quest hook in-character so the player immediately understands what is happening without asking OOC.
+- ACTIVE COMPANIONS: When the player has an active companion (e.g. Skritt), weave them into scenes—have them scout ahead, warn of traps/ambushes, offer tips, and actively assist in combat or exploration.
+- SUSPENSE & BOSS REVEALS: Build suspense gradually through clues, shadows, and tension. Never reveal a hidden boss's true form or launch the climactic ambush in an early room before the player reaches the climax chamber.
+- SATISFYING EPILOGUE: Before emitting [milestone: adventure_complete] and [ending_selected: ...], write a complete, vivid epilogue (2–3 paragraphs) resolving the rescued NPCs, companions, village/world reaction, and loose threads—never end abruptly.
 
 GM Instructions for automated tags:
 - You never grant rewards: no gold, currency, or items of your own invention. Rewards are predefined and paid by the engine when the adventure completes. Coin found along the way is paid by the engine when a search succeeds; it tells you with [Coin Found: ...] in the player's message.

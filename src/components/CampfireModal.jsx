@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { getCompanionCampfireInfo } from '../data/campfireInterludes';
+import { isIndoorRestLocation } from '../utils/restEngine';
 
 // Hooks must not sit behind the isOpen early return (rules-of-hooks): React
 // would see a different hook count when the modal opens and throw. The body
@@ -10,6 +11,7 @@ export default function CampfireModal({ isOpen, ...props }) {
 
 function CampfireModalBody({
   character,
+  location = '',
   onClose,
   onConfirmRest,
 }) {
@@ -45,30 +47,34 @@ function CampfireModalBody({
     onConfirmRest(selectedDutyCompanionId);
   };
 
-  const hasRations = (character?.inventory || []).some(item =>
-    String(item).toLowerCase().includes('ration')
-  );
+  const invLower = (character?.inventory || []).map(item => String(item).toLowerCase());
+  const hasRations = invLower.some(item => item.includes('ration'));
+  const hasBedroll = invLower.some(item => item.includes('bedroll'));
+  const hasWaterskin = invLower.some(item => item.includes('waterskin'));
+  const isIndoors = isIndoorRestLocation(location);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
       <div className="relative w-full max-w-2xl bg-gradient-to-b from-slate-950 via-slate-900 to-black border border-amber-500/40 rounded-2xl shadow-[0_0_50px_rgba(245,158,11,0.2)] overflow-hidden flex flex-col max-h-[90vh]">
         
-        {/* Campfire Visual Header Banner */}
+        {/* Campfire / Shelter Visual Header Banner */}
         <div className="relative p-5 pb-4 border-b border-amber-500/30 bg-gradient-to-r from-amber-950/60 via-slate-950 to-orange-950/60 flex items-center justify-between">
           <div className="flex items-center gap-3.5">
             <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-500/30 to-orange-600/40 border border-amber-500/60 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(245,158,11,0.4)] animate-pulse">
-              🔥
+              {isIndoors ? '🛏️' : '🔥'}
             </div>
             <div>
               <h2 className="font-serif font-extrabold text-amber-200 text-lg tracking-wide">
-                Campfire Interlude
+                {isIndoors ? 'Shelter & Rest' : 'Campfire Interlude'}
               </h2>
-              <div className="flex items-center gap-2 text-xs text-slate-300 mt-0.5">
-                <span>Setting up camp for an 8-Hour Rest</span>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300 mt-0.5">
+                <span>{isIndoors ? `Resting inside ${location || 'shelter'} (8 Hours)` : 'Setting up camp for an 8-Hour Rest'}</span>
                 <span>•</span>
                 <span className={hasRations ? 'text-emerald-400 font-mono text-[11px]' : 'text-rose-400 font-mono text-[11px]'}>
                   {hasRations ? '🍖 1 Ration will nourish you' : '⚠️ No rations available'}
                 </span>
+                {hasRations && hasBedroll && <span className="text-sky-300 font-mono text-[11px]">• 🛏️ Bedroll (+2 HP)</span>}
+                {hasRations && hasWaterskin && <span className="text-sky-300 font-mono text-[11px]">• 💧 Waterskin (+1 HP)</span>}
               </div>
             </div>
           </div>

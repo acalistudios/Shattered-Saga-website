@@ -186,7 +186,7 @@ const BASE_ADVENTURES_LIST = [
       {
         name: 'Martha',
         role: 'Provisioner',
-        desc: 'Frantic widow whose nephew Oswin is one of the missing children. She desperately warns the player: "Don\'t hike up that hill without speaking to Vance at the forge first! He served the old watch and knows what cold iron can and cannot touch."',
+        desc: 'Frantic widow whose nephew Oswin is one of the missing children. On first meeting, she immediately explains what has happened—three village children vanished toward Ashveil Keep two nights ago, strange whispers drift down from the hill, and the village is terrified—before warning the player: "Don\'t hike up that hill without speaking to Vance at the forge first! He served the old watch and knows what cold iron can and cannot touch."',
         stats: {
           HP: 12,
           attributes: { Power: 1, Coordination: 2, Vigor: 1, Willpower: 3, Intellect: 3, Charisma: 3, Attunement: 1, Empathy: 4 },
@@ -218,7 +218,7 @@ const BASE_ADVENTURES_LIST = [
         name: 'Aldric Voss',
         portrait: { id: 'aldric_voss', room: 'Prison Sub-Level' },
         role: 'Lord Ghost',
-        desc: 'A ghostly knight bound by unfinished duty to contain Malachar. Will shield the sleeping children and hold the line against the demon if shown his Signet Ring and reminded of his sacred oath.',
+        desc: 'A ghostly knight bound by unfinished duty to contain Malachar. His clues and records lie in the Lord\'s Study; his ghost appears ONLY in the Prison Sub-Level guarding the sleeping children (never alongside an early Malachar ambush). Will shield the children and hold the line against the demon if shown his Signet Ring and reminded of his sacred oath.',
         stats: {
           HP: 22,
           attributes: { Power: 4, Coordination: 3, Vigor: 3, Willpower: 5, Intellect: 3, Charisma: 3, Attunement: 3, Empathy: 2 },
@@ -234,16 +234,16 @@ const BASE_ADVENTURES_LIST = [
         name: 'Malachar',
         portrait: { id: 'malachar', room: 'Prison Sub-Level' },
         role: 'Bound Demon',
-        desc: 'A shadow-demon feeding on fear, broken oaths, and the old priest\'s corrupted binding.',
+        desc: 'A shadow-demon feeding on fear, broken oaths, and the old priest\'s corrupted binding. PACING RULE: Malachar MUST remain hidden in the upper rooms (Great Hall, Lord\'s Study, Chapel)—manifesting only as cold drafts, whispers, moving shadows, and ominous clues to build suspense. NEVER reveal his true demonic form or have him attack directly until the hero enters the Prison Sub-Level.',
         stats: {
-          HP: 38,
-          attributes: { Power: 4, Coordination: 5, Vigor: 4, Willpower: 6, Intellect: 4, Charisma: 5, Attunement: 6, Empathy: 1 },
-          skills: { Deception: 4, Intimidation: 4, ArcaneShaping: 3, Stealth: 3, Brawling: 2 },
-          defenses: { dodge: 'Coordination d12 + Vigor d4+1', will: 'Willpower d20 + Empathy d2', arcane: 'Attunement d20 + Intellect d4+1' },
+          HP: 28,
+          attributes: { Power: 3, Coordination: 4, Vigor: 3, Willpower: 5, Intellect: 4, Charisma: 5, Attunement: 5, Empathy: 1 },
+          skills: { Deception: 4, Intimidation: 3, ArcaneShaping: 3, Stealth: 3, Brawling: 2 },
+          defenses: { dodge: 'Coordination d10 + Vigor d4', will: 'Willpower d12 + Empathy d2', arcane: 'Attunement d12 + Intellect d4' },
           armor: 'Incorporeal shadow; ignores mundane physical damage until weakened by the seal, Holy Water, or the prayer scroll.',
           attacks: [
-            { name: 'Shadow Claw', skill: 'Brawling', damage: '1d6 edged', note: 'Can inflict Bleeding Tier 1 only on margin 5+.' },
-            { name: 'Dread Whisper', skill: 'Intimidation', damage: '2 Fatigue', note: 'Opposed by Willpower; failure applies frightened for 1 round.' }
+            { name: 'Shadow Claw', skill: 'Brawling', damage: '1d4 edged', note: 'Never one-shot a healthy level-1 hero; inflicts Bleeding Tier 1 only on margin 5+.' },
+            { name: 'Dread Whisper', skill: 'Intimidation', damage: '1 Fatigue', note: 'Opposed by Willpower; failure applies frightened for 1 round.' }
           ],
           special: 'Counts as monstrous score 6 for Willpower and Attunement resistance. Incorporeal: completely ignores mundane physical weapons. If the player attacks directly with mundane steel, the Chronicler must describe their blade passing harmlessly through icy shadow, deal immediate counter-fatigue, and narrate an urgent clue to use Holy Water, the Binding Prayer Scroll, Vance\'s blessed iron keystone, or Aldric\'s aid. Every 1d2+1 rounds of direct melee combat, Malachar taunts the player: for rounds 2–5, he announces either "You know fighting me is a lost cause, right? Cold iron cannot sever shadow." or "What mortal could hope to prevail against the incorporeal? Yet still you try..."; for round 6 and beyond, he mocks: "The fool keeps trying more of the same! Victory shall be mine!" The Chronicler must then intervene and point out to the player that there may be better ways to defeat Malachar than a direct confrontation (such as using the sacred seal tile, Aldric\'s oath, holy water, or setting Vance\'s blessed iron keystone into the seal). Bargains always carry a morality cost.',
           weaknesses: ['Holy Water', 'Creator\'s Binding Seal Tile', 'Binding Prayer Scroll', 'Aldric\'s restored oath.', 'Vance\'s Blessed Iron Keystone']
@@ -273,6 +273,14 @@ const BASE_ADVENTURES_LIST = [
       { name: 'Vance\'s Blessed Iron Keystone', desc: 'A heavy iron keystone stamped with holy smithing runes from Vance\'s forge, cut to replace the cracked keystone of the prison seal.', properties: 'Grants +2 to Athletics or Two-Handed Weapons checks made to set, brace, or hammer the keystone into the cracked prison seal in the Prison Sub-Level. It is on loan from Vance: when it is set into the seal, or handed back to Vance, emit [remove_item: Vance\'s Blessed Iron Keystone].' }
     ],
     settings: ['Ashveil Village Square', 'Yew Graveyard', 'Great Hall', 'Lord\'s Study', 'Chapel', 'Prison Sub-Level'],
+    settingConnections: {
+      'Ashveil Village Square': ['Yew Graveyard'],
+      'Yew Graveyard': ['Ashveil Village Square', 'Great Hall'],
+      'Great Hall': ['Yew Graveyard', 'Lord\'s Study', 'Chapel', 'Prison Sub-Level'],
+      'Lord\'s Study': ['Great Hall', 'Chapel'],
+      'Chapel': ['Great Hall', 'Lord\'s Study', 'Prison Sub-Level'],
+      'Prison Sub-Level': ['Great Hall', 'Chapel'],
+    },
     settingDescriptions: {
       'Ashveil Village Square': 'A shuttered village square of muddy lanes, locked doors, and watchful curtains. Martha begs for Oswin\'s return while Vance mutters about old Voss sins from the forge. Negotiation, Insight, or Intimidation can gather rumors about the keep, the goblins, and the two-day time pressure before the haunting worsens.',
       'Yew Graveyard': 'Ancient yews lean over cracked Voss tombs, their roots prying open old stone. A half-hidden grave passage offers an alternate entry, but restless dead and whispered prayers test Perception, Tracking, Lore, or Divine Communion.',

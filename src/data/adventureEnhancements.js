@@ -74,34 +74,34 @@ const BASE_ADVENTURE_SETTING_METADATA = {
   "ashveil_keep": {
     settingChoices: {
       "Ashveil Village Square": [
-        { text: "Ask Martha where Oswin and the other children were last seen", skill: "insight", difficulty: "novice", intent: "social" },
-        { text: "Ask Vance what he knows about the keep and its old defenses", skill: "negotiation", difficulty: "professional", intent: "social" },
-        { text: "Look for the children's tracks on the hill road toward the graveyard", skill: "tracking", difficulty: "professional", intent: "investigate" },
+        { id: "av_martha", text: "Speak with Martha about the missing children", skill: "insight", difficulty: "novice", intent: "social" },
+        { id: "av_vance", text: "Talk to Vance at the forge about the hill and old defenses", skill: "negotiation", difficulty: "professional", intent: "social" },
+        { id: "av_tracks", text: "Search the muddy hill road toward the graveyard for fresh tracks", skill: "tracking", difficulty: "professional", intent: "investigate" },
       ],
       "Yew Graveyard": [
-        { text: "Search among the mossy tombs for the hidden crypt tunnel into the keep", skill: "perception", difficulty: "novice", intent: "investigate" },
-        { text: "Track the children's footprints in the damp earth past the ancient yews", skill: "tracking", difficulty: "novice", intent: "investigate" },
-        { text: "Say a blessing over the disturbed graves to calm restless spirits", skill: "divine_communion", difficulty: "professional", intent: "magic" },
+        { id: "yg_tombs", text: "Search among the mossy tombs for a way toward the keep", skill: "perception", difficulty: "novice", intent: "investigate" },
+        { id: "yg_tracks", text: "Follow footprints in the damp earth past the ancient yews", skill: "tracking", difficulty: "novice", intent: "investigate" },
+        { id: "yg_bless", text: "Offer a quiet blessing over the disturbed graves", skill: "divine_communion", difficulty: "professional", intent: "magic" },
       ],
       "Great Hall": [
-        { text: "Use shattered banquet tables and shadows for cover to bypass the goblins", skill: "stealth", difficulty: "novice", intent: "stealth" },
-        { text: "Offer rations and safe passage to soothe Skritt's panic and win him over as an ally [recruit_companion: skritt_goblin]", skill: "negotiation", difficulty: "novice", intent: "social" },
-        { text: "Read the crumbling hall structure for weak stones or alternative passages", skill: "survival", difficulty: "professional", intent: "investigate" },
+        { id: "gh_stealth", excludes: ["gh_parley"], text: "Slip through the shattered tables and shadows past the goblins", skill: "stealth", difficulty: "novice", intent: "stealth" },
+        { id: "gh_parley", excludes: ["gh_stealth"], text: "Offer rations and safe passage to calm the panicked goblin [recruit_companion: skritt_goblin]", skill: "negotiation", difficulty: "novice", intent: "social" },
+        { id: "gh_inspect", text: "Examine the crumbling stonework for side passages or hazards", skill: "survival", difficulty: "professional", intent: "investigate" },
       ],
       "Lord's Study": [
-        { text: "Pick open the locked desk drawer to search for Lord Aldric's Signet Ring", skill: "lockpicking", difficulty: "professional", intent: "utility" },
-        { text: "Decipher the cult journals to discover Malachar's true origin and weaknesses", skill: "lore", difficulty: "novice", intent: "investigate" },
-        { text: "Search the room carefully for secret wall compartments behind the tapestries", skill: "perception", difficulty: "novice", intent: "investigate" },
+        { id: "ls_desk", text: "Pick open the locked drawer of the heavy writing desk", skill: "lockpicking", difficulty: "professional", intent: "utility" },
+        { id: "ls_records", text: "Study the ciphered journals and ledgers on the shelves", skill: "lore", difficulty: "novice", intent: "investigate" },
+        { id: "ls_search", text: "Search behind the faded tapestries and rusted armor stands", skill: "perception", difficulty: "novice", intent: "investigate" },
       ],
       "Chapel": [
-        { text: "Search the altar for vials of Holy Water and the Binding Prayer Scroll", skill: "perception", difficulty: "novice", intent: "investigate" },
-        { text: "Offer a respectful prayer to consecrate your spirit against shadow whispers", skill: "divine_communion", difficulty: "novice", intent: "magic" },
-        { text: "Examine the holy carvings to learn how the original seal was anchored", skill: "lore", difficulty: "professional", intent: "investigate" },
+        { id: "ch_altar", text: "Search the cracked altar and vestry alcoves for anything intact", skill: "perception", difficulty: "novice", intent: "investigate" },
+        { id: "ch_pray", text: "Offer a quiet prayer to steady your spirit against the chill", skill: "divine_communion", difficulty: "novice", intent: "magic" },
+        { id: "ch_carvings", text: "Examine the weathered stone carvings along the nave", skill: "lore", difficulty: "professional", intent: "investigate" },
       ],
       "Prison Sub-Level": [
-        { text: "Invoke Lord Aldric's sacred oath with his Signet Ring to shield the children", skill: "leadership", difficulty: "novice", intent: "social" },
-        { text: "Set Vance's blessed iron keystone into the fracturing seal to anchor the binding", skill: "athletics", difficulty: "novice", intent: "utility" },
-        { text: "Channel the Binding Prayer Scroll and Seal Tile to re-bind Malachar into the floor", skill: "divine_communion", difficulty: "professional", intent: "magic" },
+        { id: "ps_appeal", text: "Call out to the spectral figure guarding the chalk circles", skill: "leadership", difficulty: "novice", intent: "social" },
+        { id: "ps_anchor", text: "Brace and reinforce the cracked stonework around the floor seal", skill: "athletics", difficulty: "novice", intent: "utility" },
+        { id: "ps_ritual", text: "Focus your will and sacred wards to reinforce the binding", skill: "divine_communion", difficulty: "professional", intent: "magic" },
       ],
     },
     settingImages: {
