@@ -137,16 +137,19 @@ export async function listCloudSlots() {
 }
 
 /** Push one slot to the cloud. Returns true on success. */
-export async function pushSlot(slotIndex) {
+export async function pushSlot(slotIndex, { force = false } = {}) {
   if (!canSync()) return false;
   const data = collectSlot(slotIndex);
   if (!data.character?.name) return false; // nothing worth syncing yet
+  const lastSynced = Number(storage.get(`slot_${slotIndex}_cloud_synced_at`) || 0);
+  const payload = { data, charName: data.character.name };
+  if (!force && lastSynced > 0) payload.expectedUpdatedAt = lastSynced;
   try {
     const res = await fetch(`${API_URL}/api/saves/${slotIndex}`, {
       method: 'PUT',
       headers: authHeaders(),
       credentials: 'include',
-      body: JSON.stringify({ data, charName: data.character.name }),
+      body: JSON.stringify(payload),
     });
     if (res.ok) {
       // Record the server's timestamp for this upload, so the next sign-in
@@ -155,6 +158,8 @@ export async function pushSlot(slotIndex) {
       storage.set(`slot_${slotIndex}_cloud_synced_at`, d.updatedAt || Date.now());
       return true;
     }
+    // 409 Conflict means another device pushed a newer save: leave cloud_synced_at
+    // untouched so the next reconciliation prompts instead of clobbering it.
     return false;
   } catch {
     return false;
