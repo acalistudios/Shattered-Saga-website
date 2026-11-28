@@ -969,13 +969,13 @@ export default function Splash({
 
                 {emailVerifiedNotice && (
                   <p className="text-3xs font-bold text-emerald-400 bg-emerald-950/30 border border-emerald-800/40 rounded px-3 py-2 text-left">
-                    ✓ Email verified. Your 80 bonus turns have been added.
+                    ✓ Email verified. Your 30 bonus turns have been added.
                   </p>
                 )}
                 {userProfile?.email_verified === false && !emailVerifiedNotice && (
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 bg-amber-950/30 border border-amber-800/40 rounded px-3 py-2 text-left">
                     <p className="text-3xs text-amber-200 flex-1">
-                      Verify your email to unlock <strong>80 more free turns</strong>. Check your inbox for the link from Shattered Saga.
+                      Verify your email to unlock <strong>30 more free turns</strong>. Check your inbox for the link from Shattered Saga.
                     </p>
                     <button
                       type="button"
