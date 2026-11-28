@@ -3,7 +3,7 @@ import AdSlot from '../components/AdSlot';
 import TradeModal from '../components/TradeModal';
 import GmPickerModal from '../components/GmPicker';
 import { describeGear, getDualWield, getDualWieldPenalty, FIGHTING_STYLES } from '../data/gearStats';
-import { merchantsAtLocation } from '../utils/adventureTrade';
+import { metMerchantsAtLocation } from '../utils/adventureTrade';
 import { vendorPortraits } from '../utils/artMoments';
 import { isMentalAttack } from '../utils/enemyDefense';
 import CombatStatsPanel from '../components/CombatStatsPanel';
@@ -169,7 +169,6 @@ export default function PlayScreen({
   warningMessage,
   isUpgradeScreenVisible,
   onSendAction,
-  onTriggerVisualize,
   onResetGame,
   onOpenSettings,
   executeMilestoneUpgrades,
@@ -281,8 +280,9 @@ export default function PlayScreen({
     }
   }, [skillFocus, character.skills]);
   
-  const [isJournalOpen, setIsJournalOpen] = useState(true);
-  const [isStatsOpen, setIsStatsOpen] = useState(false);
+  const isWideDesktop = typeof window !== 'undefined' ? window.innerWidth >= 1280 : isDesktopLayout;
+  const [isJournalOpen, setIsJournalOpen] = useState(isWideDesktop);
+  const [isStatsOpen, setIsStatsOpen] = useState(isWideDesktop);
   const [isEquipmentOpen, setIsEquipmentOpen] = useState(false);
   const [activeItemMenu, setActiveItemMenu] = useState(null);
   const [isCurrencyOpen, setIsCurrencyOpen] = useState(false);
@@ -294,6 +294,7 @@ export default function PlayScreen({
   const [isChronicleOpen, setIsChronicleOpen] = useState(true);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const chatEndRef = useRef(null);
+  const narrativePanelRef = useRef(null);
   const inputRef = useRef(null);
   const statsDetailsRef = useRef(null);
   const focusedAdventureRef = useRef(null);
@@ -340,10 +341,13 @@ export default function PlayScreen({
     reader.readAsDataURL(file);
   };
 
-  // Auto-scroll chat to bottom
+  // Auto-scroll chat to bottom and bring narration back into view on mobile
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [history, isLoading]);
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    if (!isDesktopLayout && history.length > 0 && narrativePanelRef.current) {
+      narrativePanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [history, isLoading, isDesktopLayout]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -390,17 +394,7 @@ export default function PlayScreen({
     downloadAnchor.remove();
   };
 
-  const handleVisualizeClick = () => {
-    const lastNarrative = [...history]
-      .reverse()
-      .find((h) => h.role === 'model' && !h.isManualImage);
-
-    if (!lastNarrative) return;
-    
-    const textSnippet = lastNarrative.content.substring(0, 120);
-    const customPrompt = `${textSnippet}, high fantasy digital art, epic scales, highly detailed`;
-    onTriggerVisualize(customPrompt);
-  };
+  // Legacy manual visualization (pollinations.ai) retired in favor of curated artwork.
 
   // A7: the Starfall Bowstring goes on one bow for good, so confirm the choice.
   const handleInstallBowstring = () => {
@@ -547,10 +541,13 @@ export default function PlayScreen({
       })
     : [];
   const activeRoomImage = activeRoom ? activeAdventure?.settingImages?.[activeRoom] : null;
-  // Merchants in this room can be traded with directly (utils/adventureTrade.js).
-  const merchantsHere = activeAdventureId ? merchantsAtLocation(activeAdventureId, activeRoom) : [];
-  // Vendors' portraits stay visible for as long as the player is in their room.
-  const vendorsHere = activeAdventureId ? vendorPortraits(activeAdventureId, activeRoom) : [];
+  // Merchants in this room unlock for trade once the player visits or speaks with them.
+  const merchantsHere = activeAdventureId ? metMerchantsAtLocation(character, activeAdventureId, activeRoom) : [];
+  const metMerchantNames = new Set(merchantsHere.map((m) => m.name.toLowerCase()));
+  // Vendors' portraits stay visible for as long as the player is in their room (once met).
+  const vendorsHere = activeAdventureId
+    ? vendorPortraits(activeAdventureId, activeRoom).filter((v) => metMerchantNames.has(v.name.toLowerCase()))
+    : [];
   const [isTradeOpen, setIsTradeOpen] = useState(false);
   const getSkillLabel = (skillId) => (
     SKILLS_LIST.find((skill) => skill.id === skillId)?.name || skillId.replace(/_/g, ' ')
@@ -576,10 +573,10 @@ export default function PlayScreen({
       
       {/* ----------------- LEFT SIDEBAR (GM & V4 Stats) ----------------- */}
       <div className={`
-        inset-y-0 left-0 z-35 w-76 border-r border-slate-900 p-4 flex flex-col justify-between transition-transform duration-300
-        ${isDesktopLayout 
-          ? 'relative w-68 lg:w-76 bg-slate-900/40 translate-x-0' 
-          : `absolute bg-slate-900/95 ${isStatsOpen ? 'translate-x-0' : '-translate-x-full'}`
+        inset-y-0 left-0 z-35 border-r border-slate-900 flex flex-col justify-between transition-all duration-300
+        ${isDesktopLayout
+          ? (isStatsOpen ? 'relative w-68 lg:w-76 p-4 bg-slate-900/40 translate-x-0' : 'hidden')
+          : `absolute w-76 p-4 bg-slate-900/95 ${isStatsOpen ? 'translate-x-0' : '-translate-x-full'}`
         }
       `}>
         <div className="space-y-6 flex-1 overflow-y-auto custom-scrollbar pr-1 pb-4">
@@ -1583,11 +1580,17 @@ export default function PlayScreen({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsStatsOpen(!isStatsOpen)}
-              className={`p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-400 hover:text-amber-400 cursor-pointer mr-1 ${isDesktopLayout ? 'hidden' : ''}`}
+              title={isStatsOpen ? 'Hide character sheet sidebar' : 'Show character sheet sidebar'}
+              className={`p-1.5 rounded border cursor-pointer mr-1 transition-all flex items-center gap-1 text-xs font-semibold ${
+                isStatsOpen
+                  ? 'bg-amber-500/10 border-amber-500/55 text-amber-400'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-amber-400'
+              }`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
+              <span className="hidden sm:inline">Hero</span>
             </button>
             <h2 className="font-bold text-sm text-amber-400 tracking-wider flex items-center gap-2">
               <span>{character.setting.toUpperCase()} CHRONICLES</span>
@@ -1716,7 +1719,7 @@ export default function PlayScreen({
         </div>
 
         {/* Narrative Output area */}
-        <div data-testid="narrative-panel" className={`overflow-y-auto p-4 space-y-5 custom-scrollbar bg-slate-950/60 ${isDesktopLayout ? 'flex-1 min-h-48' : 'shrink-0 h-96'}`}>
+        <div ref={narrativePanelRef} data-testid="narrative-panel" className={`overflow-y-auto p-4 space-y-5 custom-scrollbar bg-slate-950/60 ${isDesktopLayout ? 'flex-1 min-h-48' : 'shrink-0 h-96'}`}>
           
           {history.length === 0 && (
             <div className="rounded border border-amber-500/10 bg-slate-900/30 p-5 text-center">
@@ -1780,16 +1783,16 @@ export default function PlayScreen({
                         </figure>
                       ))}
 
-                      {turn.imageUrl && (
+                      {turn.imageUrl && !String(turn.imageUrl).includes('pollinations.ai') && (
                         <div className="mt-4 rounded-lg overflow-hidden border border-slate-800 bg-slate-950 shadow-md">
                           <img
                             src={turn.imageUrl}
-                            alt={turn.imagePrompt}
+                            alt={turn.imageTitle || activeAdventure?.name || 'Scene'}
                             className="w-full h-auto max-h-80 object-cover object-center"
                             loading="lazy"
                           />
-                          <div className="bg-slate-900/60 p-2 text-4xs italic text-slate-400 text-center border-t border-slate-900">
-                            "Visualized: {turn.imagePrompt}"
+                          <div className="bg-slate-900/60 p-2 text-4xs uppercase tracking-widest text-amber-200/80 text-center border-t border-slate-900">
+                            {turn.imageTitle || activeAdventure?.name || 'Scene'}
                           </div>
                         </div>
                       )}
@@ -2482,27 +2485,14 @@ export default function PlayScreen({
                 type="button"
                 onClick={() => setInputMode('act')}
                 className={`px-2.5 py-1 rounded text-3xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
-                  inputMode === 'act'
+                  inputMode !== 'ooc'
                     ? 'bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/20'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                 }`}
-                title="Narrative action in the world"
+                title="Act or speak in character (put dialogue in quotes if you like)"
               >
                 <span>🎭</span>
-                <span>Act</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setInputMode('say')}
-                className={`px-2.5 py-1 rounded text-3xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
-                  inputMode === 'say'
-                    ? 'bg-sky-500 text-slate-950 shadow-sm shadow-sky-500/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                }`}
-                title="Dialogue (automatically enclosed in quotation marks)"
-              >
-                <span>💬</span>
-                <span>Say</span>
+                <span>Act / Say</span>
               </button>
               <button
                 type="button"
@@ -2546,13 +2536,11 @@ export default function PlayScreen({
               onChange={(e) => setInputText(e.target.value)}
               disabled={isLoading}
               placeholder={
-                inputMode === 'say'
-                  ? `What does ${character.name} say in dialogue? (automatically wrapped in quotes)`
-                  : inputMode === 'ooc'
+                inputMode === 'ooc'
                   ? `Ask the GM an out-of-character question or clarification [OOC]...`
                   : skillFocus
                   ? `State how you attempt your ${SKILLS_LIST.find(s=>s.id===skillFocus)?.name}...`
-                  : `State your character's action, ${character.name}...`
+                  : `Act or speak ("in quotes") as ${character.name}...`
               }
               className="flex-1 px-4 py-2.5 bg-slate-900 border border-slate-800/80 rounded focus:outline-none focus:border-amber-500 text-sm font-medium text-slate-200 placeholder-slate-500 disabled:opacity-40 transition-opacity"
             />
@@ -2567,18 +2555,6 @@ export default function PlayScreen({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
               </svg>
             </button>
-          </div>
-
-          <div className="flex justify-between items-center text-3xs text-slate-550 px-1 mt-1 font-medium">
-            <button
-              type="button"
-              onClick={handleVisualizeClick}
-              disabled={isLoading || history.length === 0}
-              className="text-slate-450 hover:text-amber-400 hover:underline cursor-pointer disabled:opacity-40 disabled:hover:text-slate-450 disabled:no-underline flex items-center gap-1"
-            >
-              ✨ <span>Visualize Current Scene {settings.engineTier === 'premium' ? `(-${activeGm.id === 'titan' ? '2K' : '10K'} Power)` : ''}</span>
-            </button>
-            <span>*Opposed rolls are rolled client-side instantly and appended to inputs.</span>
           </div>
 
         </form>

@@ -950,20 +950,50 @@ export default function CharacterCreation({
         </div>
 
         {/* Submit */}
-        <div className="border-t border-slate-900 pt-6 flex justify-end">
-          <button
-            type="submit"
-            disabled={
-              !name.trim() ||
-              attributePointsRemaining !== 0 ||
-              professionSlotsRemaining !== 0 ||
-              hobbyPointsRemaining !== 0
-            }
-            className={`px-8 py-3 rounded text-xs font-bold bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 disabled:opacity-40 disabled:cursor-not-allowed uppercase tracking-widest hover:brightness-110 cursor-pointer shadow-lg hover:shadow-amber-500/10 active:scale-98 transition-all ${isDesktopLayout ? 'w-auto' : 'w-full'}`}
-          >
-            Awaken the Chronicle
-          </button>
-        </div>
+        {(() => {
+          const missing = [];
+          if (!name.trim()) missing.push('Enter a character name');
+          if (attributePointsRemaining > 0) missing.push(`Spend ${attributePointsRemaining} remaining attribute point${attributePointsRemaining === 1 ? '' : 's'}`);
+          else if (attributePointsRemaining < 0) missing.push(`Remove ${Math.abs(attributePointsRemaining)} excess attribute point${Math.abs(attributePointsRemaining) === 1 ? '' : 's'}`);
+          if (professionSlotsRemaining > 0) missing.push(`Choose ${professionSlotsRemaining} more profession${professionSlotsRemaining === 1 ? '' : 's'}`);
+          else if (professionSlotsRemaining < 0) missing.push(`Remove ${Math.abs(professionSlotsRemaining)} excess profession${Math.abs(professionSlotsRemaining) === 1 ? '' : 's'}`);
+          if (hobbyPointsRemaining > 0) missing.push(`Spend ${hobbyPointsRemaining} remaining hobby skill point${hobbyPointsRemaining === 1 ? '' : 's'}`);
+          else if (hobbyPointsRemaining < 0) missing.push(`Remove ${Math.abs(hobbyPointsRemaining)} excess hobby skill point${Math.abs(hobbyPointsRemaining) === 1 ? '' : 's'}`);
+          const isBlocked = missing.length > 0;
+
+          return (
+            <div className="border-t border-slate-900 pt-6 pb-12 flex flex-col items-end gap-2">
+              <div className={`relative group ${isDesktopLayout ? 'w-auto' : 'w-full'}`}>
+                {isBlocked && (
+                  <div
+                    role="tooltip"
+                    className="pointer-events-none opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 absolute bottom-full right-0 mb-2 w-72 max-w-[85vw] rounded-lg border border-amber-500/40 bg-slate-950/95 p-3 shadow-2xl z-30 text-left"
+                  >
+                    <p className="text-3xs font-bold uppercase tracking-wider text-amber-400 mb-1.5">
+                      Before you can start:
+                    </p>
+                    <ul className="list-disc pl-4 space-y-1 text-2xs text-slate-200">
+                      {missing.map((item) => <li key={item}>{item}</li>)}
+                    </ul>
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  disabled={isBlocked}
+                  title={isBlocked ? `Missing: ${missing.join('; ')}` : 'Begin your adventure'}
+                  className={`px-8 py-3 rounded text-xs font-bold bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 disabled:opacity-40 disabled:cursor-not-allowed uppercase tracking-widest hover:brightness-110 cursor-pointer shadow-lg hover:shadow-amber-500/10 active:scale-98 transition-all ${isDesktopLayout ? 'w-auto' : 'w-full'}`}
+                >
+                  Start your Saga
+                </button>
+              </div>
+              {isBlocked && (
+                <p className="text-3xs text-amber-400/90 text-right">
+                  Still needed: {missing.join(' · ')}
+                </p>
+              )}
+            </div>
+          );
+        })()}
 
       </form>
 

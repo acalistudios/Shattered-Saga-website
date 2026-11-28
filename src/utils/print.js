@@ -782,11 +782,11 @@ export function printAdventureLog(character, history) {
         </div>
       `;
     } else {
-      const imgHtml = turn.imageUrl 
+      const imgHtml = turn.imageUrl && !String(turn.imageUrl).includes('pollinations.ai')
         ? `
           <div class="turn-image-container">
-            <img src="${turn.imageUrl}" class="turn-image" alt="Scene Visualization" />
-            <div class="image-caption">Visualized: ${turn.imagePrompt || ''}</div>
+            <img src="${turn.imageUrl}" class="turn-image" alt="${turn.imageTitle || 'Scene'}" />
+            <div class="image-caption">${turn.imageTitle || 'Scene'}</div>
           </div>
         ` 
         : '';

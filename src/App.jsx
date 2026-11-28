@@ -629,6 +629,17 @@ function App() {
   };
 
   const handleCreateInSlot = (slotIndex) => {
+    // Sign in before creating a character when the backend is live so cloud
+    // slots load first and the new hero doesn't collide with an existing slot.
+    if (isBackendConfigured && !isLoggedIn && !settings.sandboxMode) {
+      setPrevScreen('splash');
+      setAccountInitialSection('signin');
+      setAccountNotice('Sign in or create an account before creating a new character so your hero syncs without save conflicts.');
+      storage.set('account_return_screen', 'splash');
+      storage.set('account_return_section', 'signin');
+      setScreen('account');
+      return;
+    }
     const keysToWipe = [
       'character', 'active_gm_id', 'gm_energies', 'history',
       'journal', 'handoff_state', 'skill_tally', 'active_adventure_id',

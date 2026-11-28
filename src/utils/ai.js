@@ -579,11 +579,10 @@ async function executeRawCompletion({
 }
 
 /**
- * Gets Pollinations AI image URL.
+ * Legacy Pollinations AI URL helper — retired in favor of curated artwork.
  */
-export function getImageUrl(prompt) {
-  const cleanPrompt = encodeURIComponent(prompt.trim());
-  return `https://image.pollinations.ai/prompt/${cleanPrompt}?width=600&height=400&nologo=true`;
+export function getImageUrl() {
+  return null;
 }
 
 /**

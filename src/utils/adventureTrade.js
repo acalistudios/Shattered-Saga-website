@@ -34,6 +34,29 @@ export function merchantsAtLocation(adventureId, location) {
   return getAdventureMerchants(adventureId).filter((m) => norm(m.location) === here);
 }
 
+/** Merchants in this room that the player has actually visited/spoken with. */
+export function metMerchantsAtLocation(character, adventureId, location) {
+  const here = merchantsAtLocation(adventureId, location);
+  if (!here.length) return [];
+  const met = new Set((character?.progression?.metMerchants?.[adventureId] || []).map(norm));
+  const traded = new Set(Object.keys(tradeLog(character, adventureId)).map(norm));
+  return here.filter((m) => met.has(norm(m.name)) || traded.has(norm(m.name)));
+}
+
+/** Detect which merchants in the current room were visited/addressed in text. */
+export function detectMentionedMerchants(adventureId, location, text) {
+  const here = merchantsAtLocation(adventureId, location);
+  if (!here.length || !text) return [];
+  const hay = norm(text);
+  return here
+    .filter((m) => {
+      const full = norm(m.name);
+      const first = full.split(/\s+/)[0];
+      return hay.includes(full) || (first.length >= 4 && new RegExp(`\\b${first.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(hay));
+    })
+    .map((m) => m.name);
+}
+
 const tradeLog = (character, adventureId) => character?.progression?.adventureTrades?.[adventureId] || {};
 
 /**

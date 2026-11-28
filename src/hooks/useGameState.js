@@ -59,7 +59,7 @@ import { getCoating, coatingDamage, getScroll, isThrowOnly, isMajorPotion, MAJOR
 import { forgeBlocker, forgePlateArmor, PLATE_RECIPE } from '../utils/forging';
 import { cannotAttack, conditionMods, conditionText, addCondition, normalizeCondition, tickEnemyConditions, resolveCinderbreath, CINDERBREATH_BURN_ROUNDS, CONDITIONS, MAX_GM_DURATION, resolveTideMend, stoneMantleRounds } from '../utils/conditions';
 import { claimSearchFind, applySearchFind, formatCoin, TREASURE_FINDS_PER_ADVENTURE } from '../data/payouts';
-import { merchantsAtLocation, buyFromMerchant, sellToMerchant, recordHaggle, haggleToday, merchantOffer, undoTrade } from '../utils/adventureTrade';
+import { merchantsAtLocation, detectMentionedMerchants, buyFromMerchant, sellToMerchant, recordHaggle, haggleToday, merchantOffer, undoTrade } from '../utils/adventureTrade';
 import { recordDiscoveries, resolveLoanRemovals, returnLoan, settleLoansOnLeave, settleMissingLoans, getLoan } from '../utils/discoveries';
 import {
   PATROL_FOES, patrolGearRecovery, isPatrolId, patrolEncounterIdOf, patrolIdFor, beginPatrol, markPatrolFought,
@@ -1307,11 +1307,6 @@ export default function useGameState() {
       };
     });
   }, []);
-
-  const deductImageCost = useCallback((gmId) => {
-    const tokenCost = gmId === 'titan' ? 2000 : 10000;
-    deductEnergy(gmId, tokenCost);
-  }, [deductEnergy]);
 
   const generateJournalSummary = async (newHistory, engineTier, apiKey, sandbox) => {
     try {
@@ -3728,24 +3723,42 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
         });
       }
 
-      // Parse image tags out of the response text
+      // Strip legacy [image: ...] tags cleanly without calling pollinations.ai;
+      // curated room and story paintings (artMoments) handle all in-game art.
       const imageTagRegex = /\[image:\s*([^\]]+)\]/i;
-      const match = cleanedText.match(imageTagRegex);
-      
-      let imagePrompt = null;
-      let imageUrl = null;
-
-      if (match) {
-        imagePrompt = match[1].trim();
+      if (imageTagRegex.test(cleanedText)) {
         cleanedText = cleanedText.replace(imageTagRegex, '').trim();
-        imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=600&height=400&nologo=true`;
+      }
+
+      // Unlock trading with merchants in the current room once the player
+      // actually visits or speaks with them (not immediately on room spawn).
+      if (activeAdventureId) {
+        const roomNow = newLocation || currentLocation || getAdventureById(activeAdventureId)?.settings?.[0] || '';
+        const mentioned = detectMentionedMerchants(activeAdventureId, roomNow, `${actionText}\n${cleanedText}`);
+        if (mentioned.length > 0) {
+          setCharacter(prev => {
+            const existing = prev.progression?.metMerchants?.[activeAdventureId] || [];
+            const next = [...new Set([...existing, ...mentioned])];
+            if (next.length === existing.length) return prev;
+            return {
+              ...prev,
+              progression: {
+                ...(prev.progression || DEFAULT_PROGRESSION),
+                metMerchants: {
+                  ...(prev.progression?.metMerchants || {}),
+                  [activeAdventureId]: next,
+                },
+              },
+            };
+          });
+        }
       }
 
       const assistantMsg = {
         role: 'model',
         content: cleanedText,
-        imagePrompt,
-        imageUrl,
+        imagePrompt: null,
+        imageUrl: null,
         checkDetails: rollDetails
       };
 
@@ -3815,25 +3828,9 @@ Ensure all tags are formatted exactly as shown. Always describe the narrative ev
     setApiError(null);
   };
 
-  // Trigger manual scene visualization (costs 10,000 / 2,000 tokens)
-  const triggerManualVisualization = (customPrompt, engineTier = 'free') => {
-    if (engineTier === 'premium' && (!activeGmId || isGmDepleted(activeGmId, engineTier))) return;
-
-    const imgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(customPrompt)}?width=600&height=400&nologo=true`;
-    const assistantMsg = {
-      role: 'model',
-      content: `*A magical image materializes in your mind, capturing the essence of the scene:*`,
-      imagePrompt: customPrompt,
-      imageUrl: imgUrl,
-      isManualImage: true
-    };
-
-    setHistory(prev => [...prev, assistantMsg]);
-    
-    if (engineTier === 'premium') {
-      deductImageCost(activeGmId);
-    }
-  };
+  // Legacy manual visualization retired (pollinations.ai removed in favor of
+  // curated artwork in artManifest.json). Kept as a safe no-op for callers.
+  const triggerManualVisualization = () => {};
 
   // Execute engine-authored rewards on adventure milestone completion.
   const executeMilestoneUpgrades = () => {
